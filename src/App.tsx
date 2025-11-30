@@ -12,6 +12,7 @@ import TeacherDashboard from "./pages/TeacherDashboard";
 import ParentDashboard from "./pages/ParentDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
 import Students from "./pages/admin/Students";
+import Settings from "./pages/Settings";
 import Teachers from "./pages/admin/Teachers";
 import Classes from "./pages/admin/Classes";
 import Fees from "./pages/admin/Fees";
@@ -147,6 +148,13 @@ const App = () => (
                 <Schedule />
               </ProtectedRoute>
             } />
+            
+            <Route path="/settings" element={
+              <ProtectedRoute allowedRoles={["admin", "teacher", "parent", "student"]}>
+                <Settings />
+              </ProtectedRoute>
+            } />
+            
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -5,8 +5,126 @@ import { Input } from "@/components/ui/input";
 import { Plus, Search, Filter } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect } from "react";
+
+const studentSchema = z.object({
+  admission_no: z.string().min(1, "Admission number is required"),
+  email: z.string().email("Invalid email address"),
+  full_name: z.string().min(1, "Full name is required"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  date_of_birth: z.string().min(1, "Date of birth is required"),
+  gender: z.enum(["male", "female", "other"]),
+  class_id: z.string().min(1, "Class is required"),
+  guardian_email: z.string().email("Invalid guardian email"),
+});
+
+type StudentFormData = z.infer<typeof studentSchema>;
 
 const Students = () => {
+  const [open, setOpen] = useState(false);
+  const [students, setStudents] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
+  const { toast } = useToast();
+  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<StudentFormData>({
+    resolver: zodResolver(studentSchema),
+  });
+
+  useEffect(() => {
+    fetchStudents();
+    fetchClasses();
+  }, []);
+
+  const fetchStudents = async () => {
+    const { data, error } = await supabase
+      .from("students")
+      .select(`
+        *,
+        classes(name),
+        profiles(full_name, email)
+      `);
+    
+    if (!error && data) {
+      setStudents(data);
+    }
+  };
+
+  const fetchClasses = async () => {
+    const { data, error } = await supabase
+      .from("classes")
+      .select("*");
+    
+    if (!error && data) {
+      setClasses(data);
+    }
+  };
+
+  const onSubmit = async (data: StudentFormData) => {
+    try {
+      // Create user account
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: {
+            full_name: data.full_name,
+            role: 'student',
+          },
+        },
+      });
+
+      if (authError) throw authError;
+
+      // Find or create parent
+      const { data: parentData } = await supabase
+        .from("profiles")
+        .select("id, parents(id)")
+        .eq("email", data.guardian_email)
+        .single();
+
+      let guardianId = null;
+      if (parentData?.parents && Array.isArray(parentData.parents) && parentData.parents.length > 0) {
+        guardianId = (parentData.parents[0] as any).id;
+      }
+
+      // Create student record
+      const { error: studentError } = await supabase
+        .from("students")
+        .insert({
+          user_id: authData.user?.id,
+          admission_no: data.admission_no,
+          date_of_birth: data.date_of_birth,
+          gender: data.gender,
+          class_id: data.class_id,
+          guardian_id: guardianId,
+        });
+
+      if (studentError) throw studentError;
+
+      toast({
+        title: "Success",
+        description: "Student added successfully",
+      });
+
+      setOpen(false);
+      reset();
+      fetchStudents();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <DashboardLayout role="admin">
       <div className="space-y-6">
@@ -15,10 +133,86 @@ const Students = () => {
             <h2 className="text-3xl font-bold tracking-tight">Students</h2>
             <p className="text-muted-foreground">Manage student records and enrollments</p>
           </div>
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Student
-          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add Student
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Add New Student</DialogTitle>
+                <DialogDescription>Enter student information to create a new account</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="admission_no">Admission Number</Label>
+                    <Input id="admission_no" {...register("admission_no")} />
+                    {errors.admission_no && <p className="text-sm text-destructive">{errors.admission_no.message}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="full_name">Full Name</Label>
+                    <Input id="full_name" {...register("full_name")} />
+                    {errors.full_name && <p className="text-sm text-destructive">{errors.full_name.message}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" type="email" {...register("email")} />
+                    {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input id="password" type="password" {...register("password")} />
+                    {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="date_of_birth">Date of Birth</Label>
+                    <Input id="date_of_birth" type="date" {...register("date_of_birth")} />
+                    {errors.date_of_birth && <p className="text-sm text-destructive">{errors.date_of_birth.message}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">Gender</Label>
+                    <Select onValueChange={(value) => setValue("gender", value as any)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {errors.gender && <p className="text-sm text-destructive">{errors.gender.message}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="class_id">Class</Label>
+                    <Select onValueChange={(value) => setValue("class_id", value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {classes.map((cls) => (
+                          <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.class_id && <p className="text-sm text-destructive">{errors.class_id.message}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="guardian_email">Guardian Email</Label>
+                    <Input id="guardian_email" type="email" {...register("guardian_email")} />
+                    {errors.guardian_email && <p className="text-sm text-destructive">{errors.guardian_email.message}</p>}
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                  <Button type="submit">Add Student</Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <Card>
@@ -52,30 +246,28 @@ const Students = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium">STD001</TableCell>
-                  <TableCell>Emma Johnson</TableCell>
-                  <TableCell>Grade 10 - A</TableCell>
-                  <TableCell>Female</TableCell>
-                  <TableCell>
-                    <Badge className="bg-success">Active</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm">View</Button>
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">STD002</TableCell>
-                  <TableCell>Michael Chen</TableCell>
-                  <TableCell>Grade 10 - B</TableCell>
-                  <TableCell>Male</TableCell>
-                  <TableCell>
-                    <Badge className="bg-success">Active</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm">View</Button>
-                  </TableCell>
-                </TableRow>
+                {students.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                      No students found. Add your first student to get started.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  students.map((student) => (
+                    <TableRow key={student.id}>
+                      <TableCell className="font-medium">{student.admission_no}</TableCell>
+                      <TableCell>{student.profiles?.full_name}</TableCell>
+                      <TableCell>{student.classes?.name}</TableCell>
+                      <TableCell className="capitalize">{student.gender}</TableCell>
+                      <TableCell>
+                        <Badge className="bg-success">Active</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm">View</Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>

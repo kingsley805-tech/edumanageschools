@@ -14,7 +14,8 @@ import {
   Bell,
   UserCircle,
   FileText,
-  Award
+  Award,
+  Settings
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useState } from "react";
@@ -41,6 +42,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
         { icon: DollarSign, label: "Fees", path: "/admin/fees" },
         { icon: Calendar, label: "Attendance", path: "/admin/attendance" },
         { icon: FileText, label: "Reports", path: "/admin/reports" },
+        { icon: Settings, label: "Settings", path: "/settings" },
       ]
     },
     teacher: {
@@ -51,6 +53,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
         { icon: Calendar, label: "Attendance", path: "/teacher/attendance" },
         { icon: FileText, label: "Assignments", path: "/teacher/assignments" },
         { icon: Award, label: "Grades", path: "/teacher/grades" },
+        { icon: Settings, label: "Settings", path: "/settings" },
       ]
     },
     parent: {
@@ -61,6 +64,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
         { icon: Calendar, label: "Attendance", path: "/parent/attendance" },
         { icon: Award, label: "Grades", path: "/parent/grades" },
         { icon: DollarSign, label: "Payments", path: "/parent/payments" },
+        { icon: Settings, label: "Settings", path: "/settings" },
       ]
     },
     student: {
@@ -70,6 +74,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
         { icon: Calendar, label: "Schedule", path: "/student/schedule" },
         { icon: FileText, label: "Assignments", path: "/student/assignments" },
         { icon: Award, label: "Grades", path: "/student/grades" },
+        { icon: Settings, label: "Settings", path: "/settings" },
       ]
     }
   };
