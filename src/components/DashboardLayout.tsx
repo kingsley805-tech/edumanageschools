@@ -55,6 +55,9 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
         { icon: Calendar, label: "Attendance", path: "/teacher/attendance" },
         { icon: FileText, label: "Assignments", path: "/teacher/assignments" },
         { icon: Award, label: "Grades", path: "/teacher/grades" },
+        { icon: FileText, label: "Exams", path: "/teacher/exams" },
+        { icon: BookOpen, label: "Resources", path: "/teacher/resources" },
+        { icon: UserCircle, label: "Messages", path: "/messages" },
         { icon: Settings, label: "Settings", path: "/settings" },
       ]
     },
@@ -66,6 +69,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
         { icon: Calendar, label: "Attendance", path: "/parent/attendance" },
         { icon: Award, label: "Grades", path: "/parent/grades" },
         { icon: DollarSign, label: "Payments", path: "/parent/payments" },
+        { icon: UserCircle, label: "Messages", path: "/messages" },
         { icon: Settings, label: "Settings", path: "/settings" },
       ]
     },
@@ -76,6 +80,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
         { icon: Calendar, label: "Schedule", path: "/student/schedule" },
         { icon: FileText, label: "Assignments", path: "/student/assignments" },
         { icon: Award, label: "Grades", path: "/student/grades" },
+        { icon: BookOpen, label: "Resources", path: "/student/resources" },
         { icon: Settings, label: "Settings", path: "/settings" },
       ]
     }

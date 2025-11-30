@@ -23,8 +23,6 @@ const Settings = () => {
     setTheme(prev => prev === "light" ? "dark" : "light");
   };
 
-  if (!role) return null;
-
   return (
     <DashboardLayout role={role as any}>
       <div className="space-y-6">

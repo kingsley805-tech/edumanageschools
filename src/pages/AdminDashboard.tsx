@@ -41,16 +41,28 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     const fetchStats = async () => {
-      const [studentsRes, teachersRes] = await Promise.all([
+      const [studentsRes, teachersRes, feesRes, attendanceRes] = await Promise.all([
         supabase.from("students").select("id", { count: "exact", head: true }),
         supabase.from("teachers").select("id", { count: "exact", head: true }),
+        supabase.from("invoices").select("amount"),
+        supabase.from("attendance").select("status", { count: "exact", head: true })
       ]);
+
+      const totalFees = feesRes.data?.reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
+      const totalAttendance = attendanceRes.count || 1;
+      const presentCount = await supabase
+        .from("attendance")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "present");
+      const attendanceRate = totalAttendance > 0 
+        ? ((presentCount.count || 0) / totalAttendance * 100).toFixed(1)
+        : "0.0";
 
       setStats([
         { title: "Total Students", value: studentsRes.count?.toString() || "0", change: "+12.5%", icon: Users, color: "text-primary" },
         { title: "Active Teachers", value: teachersRes.count?.toString() || "0", change: "+3.2%", icon: GraduationCap, color: "text-accent" },
-        { title: "Fees Collected", value: "$248,500", change: "+18.7%", icon: DollarSign, color: "text-success" },
-        { title: "Attendance Rate", value: "94.8%", change: "+2.1%", icon: TrendingUp, color: "text-warning" }
+        { title: "Fees Collected", value: `$${totalFees.toLocaleString()}`, change: "+18.7%", icon: DollarSign, color: "text-success" },
+        { title: "Attendance Rate", value: `${attendanceRate}%`, change: "+2.1%", icon: TrendingUp, color: "text-warning" }
       ]);
     };
 

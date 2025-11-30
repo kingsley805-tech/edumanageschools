@@ -210,6 +210,111 @@ export type Database = {
           },
         ]
       }
+      exam_results: {
+        Row: {
+          exam_id: string
+          grade: string | null
+          id: string
+          marks_obtained: number | null
+          recorded_at: string | null
+          recorded_by: string | null
+          remarks: string | null
+          student_id: string
+        }
+        Insert: {
+          exam_id: string
+          grade?: string | null
+          id?: string
+          marks_obtained?: number | null
+          recorded_at?: string | null
+          recorded_by?: string | null
+          remarks?: string | null
+          student_id: string
+        }
+        Update: {
+          exam_id?: string
+          grade?: string | null
+          id?: string
+          marks_obtained?: number | null
+          recorded_at?: string | null
+          recorded_by?: string | null
+          remarks?: string | null
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_results_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_results_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exams: {
+        Row: {
+          class_id: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          duration_minutes: number
+          exam_date: string
+          id: string
+          subject_id: string | null
+          term: string | null
+          title: string
+          total_marks: number
+        }
+        Insert: {
+          class_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          duration_minutes: number
+          exam_date: string
+          id?: string
+          subject_id?: string | null
+          term?: string | null
+          title: string
+          total_marks: number
+        }
+        Update: {
+          class_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          duration_minutes?: number
+          exam_date?: string
+          id?: string
+          subject_id?: string | null
+          term?: string | null
+          title?: string
+          total_marks?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exams_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exams_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fee_structures: {
         Row: {
           amount: number
@@ -475,6 +580,57 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      resources: {
+        Row: {
+          class_id: string | null
+          description: string | null
+          file_type: string | null
+          file_url: string
+          id: string
+          subject_id: string | null
+          title: string
+          uploaded_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          class_id?: string | null
+          description?: string | null
+          file_type?: string | null
+          file_url: string
+          id?: string
+          subject_id?: string | null
+          title: string
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          class_id?: string | null
+          description?: string | null
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          subject_id?: string | null
+          title?: string
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resources_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resources_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       schedules: {
         Row: {
