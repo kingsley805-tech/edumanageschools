@@ -29,6 +29,10 @@ import TeacherGrades from "./pages/teacher/Grades";
 import TeacherClasses from "./pages/teacher/Classes";
 import StudentAssignments from "./pages/student/Assignments";
 import StudentGrades from "./pages/student/Grades";
+import TeacherExams from "./pages/teacher/Exams";
+import TeacherResources from "./pages/teacher/Resources";
+import StudentResources from "./pages/student/Resources";
+import Messages from "./pages/Messages";
 import Schedule from "./pages/student/Schedule";
 import NotFound from "./pages/NotFound";
 
@@ -134,6 +138,16 @@ const App = () => (
                 <ParentGrades />
               </ProtectedRoute>
             } />
+            <Route path="/teacher/exams" element={
+              <ProtectedRoute allowedRoles={["teacher"]}>
+                <TeacherExams />
+              </ProtectedRoute>
+            } />
+            <Route path="/teacher/resources" element={
+              <ProtectedRoute allowedRoles={["teacher"]}>
+                <TeacherResources />
+              </ProtectedRoute>
+            } />
             <Route path="/student" element={
               <ProtectedRoute allowedRoles={["student"]}>
                 <StudentDashboard />
@@ -152,6 +166,17 @@ const App = () => (
             <Route path="/student/schedule" element={
               <ProtectedRoute allowedRoles={["student"]}>
                 <Schedule />
+              </ProtectedRoute>
+            } />
+            <Route path="/student/resources" element={
+              <ProtectedRoute allowedRoles={["student"]}>
+                <StudentResources />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/messages" element={
+              <ProtectedRoute allowedRoles={["teacher", "parent"]}>
+                <Messages />
               </ProtectedRoute>
             } />
             

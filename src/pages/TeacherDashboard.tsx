@@ -1,29 +1,56 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, Users, ClipboardCheck, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
-  const stats = [
-    { title: "My Classes", value: "6", icon: BookOpen, color: "text-primary" },
-    { title: "Total Students", value: "142", icon: Users, color: "text-accent" },
-    { title: "Assignments", value: "12", icon: ClipboardCheck, color: "text-success" },
-    { title: "Today's Classes", value: "4", icon: Calendar, color: "text-warning" },
-  ];
+  const [stats, setStats] = useState([
+    { title: "My Classes", value: "0", icon: BookOpen, color: "text-primary" },
+    { title: "Total Students", value: "0", icon: Users, color: "text-accent" },
+    { title: "Assignments", value: "0", icon: ClipboardCheck, color: "text-success" },
+    { title: "Today's Classes", value: "0", icon: Calendar, color: "text-warning" },
+  ]);
+  const [upcomingClasses, setUpcomingClasses] = useState<any[]>([]);
+  const [recentAssignments, setRecentAssignments] = useState<any[]>([]);
 
-  const upcomingClasses = [
-    { subject: "Mathematics", grade: "Grade 10-A", time: "09:00 AM", room: "Room 204" },
-    { subject: "Physics", grade: "Grade 10-B", time: "11:00 AM", room: "Lab 1" },
-    { subject: "Mathematics", grade: "Grade 9-A", time: "02:00 PM", room: "Room 204" },
-  ];
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
-  const recentAssignments = [
-    { title: "Quadratic Equations", class: "Grade 10-A", submitted: 28, total: 35, due: "2 days" },
-    { title: "Newton's Laws", class: "Grade 10-B", submitted: 32, total: 38, due: "5 days" },
-    { title: "Algebra Basics", class: "Grade 9-A", submitted: 25, total: 30, due: "1 week" },
-  ];
+  const fetchDashboardData = async () => {
+    const [classesRes, assignmentsRes, schedulesRes] = await Promise.all([
+      supabase.from("class_subjects").select("id, class:classes(name, id), subject:subjects(name)", { count: "exact" }),
+      supabase.from("assignments").select("id", { count: "exact", head: true }),
+      supabase.from("schedules").select("*, class:classes(name), subject:subjects(name)").eq("day_of_week", new Date().getDay())
+    ]);
+
+    const classIds = classesRes.data?.map(c => c.class?.id).filter(Boolean) || [];
+    const studentsRes = await supabase
+      .from("students")
+      .select("id", { count: "exact", head: true })
+      .in("class_id", classIds);
+
+    setStats([
+      { title: "My Classes", value: classesRes.count?.toString() || "0", icon: BookOpen, color: "text-primary" },
+      { title: "Total Students", value: studentsRes.count?.toString() || "0", icon: Users, color: "text-accent" },
+      { title: "Assignments", value: assignmentsRes.count?.toString() || "0", icon: ClipboardCheck, color: "text-success" },
+      { title: "Today's Classes", value: schedulesRes.data?.length.toString() || "0", icon: Calendar, color: "text-warning" },
+    ]);
+
+    setUpcomingClasses(schedulesRes.data || []);
+
+    const { data: assignmentsData } = await supabase
+      .from("assignments")
+      .select("*, class:classes(name)")
+      .order("due_date", { ascending: true })
+      .limit(3);
+
+    setRecentAssignments(assignmentsData || []);
+  };
 
   return (
     <DashboardLayout role="teacher">
@@ -54,15 +81,17 @@ const TeacherDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {upcomingClasses.map((cls, index) => (
+                {upcomingClasses.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">No classes today</div>
+                ) : upcomingClasses.map((cls, index) => (
                   <div key={index} className="flex items-center justify-between p-4 rounded-lg border">
                     <div className="space-y-1">
-                      <p className="font-medium">{cls.subject}</p>
-                      <p className="text-sm text-muted-foreground">{cls.grade}</p>
+                      <p className="font-medium">{cls.subject?.name}</p>
+                      <p className="text-sm text-muted-foreground">{cls.class?.name}</p>
                     </div>
                     <div className="text-right space-y-1">
-                      <p className="text-sm font-medium text-primary">{cls.time}</p>
-                      <p className="text-xs text-muted-foreground">{cls.room}</p>
+                      <p className="text-sm font-medium text-primary">{cls.start_time} - {cls.end_time}</p>
+                      <p className="text-xs text-muted-foreground">Room {cls.room}</p>
                     </div>
                   </div>
                 ))}
@@ -78,22 +107,16 @@ const TeacherDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentAssignments.map((assignment, index) => (
+                {recentAssignments.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">No assignments yet</div>
+                ) : recentAssignments.map((assignment, index) => (
                   <div key={index} className="space-y-2 pb-4 border-b last:border-0">
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="font-medium">{assignment.title}</p>
-                        <p className="text-sm text-muted-foreground">{assignment.class}</p>
+                        <p className="text-sm text-muted-foreground">{assignment.class?.name}</p>
                       </div>
-                      <Badge variant="secondary">Due in {assignment.due}</Badge>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        {assignment.submitted} / {assignment.total} submitted
-                      </span>
-                      <span className="font-medium text-primary">
-                        {Math.round((assignment.submitted / assignment.total) * 100)}%
-                      </span>
+                      <Badge variant="secondary">Due {new Date(assignment.due_date).toLocaleDateString()}</Badge>
                     </div>
                   </div>
                 ))}
