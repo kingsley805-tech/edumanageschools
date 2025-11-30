@@ -28,14 +28,33 @@ const Announcements = () => {
   const fetchAnnouncements = async () => {
     const { data, error } = await supabase
       .from("announcements")
-      .select("*, profiles:created_by(full_name)")
+      .select("*")
       .order("created_at", { ascending: false });
 
     if (error) {
       toast({ title: "Error fetching announcements", variant: "destructive" });
-    } else {
-      setAnnouncements(data || []);
+      return;
     }
+
+    // Fetch creator profiles separately
+    const announcementsWithProfiles = await Promise.all(
+      (data || []).map(async (announcement) => {
+        if (!announcement.created_by) return announcement;
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", announcement.created_by)
+          .single();
+
+        return {
+          ...announcement,
+          creator_name: profile?.full_name || "Unknown",
+        };
+      })
+    );
+
+    setAnnouncements(announcementsWithProfiles);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -175,7 +194,7 @@ const Announcements = () => {
                   </Badge>
                 </div>
                 <CardDescription>
-                  By {announcement.profiles?.full_name || "Unknown"} •{" "}
+                  By {announcement.creator_name} •{" "}
                   {format(new Date(announcement.created_at), "PPP")}
                 </CardDescription>
               </CardHeader>

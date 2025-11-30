@@ -2,6 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, DollarSign, TrendingUp, AlertCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,7 @@ const invoiceSchema = z.object({
 type InvoiceFormData = z.infer<typeof invoiceSchema>;
 
 const Fees = () => {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -277,14 +279,30 @@ const Fees = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    <TableRow>
-                      <TableCell className="font-medium">Tuition Fee</TableCell>
-                      <TableCell>Annual tuition for Grade 10</TableCell>
-                      <TableCell>$1,200.00</TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm">Edit</Button>
-                      </TableCell>
-                    </TableRow>
+                    {feeStructures.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                          No fee structures found. Add fee structures in the dedicated page.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      feeStructures.map((fee) => (
+                        <TableRow key={fee.id}>
+                          <TableCell className="font-medium">{fee.name}</TableCell>
+                          <TableCell>{fee.description || "—"}</TableCell>
+                          <TableCell>${fee.amount.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => navigate('/admin/fee-structures')}
+                            >
+                              Manage
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
