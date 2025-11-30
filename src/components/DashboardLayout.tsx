@@ -1,0 +1,168 @@
+import { ReactNode } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { 
+  GraduationCap, 
+  LayoutDashboard, 
+  Users, 
+  BookOpen, 
+  Calendar, 
+  DollarSign, 
+  Settings, 
+  LogOut,
+  Menu,
+  Bell,
+  UserCircle
+} from "lucide-react";
+import { NavLink } from "@/components/NavLink";
+import { useState } from "react";
+
+interface DashboardLayoutProps {
+  children: ReactNode;
+  role: "admin" | "teacher" | "parent" | "student";
+}
+
+const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const roleConfig = {
+    admin: {
+      title: "Admin Dashboard",
+      menuItems: [
+        { icon: LayoutDashboard, label: "Dashboard", path: "/admin" },
+        { icon: Users, label: "Students", path: "/admin/students" },
+        { icon: Users, label: "Teachers", path: "/admin/teachers" },
+        { icon: BookOpen, label: "Classes", path: "/admin/classes" },
+        { icon: DollarSign, label: "Fees & Payments", path: "/admin/fees" },
+        { icon: Calendar, label: "Attendance", path: "/admin/attendance" },
+        { icon: Settings, label: "Settings", path: "/admin/settings" },
+      ]
+    },
+    teacher: {
+      title: "Teacher Portal",
+      menuItems: [
+        { icon: LayoutDashboard, label: "Dashboard", path: "/teacher" },
+        { icon: BookOpen, label: "My Classes", path: "/teacher/classes" },
+        { icon: Calendar, label: "Attendance", path: "/teacher/attendance" },
+        { icon: BookOpen, label: "Assignments", path: "/teacher/assignments" },
+        { icon: Users, label: "Students", path: "/teacher/students" },
+        { icon: Settings, label: "Settings", path: "/teacher/settings" },
+      ]
+    },
+    parent: {
+      title: "Parent Portal",
+      menuItems: [
+        { icon: LayoutDashboard, label: "Dashboard", path: "/parent" },
+        { icon: UserCircle, label: "My Children", path: "/parent/children" },
+        { icon: BookOpen, label: "Academic Progress", path: "/parent/progress" },
+        { icon: Calendar, label: "Attendance", path: "/parent/attendance" },
+        { icon: DollarSign, label: "Fee Payments", path: "/parent/payments" },
+        { icon: Settings, label: "Settings", path: "/parent/settings" },
+      ]
+    },
+    student: {
+      title: "Student Portal",
+      menuItems: [
+        { icon: LayoutDashboard, label: "Dashboard", path: "/student" },
+        { icon: BookOpen, label: "My Classes", path: "/student/classes" },
+        { icon: BookOpen, label: "Assignments", path: "/student/assignments" },
+        { icon: Calendar, label: "Schedule", path: "/student/schedule" },
+        { icon: DollarSign, label: "Fee Status", path: "/student/fees" },
+        { icon: Settings, label: "Settings", path: "/student/settings" },
+      ]
+    }
+  };
+
+  const config = roleConfig[role];
+
+  const handleLogout = () => {
+    navigate("/auth");
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Sidebar */}
+      <aside 
+        className={`fixed left-0 top-0 z-40 h-screen transition-transform ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } w-64 border-r bg-card`}
+      >
+        <div className="flex h-full flex-col">
+          {/* Logo */}
+          <div className="flex h-16 items-center gap-2 border-b px-6">
+            <GraduationCap className="h-7 w-7 text-primary" />
+            <span className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              EduManage
+            </span>
+          </div>
+
+          {/* Menu Items */}
+          <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
+            {config.menuItems.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={item.path === `/${role}`}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
+                activeClassName="bg-primary/10 text-primary font-medium"
+              >
+                <item.icon className="h-5 w-5" />
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+
+          {/* User Section */}
+          <div className="border-t p-4">
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-5 w-5" />
+              Logout
+            </Button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <div className={`transition-all ${sidebarOpen ? "ml-64" : "ml-0"}`}>
+        {/* Top Bar */}
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/95 backdrop-blur px-6">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          
+          <div className="flex-1">
+            <h1 className="text-lg font-semibold">{config.title}</h1>
+          </div>
+
+          <Button variant="ghost" size="icon" className="relative">
+            <Bell className="h-5 w-5" />
+            <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-xs text-destructive-foreground flex items-center justify-center">
+              3
+            </span>
+          </Button>
+          
+          <Button variant="ghost" size="icon">
+            <UserCircle className="h-6 w-6" />
+          </Button>
+        </header>
+
+        {/* Page Content */}
+        <main className="p-6">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default DashboardLayout;

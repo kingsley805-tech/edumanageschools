@@ -1,0 +1,149 @@
+import DashboardLayout from "@/components/DashboardLayout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Users, GraduationCap, DollarSign, TrendingUp, Calendar, BookOpen } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+
+const AdminDashboard = () => {
+  const stats = [
+    {
+      title: "Total Students",
+      value: "2,847",
+      change: "+12.5%",
+      icon: Users,
+      color: "text-primary"
+    },
+    {
+      title: "Active Teachers",
+      value: "124",
+      change: "+3.2%",
+      icon: GraduationCap,
+      color: "text-accent"
+    },
+    {
+      title: "Fees Collected",
+      value: "$248,500",
+      change: "+18.7%",
+      icon: DollarSign,
+      color: "text-success"
+    },
+    {
+      title: "Attendance Rate",
+      value: "94.8%",
+      change: "+2.1%",
+      icon: TrendingUp,
+      color: "text-warning"
+    }
+  ];
+
+  const recentActivity = [
+    { type: "enrollment", message: "New student enrolled in Grade 10-A", time: "2 hours ago" },
+    { type: "payment", message: "Fee payment received for Student #2847", time: "4 hours ago" },
+    { type: "attendance", message: "Attendance marked for Grade 9-B", time: "5 hours ago" },
+    { type: "assignment", message: "New assignment posted in Mathematics", time: "1 day ago" },
+  ];
+
+  return (
+    <DashboardLayout role="admin">
+      <div className="space-y-6">
+        {/* Stats Grid */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {stats.map((stat, index) => (
+            <Card key={index} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {stat.title}
+                </CardTitle>
+                <stat.icon className={`h-5 w-5 ${stat.color}`} />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{stat.value}</div>
+                <p className="text-sm text-success mt-1">
+                  {stat.change} from last month
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Charts & Activity */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Class Distribution */}
+          <Card className="animate-fade-up">
+            <CardHeader>
+              <CardTitle>Class Distribution</CardTitle>
+              <CardDescription>Students enrolled by grade level</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {[
+                { grade: "Grade 10", students: 420, percentage: 85 },
+                { grade: "Grade 9", students: 385, percentage: 77 },
+                { grade: "Grade 8", students: 358, percentage: 72 },
+                { grade: "Grade 7", students: 342, percentage: 68 },
+              ].map((item, index) => (
+                <div key={index} className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">{item.grade}</span>
+                    <span className="text-muted-foreground">{item.students} students</span>
+                  </div>
+                  <Progress value={item.percentage} className="h-2" />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Recent Activity */}
+          <Card className="animate-fade-up" style={{ animationDelay: "0.1s" }}>
+            <CardHeader>
+              <CardTitle>Recent Activity</CardTitle>
+              <CardDescription>Latest updates across the system</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {recentActivity.map((activity, index) => (
+                  <div key={index} className="flex gap-3 pb-3 border-b last:border-0">
+                    <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      {activity.type === "enrollment" && <Users className="h-4 w-4 text-primary" />}
+                      {activity.type === "payment" && <DollarSign className="h-4 w-4 text-success" />}
+                      {activity.type === "attendance" && <Calendar className="h-4 w-4 text-accent" />}
+                      {activity.type === "assignment" && <BookOpen className="h-4 w-4 text-warning" />}
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm">{activity.message}</p>
+                      <p className="text-xs text-muted-foreground">{activity.time}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Actions */}
+        <Card className="animate-fade-up" style={{ animationDelay: "0.2s" }}>
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+            <CardDescription>Common administrative tasks</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              <button className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted transition-colors">
+                <Users className="h-5 w-5 text-primary" />
+                <span className="font-medium">Add New Student</span>
+              </button>
+              <button className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted transition-colors">
+                <GraduationCap className="h-5 w-5 text-accent" />
+                <span className="font-medium">Add New Teacher</span>
+              </button>
+              <button className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted transition-colors">
+                <DollarSign className="h-5 w-5 text-success" />
+                <span className="font-medium">Generate Invoice</span>
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </DashboardLayout>
+  );
+};
+
+export default AdminDashboard;
