@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   GraduationCap, 
   LayoutDashboard, 
@@ -25,6 +26,7 @@ interface DashboardLayoutProps {
 const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { signOut, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const roleConfig = {
@@ -77,8 +79,8 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
 
   const config = roleConfig[role];
 
-  const handleLogout = () => {
-    navigate("/auth");
+  const handleLogout = async () => {
+    await signOut();
   };
 
   return (
@@ -151,9 +153,10 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
             </span>
           </Button>
           
-          <Button variant="ghost" size="icon">
-            <UserCircle className="h-6 w-6" />
-          </Button>
+          <div className="flex items-center gap-2 text-sm">
+            <UserCircle className="h-5 w-5" />
+            <span className="hidden md:inline">{user?.email}</span>
+          </div>
         </header>
 
         {/* Page Content */}

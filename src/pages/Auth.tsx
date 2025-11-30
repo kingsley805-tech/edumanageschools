@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,47 +8,69 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GraduationCap } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const Auth = () => {
   const navigate = useNavigate();
+  const { signIn, signUp, user } = useAuth();
+  const { role } = useUserRole();
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<string>("");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [signupFullName, setSignupFullName] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+  const [signupRole, setSignupRole] = useState("");
 
-  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    // Simulate authentication
-    setTimeout(() => {
-      setIsLoading(false);
-      
-      if (!selectedRole) {
-        toast.error("Please select your role");
-        return;
-      }
-
-      toast.success("Welcome back!");
-      
-      // Route based on role
+  useEffect(() => {
+    if (user && role) {
       const roleRoutes: Record<string, string> = {
         admin: "/admin",
         teacher: "/teacher",
         parent: "/parent",
         student: "/student"
       };
-      
-      navigate(roleRoutes[selectedRole] || "/admin");
-    }, 1500);
+      navigate(roleRoutes[role] || "/admin");
+    }
+  }, [user, role, navigate]);
+
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    const { error } = await signIn(loginEmail, loginPassword);
+    
+    if (error) {
+      toast.error(error.message);
+      setIsLoading(false);
+      return;
+    }
+
+    toast.success("Welcome back!");
+    setIsLoading(false);
   };
 
   const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
 
-    setTimeout(() => {
+    if (!signupRole) {
+      toast.error("Please select your role");
       setIsLoading(false);
-      toast.success("Account created! Please check your email to verify.");
-    }, 1500);
+      return;
+    }
+
+    const { error } = await signUp(signupEmail, signupPassword, signupFullName, signupRole);
+    
+    if (error) {
+      toast.error(error.message);
+      setIsLoading(false);
+      return;
+    }
+
+    toast.success("Account created successfully!");
+    setIsLoading(false);
   };
 
   return (
@@ -81,6 +103,8 @@ const Auth = () => {
                     id="email" 
                     type="email" 
                     placeholder="you@school.edu" 
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
                     required 
                   />
                 </div>
@@ -90,22 +114,10 @@ const Auth = () => {
                     id="password" 
                     type="password" 
                     placeholder="••••••••" 
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
                     required 
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Select value={selectedRole} onValueChange={setSelectedRole} required>
-                    <SelectTrigger id="role">
-                      <SelectValue placeholder="Select your role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Administrator</SelectItem>
-                      <SelectItem value="teacher">Teacher</SelectItem>
-                      <SelectItem value="parent">Parent</SelectItem>
-                      <SelectItem value="student">Student</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col space-y-4">
@@ -131,7 +143,9 @@ const Auth = () => {
                   <Input 
                     id="signup-name" 
                     type="text" 
-                    placeholder="John Doe" 
+                    placeholder="John Doe"
+                    value={signupFullName}
+                    onChange={(e) => setSignupFullName(e.target.value)}
                     required 
                   />
                 </div>
@@ -140,7 +154,9 @@ const Auth = () => {
                   <Input 
                     id="signup-email" 
                     type="email" 
-                    placeholder="you@school.edu" 
+                    placeholder="you@school.edu"
+                    value={signupEmail}
+                    onChange={(e) => setSignupEmail(e.target.value)}
                     required 
                   />
                 </div>
@@ -149,17 +165,20 @@ const Auth = () => {
                   <Input 
                     id="signup-password" 
                     type="password" 
-                    placeholder="••••••••" 
+                    placeholder="••••••••"
+                    value={signupPassword}
+                    onChange={(e) => setSignupPassword(e.target.value)}
                     required 
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-role">Role</Label>
-                  <Select required>
+                  <Select value={signupRole} onValueChange={setSignupRole} required>
                     <SelectTrigger id="signup-role">
                       <SelectValue placeholder="Select your role" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="admin">Administrator</SelectItem>
                       <SelectItem value="teacher">Teacher</SelectItem>
                       <SelectItem value="parent">Parent</SelectItem>
                       <SelectItem value="student">Student</SelectItem>
