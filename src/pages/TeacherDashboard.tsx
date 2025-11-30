@@ -1,9 +1,11 @@
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, Users, ClipboardCheck, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const TeacherDashboard = () => {
+  const navigate = useNavigate();
   const stats = [
     { title: "My Classes", value: "6", icon: BookOpen, color: "text-primary" },
     { title: "Total Students", value: "142", icon: Users, color: "text-accent" },
@@ -107,17 +109,17 @@ const TeacherDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-3">
-              <button className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted transition-colors">
+              <button onClick={() => navigate("/teacher/attendance")} className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted transition-colors">
                 <ClipboardCheck className="h-5 w-5 text-primary" />
                 <span className="font-medium">Mark Attendance</span>
               </button>
-              <button className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted transition-colors">
+              <button onClick={() => navigate("/teacher/assignments")} className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted transition-colors">
                 <BookOpen className="h-5 w-5 text-accent" />
                 <span className="font-medium">Create Assignment</span>
               </button>
-              <button className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted transition-colors">
+              <button onClick={() => navigate("/teacher/classes")} className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted transition-colors">
                 <Users className="h-5 w-5 text-success" />
-                <span className="font-medium">Message Parents</span>
+                <span className="font-medium">View Classes</span>
               </button>
             </div>
           </CardContent>

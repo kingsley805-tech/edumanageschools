@@ -1,10 +1,14 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, GraduationCap, DollarSign, TrendingUp, Calendar, BookOpen } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { supabase } from "@/integrations/supabase/client";
 
 const AdminDashboard = () => {
-  const stats = [
+  const navigate = useNavigate();
+  const [stats, setStats] = useState([
     {
       title: "Total Students",
       value: "2,847",
@@ -33,7 +37,25 @@ const AdminDashboard = () => {
       icon: TrendingUp,
       color: "text-warning"
     }
-  ];
+  ]);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      const [studentsRes, teachersRes] = await Promise.all([
+        supabase.from("students").select("id", { count: "exact", head: true }),
+        supabase.from("teachers").select("id", { count: "exact", head: true }),
+      ]);
+
+      setStats([
+        { title: "Total Students", value: studentsRes.count?.toString() || "0", change: "+12.5%", icon: Users, color: "text-primary" },
+        { title: "Active Teachers", value: teachersRes.count?.toString() || "0", change: "+3.2%", icon: GraduationCap, color: "text-accent" },
+        { title: "Fees Collected", value: "$248,500", change: "+18.7%", icon: DollarSign, color: "text-success" },
+        { title: "Attendance Rate", value: "94.8%", change: "+2.1%", icon: TrendingUp, color: "text-warning" }
+      ]);
+    };
+
+    fetchStats();
+  }, []);
 
   const recentActivity = [
     { type: "enrollment", message: "New student enrolled in Grade 10-A", time: "2 hours ago" },
@@ -126,15 +148,15 @@ const AdminDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-3">
-              <button className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted transition-colors">
+              <button onClick={() => navigate("/admin/students")} className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted transition-colors">
                 <Users className="h-5 w-5 text-primary" />
                 <span className="font-medium">Add New Student</span>
               </button>
-              <button className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted transition-colors">
+              <button onClick={() => navigate("/admin/teachers")} className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted transition-colors">
                 <GraduationCap className="h-5 w-5 text-accent" />
                 <span className="font-medium">Add New Teacher</span>
               </button>
-              <button className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted transition-colors">
+              <button onClick={() => navigate("/admin/fees")} className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted transition-colors">
                 <DollarSign className="h-5 w-5 text-success" />
                 <span className="font-medium">Generate Invoice</span>
               </button>

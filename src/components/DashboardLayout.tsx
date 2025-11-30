@@ -9,11 +9,12 @@ import {
   BookOpen, 
   Calendar, 
   DollarSign, 
-  Settings, 
   LogOut,
   Menu,
   Bell,
-  UserCircle
+  UserCircle,
+  FileText,
+  Award
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useState } from "react";
@@ -35,11 +36,11 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
       menuItems: [
         { icon: LayoutDashboard, label: "Dashboard", path: "/admin" },
         { icon: Users, label: "Students", path: "/admin/students" },
-        { icon: Users, label: "Teachers", path: "/admin/teachers" },
+        { icon: GraduationCap, label: "Teachers", path: "/admin/teachers" },
         { icon: BookOpen, label: "Classes", path: "/admin/classes" },
-        { icon: DollarSign, label: "Fees & Payments", path: "/admin/fees" },
+        { icon: DollarSign, label: "Fees", path: "/admin/fees" },
         { icon: Calendar, label: "Attendance", path: "/admin/attendance" },
-        { icon: Settings, label: "Settings", path: "/admin/settings" },
+        { icon: FileText, label: "Reports", path: "/admin/reports" },
       ]
     },
     teacher: {
@@ -48,9 +49,8 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
         { icon: LayoutDashboard, label: "Dashboard", path: "/teacher" },
         { icon: BookOpen, label: "My Classes", path: "/teacher/classes" },
         { icon: Calendar, label: "Attendance", path: "/teacher/attendance" },
-        { icon: BookOpen, label: "Assignments", path: "/teacher/assignments" },
-        { icon: Users, label: "Students", path: "/teacher/students" },
-        { icon: Settings, label: "Settings", path: "/teacher/settings" },
+        { icon: FileText, label: "Assignments", path: "/teacher/assignments" },
+        { icon: Award, label: "Grades", path: "/teacher/grades" },
       ]
     },
     parent: {
@@ -58,21 +58,18 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
       menuItems: [
         { icon: LayoutDashboard, label: "Dashboard", path: "/parent" },
         { icon: UserCircle, label: "My Children", path: "/parent/children" },
-        { icon: BookOpen, label: "Academic Progress", path: "/parent/progress" },
         { icon: Calendar, label: "Attendance", path: "/parent/attendance" },
-        { icon: DollarSign, label: "Fee Payments", path: "/parent/payments" },
-        { icon: Settings, label: "Settings", path: "/parent/settings" },
+        { icon: Award, label: "Grades", path: "/parent/grades" },
+        { icon: DollarSign, label: "Payments", path: "/parent/payments" },
       ]
     },
     student: {
       title: "Student Portal",
       menuItems: [
         { icon: LayoutDashboard, label: "Dashboard", path: "/student" },
-        { icon: BookOpen, label: "My Classes", path: "/student/classes" },
-        { icon: BookOpen, label: "Assignments", path: "/student/assignments" },
         { icon: Calendar, label: "Schedule", path: "/student/schedule" },
-        { icon: DollarSign, label: "Fee Status", path: "/student/fees" },
-        { icon: Settings, label: "Settings", path: "/student/settings" },
+        { icon: FileText, label: "Assignments", path: "/student/assignments" },
+        { icon: Award, label: "Grades", path: "/student/grades" },
       ]
     }
   };

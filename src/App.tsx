@@ -15,7 +15,19 @@ import Students from "./pages/admin/Students";
 import Teachers from "./pages/admin/Teachers";
 import Classes from "./pages/admin/Classes";
 import Fees from "./pages/admin/Fees";
+import AdminAttendance from "./pages/admin/Attendance";
+import Reports from "./pages/admin/Reports";
 import Payments from "./pages/parent/Payments";
+import Children from "./pages/parent/Children";
+import ParentAttendance from "./pages/parent/Attendance";
+import ParentGrades from "./pages/parent/Grades";
+import TeacherAttendance from "./pages/teacher/Attendance";
+import TeacherAssignments from "./pages/teacher/Assignments";
+import TeacherGrades from "./pages/teacher/Grades";
+import TeacherClasses from "./pages/teacher/Classes";
+import StudentAssignments from "./pages/student/Assignments";
+import StudentGrades from "./pages/student/Grades";
+import Schedule from "./pages/student/Schedule";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -55,9 +67,39 @@ const App = () => (
                 <Fees />
               </ProtectedRoute>
             } />
+            <Route path="/admin/attendance" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminAttendance />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/reports" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <Reports />
+              </ProtectedRoute>
+            } />
             <Route path="/teacher" element={
               <ProtectedRoute allowedRoles={["teacher"]}>
                 <TeacherDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/teacher/attendance" element={
+              <ProtectedRoute allowedRoles={["teacher"]}>
+                <TeacherAttendance />
+              </ProtectedRoute>
+            } />
+            <Route path="/teacher/assignments" element={
+              <ProtectedRoute allowedRoles={["teacher"]}>
+                <TeacherAssignments />
+              </ProtectedRoute>
+            } />
+            <Route path="/teacher/grades" element={
+              <ProtectedRoute allowedRoles={["teacher"]}>
+                <TeacherGrades />
+              </ProtectedRoute>
+            } />
+            <Route path="/teacher/classes" element={
+              <ProtectedRoute allowedRoles={["teacher"]}>
+                <TeacherClasses />
               </ProtectedRoute>
             } />
             <Route path="/parent" element={
@@ -70,9 +112,39 @@ const App = () => (
                 <Payments />
               </ProtectedRoute>
             } />
+            <Route path="/parent/children" element={
+              <ProtectedRoute allowedRoles={["parent"]}>
+                <Children />
+              </ProtectedRoute>
+            } />
+            <Route path="/parent/attendance" element={
+              <ProtectedRoute allowedRoles={["parent"]}>
+                <ParentAttendance />
+              </ProtectedRoute>
+            } />
+            <Route path="/parent/grades" element={
+              <ProtectedRoute allowedRoles={["parent"]}>
+                <ParentGrades />
+              </ProtectedRoute>
+            } />
             <Route path="/student" element={
               <ProtectedRoute allowedRoles={["student"]}>
                 <StudentDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/student/assignments" element={
+              <ProtectedRoute allowedRoles={["student"]}>
+                <StudentAssignments />
+              </ProtectedRoute>
+            } />
+            <Route path="/student/grades" element={
+              <ProtectedRoute allowedRoles={["student"]}>
+                <StudentGrades />
+              </ProtectedRoute>
+            } />
+            <Route path="/student/schedule" element={
+              <ProtectedRoute allowedRoles={["student"]}>
+                <Schedule />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

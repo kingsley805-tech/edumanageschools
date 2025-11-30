@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserCircle, BookOpen, Calendar, DollarSign, TrendingUp } from "lucide-react";
@@ -6,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 
 const ParentDashboard = () => {
+  const navigate = useNavigate();
   const children = [
     {
       name: "Sarah Johnson",
@@ -141,15 +143,15 @@ const ParentDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-3">
-              <Button className="h-auto flex-col gap-2 p-6 bg-gradient-to-br from-primary to-primary/80">
+              <Button onClick={() => navigate("/parent/payments")} className="h-auto flex-col gap-2 p-6 bg-gradient-to-br from-primary to-primary/80">
                 <DollarSign className="h-6 w-6" />
                 <span>Pay Fees</span>
               </Button>
-              <Button variant="outline" className="h-auto flex-col gap-2 p-6">
+              <Button onClick={() => navigate("/parent/grades")} variant="outline" className="h-auto flex-col gap-2 p-6">
                 <BookOpen className="h-6 w-6" />
                 <span>View Report Card</span>
               </Button>
-              <Button variant="outline" className="h-auto flex-col gap-2 p-6">
+              <Button onClick={() => navigate("/parent/attendance")} variant="outline" className="h-auto flex-col gap-2 p-6">
                 <Calendar className="h-6 w-6" />
                 <span>Check Attendance</span>
               </Button>
