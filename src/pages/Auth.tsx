@@ -3,10 +3,40 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { GraduationCap, Eye, EyeOff, Lock, Mail, User, Shield, BookOpen, Users } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import { 
+  GraduationCap, 
+  Lock, 
+  Mail, 
+  User, 
+  Eye, 
+  EyeOff,
+  Shield,
+  BookOpen,
+  Users,
+  ArrowRight,
+  CheckCircle
+} from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -15,15 +45,14 @@ const Auth = () => {
   const navigate = useNavigate();
   const { signIn, signUp, user } = useAuth();
   const { role } = useUserRole();
+
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
   const [showPassword, setShowPassword] = useState(false);
-  
-  // Login form state
+
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
-  
-  // Signup form state
+
   const [signupFullName, setSignupFullName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
@@ -46,7 +75,7 @@ const Auth = () => {
     setIsLoading(true);
 
     const { error } = await signIn(loginEmail, loginPassword);
-    
+
     if (error) {
       toast.error(error.message);
       setIsLoading(false);
@@ -67,8 +96,13 @@ const Auth = () => {
       return;
     }
 
-    const { error } = await signUp(signupEmail, signupPassword, signupFullName, signupRole);
-    
+    const { error } = await signUp(
+      signupEmail,
+      signupPassword,
+      signupFullName,
+      signupRole
+    );
+
     if (error) {
       toast.error(error.message);
       setIsLoading(false);
@@ -79,83 +113,94 @@ const Auth = () => {
     setIsLoading(false);
   };
 
-  const roleIcons = {
-    admin: Shield,
-    teacher: BookOpen,
-    parent: Users,
-    student: GraduationCap
+  const roleConfig = {
+    admin: { icon: Shield, label: "Administrator", description: "Full system access" },
+    teacher: { icon: BookOpen, label: "Teacher", description: "Class and grade management" },
+    parent: { icon: Users, label: "Parent", description: "Student progress tracking" },
+    student: { icon: GraduationCap, label: "Student", description: "Learning portal access" }
   };
 
+  const passwordRequirements = [
+    "At least 8 characters",
+    "One uppercase letter",
+    "One number",
+    "One special character"
+  ];
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 relative overflow-hidden p-4">
       {/* Animated Background Elements */}
-      <div className="absolute top-1/4 -left-10 w-72 h-72 bg-primary/20 rounded-full blur-3xl animate-pulse"></div>
-      <div className="absolute bottom-1/4 -right-10 w-96 h-96 bg-accent/20 rounded-full blur-3xl animate-pulse"></div>
-      
-      {/* Grid Pattern */}
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iY3VycmVudENvbG9yIiBzdHJva2Utd2lkdGg9IjEiIG9wYWNpdHk9IjAuMDUiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-30"></div>
-      
-      <Card className="w-full max-w-md relative z-10 shadow-2xl border-border/50 backdrop-blur-sm bg-background/95 animate-scale-in">
-        <CardHeader className="space-y-1 text-center pb-8">
-          <div className="flex justify-center mb-4">
-            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg">
-              <GraduationCap className="h-8 w-8 text-white" />
-            </div>
+      <div className="absolute top-1/4 -left-20 h-80 w-80 rounded-full bg-primary/10 blur-3xl animate-pulse"></div>
+      <div className="absolute bottom-1/4 -right-20 h-96 w-96 rounded-full bg-accent/10 blur-3xl animate-pulse"></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 rounded-full bg-primary/5 blur-2xl"></div>
+
+      {/* Grid Pattern Overlay */}
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iY3VycmVudENvbG9yIiBzdHJva2Utd2lkdGg9IjEiIG9wYWNpdHk9IjAuMDMiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-40"></div>
+
+      <Card className="w-full max-w-md relative z-10 backdrop-blur-xl bg-background/95 border-border/50 shadow-2xl rounded-3xl overflow-hidden border">
+        {/* Header Gradient Bar */}
+        <div className="h-1 bg-gradient-to-r from-primary to-accent"></div>
+        
+        <CardHeader className="text-center space-y-3 pb-6">
+          <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent shadow-lg">
+            <GraduationCap className="h-8 w-8 text-white" />
           </div>
-          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-            Welcome to EduManage
+          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+            EduManage Portal
           </CardTitle>
           <CardDescription className="text-base">
-            {activeTab === "login" ? "Sign in to your account" : "Create your account"}
+            Secure access for your educational institution
           </CardDescription>
         </CardHeader>
-        
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mx-6 mb-2">
+          <TabsList className="grid grid-cols-2 mx-6 mb-2 gap-2">
             <TabsTrigger 
-              value="login" 
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-white"
+              value="login"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-white transition-all duration-200"
             >
               Login
             </TabsTrigger>
             <TabsTrigger 
               value="signup"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-white"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-white transition-all duration-200"
             >
-              Sign Up
+              Create Account
             </TabsTrigger>
           </TabsList>
-          
+
+          {/* LOGIN TAB */}
           <TabsContent value="login" className="animate-fade-in">
             <form onSubmit={handleLogin}>
               <CardContent className="space-y-5">
                 <div className="space-y-3">
-                  <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+                  <Label htmlFor="login-email" className="text-sm font-medium">Email Address</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      id="email" 
-                      type="email" 
-                      placeholder="you@school.edu" 
+                    <Input
+                      id="login-email"
+                      type="email"
+                      placeholder="you@school.edu"
+                      className="pl-10 pr-4 py-6"
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      className="pl-10 pr-4 py-6"
-                      required 
+                      required
                     />
                   </div>
                 </div>
+
                 <div className="space-y-3">
-                  <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+                  <Label htmlFor="login-password" className="text-sm font-medium">Password</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      id="password" 
-                      type={showPassword ? "text" : "password"} 
-                      placeholder="••••••••" 
+                    <Input
+                      id="login-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      className="pl-10 pr-12 py-6"
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      className="pl-10 pr-12 py-6"
-                      required 
+                      required
                     />
                     <Button
                       type="button"
@@ -173,10 +218,11 @@ const Auth = () => {
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="flex flex-col space-y-4 pt-4">
-                <Button 
-                  type="submit" 
-                  className="w-full bg-gradient-to-r from-primary to-accent hover:shadow-lg hover:scale-105 transition-all duration-200 py-6 text-base font-semibold" 
+
+              <CardFooter className="flex flex-col space-y-4 pt-2">
+                <Button
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-primary to-accent hover:shadow-lg hover:scale-105 transition-all duration-200 py-6 text-base font-semibold group"
                   disabled={isLoading}
                 >
                   {isLoading ? (
@@ -185,16 +231,21 @@ const Auth = () => {
                       Signing in...
                     </div>
                   ) : (
-                    "Sign In to Dashboard"
+                    <>
+                      Sign In to Dashboard
+                      <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    </>
                   )}
                 </Button>
-                <Button type="button" variant="link" className="text-sm text-muted-foreground hover:text-primary">
+
+                <Button variant="link" type="button" className="text-sm text-muted-foreground hover:text-primary">
                   Forgot your password?
                 </Button>
               </CardFooter>
             </form>
           </TabsContent>
-          
+
+          {/* SIGN UP TAB */}
           <TabsContent value="signup" className="animate-fade-in">
             <form onSubmit={handleSignup}>
               <CardContent className="space-y-5">
@@ -202,44 +253,46 @@ const Auth = () => {
                   <Label htmlFor="signup-name" className="text-sm font-medium">Full Name</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      id="signup-name" 
-                      type="text" 
+                    <Input
+                      id="signup-name"
+                      type="text"
                       placeholder="John Doe"
+                      className="pl-10 pr-4 py-6"
                       value={signupFullName}
                       onChange={(e) => setSignupFullName(e.target.value)}
-                      className="pl-10 pr-4 py-6"
-                      required 
+                      required
                     />
                   </div>
                 </div>
+
                 <div className="space-y-3">
-                  <Label htmlFor="signup-email" className="text-sm font-medium">Email</Label>
+                  <Label htmlFor="signup-email" className="text-sm font-medium">Email Address</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      id="signup-email" 
-                      type="email" 
+                    <Input
+                      id="signup-email"
+                      type="email"
                       placeholder="you@school.edu"
+                      className="pl-10 pr-4 py-6"
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
-                      className="pl-10 pr-4 py-6"
-                      required 
+                      required
                     />
                   </div>
                 </div>
+
                 <div className="space-y-3">
                   <Label htmlFor="signup-password" className="text-sm font-medium">Password</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      id="signup-password" 
-                      type={showPassword ? "text" : "password"} 
+                    <Input
+                      id="signup-password"
+                      type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
+                      className="pl-10 pr-12 py-6"
                       value={signupPassword}
                       onChange={(e) => setSignupPassword(e.target.value)}
-                      className="pl-10 pr-12 py-6"
-                      required 
+                      required
                     />
                     <Button
                       type="button"
@@ -255,47 +308,51 @@ const Auth = () => {
                       )}
                     </Button>
                   </div>
+                  
+                  {/* Password Requirements */}
+                  <div className="space-y-2 pt-2">
+                    {passwordRequirements.map((req, index) => (
+                      <div key={index} className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                        {req}
+                      </div>
+                    ))}
+                  </div>
                 </div>
+
                 <div className="space-y-3">
-                  <Label htmlFor="signup-role" className="text-sm font-medium">Role</Label>
+                  <Label htmlFor="signup-role" className="text-sm font-medium">Account Type</Label>
                   <Select value={signupRole} onValueChange={setSignupRole} required>
                     <SelectTrigger id="signup-role" className="py-6 pl-10">
                       <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <SelectValue placeholder="Select your role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="admin" className="py-3">
-                        <div className="flex items-center gap-2">
-                          <Shield className="h-4 w-4" />
-                          Administrator
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="teacher" className="py-3">
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="h-4 w-4" />
-                          Teacher
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="parent" className="py-3">
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4" />
-                          Parent
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="student" className="py-3">
-                        <div className="flex items-center gap-2">
-                          <GraduationCap className="h-4 w-4" />
-                          Student
-                        </div>
-                      </SelectItem>
+                      {Object.entries(roleConfig).map(([key, config]) => {
+                        const IconComponent = config.icon;
+                        return (
+                          <SelectItem key={key} value={key} className="py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                                <IconComponent className="h-4 w-4 text-primary" />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{config.label}</span>
+                                <span className="text-xs text-muted-foreground">{config.description}</span>
+                              </div>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
               </CardContent>
-              <CardFooter className="pt-4">
-                <Button 
-                  type="submit" 
-                  className="w-full bg-gradient-to-r from-primary to-accent hover:shadow-lg hover:scale-105 transition-all duration-200 py-6 text-base font-semibold" 
+
+              <CardFooter className="pt-2">
+                <Button
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-primary to-accent hover:shadow-lg hover:scale-105 transition-all duration-200 py-6 text-base font-semibold"
                   disabled={isLoading}
                 >
                   {isLoading ? (
