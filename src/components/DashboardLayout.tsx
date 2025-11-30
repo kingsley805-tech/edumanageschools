@@ -11,13 +11,14 @@ import {
   DollarSign, 
   LogOut,
   Menu,
-  Bell,
   UserCircle,
   FileText,
   Award,
-  Settings
+  Settings,
+  Clock
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import { NotificationCenter } from "./NotificationCenter";
 import { useState } from "react";
 
 interface DashboardLayoutProps {
@@ -41,6 +42,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
         { icon: BookOpen, label: "Classes", path: "/admin/classes" },
         { icon: DollarSign, label: "Fees", path: "/admin/fees" },
         { icon: Calendar, label: "Attendance", path: "/admin/attendance" },
+        { icon: Clock, label: "Schedule", path: "/admin/schedule" },
         { icon: FileText, label: "Reports", path: "/admin/reports" },
         { icon: Settings, label: "Settings", path: "/settings" },
       ]
@@ -148,12 +150,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
             <h1 className="text-lg font-semibold">{config.title}</h1>
           </div>
 
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-5 w-5" />
-            <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-xs text-destructive-foreground flex items-center justify-center">
-              3
-            </span>
-          </Button>
+          <NotificationCenter />
           
           <div className="flex items-center gap-2 text-sm">
             <UserCircle className="h-5 w-5" />
