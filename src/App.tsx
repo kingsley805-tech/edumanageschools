@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import Teachers from "./pages/admin/Teachers";
 import Classes from "./pages/admin/Classes";
 import Fees from "./pages/admin/Fees";
+import FeeStructures from "./pages/admin/FeeStructures";
 import AdminAttendance from "./pages/admin/Attendance";
 import AdminSchedule from "./pages/admin/Schedule";
 import Reports from "./pages/admin/Reports";
@@ -73,6 +74,11 @@ const App = () => (
             <Route path="/admin/fees" element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <Fees />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/fee-structures" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <FeeStructures />
               </ProtectedRoute>
             } />
             <Route path="/admin/attendance" element={
