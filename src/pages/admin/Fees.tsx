@@ -5,8 +5,112 @@ import { Plus, DollarSign, TrendingUp, AlertCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect } from "react";
+
+const invoiceSchema = z.object({
+  student_id: z.string().min(1, "Student is required"),
+  fee_structure_id: z.string().min(1, "Fee structure is required"),
+  due_date: z.string().min(1, "Due date is required"),
+});
+
+type InvoiceFormData = z.infer<typeof invoiceSchema>;
 
 const Fees = () => {
+  const [open, setOpen] = useState(false);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [feeStructures, setFeeStructures] = useState<any[]>([]);
+  const { toast } = useToast();
+  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<InvoiceFormData>({
+    resolver: zodResolver(invoiceSchema),
+  });
+
+  useEffect(() => {
+    fetchInvoices();
+    fetchStudents();
+    fetchFeeStructures();
+  }, []);
+
+  const fetchInvoices = async () => {
+    const { data, error } = await supabase
+      .from("invoices")
+      .select(`
+        *,
+        students(admission_no, profiles(full_name)),
+        fee_structures(name)
+      `)
+      .order('created_at', { ascending: false });
+    
+    if (!error && data) {
+      setInvoices(data);
+    }
+  };
+
+  const fetchStudents = async () => {
+    const { data, error } = await supabase
+      .from("students")
+      .select("id, admission_no, profiles(full_name)");
+    
+    if (!error && data) {
+      setStudents(data);
+    }
+  };
+
+  const fetchFeeStructures = async () => {
+    const { data, error } = await supabase
+      .from("fee_structures")
+      .select("*");
+    
+    if (!error && data) {
+      setFeeStructures(data);
+    }
+  };
+
+  const onSubmit = async (data: InvoiceFormData) => {
+    try {
+      const feeStructure = feeStructures.find(f => f.id === data.fee_structure_id);
+      
+      const invoiceNo = `INV-${Date.now().toString().slice(-6)}`;
+      
+      const { error } = await supabase
+        .from("invoices")
+        .insert({
+          invoice_no: invoiceNo,
+          student_id: data.student_id,
+          fee_structure_id: data.fee_structure_id,
+          amount: feeStructure.amount,
+          due_date: data.due_date,
+          status: 'unpaid',
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Invoice created successfully",
+      });
+
+      setOpen(false);
+      reset();
+      fetchInvoices();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <DashboardLayout role="admin">
       <div className="space-y-6">
@@ -15,10 +119,63 @@ const Fees = () => {
             <h2 className="text-3xl font-bold tracking-tight">Fees & Payments</h2>
             <p className="text-muted-foreground">Manage fee structures and track payments</p>
           </div>
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Create Invoice
-          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Create Invoice
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New Invoice</DialogTitle>
+                <DialogDescription>Generate an invoice for a student</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="student_id">Student</Label>
+                  <Select onValueChange={(value) => setValue("student_id", value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select student" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {students.map((student) => (
+                        <SelectItem key={student.id} value={student.id}>
+                          {student.admission_no} - {student.profiles?.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.student_id && <p className="text-sm text-destructive">{errors.student_id.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fee_structure_id">Fee Type</Label>
+                  <Select onValueChange={(value) => setValue("fee_structure_id", value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select fee type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {feeStructures.map((fee) => (
+                        <SelectItem key={fee.id} value={fee.id}>
+                          {fee.name} - ${fee.amount}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.fee_structure_id && <p className="text-sm text-destructive">{errors.fee_structure_id.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="due_date">Due Date</Label>
+                  <Input id="due_date" type="date" {...register("due_date")} />
+                  {errors.due_date && <p className="text-sm text-destructive">{errors.due_date.message}</p>}
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                  <Button type="submit">Create Invoice</Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
@@ -77,24 +234,27 @@ const Fees = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    <TableRow>
-                      <TableCell className="font-medium">INV-001</TableCell>
-                      <TableCell>Emma Johnson</TableCell>
-                      <TableCell>$1,200.00</TableCell>
-                      <TableCell>2024-02-15</TableCell>
-                      <TableCell>
-                        <Badge className="bg-success">Paid</Badge>
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-medium">INV-002</TableCell>
-                      <TableCell>Michael Chen</TableCell>
-                      <TableCell>$1,200.00</TableCell>
-                      <TableCell>2024-02-20</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-warning border-warning">Pending</Badge>
-                      </TableCell>
-                    </TableRow>
+                    {invoices.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                          No invoices found. Create your first invoice to get started.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      invoices.map((invoice) => (
+                        <TableRow key={invoice.id}>
+                          <TableCell className="font-medium">{invoice.invoice_no}</TableCell>
+                          <TableCell>{invoice.students?.profiles?.full_name}</TableCell>
+                          <TableCell>${invoice.amount}</TableCell>
+                          <TableCell>{new Date(invoice.due_date).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <Badge className={invoice.status === 'paid' ? 'bg-success' : 'text-warning border-warning'} variant={invoice.status === 'paid' ? 'default' : 'outline'}>
+                              {invoice.status}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
