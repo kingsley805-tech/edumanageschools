@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcements: {
+        Row: {
+          body: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          priority: string | null
+          target_roles: string[] | null
+          title: string
+        }
+        Insert: {
+          body: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          priority?: string | null
+          target_roles?: string[] | null
+          title: string
+        }
+        Update: {
+          body?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          priority?: string | null
+          target_roles?: string[] | null
+          title?: string
+        }
+        Relationships: []
+      }
       assignments: {
         Row: {
           class_id: string | null

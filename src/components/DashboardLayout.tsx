@@ -15,7 +15,8 @@ import {
   FileText,
   Award,
   Settings,
-  Clock
+  Clock,
+  Megaphone
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { NotificationCenter } from "./NotificationCenter";
@@ -44,6 +45,8 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
         { icon: Calendar, label: "Attendance", path: "/admin/attendance" },
         { icon: Clock, label: "Schedule", path: "/admin/schedule" },
         { icon: FileText, label: "Reports", path: "/admin/reports" },
+        { icon: Megaphone, label: "Announcements", path: "/admin/announcements" },
+        { icon: FileText, label: "Report Cards", path: "/admin/report-cards" },
         { icon: Settings, label: "Settings", path: "/settings" },
       ]
     },
