@@ -18,6 +18,9 @@ interface Child {
   classes: {
     name: string;
   };
+  attendance?: number;
+  avgGrade?: string;
+  totalClasses?: number;
 }
 
 const Children = () => {
@@ -42,12 +45,46 @@ const Children = () => {
             id,
             user_id,
             admission_no,
+            class_id,
             profiles:user_id (full_name, email),
             classes (name)
           `)
           .eq("guardian_id", parentData.id);
 
-        if (data) setChildren(data as any);
+        if (data) {
+          const childrenWithStats = await Promise.all(
+            data.map(async (child: any) => {
+              const [attendanceRes, gradesRes, classesRes] = await Promise.all([
+                supabase.from("attendance").select("status", { count: "exact" }).eq("student_id", child.id),
+                supabase.from("grades").select("score").eq("student_id", child.id),
+                supabase.from("schedules").select("id", { count: "exact", head: true }).eq("class_id", child.class_id)
+              ]);
+
+              const presentCount = await supabase
+                .from("attendance")
+                .select("id", { count: "exact", head: true })
+                .eq("student_id", child.id)
+                .eq("status", "present");
+
+              const totalAttendance = attendanceRes.count || 1;
+              const attendance = Math.round(((presentCount.count || 0) / totalAttendance) * 100);
+
+              const avgScore = gradesRes.data && gradesRes.data.length > 0
+                ? gradesRes.data.reduce((sum, g) => sum + (Number(g.score) || 0), 0) / gradesRes.data.length
+                : 0;
+
+              const avgGrade = avgScore >= 90 ? "A" : avgScore >= 80 ? "B" : avgScore >= 70 ? "C" : avgScore >= 60 ? "D" : avgScore > 0 ? "F" : "--";
+
+              return {
+                ...child,
+                attendance,
+                avgGrade,
+                totalClasses: classesRes.count || 0
+              };
+            })
+          );
+          setChildren(childrenWithStats);
+        }
       }
       setLoading(false);
     };
@@ -104,17 +141,17 @@ const Children = () => {
                     <div className="space-y-2 text-center p-3 rounded-lg bg-primary/5">
                       <Calendar className="h-5 w-5 text-primary mx-auto" />
                       <p className="text-sm text-muted-foreground">Attendance</p>
-                      <p className="text-xl font-bold">--</p>
+                      <p className="text-xl font-bold">{child.attendance || 0}%</p>
                     </div>
                     <div className="space-y-2 text-center p-3 rounded-lg bg-accent/5">
                       <Award className="h-5 w-5 text-accent mx-auto" />
                       <p className="text-sm text-muted-foreground">Avg Grade</p>
-                      <p className="text-xl font-bold">--</p>
+                      <p className="text-xl font-bold">{child.avgGrade || "--"}</p>
                     </div>
                     <div className="space-y-2 text-center p-3 rounded-lg bg-success/5">
                       <BookOpen className="h-5 w-5 text-success mx-auto" />
                       <p className="text-sm text-muted-foreground">Classes</p>
-                      <p className="text-xl font-bold">--</p>
+                      <p className="text-xl font-bold">{child.totalClasses || 0}</p>
                     </div>
                   </div>
                 </CardContent>

@@ -88,6 +88,8 @@ const ParentDashboard = () => {
     }
   };
 
+  // Note: Upcoming events would be fetched from announcements table filtered by date
+  // For now showing mock data as a placeholder for the events calendar feature
   const upcomingEvents = [
     { title: "Parent-Teacher Meeting", date: "Dec 15, 2024", type: "meeting" },
     { title: "Mid-term Exams", date: "Dec 20-27, 2024", type: "exam" },

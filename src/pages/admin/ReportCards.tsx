@@ -24,18 +24,35 @@ const ReportCards = () => {
   const fetchStudents = async () => {
     const { data, error } = await supabase
       .from("students")
-      .select(`
-        id,
-        admission_no,
-        profiles:user_id(full_name),
-        classes:class_id(name)
-      `);
+      .select("id, admission_no, user_id, class_id");
 
     if (error) {
       toast({ title: "Error fetching students", variant: "destructive" });
-    } else {
-      setStudents(data || []);
+      return;
     }
+
+    if (!data) {
+      setStudents([]);
+      return;
+    }
+
+    // Fetch profiles and classes separately
+    const studentsWithDetails = await Promise.all(
+      data.map(async (student) => {
+        const [profileRes, classRes] = await Promise.all([
+          supabase.from("profiles").select("full_name").eq("id", student.user_id).single(),
+          supabase.from("classes").select("name").eq("id", student.class_id).single()
+        ]);
+
+        return {
+          ...student,
+          profiles: profileRes.data,
+          classes: classRes.data
+        };
+      })
+    );
+
+    setStudents(studentsWithDetails);
   };
 
   const generateReport = async () => {
@@ -44,33 +61,60 @@ const ReportCards = () => {
     setLoading(true);
 
     try {
-      // Fetch grades
+      // Fetch grades with subjects separately
       const { data: gradesData, error: gradesError } = await supabase
         .from("grades")
-        .select(`
-          score,
-          subjects:subject_id(name)
-        `)
+        .select("score, subject_id")
         .eq("student_id", selectedStudent)
         .eq("term", selectedTerm);
 
       if (gradesError) throw gradesError;
 
-      // Fetch exam results
+      const gradesWithSubjects = await Promise.all(
+        (gradesData || []).map(async (grade) => {
+          const { data: subject } = await supabase
+            .from("subjects")
+            .select("name")
+            .eq("id", grade.subject_id)
+            .single();
+          return { ...grade, subjects: subject };
+        })
+      );
+
+      // Fetch exam results with exams and subjects separately
       const { data: examData, error: examError } = await supabase
         .from("exam_results")
-        .select(`
-          marks_obtained,
-          grade,
-          remarks,
-          exams:exam_id(total_marks, term, subjects:subject_id(name))
-        `)
+        .select("marks_obtained, grade, remarks, exam_id")
         .eq("student_id", selectedStudent);
 
       if (examError) throw examError;
 
+      const examsWithDetails = await Promise.all(
+        (examData || []).map(async (exam) => {
+          const { data: examDetails } = await supabase
+            .from("exams")
+            .select("total_marks, term, subject_id")
+            .eq("id", exam.exam_id)
+            .single();
+
+          if (examDetails) {
+            const { data: subject } = await supabase
+              .from("subjects")
+              .select("name")
+              .eq("id", examDetails.subject_id)
+              .single();
+
+            return {
+              ...exam,
+              exams: { ...examDetails, subjects: subject }
+            };
+          }
+          return exam;
+        })
+      );
+
       // Filter exam results by term
-      const termExams = examData?.filter((e: any) => e.exams?.term === selectedTerm) || [];
+      const termExams = examsWithDetails?.filter((e: any) => e.exams?.term === selectedTerm) || [];
 
       // Fetch attendance
       const { data: attendanceData, error: attendanceError } = await supabase
@@ -89,7 +133,7 @@ const ReportCards = () => {
 
       // Combine grades and exam results
       const allGrades = [
-        ...(gradesData?.map((g: any) => ({
+        ...(gradesWithSubjects?.map((g: any) => ({
           subject: g.subjects?.name || "Unknown",
           score: g.score,
         })) || []),
