@@ -51,6 +51,19 @@ const Teachers = () => {
 
   const onSubmit = async (data: TeacherFormData) => {
     try {
+      // Get current user's school_id and school_code
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("school_id, schools(school_code)")
+        .eq("id", user.id)
+        .single();
+
+      if (!profileData?.school_id) throw new Error("School not found");
+      const schoolCode = (profileData.schools as any)?.school_code;
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -58,6 +71,7 @@ const Teachers = () => {
           data: {
             full_name: data.full_name,
             role: 'teacher',
+            school_code: schoolCode,
           },
         },
       });
@@ -70,6 +84,7 @@ const Teachers = () => {
           user_id: authData.user?.id,
           employee_no: data.employee_no,
           subject_specialty: data.subject_specialty,
+          school_id: profileData.school_id,
         });
 
       if (teacherError) throw teacherError;

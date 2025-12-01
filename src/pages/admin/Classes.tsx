@@ -100,11 +100,24 @@ const Classes = () => {
 
   const onSubmit = async (data: ClassFormData) => {
     try {
+      // Get current user's school_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("school_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profileData?.school_id) throw new Error("School not found");
+
       const { error } = await supabase
         .from("classes")
         .insert([{
           name: data.name,
           level: data.level,
+          school_id: profileData.school_id,
         }]);
 
       if (error) throw error;
