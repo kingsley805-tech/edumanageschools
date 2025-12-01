@@ -755,7 +755,6 @@ export type Database = {
       }
       schools: {
         Row: {
-          admin_key: string
           created_at: string | null
           id: string
           is_active: boolean | null
@@ -763,7 +762,6 @@ export type Database = {
           school_name: string
         }
         Insert: {
-          admin_key: string
           created_at?: string | null
           id?: string
           is_active?: boolean | null
@@ -771,7 +769,6 @@ export type Database = {
           school_name: string
         }
         Update: {
-          admin_key?: string
           created_at?: string | null
           id?: string
           is_active?: boolean | null
