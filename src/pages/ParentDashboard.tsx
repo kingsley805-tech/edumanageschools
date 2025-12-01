@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { EventsCalendar } from "@/components/EventsCalendar";
 
 const ParentDashboard = () => {
   const navigate = useNavigate();
@@ -87,14 +88,6 @@ const ParentDashboard = () => {
       }
     }
   };
-
-  // Note: Upcoming events would be fetched from announcements table filtered by date
-  // For now showing mock data as a placeholder for the events calendar feature
-  const upcomingEvents = [
-    { title: "Parent-Teacher Meeting", date: "Dec 15, 2024", type: "meeting" },
-    { title: "Mid-term Exams", date: "Dec 20-27, 2024", type: "exam" },
-    { title: "Fee Payment Due", date: "Jan 15, 2024", type: "payment" },
-  ];
 
   return (
     <DashboardLayout role="parent">
@@ -185,33 +178,7 @@ const ParentDashboard = () => {
           </Card>
 
           {/* Upcoming Events */}
-          <Card className="animate-fade-up" style={{ animationDelay: "0.1s" }}>
-            <CardHeader>
-              <CardTitle>Upcoming Events</CardTitle>
-              <CardDescription>Important dates and reminders</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {upcomingEvents.map((event, index) => (
-                  <div key={index} className="flex items-start gap-3 p-4 rounded-lg border">
-                    <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                      event.type === "meeting" ? "bg-primary/10" :
-                      event.type === "exam" ? "bg-warning/10" :
-                      "bg-success/10"
-                    }`}>
-                      {event.type === "meeting" && <Calendar className="h-5 w-5 text-primary" />}
-                      {event.type === "exam" && <BookOpen className="h-5 w-5 text-warning" />}
-                      {event.type === "payment" && <DollarSign className="h-5 w-5 text-success" />}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium">{event.title}</p>
-                      <p className="text-sm text-muted-foreground">{event.date}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <EventsCalendar />
         </div>
 
         {/* Quick Actions */}

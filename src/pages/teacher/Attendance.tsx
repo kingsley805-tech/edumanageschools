@@ -178,6 +178,29 @@ const Attendance = () => {
                   </SelectContent>
                 </Select>
               </div>
+              {selectedClass && students.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-4 border-t">
+                  <Button variant="outline" size="sm" onClick={() => {
+                    const newRecords = { ...attendanceRecords };
+                    students.forEach((s: any) => { newRecords[s.id] = 'present'; });
+                    setAttendanceRecords(newRecords);
+                  }}>
+                    Mark All Present
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    const newRecords = { ...attendanceRecords };
+                    students.forEach((s: any) => { newRecords[s.id] = 'absent'; });
+                    setAttendanceRecords(newRecords);
+                  }}>
+                    Mark All Absent
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    setAttendanceRecords({});
+                  }}>
+                    Clear All
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 

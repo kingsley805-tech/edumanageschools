@@ -69,12 +69,57 @@ const AdminDashboard = () => {
     fetchStats();
   }, []);
 
-  const recentActivity = [
-    { type: "enrollment", message: "New student enrolled in Grade 10-A", time: "2 hours ago" },
-    { type: "payment", message: "Fee payment received for Student #2847", time: "4 hours ago" },
-    { type: "attendance", message: "Attendance marked for Grade 9-B", time: "5 hours ago" },
-    { type: "assignment", message: "New assignment posted in Mathematics", time: "1 day ago" },
-  ];
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [classDistribution, setClassDistribution] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchRecentActivity = async () => {
+      const [studentsRes, paymentsRes, attendanceRes, assignmentsRes] = await Promise.all([
+        supabase.from("students").select("created_at, profiles(full_name), classes(name)").order("created_at", { ascending: false }).limit(10),
+        supabase.from("payments").select("created_at, amount").eq("status", "completed").order("created_at", { ascending: false }).limit(10),
+        supabase.from("attendance").select("recorded_at, classes(name)").order("recorded_at", { ascending: false }).limit(10),
+        supabase.from("assignments").select("created_at, title").order("created_at", { ascending: false }).limit(10)
+      ]);
+
+      const activities = [
+        ...(studentsRes.data || []).map(s => ({
+          type: "enrollment",
+          message: `New student ${(s.profiles as any)?.full_name} enrolled in ${(s.classes as any)?.name}`,
+          time: new Date(s.created_at).toLocaleString()
+        })),
+        ...(paymentsRes.data || []).map(p => ({
+          type: "payment",
+          message: `Fee payment of $${p.amount} received`,
+          time: new Date(p.created_at).toLocaleString()
+        })),
+        ...(attendanceRes.data || []).map(a => ({
+          type: "attendance",
+          message: `Attendance marked for ${(a.classes as any)?.name}`,
+          time: new Date(a.recorded_at || "").toLocaleString()
+        })),
+        ...(assignmentsRes.data || []).map(a => ({
+          type: "assignment",
+          message: `New assignment: ${a.title}`,
+          time: new Date(a.created_at).toLocaleString()
+        }))
+      ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
+
+      setRecentActivity(activities);
+    };
+
+    const fetchClassDistribution = async () => {
+      const { data } = await supabase.from("classes").select("name, students(count)");
+      const distribution = (data || []).map(c => ({
+        grade: c.name,
+        students: (c as any).students?.length || 0,
+        percentage: Math.min(100, ((c as any).students?.length || 0) / 5)
+      })).slice(0, 4);
+      setClassDistribution(distribution);
+    };
+
+    fetchRecentActivity();
+    fetchClassDistribution();
+  }, []);
 
   return (
     <DashboardLayout role="admin">
@@ -108,12 +153,10 @@ const AdminDashboard = () => {
               <CardDescription>Students enrolled by grade level</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {[
-                { grade: "Grade 10", students: 420, percentage: 85 },
-                { grade: "Grade 9", students: 385, percentage: 77 },
-                { grade: "Grade 8", students: 358, percentage: 72 },
-                { grade: "Grade 7", students: 342, percentage: 68 },
-              ].map((item, index) => (
+              {classDistribution.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No class data available</p>
+              ) : (
+                classDistribution.map((item, index) => (
                 <div key={index} className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium">{item.grade}</span>
@@ -121,7 +164,7 @@ const AdminDashboard = () => {
                   </div>
                   <Progress value={item.percentage} className="h-2" />
                 </div>
-              ))}
+              )))}
             </CardContent>
           </Card>
 
@@ -133,7 +176,10 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentActivity.map((activity, index) => (
+                {recentActivity.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">No recent activity</p>
+                ) : (
+                  recentActivity.map((activity, index) => (
                   <div key={index} className="flex gap-3 pb-3 border-b last:border-0">
                     <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                       {activity.type === "enrollment" && <Users className="h-4 w-4 text-primary" />}
@@ -146,7 +192,7 @@ const AdminDashboard = () => {
                       <p className="text-xs text-muted-foreground">{activity.time}</p>
                     </div>
                   </div>
-                ))}
+                )))}
               </div>
             </CardContent>
           </Card>
