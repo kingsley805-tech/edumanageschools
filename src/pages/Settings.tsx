@@ -111,8 +111,16 @@ const Settings = () => {
     }
   };
 
+  if (!role) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
-    <DashboardLayout role={role as any}>
+    <DashboardLayout role={role as "admin" | "teacher" | "parent" | "student"}>
       <div className="space-y-6">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Settings</h2>
