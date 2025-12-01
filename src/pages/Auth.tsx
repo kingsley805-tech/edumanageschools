@@ -58,6 +58,7 @@ const Auth = () => {
   const [signupPassword, setSignupPassword] = useState("");
   const [signupRole, setSignupRole] = useState("");
   const [schoolCode, setSchoolCode] = useState("");
+  const [schoolName, setSchoolName] = useState("");
   const [adminKey, setAdminKey] = useState("");
 
   useEffect(() => {
@@ -98,16 +99,23 @@ const Auth = () => {
       return;
     }
 
-    if (!schoolCode) {
-      toast.error("Please enter your school code");
-      setIsLoading(false);
-      return;
-    }
-
-    if (signupRole === "admin" && !adminKey) {
-      toast.error("Admin key is required for administrator accounts");
-      setIsLoading(false);
-      return;
+    if (signupRole === "admin") {
+      if (!adminKey) {
+        toast.error("Admin key is required for administrator accounts");
+        setIsLoading(false);
+        return;
+      }
+      if (!schoolName || !schoolCode) {
+        toast.error("Please enter both school name and code");
+        setIsLoading(false);
+        return;
+      }
+    } else {
+      if (!schoolCode) {
+        toast.error("Please enter your school code");
+        setIsLoading(false);
+        return;
+      }
     }
 
     const { error } = await signUp(
@@ -116,7 +124,8 @@ const Auth = () => {
       signupFullName,
       signupRole,
       schoolCode,
-      adminKey
+      adminKey,
+      schoolName
     );
 
     if (error) {
@@ -336,24 +345,62 @@ const Auth = () => {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <Label htmlFor="school-code" className="text-sm font-medium">School Code</Label>
-                  <div className="relative">
-                    <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="school-code"
-                      type="text"
-                      placeholder="Enter your school code"
-                      className="pl-10 pr-4 py-6 uppercase"
-                      value={schoolCode}
-                      onChange={(e) => setSchoolCode(e.target.value.toUpperCase())}
-                      required
-                    />
+                {signupRole === "admin" ? (
+                  <div className="space-y-4 animate-fade-in">
+                    <div className="space-y-3">
+                      <Label htmlFor="school-name" className="text-sm font-medium">School Name</Label>
+                      <div className="relative">
+                        <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="school-name"
+                          type="text"
+                          placeholder="Enter your school name"
+                          className="pl-10 pr-4 py-6"
+                          value={schoolName}
+                          onChange={(e) => setSchoolName(e.target.value)}
+                          required={signupRole === "admin"}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <Label htmlFor="school-code" className="text-sm font-medium">School Code</Label>
+                      <div className="relative">
+                        <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="school-code"
+                          type="text"
+                          placeholder="Create a unique school code"
+                          className="pl-10 pr-4 py-6 uppercase"
+                          value={schoolCode}
+                          onChange={(e) => setSchoolCode(e.target.value.toUpperCase())}
+                          required={signupRole === "admin"}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Create a unique code for your school (e.g., SCHOOL2025)
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Get this code from your school administrator
-                  </p>
-                </div>
+                ) : signupRole ? (
+                  <div className="space-y-3 animate-fade-in">
+                    <Label htmlFor="school-code" className="text-sm font-medium">School Code</Label>
+                    <div className="relative">
+                      <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="school-code"
+                        type="text"
+                        placeholder="Enter your school code"
+                        className="pl-10 pr-4 py-6 uppercase"
+                        value={schoolCode}
+                        onChange={(e) => setSchoolCode(e.target.value.toUpperCase())}
+                        required={signupRole !== "admin"}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Get this code from your school administrator
+                    </p>
+                  </div>
+                ) : null}
 
                 <div className="space-y-3">
                   <Label htmlFor="signup-role" className="text-sm font-medium">Account Type</Label>
