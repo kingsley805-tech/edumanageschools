@@ -68,7 +68,20 @@ const Students = () => {
 
   const onSubmit = async (data: StudentFormData) => {
     try {
-      // Create user account
+      // Get current user's school_id and school_code
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("school_id, schools(school_code)")
+        .eq("id", user.id)
+        .single();
+
+      if (!profileData?.school_id) throw new Error("School not found");
+      const schoolCode = (profileData.schools as any)?.school_code;
+
+      // Create user account with school_code
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -76,6 +89,7 @@ const Students = () => {
           data: {
             full_name: data.full_name,
             role: 'student',
+            school_code: schoolCode,
           },
         },
       });
@@ -94,7 +108,7 @@ const Students = () => {
         guardianId = (parentData.parents[0] as any).id;
       }
 
-      // Create student record
+      // Create student record with school_id
       const { error: studentError } = await supabase
         .from("students")
         .insert({
@@ -104,6 +118,7 @@ const Students = () => {
           gender: data.gender,
           class_id: data.class_id,
           guardian_id: guardianId,
+          school_id: profileData.school_id,
         });
 
       if (studentError) throw studentError;

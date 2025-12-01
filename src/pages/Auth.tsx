@@ -57,6 +57,8 @@ const Auth = () => {
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupRole, setSignupRole] = useState("");
+  const [schoolCode, setSchoolCode] = useState("");
+  const [adminKey, setAdminKey] = useState("");
 
   useEffect(() => {
     if (user && role) {
@@ -96,11 +98,25 @@ const Auth = () => {
       return;
     }
 
+    if (!schoolCode) {
+      toast.error("Please enter your school code");
+      setIsLoading(false);
+      return;
+    }
+
+    if (signupRole === "admin" && !adminKey) {
+      toast.error("Admin key is required for administrator accounts");
+      setIsLoading(false);
+      return;
+    }
+
     const { error } = await signUp(
       signupEmail,
       signupPassword,
       signupFullName,
-      signupRole
+      signupRole,
+      schoolCode,
+      adminKey
     );
 
     if (error) {
@@ -321,6 +337,25 @@ const Auth = () => {
                 </div>
 
                 <div className="space-y-3">
+                  <Label htmlFor="school-code" className="text-sm font-medium">School Code</Label>
+                  <div className="relative">
+                    <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="school-code"
+                      type="text"
+                      placeholder="Enter your school code"
+                      className="pl-10 pr-4 py-6 uppercase"
+                      value={schoolCode}
+                      onChange={(e) => setSchoolCode(e.target.value.toUpperCase())}
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Get this code from your school administrator
+                  </p>
+                </div>
+
+                <div className="space-y-3">
                   <Label htmlFor="signup-role" className="text-sm font-medium">Account Type</Label>
                   <Select value={signupRole} onValueChange={setSignupRole} required>
                     <SelectTrigger id="signup-role" className="py-6 pl-10">
@@ -347,6 +382,30 @@ const Auth = () => {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {signupRole === "admin" && (
+                  <div className="space-y-3 animate-fade-in">
+                    <Label htmlFor="admin-key" className="text-sm font-medium flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-primary" />
+                      Admin Key (Required)
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="admin-key"
+                        type="password"
+                        placeholder="Enter admin key"
+                        className="pl-10 pr-4 py-6"
+                        value={adminKey}
+                        onChange={(e) => setAdminKey(e.target.value)}
+                        required={signupRole === "admin"}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      This special key is required to create an administrator account
+                    </p>
+                  </div>
+                )}
               </CardContent>
 
               <CardFooter className="pt-2">
