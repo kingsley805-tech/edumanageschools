@@ -18,11 +18,14 @@ import {
   Clock,
   Megaphone,
   ClipboardList,
-  MonitorPlay
+  MonitorPlay,
+  MessageSquare
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { NotificationCenter } from "./NotificationCenter";
 import { useState } from "react";
+import { useUnreadMessages } from "@/hooks/useUnreadMessages";
+import { Badge } from "@/components/ui/badge";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -34,6 +37,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
   const location = useLocation();
   const { signOut, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const unreadMessages = useUnreadMessages();
 
   const roleConfig = {
     admin: {
@@ -70,7 +74,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
         { icon: ClipboardList, label: "Question Bank", path: "/teacher/question-bank" },
         { icon: MonitorPlay, label: "Online Exams", path: "/teacher/online-exams" },
         { icon: BookOpen, label: "Resources", path: "/teacher/resources" },
-        { icon: UserCircle, label: "Messages", path: "/messages" },
+        { icon: MessageSquare, label: "Messages", path: "/messages", showBadge: true },
         { icon: Settings, label: "Settings", path: "/settings" },
       ]
     },
@@ -82,7 +86,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
         { icon: Calendar, label: "Attendance", path: "/parent/attendance" },
         { icon: Award, label: "Grades", path: "/parent/grades" },
         { icon: DollarSign, label: "Payments", path: "/parent/payments" },
-        { icon: UserCircle, label: "Messages", path: "/messages" },
+        { icon: MessageSquare, label: "Messages", path: "/messages", showBadge: true },
         { icon: Settings, label: "Settings", path: "/settings" },
       ]
     },
@@ -134,7 +138,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
 
           {/* Menu Items */}
           <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
-            {config.menuItems.map((item) => (
+            {config.menuItems.map((item: any) => (
               <NavLink
                 key={item.path}
                 to={item.path}
@@ -143,7 +147,12 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
                 activeClassName="bg-primary/10 text-primary font-medium"
               >
                 <item.icon className="h-5 w-5" />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {item.showBadge && unreadMessages > 0 && (
+                  <Badge variant="destructive" className="h-5 w-5 flex items-center justify-center p-0 text-xs">
+                    {unreadMessages > 9 ? "9+" : unreadMessages}
+                  </Badge>
+                )}
               </NavLink>
             ))}
           </nav>

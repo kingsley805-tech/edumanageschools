@@ -102,7 +102,10 @@ const Messages = () => {
         .eq("user_id", user.id)
         .single();
 
-      if (!teacherData) return;
+      if (!teacherData) {
+        console.log("No teacher data found for user:", user.id);
+        return;
+      }
 
       // Get classes taught by this teacher
       const { data: classSubjects } = await supabase
@@ -110,35 +113,63 @@ const Messages = () => {
         .select("class_id")
         .eq("teacher_id", teacherData.id);
 
-      if (!classSubjects || classSubjects.length === 0) return;
+      if (!classSubjects || classSubjects.length === 0) {
+        console.log("No class subjects found for teacher:", teacherData.id);
+        return;
+      }
 
       const classIds = classSubjects.map(cs => cs.class_id).filter(Boolean);
+      console.log("Teacher's class IDs:", classIds);
 
-      // Get students in those classes
+      // Get students in those classes with their guardians
       const { data: students } = await supabase
         .from("students")
-        .select("guardian_id")
-        .in("class_id", classIds)
-        .not("guardian_id", "is", null);
+        .select("id, guardian_id, class_id")
+        .in("class_id", classIds);
 
-      if (!students || students.length === 0) return;
+      console.log("Students in classes:", students);
 
-      const parentIds = [...new Set(students.map(s => s.guardian_id).filter(Boolean))];
+      if (!students || students.length === 0) {
+        console.log("No students found in classes");
+        return;
+      }
+
+      // Filter students with guardians
+      const studentsWithGuardians = students.filter(s => s.guardian_id);
+      if (studentsWithGuardians.length === 0) {
+        console.log("No students have guardians linked");
+        return;
+      }
+
+      const parentIds = [...new Set(studentsWithGuardians.map(s => s.guardian_id))];
+      console.log("Parent IDs:", parentIds);
 
       // Get parent user_ids
       const { data: parents } = await supabase
         .from("parents")
-        .select("user_id")
+        .select("id, user_id")
         .in("id", parentIds);
 
-      if (!parents || parents.length === 0) return;
+      console.log("Parents:", parents);
+
+      if (!parents || parents.length === 0) {
+        console.log("No parents found");
+        return;
+      }
+
+      const parentUserIds = parents.map(p => p.user_id).filter(Boolean);
+      if (parentUserIds.length === 0) {
+        console.log("No parent user IDs found");
+        return;
+      }
 
       // Get profiles of those parents
       const { data } = await supabase
         .from("profiles")
         .select("id, full_name, email")
-        .in("id", parents.map(p => p.user_id).filter(Boolean));
+        .in("id", parentUserIds);
 
+      console.log("Parent profiles:", data);
       setRecipients(data || []);
 
     } else if (role === "parent") {
