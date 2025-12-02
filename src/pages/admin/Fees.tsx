@@ -31,6 +31,7 @@ const Fees = () => {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [feeStructures, setFeeStructures] = useState<any[]>([]);
+  const [stats, setStats] = useState({ totalCollected: 0, outstanding: 0, overdue: 0, pendingCount: 0, overdueCount: 0 });
   const { toast } = useToast();
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
@@ -54,6 +55,28 @@ const Fees = () => {
     
     if (!error && data) {
       setInvoices(data);
+      
+      // Calculate stats from actual data
+      const now = new Date();
+      const totalCollected = data
+        .filter(inv => inv.status === 'paid')
+        .reduce((sum, inv) => sum + Number(inv.amount), 0);
+      
+      const unpaidInvoices = data.filter(inv => inv.status !== 'paid');
+      const outstanding = unpaidInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0);
+      
+      const overdueInvoices = unpaidInvoices.filter(inv => 
+        inv.due_date && new Date(inv.due_date) < now
+      );
+      const overdue = overdueInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0);
+      
+      setStats({
+        totalCollected,
+        outstanding,
+        overdue,
+        pendingCount: unpaidInvoices.length,
+        overdueCount: overdueInvoices.length,
+      });
     }
   };
 
@@ -187,8 +210,8 @@ const Fees = () => {
               <DollarSign className="h-4 w-4 text-success" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$45,231.89</div>
-              <p className="text-xs text-muted-foreground">+20.1% from last month</p>
+              <div className="text-2xl font-bold">${stats.totalCollected.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">From paid invoices</p>
             </CardContent>
           </Card>
           <Card>
@@ -197,8 +220,8 @@ const Fees = () => {
               <TrendingUp className="h-4 w-4 text-warning" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$12,234.00</div>
-              <p className="text-xs text-muted-foreground">15 pending invoices</p>
+              <div className="text-2xl font-bold">${stats.outstanding.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">{stats.pendingCount} pending invoices</p>
             </CardContent>
           </Card>
           <Card>
@@ -207,8 +230,8 @@ const Fees = () => {
               <AlertCircle className="h-4 w-4 text-destructive" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$2,350.00</div>
-              <p className="text-xs text-muted-foreground">8 overdue invoices</p>
+              <div className="text-2xl font-bold">${stats.overdue.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">{stats.overdueCount} overdue invoices</p>
             </CardContent>
           </Card>
         </div>
