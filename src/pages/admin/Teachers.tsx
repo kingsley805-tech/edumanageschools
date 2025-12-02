@@ -19,7 +19,6 @@ const teacherSchema = z.object({
   email: z.string().email("Invalid email address"),
   full_name: z.string().min(1, "Full name is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  subject_specialty: z.string().min(1, "Subject specialty is required"),
 });
 
 type TeacherFormData = z.infer<typeof teacherSchema>;
@@ -73,7 +72,6 @@ const Teachers = () => {
           role: 'teacher',
           school_code: schoolCode,
           employee_no: data.employee_no,
-          subject_specialty: data.subject_specialty,
         },
       });
 
@@ -137,11 +135,6 @@ const Teachers = () => {
                     <Label htmlFor="password">Password</Label>
                     <Input id="password" type="password" {...register("password")} />
                     {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
-                  </div>
-                  <div className="space-y-2 col-span-2">
-                    <Label htmlFor="subject_specialty">Subject Specialty</Label>
-                    <Input id="subject_specialty" {...register("subject_specialty")} />
-                    {errors.subject_specialty && <p className="text-sm text-destructive">{errors.subject_specialty.message}</p>}
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">

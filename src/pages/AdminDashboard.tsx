@@ -11,28 +11,28 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState([
     {
       title: "Total Students",
-      value: "2,847",
+      value: "0",
       change: "+12.5%",
       icon: Users,
       color: "text-primary"
     },
     {
       title: "Active Teachers",
-      value: "124",
+      value: "0",
       change: "+3.2%",
       icon: GraduationCap,
       color: "text-accent"
     },
     {
       title: "Fees Collected",
-      value: "$248,500",
+      value: "$0",
       change: "+18.7%",
       icon: DollarSign,
       color: "text-success"
     },
     {
       title: "Attendance Rate",
-      value: "94.8%",
+      value: "0%",
       change: "+2.1%",
       icon: TrendingUp,
       color: "text-warning"

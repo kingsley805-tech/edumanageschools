@@ -23,7 +23,7 @@ serve(async (req) => {
       }
     );
 
-    const { email, password, full_name, role, school_code, employee_no, subject_specialty, admission_no, date_of_birth, gender, class_id, guardian_email } = await req.json();
+    const { email, password, full_name, role, school_code, employee_no, admission_no, date_of_birth, gender, guardian_email } = await req.json();
 
     // Create user using admin API (doesn't auto-login)
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -40,20 +40,25 @@ serve(async (req) => {
     if (authError) throw authError;
 
     // Wait for trigger to complete
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Update role-specific table with additional details
-    if (role === 'teacher') {
-      const { error: teacherError } = await supabaseAdmin
+    if (role === 'teacher' && employee_no) {
+      console.log('Updating teacher with employee_no:', employee_no);
+      
+      const { data: teacherData, error: teacherError } = await supabaseAdmin
         .from('teachers')
         .update({
           employee_no,
-          subject_specialty,
         })
-        .eq('user_id', authData.user.id);
+        .eq('user_id', authData.user.id)
+        .select();
 
+      console.log('Teacher update result:', { teacherData, teacherError });
       if (teacherError) throw teacherError;
     } else if (role === 'student') {
+      console.log('Updating student with data:', { admission_no, date_of_birth, gender, guardian_email });
+      
       // Find or create parent if guardian_email provided
       let guardianId = null;
       if (guardian_email) {
@@ -68,17 +73,18 @@ serve(async (req) => {
         }
       }
 
-      const { error: studentError } = await supabaseAdmin
+      const { data: studentData, error: studentError } = await supabaseAdmin
         .from('students')
         .update({
           admission_no,
           date_of_birth,
           gender,
-          class_id,
           guardian_id: guardianId,
         })
-        .eq('user_id', authData.user.id);
+        .eq('user_id', authData.user.id)
+        .select();
 
+      console.log('Student update result:', { studentData, studentError });
       if (studentError) throw studentError;
     }
 
