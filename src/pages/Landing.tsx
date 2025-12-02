@@ -240,7 +240,7 @@ const Landing = () => {
             <div className="flex gap-6 text-sm text-muted-foreground">
               <a href="#" className="hover:text-primary transition-colors">Privacy</a>
               <a href="#" className="hover:text-primary transition-colors">Terms</a>
-              <a href="#" className="hover:text-primary transition-colors">Contact</a>
+              <span className="cursor-pointer hover:text-primary transition-colors" onClick={() => navigate("/contact")}>Contact</span>
             </div>
             <p className="text-sm text-muted-foreground">
               © 2025 EduManage. All rights reserved.
