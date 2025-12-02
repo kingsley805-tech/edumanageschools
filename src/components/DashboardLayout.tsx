@@ -41,6 +41,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
         { icon: Users, label: "Students", path: "/admin/students" },
         { icon: GraduationCap, label: "Teachers", path: "/admin/teachers" },
         { icon: BookOpen, label: "Classes", path: "/admin/classes" },
+        { icon: BookOpen, label: "Subjects", path: "/admin/subjects" },
         { icon: Users, label: "Parent-Student Link", path: "/admin/parent-student-link" },
         { icon: BookOpen, label: "Teacher-Class Link", path: "/admin/teacher-class-link" },
         { icon: DollarSign, label: "Invoices", path: "/admin/fees" },

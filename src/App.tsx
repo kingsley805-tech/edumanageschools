@@ -28,6 +28,7 @@ import ParentAttendance from "./pages/parent/Attendance";
 import ParentGrades from "./pages/parent/Grades";
 import ParentStudentLink from "./pages/admin/ParentStudentLink";
 import TeacherClassLink from "./pages/admin/TeacherClassLink";
+import Subjects from "./pages/admin/Subjects";
 import TeacherAttendance from "./pages/teacher/Attendance";
 import TeacherAssignments from "./pages/teacher/Assignments";
 import Gradebook from "./pages/teacher/Gradebook";
@@ -116,6 +117,11 @@ const App = () => (
             <Route path="/admin/teacher-class-link" element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <TeacherClassLink />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/subjects" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <Subjects />
               </ProtectedRoute>
             } />
             <Route path="/teacher" element={
