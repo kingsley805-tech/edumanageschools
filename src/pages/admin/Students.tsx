@@ -108,18 +108,20 @@ const Students = () => {
         guardianId = (parentData.parents[0] as any).id;
       }
 
-      // Create student record with school_id
+      // Wait a moment for the trigger to create the student record
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Update the student record created by the trigger with additional details
       const { error: studentError } = await supabase
         .from("students")
-        .insert({
-          user_id: authData.user?.id,
+        .update({
           admission_no: data.admission_no,
           date_of_birth: data.date_of_birth,
           gender: data.gender,
           class_id: data.class_id,
           guardian_id: guardianId,
-          school_id: profileData.school_id,
-        });
+        })
+        .eq("user_id", authData.user?.id);
 
       if (studentError) throw studentError;
 
