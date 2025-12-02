@@ -89,28 +89,99 @@ const Messages = () => {
   const fetchRecipients = async () => {
     if (!user || !role) return;
 
-    let query = supabase.from("profiles").select("id, full_name, email");
-
     if (role === "teacher") {
-      const { data: parentIds } = await supabase
-        .from("parents")
-        .select("user_id");
-      
-      if (parentIds) {
-        query = query.in("id", parentIds.map(p => p.user_id));
-      }
-    } else if (role === "parent") {
-      const { data: teacherIds } = await supabase
+      // Get teacher's ID
+      const { data: teacherData } = await supabase
         .from("teachers")
-        .select("user_id");
-      
-      if (teacherIds) {
-        query = query.in("id", teacherIds.map(t => t.user_id));
-      }
-    }
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
 
-    const { data } = await query.neq("id", user.id);
-    setRecipients(data || []);
+      if (!teacherData) return;
+
+      // Get classes taught by this teacher
+      const { data: classSubjects } = await supabase
+        .from("class_subjects")
+        .select("class_id")
+        .eq("teacher_id", teacherData.id);
+
+      if (!classSubjects) return;
+
+      const classIds = classSubjects.map(cs => cs.class_id);
+
+      // Get students in those classes
+      const { data: students } = await supabase
+        .from("students")
+        .select("guardian_id")
+        .in("class_id", classIds)
+        .not("guardian_id", "is", null);
+
+      if (!students) return;
+
+      const parentIds = [...new Set(students.map(s => s.guardian_id))];
+
+      // Get parent user_ids
+      const { data: parents } = await supabase
+        .from("parents")
+        .select("user_id")
+        .in("id", parentIds);
+
+      if (!parents) return;
+
+      // Get profiles of those parents
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", parents.map(p => p.user_id));
+
+      setRecipients(data || []);
+
+    } else if (role === "parent") {
+      // Get parent's ID
+      const { data: parentData } = await supabase
+        .from("parents")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!parentData) return;
+
+      // Get children of this parent
+      const { data: students } = await supabase
+        .from("students")
+        .select("class_id")
+        .eq("guardian_id", parentData.id);
+
+      if (!students || students.length === 0) return;
+
+      const classIds = students.map(s => s.class_id).filter(Boolean);
+
+      // Get teachers teaching those classes
+      const { data: classSubjects } = await supabase
+        .from("class_subjects")
+        .select("teacher_id")
+        .in("class_id", classIds);
+
+      if (!classSubjects) return;
+
+      const teacherIds = [...new Set(classSubjects.map(cs => cs.teacher_id))];
+
+      // Get teacher user_ids
+      const { data: teachers } = await supabase
+        .from("teachers")
+        .select("user_id")
+        .in("id", teacherIds);
+
+      if (!teachers) return;
+
+      // Get profiles of those teachers
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", teachers.map(t => t.user_id));
+
+      setRecipients(data || []);
+    }
   };
 
   const subscribeToMessages = () => {
