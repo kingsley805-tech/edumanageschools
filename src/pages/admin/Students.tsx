@@ -22,8 +22,7 @@ const studentSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
   date_of_birth: z.string().min(1, "Date of birth is required"),
   gender: z.enum(["male", "female", "other"]),
-  class_id: z.string().min(1, "Class is required"),
-  guardian_email: z.string().email("Invalid guardian email"),
+  guardian_email: z.string().email("Invalid guardian email").optional(),
 });
 
 type StudentFormData = z.infer<typeof studentSchema>;
@@ -31,7 +30,6 @@ type StudentFormData = z.infer<typeof studentSchema>;
 const Students = () => {
   const [open, setOpen] = useState(false);
   const [students, setStudents] = useState<any[]>([]);
-  const [classes, setClasses] = useState<any[]>([]);
   const { toast } = useToast();
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<StudentFormData>({
     resolver: zodResolver(studentSchema),
@@ -39,7 +37,6 @@ const Students = () => {
 
   useEffect(() => {
     fetchStudents();
-    fetchClasses();
   }, []);
 
   const fetchStudents = async () => {
@@ -56,15 +53,6 @@ const Students = () => {
     }
   };
 
-  const fetchClasses = async () => {
-    const { data, error } = await supabase
-      .from("classes")
-      .select("*");
-    
-    if (!error && data) {
-      setClasses(data);
-    }
-  };
 
   const onSubmit = async (data: StudentFormData) => {
     try {
@@ -81,49 +69,22 @@ const Students = () => {
       if (!profileData?.school_id) throw new Error("School not found");
       const schoolCode = (profileData.schools as any)?.school_code;
 
-      // Create user account with school_code
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            full_name: data.full_name,
-            role: 'student',
-            school_code: schoolCode,
-          },
-        },
-      });
-
-      if (authError) throw authError;
-
-      // Find or create parent
-      const { data: parentData } = await supabase
-        .from("profiles")
-        .select("id, parents(id)")
-        .eq("email", data.guardian_email)
-        .single();
-
-      let guardianId = null;
-      if (parentData?.parents && Array.isArray(parentData.parents) && parentData.parents.length > 0) {
-        guardianId = (parentData.parents[0] as any).id;
-      }
-
-      // Wait a moment for the trigger to create the student record
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Update the student record created by the trigger with additional details
-      const { error: studentError } = await supabase
-        .from("students")
-        .update({
+      // Call edge function to create user without auto-login
+      const { data: result, error } = await supabase.functions.invoke('create-user-account', {
+        body: {
+          email: data.email,
+          password: data.password,
+          full_name: data.full_name,
+          role: 'student',
+          school_code: schoolCode,
           admission_no: data.admission_no,
           date_of_birth: data.date_of_birth,
           gender: data.gender,
-          class_id: data.class_id,
-          guardian_id: guardianId,
-        })
-        .eq("user_id", authData.user?.id);
+          guardian_email: data.guardian_email,
+        },
+      });
 
-      if (studentError) throw studentError;
+      if (error) throw error;
 
       toast({
         title: "Success",
@@ -203,23 +164,9 @@ const Students = () => {
                     </Select>
                     {errors.gender && <p className="text-sm text-destructive">{errors.gender.message}</p>}
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="class_id">Class</Label>
-                    <Select onValueChange={(value) => setValue("class_id", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select class" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {classes.map((cls) => (
-                          <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.class_id && <p className="text-sm text-destructive">{errors.class_id.message}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="guardian_email">Guardian Email</Label>
-                    <Input id="guardian_email" type="email" {...register("guardian_email")} />
+                  <div className="space-y-2 col-span-2">
+                    <Label htmlFor="guardian_email">Guardian Email (Optional)</Label>
+                    <Input id="guardian_email" type="email" {...register("guardian_email")} placeholder="Link to parent account" />
                     {errors.guardian_email && <p className="text-sm text-destructive">{errors.guardian_email.message}</p>}
                   </div>
                 </div>

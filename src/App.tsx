@@ -26,6 +26,8 @@ import Payments from "./pages/parent/Payments";
 import Children from "./pages/parent/Children";
 import ParentAttendance from "./pages/parent/Attendance";
 import ParentGrades from "./pages/parent/Grades";
+import ParentStudentLink from "./pages/admin/ParentStudentLink";
+import TeacherClassLink from "./pages/admin/TeacherClassLink";
 import TeacherAttendance from "./pages/teacher/Attendance";
 import TeacherAssignments from "./pages/teacher/Assignments";
 import Gradebook from "./pages/teacher/Gradebook";
@@ -104,6 +106,16 @@ const App = () => (
             <Route path="/admin/report-cards" element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <AdminReportCards />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/parent-student-link" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <ParentStudentLink />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/teacher-class-link" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <TeacherClassLink />
               </ProtectedRoute>
             } />
             <Route path="/teacher" element={

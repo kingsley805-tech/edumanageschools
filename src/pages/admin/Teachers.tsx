@@ -64,30 +64,20 @@ const Teachers = () => {
       if (!profileData?.school_id) throw new Error("School not found");
       const schoolCode = (profileData.schools as any)?.school_code;
 
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            full_name: data.full_name,
-            role: 'teacher',
-            school_code: schoolCode,
-          },
+      // Call edge function to create user without auto-login
+      const { data: result, error } = await supabase.functions.invoke('create-user-account', {
+        body: {
+          email: data.email,
+          password: data.password,
+          full_name: data.full_name,
+          role: 'teacher',
+          school_code: schoolCode,
+          employee_no: data.employee_no,
+          subject_specialty: data.subject_specialty,
         },
       });
 
-      if (authError) throw authError;
-
-      const { error: teacherError } = await supabase
-        .from("teachers")
-        .insert({
-          user_id: authData.user?.id,
-          employee_no: data.employee_no,
-          subject_specialty: data.subject_specialty,
-          school_id: profileData.school_id,
-        });
-
-      if (teacherError) throw teacherError;
+      if (error) throw error;
 
       toast({
         title: "Success",
