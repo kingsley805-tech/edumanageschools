@@ -105,9 +105,9 @@ const Messages = () => {
         .select("class_id")
         .eq("teacher_id", teacherData.id);
 
-      if (!classSubjects) return;
+      if (!classSubjects || classSubjects.length === 0) return;
 
-      const classIds = classSubjects.map(cs => cs.class_id);
+      const classIds = classSubjects.map(cs => cs.class_id).filter(Boolean);
 
       // Get students in those classes
       const { data: students } = await supabase
@@ -116,9 +116,9 @@ const Messages = () => {
         .in("class_id", classIds)
         .not("guardian_id", "is", null);
 
-      if (!students) return;
+      if (!students || students.length === 0) return;
 
-      const parentIds = [...new Set(students.map(s => s.guardian_id))];
+      const parentIds = [...new Set(students.map(s => s.guardian_id).filter(Boolean))];
 
       // Get parent user_ids
       const { data: parents } = await supabase
@@ -126,13 +126,13 @@ const Messages = () => {
         .select("user_id")
         .in("id", parentIds);
 
-      if (!parents) return;
+      if (!parents || parents.length === 0) return;
 
       // Get profiles of those parents
       const { data } = await supabase
         .from("profiles")
         .select("id, full_name, email")
-        .in("id", parents.map(p => p.user_id));
+        .in("id", parents.map(p => p.user_id).filter(Boolean));
 
       setRecipients(data || []);
 
@@ -156,15 +156,17 @@ const Messages = () => {
 
       const classIds = students.map(s => s.class_id).filter(Boolean);
 
+      if (classIds.length === 0) return;
+
       // Get teachers teaching those classes
       const { data: classSubjects } = await supabase
         .from("class_subjects")
         .select("teacher_id")
         .in("class_id", classIds);
 
-      if (!classSubjects) return;
+      if (!classSubjects || classSubjects.length === 0) return;
 
-      const teacherIds = [...new Set(classSubjects.map(cs => cs.teacher_id))];
+      const teacherIds = [...new Set(classSubjects.map(cs => cs.teacher_id).filter(Boolean))];
 
       // Get teacher user_ids
       const { data: teachers } = await supabase
@@ -172,13 +174,13 @@ const Messages = () => {
         .select("user_id")
         .in("id", teacherIds);
 
-      if (!teachers) return;
+      if (!teachers || teachers.length === 0) return;
 
       // Get profiles of those teachers
       const { data } = await supabase
         .from("profiles")
         .select("id, full_name, email")
-        .in("id", teachers.map(t => t.user_id));
+        .in("id", teachers.map(t => t.user_id).filter(Boolean));
 
       setRecipients(data || []);
     }

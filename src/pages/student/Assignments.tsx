@@ -73,28 +73,23 @@ const Assignments = () => {
 
       if (!studentData) throw new Error("Student record not found");
 
-      // Upload file
+      // Upload file to private bucket
       const fileExt = selectedFile.name.split('.').pop();
-      const fileName = `${studentData.id}/${assignmentId}/${Date.now()}.${fileExt}`;
+      const fileName = `${user.id}/${assignmentId}/${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
-        .from("assignments")
+        .from("assignment-submissions")
         .upload(fileName, selectedFile);
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from("assignments")
-        .getPublicUrl(fileName);
-
-      // Create submission record
+      // Create submission record with file path (not public URL since bucket is private)
       const { error: submissionError } = await supabase
         .from("submissions")
         .insert({
           assignment_id: assignmentId,
           student_id: studentData.id,
-          file_url: publicUrl,
+          file_url: fileName,
         });
 
       if (submissionError) throw submissionError;
