@@ -9,10 +9,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, X } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { BulkQuestionUpload } from "@/components/BulkQuestionUpload";
 
 interface Question {
   id: string;
@@ -156,10 +157,12 @@ const QuestionBank = () => {
             <h2 className="text-3xl font-bold tracking-tight">Question Bank</h2>
             <p className="text-muted-foreground">Create and manage questions for online exams</p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-            <DialogTrigger asChild>
-              <Button><Plus className="mr-2 h-4 w-4" /> Add Question</Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <BulkQuestionUpload subjects={subjects} onSuccess={fetchData} />
+            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
+              <DialogTrigger asChild>
+                <Button><Plus className="mr-2 h-4 w-4" /> Add Question</Button>
+              </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingQuestion ? "Edit" : "Add"} Question</DialogTitle>
@@ -248,6 +251,7 @@ const QuestionBank = () => {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <div className="flex gap-4">
