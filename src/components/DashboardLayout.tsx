@@ -16,7 +16,9 @@ import {
   Award,
   Settings,
   Clock,
-  Megaphone
+  Megaphone,
+  ClipboardList,
+  MonitorPlay
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { NotificationCenter } from "./NotificationCenter";
@@ -44,6 +46,8 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
         { icon: BookOpen, label: "Subjects", path: "/admin/subjects" },
         { icon: Users, label: "Parent-Student Link", path: "/admin/parent-student-link" },
         { icon: BookOpen, label: "Teacher-Class Link", path: "/admin/teacher-class-link" },
+        { icon: ClipboardList, label: "Exam Types", path: "/admin/exam-types" },
+        { icon: Award, label: "Grade Scales", path: "/admin/grade-scales" },
         { icon: DollarSign, label: "Invoices", path: "/admin/fees" },
         { icon: DollarSign, label: "Fee Structures", path: "/admin/fee-structures" },
         { icon: Calendar, label: "Attendance", path: "/admin/attendance" },
@@ -63,6 +67,8 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
         { icon: FileText, label: "Assignments", path: "/teacher/assignments" },
         { icon: Award, label: "Grades", path: "/teacher/grades" },
         { icon: FileText, label: "Exams", path: "/teacher/exams" },
+        { icon: ClipboardList, label: "Question Bank", path: "/teacher/question-bank" },
+        { icon: MonitorPlay, label: "Online Exams", path: "/teacher/online-exams" },
         { icon: BookOpen, label: "Resources", path: "/teacher/resources" },
         { icon: UserCircle, label: "Messages", path: "/messages" },
         { icon: Settings, label: "Settings", path: "/settings" },
@@ -87,6 +93,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
         { icon: Calendar, label: "Schedule", path: "/student/schedule" },
         { icon: FileText, label: "Assignments", path: "/student/assignments" },
         { icon: Award, label: "Grades", path: "/student/grades" },
+        { icon: MonitorPlay, label: "Online Exams", path: "/student/online-exams" },
         { icon: BookOpen, label: "Resources", path: "/student/resources" },
         { icon: Settings, label: "Settings", path: "/settings" },
       ]
