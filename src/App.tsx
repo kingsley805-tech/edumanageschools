@@ -43,6 +43,11 @@ import StudentResources from "./pages/student/Resources";
 import Messages from "./pages/Messages";
 import Schedule from "./pages/student/Schedule";
 import NotFound from "./pages/NotFound";
+import ExamTypes from "./pages/admin/ExamTypes";
+import GradeScales from "./pages/admin/GradeScales";
+import QuestionBank from "./pages/teacher/QuestionBank";
+import TeacherOnlineExams from "./pages/teacher/OnlineExams";
+import StudentOnlineExams from "./pages/student/OnlineExams";
 
 const queryClient = new QueryClient();
 
@@ -127,6 +132,16 @@ const App = () => (
                 <Subjects />
               </ProtectedRoute>
             } />
+            <Route path="/admin/exam-types" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <ExamTypes />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/grade-scales" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <GradeScales />
+              </ProtectedRoute>
+            } />
             <Route path="/teacher" element={
               <ProtectedRoute allowedRoles={["teacher"]}>
                 <TeacherDashboard />
@@ -187,6 +202,16 @@ const App = () => (
                 <TeacherExams />
               </ProtectedRoute>
             } />
+            <Route path="/teacher/question-bank" element={
+              <ProtectedRoute allowedRoles={["teacher"]}>
+                <QuestionBank />
+              </ProtectedRoute>
+            } />
+            <Route path="/teacher/online-exams" element={
+              <ProtectedRoute allowedRoles={["teacher"]}>
+                <TeacherOnlineExams />
+              </ProtectedRoute>
+            } />
             <Route path="/teacher/resources" element={
               <ProtectedRoute allowedRoles={["teacher"]}>
                 <TeacherResources />
@@ -215,6 +240,11 @@ const App = () => (
             <Route path="/student/resources" element={
               <ProtectedRoute allowedRoles={["student"]}>
                 <StudentResources />
+              </ProtectedRoute>
+            } />
+            <Route path="/student/online-exams" element={
+              <ProtectedRoute allowedRoles={["student"]}>
+                <StudentOnlineExams />
               </ProtectedRoute>
             } />
             
