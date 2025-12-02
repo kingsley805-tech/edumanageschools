@@ -32,13 +32,25 @@ const Attendance = () => {
   }, [selectedClass, date]);
 
   const fetchClasses = async () => {
+    if (!user) return;
+
+    // First get teacher_id from teachers table
+    const { data: teacherData } = await supabase
+      .from("teachers")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!teacherData) return;
+
+    // Then fetch classes assigned to this teacher
     const { data } = await supabase
       .from("class_subjects")
       .select(`
         class_id,
         classes(id, name)
       `)
-      .eq("teacher_id", user?.id);
+      .eq("teacher_id", teacherData.id);
 
     if (data) {
       const uniqueClasses = Array.from(

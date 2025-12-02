@@ -34,6 +34,8 @@ const Assignments = () => {
   const [subjects, setSubjects] = useState<any[]>([]);
   const [selectedAssignment, setSelectedAssignment] = useState<string | null>(null);
   const [submissions, setSubmissions] = useState<any[]>([]);
+  const [gradingSubmission, setGradingSubmission] = useState<any | null>(null);
+  const [gradeValue, setGradeValue] = useState("");
   const { toast } = useToast();
   const { user } = useAuth();
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<AssignmentFormData>({
@@ -122,6 +124,43 @@ const Assignments = () => {
   const handleViewSubmissions = (assignmentId: string) => {
     setSelectedAssignment(assignmentId);
     fetchSubmissions(assignmentId);
+  };
+
+  const handleGradeSubmission = async () => {
+    if (!gradingSubmission || !gradeValue) {
+      toast({
+        title: "Error",
+        description: "Please enter a grade",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("submissions")
+        .update({ grade: parseFloat(gradeValue) })
+        .eq("id", gradingSubmission.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Grade submitted successfully",
+      });
+
+      setGradingSubmission(null);
+      setGradeValue("");
+      if (selectedAssignment) {
+        fetchSubmissions(selectedAssignment);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -276,7 +315,16 @@ const Assignments = () => {
                         <TableCell>{new Date(sub.submitted_at).toLocaleString()}</TableCell>
                         <TableCell>{sub.grade ? <Badge>{sub.grade}</Badge> : <Badge variant="outline">Not graded</Badge>}</TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm">View</Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                              setGradingSubmission(sub);
+                              setGradeValue(sub.grade?.toString() || "");
+                            }}
+                          >
+                            {sub.grade ? "Update Grade" : "Grade"}
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -286,6 +334,46 @@ const Assignments = () => {
             </CardContent>
           </Card>
         )}
+
+        <Dialog open={!!gradingSubmission} onOpenChange={(open) => !open && setGradingSubmission(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Grade Submission</DialogTitle>
+              <DialogDescription>
+                Student: {gradingSubmission?.students?.profiles?.full_name}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {gradingSubmission?.file_url && (
+                <div className="space-y-2">
+                  <Label>Submitted File</Label>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => window.open(gradingSubmission.file_url, '_blank')}
+                  >
+                    View Submission
+                  </Button>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label>Grade (out of 100)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={gradeValue}
+                  onChange={(e) => setGradeValue(e.target.value)}
+                  placeholder="Enter grade"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setGradingSubmission(null)}>Cancel</Button>
+                <Button onClick={handleGradeSubmission}>Submit Grade</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
