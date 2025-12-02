@@ -111,11 +111,16 @@ const StudentOnlineExams = () => {
   };
 
   const startExam = async (exam: OnlineExam) => {
-    const { data: examQuestions } = await supabase
+    const { data: examQuestions, error: questionsError } = await supabase
       .from("online_exam_questions")
       .select("id, question_order, marks, question_bank(id, question_text, question_type, options)")
       .eq("online_exam_id", exam.id)
       .order("question_order");
+
+    if (questionsError) {
+      console.error("Error fetching exam questions:", questionsError);
+      return toast.error("Failed to load exam questions. Please try again.");
+    }
 
     if (!examQuestions || examQuestions.length === 0) {
       return toast.error("No questions available for this exam");
