@@ -41,10 +41,15 @@ const Messages = () => {
   useEffect(() => {
     if (user) {
       fetchMessages();
-      fetchRecipients();
       subscribeToMessages();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (user && role) {
+      fetchRecipients();
+    }
+  }, [user, role]);
 
   const fetchMessages = async () => {
     if (!user) return;
