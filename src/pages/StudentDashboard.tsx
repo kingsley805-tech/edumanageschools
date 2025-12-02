@@ -30,11 +30,12 @@ const StudentDashboard = () => {
 
     const today = new Date().getDay();
 
-    const [schedulesRes, assignmentsRes, attendanceRes, gradesRes] = await Promise.all([
+    const [schedulesRes, assignmentsRes, attendanceRes, gradesRes, classCount] = await Promise.all([
       supabase.from("schedules").select("*, subject:subjects(name), teacher:teachers(user_id)").eq("class_id", classId).eq("day_of_week", today),
       supabase.from("assignments").select("*, subject:subjects(name)").eq("class_id", classId).order("due_date", { ascending: true }).limit(3),
       supabase.from("attendance").select("status", { count: "exact" }).eq("student_id", studentId),
-      supabase.from("grades").select("*, subject:subjects(name)").eq("student_id", studentId).order("created_at", { ascending: false }).limit(4)
+      supabase.from("grades").select("*, subject:subjects(name)").eq("student_id", studentId).order("created_at", { ascending: false }).limit(4),
+      supabase.from("enrollments").select("id", { count: "exact", head: true }).eq("student_id", studentId).eq("status", "active")
     ]);
 
     const presentCount = await supabase
@@ -51,7 +52,7 @@ const StudentDashboard = () => {
       : "-";
 
     setStats([
-      { title: "My Classes", value: schedulesRes.data?.length.toString() || "0", icon: BookOpen, color: "text-primary" },
+      { title: "My Classes", value: (classCount.count || 1).toString(), icon: BookOpen, color: "text-primary" },
       { title: "Assignments", value: assignmentsRes.data?.length.toString() || "0", icon: ClipboardCheck, color: "text-accent" },
       { title: "Attendance", value: `${attendanceRate}%`, icon: Calendar, color: "text-success" },
       { title: "Grade Average", value: avgGrade, icon: Award, color: "text-warning" },

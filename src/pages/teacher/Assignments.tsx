@@ -350,7 +350,14 @@ const Assignments = () => {
                   <Button 
                     variant="outline" 
                     className="w-full"
-                    onClick={() => window.open(gradingSubmission.file_url, '_blank')}
+                    onClick={async () => {
+                      const { data } = await supabase.storage
+                        .from('assignment-submissions')
+                        .createSignedUrl(gradingSubmission.file_url, 60);
+                      if (data?.signedUrl) {
+                        window.open(data.signedUrl, '_blank');
+                      }
+                    }}
                   >
                     View Submission
                   </Button>
