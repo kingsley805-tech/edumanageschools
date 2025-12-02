@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, BookOpen } from "lucide-react";
@@ -20,6 +21,7 @@ interface ClassData {
 }
 
 const Classes = () => {
+  const navigate = useNavigate();
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -112,7 +114,11 @@ const Classes = () => {
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {classes.map((classData) => (
-              <Card key={classData.id} className="hover:shadow-lg transition-shadow">
+              <Card 
+                key={classData.id} 
+                className="hover:shadow-lg transition-all cursor-pointer hover:scale-105"
+                onClick={() => navigate(`/teacher/classes/${classData.class.id}`)}
+              >
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
