@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -49,224 +50,225 @@ import QuestionBank from "./pages/teacher/QuestionBank";
 import TeacherOnlineExams from "./pages/teacher/OnlineExams";
 import StudentOnlineExams from "./pages/student/OnlineExams";
 
-const queryClient = new QueryClient();
+function App() {
+  const [queryClient] = useState(() => new QueryClient());
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/contact" element={<Contact />} />
-            <Route path="/admin" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/students" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <Students />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/teachers" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <Teachers />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/classes" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <Classes />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/fees" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <Fees />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/fee-structures" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <FeeStructures />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/attendance" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminAttendance />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/schedule" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminSchedule />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/reports" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <Reports />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/announcements" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminAnnouncements />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/report-cards" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminReportCards />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/parent-student-link" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <ParentStudentLink />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/teacher-class-link" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <TeacherClassLink />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/subjects" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <Subjects />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/exam-types" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <ExamTypes />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/grade-scales" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <GradeScales />
-              </ProtectedRoute>
-            } />
-            <Route path="/teacher" element={
-              <ProtectedRoute allowedRoles={["teacher"]}>
-                <TeacherDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/teacher/attendance" element={
-              <ProtectedRoute allowedRoles={["teacher"]}>
-                <TeacherAttendance />
-              </ProtectedRoute>
-            } />
-            <Route path="/teacher/assignments" element={
-              <ProtectedRoute allowedRoles={["teacher"]}>
-                <TeacherAssignments />
-              </ProtectedRoute>
-            } />
-            <Route path="/teacher/grades" element={
-              <ProtectedRoute allowedRoles={["teacher"]}>
-                <Gradebook />
-              </ProtectedRoute>
-            } />
-            <Route path="/teacher/classes" element={
-              <ProtectedRoute allowedRoles={["teacher"]}>
-                <TeacherClasses />
-              </ProtectedRoute>
-            } />
-            <Route path="/teacher/classes/:classId" element={
-              <ProtectedRoute allowedRoles={["teacher"]}>
-                <ClassDetails />
-              </ProtectedRoute>
-            } />
-            <Route path="/parent" element={
-              <ProtectedRoute allowedRoles={["parent"]}>
-                <ParentDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/parent/payments" element={
-              <ProtectedRoute allowedRoles={["parent"]}>
-                <Payments />
-              </ProtectedRoute>
-            } />
-            <Route path="/parent/children" element={
-              <ProtectedRoute allowedRoles={["parent"]}>
-                <Children />
-              </ProtectedRoute>
-            } />
-            <Route path="/parent/attendance" element={
-              <ProtectedRoute allowedRoles={["parent"]}>
-                <ParentAttendance />
-              </ProtectedRoute>
-            } />
-            <Route path="/parent/grades" element={
-              <ProtectedRoute allowedRoles={["parent"]}>
-                <ParentGrades />
-              </ProtectedRoute>
-            } />
-            <Route path="/teacher/exams" element={
-              <ProtectedRoute allowedRoles={["teacher"]}>
-                <TeacherExams />
-              </ProtectedRoute>
-            } />
-            <Route path="/teacher/question-bank" element={
-              <ProtectedRoute allowedRoles={["teacher"]}>
-                <QuestionBank />
-              </ProtectedRoute>
-            } />
-            <Route path="/teacher/online-exams" element={
-              <ProtectedRoute allowedRoles={["teacher"]}>
-                <TeacherOnlineExams />
-              </ProtectedRoute>
-            } />
-            <Route path="/teacher/resources" element={
-              <ProtectedRoute allowedRoles={["teacher"]}>
-                <TeacherResources />
-              </ProtectedRoute>
-            } />
-            <Route path="/student" element={
-              <ProtectedRoute allowedRoles={["student"]}>
-                <StudentDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/student/assignments" element={
-              <ProtectedRoute allowedRoles={["student"]}>
-                <StudentAssignments />
-              </ProtectedRoute>
-            } />
-            <Route path="/student/grades" element={
-              <ProtectedRoute allowedRoles={["student"]}>
-                <StudentGrades />
-              </ProtectedRoute>
-            } />
-            <Route path="/student/schedule" element={
-              <ProtectedRoute allowedRoles={["student"]}>
-                <Schedule />
-              </ProtectedRoute>
-            } />
-            <Route path="/student/resources" element={
-              <ProtectedRoute allowedRoles={["student"]}>
-                <StudentResources />
-              </ProtectedRoute>
-            } />
-            <Route path="/student/online-exams" element={
-              <ProtectedRoute allowedRoles={["student"]}>
-                <StudentOnlineExams />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/messages" element={
-              <ProtectedRoute allowedRoles={["teacher", "parent"]}>
-                <Messages />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/settings" element={
-              <ProtectedRoute allowedRoles={["admin", "teacher", "parent", "student"]}>
-                <Settings />
-              </ProtectedRoute>
-            } />
-            
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/admin" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/students" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <Students />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/teachers" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <Teachers />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/classes" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <Classes />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/fees" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <Fees />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/fee-structures" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <FeeStructures />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/attendance" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <AdminAttendance />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/schedule" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <AdminSchedule />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/reports" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <Reports />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/announcements" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <AdminAnnouncements />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/report-cards" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <AdminReportCards />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/parent-student-link" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <ParentStudentLink />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/teacher-class-link" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <TeacherClassLink />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/subjects" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <Subjects />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/exam-types" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <ExamTypes />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/grade-scales" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <GradeScales />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <TeacherDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher/attendance" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <TeacherAttendance />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher/assignments" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <TeacherAssignments />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher/grades" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <Gradebook />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher/classes" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <TeacherClasses />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher/classes/:classId" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <ClassDetails />
+                </ProtectedRoute>
+              } />
+              <Route path="/parent" element={
+                <ProtectedRoute allowedRoles={["parent"]}>
+                  <ParentDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/parent/payments" element={
+                <ProtectedRoute allowedRoles={["parent"]}>
+                  <Payments />
+                </ProtectedRoute>
+              } />
+              <Route path="/parent/children" element={
+                <ProtectedRoute allowedRoles={["parent"]}>
+                  <Children />
+                </ProtectedRoute>
+              } />
+              <Route path="/parent/attendance" element={
+                <ProtectedRoute allowedRoles={["parent"]}>
+                  <ParentAttendance />
+                </ProtectedRoute>
+              } />
+              <Route path="/parent/grades" element={
+                <ProtectedRoute allowedRoles={["parent"]}>
+                  <ParentGrades />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher/exams" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <TeacherExams />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher/question-bank" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <QuestionBank />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher/online-exams" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <TeacherOnlineExams />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher/resources" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <TeacherResources />
+                </ProtectedRoute>
+              } />
+              <Route path="/student" element={
+                <ProtectedRoute allowedRoles={["student"]}>
+                  <StudentDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/student/assignments" element={
+                <ProtectedRoute allowedRoles={["student"]}>
+                  <StudentAssignments />
+                </ProtectedRoute>
+              } />
+              <Route path="/student/grades" element={
+                <ProtectedRoute allowedRoles={["student"]}>
+                  <StudentGrades />
+                </ProtectedRoute>
+              } />
+              <Route path="/student/schedule" element={
+                <ProtectedRoute allowedRoles={["student"]}>
+                  <Schedule />
+                </ProtectedRoute>
+              } />
+              <Route path="/student/resources" element={
+                <ProtectedRoute allowedRoles={["student"]}>
+                  <StudentResources />
+                </ProtectedRoute>
+              } />
+              <Route path="/student/online-exams" element={
+                <ProtectedRoute allowedRoles={["student"]}>
+                  <StudentOnlineExams />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/messages" element={
+                <ProtectedRoute allowedRoles={["teacher", "parent"]}>
+                  <Messages />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/settings" element={
+                <ProtectedRoute allowedRoles={["admin", "teacher", "parent", "student"]}>
+                  <Settings />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
 
 export default App;
