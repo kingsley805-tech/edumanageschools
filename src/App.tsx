@@ -34,6 +34,7 @@ import Subjects from "./pages/admin/Subjects";
 import TeacherAttendance from "./pages/teacher/Attendance";
 import TeacherAssignments from "./pages/teacher/Assignments";
 import Gradebook from "./pages/teacher/Gradebook";
+import TeacherGrades from "./pages/teacher/Grades";
 import TeacherClasses from "./pages/teacher/Classes";
 import ClassDetails from "./pages/teacher/ClassDetails";
 import StudentAssignments from "./pages/student/Assignments";
@@ -161,7 +162,7 @@ function App() {
               } />
               <Route path="/teacher/grades" element={
                 <ProtectedRoute allowedRoles={["teacher"]}>
-                  <Gradebook />
+                  <TeacherGrades />
                 </ProtectedRoute>
               } />
               <Route path="/teacher/classes" element={

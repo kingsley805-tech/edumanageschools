@@ -171,7 +171,7 @@ const Grades = () => {
           .select("student_id, total_marks_obtained, online_exam:online_exams(title, total_marks)")
           .in("online_exam_id", onlineExamIds)
           .in("student_id", studentIds)
-          .eq("status", "completed");
+          .eq("status", "submitted");
 
         setOnlineExamResults((onlineResultsData as any) || []);
       } else {
