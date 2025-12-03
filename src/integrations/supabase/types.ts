@@ -1439,11 +1439,44 @@ export type Database = {
         }
         Returns: string
       }
+      get_parent_children_user_ids: {
+        Args: { _parent_user_id: string }
+        Returns: string[]
+      }
+      get_parent_teacher_user_ids: {
+        Args: { _parent_user_id: string }
+        Returns: string[]
+      }
+      get_school_teacher_user_ids: {
+        Args: { _teacher_user_id: string }
+        Returns: string[]
+      }
+      get_student_classmate_user_ids: {
+        Args: { _student_user_id: string }
+        Returns: string[]
+      }
+      get_student_teacher_user_ids: {
+        Args: { _student_user_id: string }
+        Returns: string[]
+      }
+      get_teacher_parent_user_ids: {
+        Args: { _teacher_user_id: string }
+        Returns: string[]
+      }
+      get_teacher_student_user_ids: {
+        Args: { _teacher_user_id: string }
+        Returns: string[]
+      }
+      get_user_school_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_school_admin: {
+        Args: { _school_id: string; _user_id: string }
         Returns: boolean
       }
       parent_can_view_teacher: {
