@@ -1446,6 +1446,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      teacher_can_view_parent: {
+        Args: { parent_id: string; teacher_user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "teacher" | "parent" | "student"
