@@ -51,7 +51,7 @@ const StudentOnlineExams = () => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState(0);
   const [showResult, setShowResult] = useState(false);
-  const [result, setResult] = useState<{ obtained: number; total: number } | null>(null);
+  const [result, setResult] = useState<{ obtained: number; total: number; grade?: string | null } | null>(null);
 
   useEffect(() => {
     fetchExams();
@@ -148,7 +148,7 @@ const StudentOnlineExams = () => {
   };
 
   const submitExam = async () => {
-    if (!attemptId || !takingExam) return;
+    if (!attemptId || !takingExam || !studentId) return;
 
     // Save all answers
     const answerInserts = Object.entries(answers).map(([questionId, answer]) => {
@@ -191,13 +191,43 @@ const StudentOnlineExams = () => {
         .eq("question_id", ans.question_id);
     }
 
+    // Calculate percentage and get grade from school's grade scale
+    const percentage = (totalObtained / takingExam.total_marks) * 100;
+    
+    // Get grade scale for the school
+    const { data: student } = await supabase
+      .from("students")
+      .select("school_id")
+      .eq("id", studentId)
+      .single();
+
+    let grade = null;
+    if (student?.school_id) {
+      const { data: gradeScales } = await supabase
+        .from("grade_scales")
+        .select("grade, min_score, max_score")
+        .eq("school_id", student.school_id)
+        .order("min_score", { ascending: false });
+
+      if (gradeScales) {
+        const matchingScale = gradeScales.find(
+          gs => percentage >= gs.min_score && percentage <= gs.max_score
+        );
+        grade = matchingScale?.grade || null;
+      }
+    }
+
     await supabase
       .from("online_exam_attempts")
-      .update({ status: "submitted", submitted_at: new Date().toISOString(), total_marks_obtained: totalObtained })
+      .update({ 
+        status: "submitted", 
+        submitted_at: new Date().toISOString(), 
+        total_marks_obtained: totalObtained 
+      })
       .eq("id", attemptId);
 
     if (takingExam.show_result_immediately) {
-      setResult({ obtained: totalObtained, total: takingExam.total_marks });
+      setResult({ obtained: totalObtained, total: takingExam.total_marks, grade });
       setShowResult(true);
     } else {
       toast.success("Exam submitted successfully");
@@ -375,6 +405,9 @@ const StudentOnlineExams = () => {
               <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
               <p className="text-2xl font-bold">{result?.obtained} / {result?.total}</p>
               <p className="text-muted-foreground">marks obtained</p>
+              {result?.grade && (
+                <p className="text-3xl font-bold mt-4 text-primary">Grade: {result.grade}</p>
+              )}
               <p className="text-lg mt-4">
                 {result && result.obtained / result.total >= 0.5 ? "Congratulations! You passed!" : "Keep studying!"}
               </p>

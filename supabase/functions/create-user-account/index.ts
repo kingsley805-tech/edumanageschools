@@ -12,6 +12,15 @@ serve(async (req) => {
   }
 
   try {
+    // Verify caller is authenticated and is an admin
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -23,10 +32,37 @@ serve(async (req) => {
       }
     );
 
+    // Verify the caller's JWT and check if they're an admin
+    const token = authHeader.replace('Bearer ', '');
+    const { data: callerData, error: callerError } = await supabaseAdmin.auth.getUser(token);
+    
+    if (callerError || !callerData.user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if caller has admin role
+    const { data: roleData, error: roleError } = await supabaseAdmin
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', callerData.user.id)
+      .eq('role', 'admin')
+      .single();
+
+    if (roleError || !roleData) {
+      console.log('Unauthorized: User is not an admin:', callerData.user.id);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Only admins can create accounts' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { email, password, full_name, role, school_code, employee_no, admission_no, date_of_birth, gender, guardian_email } = await req.json();
 
     // Create user using admin API (doesn't auto-login)
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: true, // Auto-confirm email
@@ -37,7 +73,8 @@ serve(async (req) => {
       },
     });
 
-    if (authError) throw authError;
+    if (createError) throw createError;
+    if (!authData.user) throw new Error('Failed to create user');
 
     // Wait for trigger to complete
     await new Promise(resolve => setTimeout(resolve, 2000));
