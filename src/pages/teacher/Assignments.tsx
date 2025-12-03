@@ -350,13 +350,9 @@ const Assignments = () => {
                   <Button 
                     variant="outline" 
                     className="w-full"
-                    onClick={async () => {
-                      const { data } = await supabase.storage
-                        .from('assignment-submissions')
-                        .createSignedUrl(gradingSubmission.file_url, 60);
-                      if (data?.signedUrl) {
-                        window.open(data.signedUrl, '_blank');
-                      }
+                    onClick={() => {
+                      // file_url is already a public URL, open directly
+                      window.open(gradingSubmission.file_url, '_blank');
                     }}
                   >
                     View Submission
