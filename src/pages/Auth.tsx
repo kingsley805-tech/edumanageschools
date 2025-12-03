@@ -40,6 +40,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
+import schoolPicture from "@/assets/School Picture.webp";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -145,24 +146,33 @@ const Auth = () => {
     student: { icon: GraduationCap, label: "Student", description: "Learning portal access" }
   };
 
-  const passwordRequirements = [
-    "At least 8 characters",
-    "One uppercase letter",
-    "One number",
-    "One special character"
-  ];
+
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 relative overflow-hidden p-4">
+    <div 
+      className="min-h-screen flex items-center justify-center relative overflow-hidden p-4"
+      style={{
+        backgroundImage: `url(${schoolPicture})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+      {/* Dark overlay for better readability */}
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+      
+      {/* Gradient overlay for aesthetic enhancement */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background/30 to-accent/20"></div>
+      
       {/* Animated Background Elements */}
-      <div className="absolute top-1/4 -left-20 h-80 w-80 rounded-full bg-primary/10 blur-3xl animate-pulse"></div>
-      <div className="absolute bottom-1/4 -right-20 h-96 w-96 rounded-full bg-accent/10 blur-3xl animate-pulse"></div>
+      <div className="absolute top-1/4 -left-20 h-80 w-80 rounded-full bg-primary/10 blur-2xl animate-pulse"></div>
+      <div className="absolute bottom-1/4 -right-20 h-96 w-96 rounded-full bg-accent/10 blur-2xl animate-pulse"></div>
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 rounded-full bg-primary/5 blur-2xl"></div>
 
       {/* Grid Pattern Overlay */}
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iY3VycmVudENvbG9yIiBzdHJva2Utd2lkdGg9IjEiIG9wYWNpdHk9IjAuMDMiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-40"></div>
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iY3VycmVudENvbG9yIiBzdHJva2Utd2lkdGg9IjEiIG9wYWNpdHk9IjAuMDMiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-20"></div>
 
-      <Card className="w-full max-w-md relative z-10 backdrop-blur-xl bg-background/95 border-border/50 shadow-2xl rounded-3xl overflow-hidden border">
+      <Card className="w-full max-w-md relative z-10 backdrop-blur-xl bg-white/50 border-white/25 shadow-2xl rounded-3xl overflow-hidden border">
         {/* Header Gradient Bar */}
         <div className="h-1 bg-gradient-to-r from-primary to-accent"></div>
         
@@ -334,15 +344,7 @@ const Auth = () => {
                     </Button>
                   </div>
                   
-                  {/* Password Requirements */}
-                  <div className="space-y-2 pt-2">
-                    {passwordRequirements.map((req, index) => (
-                      <div key={index} className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <CheckCircle className="h-3 w-3 text-green-500" />
-                        {req}
-                      </div>
-                    ))}
-                  </div>
+              
                 </div>
 
                 {signupRole === "admin" ? (

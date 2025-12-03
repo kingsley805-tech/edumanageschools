@@ -11,7 +11,7 @@ const Grades = () => {
   const { user } = useAuth();
   const [children, setChildren] = useState<any[]>([]);
   const [selectedChild, setSelectedChild] = useState<string>("");
-  const [selectedTerm, setSelectedTerm] = useState<string>("1");
+  const [selectedTerm, setSelectedTerm] = useState<string>("Term 1");
   const [grades, setGrades] = useState<any[]>([]);
 
   useEffect(() => {
@@ -110,9 +110,9 @@ const Grades = () => {
                 <SelectValue placeholder="Select term" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="1">Term 1</SelectItem>
-                <SelectItem value="2">Term 2</SelectItem>
-                <SelectItem value="3">Term 3</SelectItem>
+                <SelectItem value="Term 1">Term 1</SelectItem>
+                <SelectItem value="Term 2">Term 2</SelectItem>
+                <SelectItem value="Term 3">Term 3</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -126,7 +126,7 @@ const Grades = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{calculateAverage()}%</div>
-              <p className="text-xs text-muted-foreground">Term {selectedTerm}</p>
+              <p className="text-xs text-muted-foreground">{selectedTerm}</p>
             </CardContent>
           </Card>
 

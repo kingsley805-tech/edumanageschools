@@ -73,6 +73,49 @@ const StudentOnlineExams = () => {
     }
   }, [takingExam, timeLeft]);
 
+  // Prevent text selection and copy during exam
+  useEffect(() => {
+    if (takingExam) {
+      // Prevent context menu
+      const handleContextMenu = (e: MouseEvent) => {
+        e.preventDefault();
+        return false;
+      };
+
+      // Prevent copy, cut, paste shortcuts
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X' || e.key === 'v' || e.key === 'V')) {
+          e.preventDefault();
+          toast.error("Copying is disabled during exams");
+          return false;
+        }
+        // Prevent F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+        if (e.key === 'F12' || 
+            ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'I' || e.key === 'J')) ||
+            ((e.ctrlKey || e.metaKey) && e.key === 'U')) {
+          e.preventDefault();
+          return false;
+        }
+      };
+
+      // Prevent text selection
+      const handleSelectStart = (e: Event) => {
+        e.preventDefault();
+        return false;
+      };
+
+      document.addEventListener('contextmenu', handleContextMenu);
+      document.addEventListener('keydown', handleKeyDown);
+      document.addEventListener('selectstart', handleSelectStart);
+
+      return () => {
+        document.removeEventListener('contextmenu', handleContextMenu);
+        document.removeEventListener('keydown', handleKeyDown);
+        document.removeEventListener('selectstart', handleSelectStart);
+      };
+    }
+  }, [takingExam]);
+
   const fetchExams = async () => {
     const { data: student } = await supabase
       .from("students")
@@ -260,7 +303,7 @@ const StudentOnlineExams = () => {
 
     return (
       <DashboardLayout role="student">
-        <div className="space-y-6 max-w-4xl mx-auto">
+        <div className="space-y-6 max-w-4xl mx-auto" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">{takingExam.title}</h2>
             <div className="flex items-center gap-2 text-lg font-mono">
@@ -279,7 +322,7 @@ const StudentOnlineExams = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-lg mb-6">{qb?.question_text}</p>
+              <p className="text-lg mb-6" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>{qb?.question_text}</p>
 
               {qb?.question_type === "multiple_choice" && (
                 <RadioGroup
@@ -287,9 +330,9 @@ const StudentOnlineExams = () => {
                   onValueChange={(v) => setAnswers({ ...answers, [qb.id]: v })}
                 >
                   {qb.options?.map((opt) => (
-                    <div key={opt.id} className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted">
+                    <div key={opt.id} className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
                       <RadioGroupItem value={opt.id} id={opt.id} />
-                      <Label htmlFor={opt.id} className="flex-1 cursor-pointer">{opt.text}</Label>
+                      <Label htmlFor={opt.id} className="flex-1 cursor-pointer" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>{opt.text}</Label>
                     </div>
                   ))}
                 </RadioGroup>
@@ -300,13 +343,13 @@ const StudentOnlineExams = () => {
                   value={answers[qb.id] || ""}
                   onValueChange={(v) => setAnswers({ ...answers, [qb.id]: v })}
                 >
-                  <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted">
+                  <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
                     <RadioGroupItem value="true" id="true" />
-                    <Label htmlFor="true" className="flex-1 cursor-pointer">True</Label>
+                    <Label htmlFor="true" className="flex-1 cursor-pointer" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>True</Label>
                   </div>
-                  <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted">
+                  <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
                     <RadioGroupItem value="false" id="false" />
-                    <Label htmlFor="false" className="flex-1 cursor-pointer">False</Label>
+                    <Label htmlFor="false" className="flex-1 cursor-pointer" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>False</Label>
                   </div>
                 </RadioGroup>
               )}
@@ -316,6 +359,7 @@ const StudentOnlineExams = () => {
                   value={answers[qb.id] || ""}
                   onChange={(e) => setAnswers({ ...answers, [qb.id]: e.target.value })}
                   placeholder="Type your answer here"
+                  style={{ userSelect: 'text', WebkitUserSelect: 'text', MozUserSelect: 'text', msUserSelect: 'text' }}
                 />
               )}
             </CardContent>

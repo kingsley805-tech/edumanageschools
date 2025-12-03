@@ -10,7 +10,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 
 const Grades = () => {
   const [grades, setGrades] = useState<any[]>([]);
-  const [selectedTerm, setSelectedTerm] = useState<string>("1");
+  const [selectedTerm, setSelectedTerm] = useState<string>("Term 1");
   const [trendData, setTrendData] = useState<any[]>([]);
   const [subjectComparison, setSubjectComparison] = useState<any[]>([]);
   const { toast } = useToast();
@@ -67,7 +67,8 @@ const Grades = () => {
 
   const prepareTrendData = (allGrades: any[]) => {
     const termAverages = allGrades.reduce((acc: any, grade: any) => {
-      const term = `Term ${grade.term}`;
+      // Handle both "Term 1" format and "1" format for backward compatibility
+      const term = grade.term?.startsWith("Term") ? grade.term : `Term ${grade.term}`;
       if (!acc[term]) {
         acc[term] = { term, total: 0, count: 0 };
       }
@@ -111,9 +112,9 @@ const Grades = () => {
               <SelectValue placeholder="Select term" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="1">Term 1</SelectItem>
-              <SelectItem value="2">Term 2</SelectItem>
-              <SelectItem value="3">Term 3</SelectItem>
+              <SelectItem value="Term 1">Term 1</SelectItem>
+              <SelectItem value="Term 2">Term 2</SelectItem>
+              <SelectItem value="Term 3">Term 3</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -126,7 +127,7 @@ const Grades = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{calculateAverage()}%</div>
-              <p className="text-xs text-muted-foreground">Term {selectedTerm}</p>
+              <p className="text-xs text-muted-foreground">{selectedTerm}</p>
             </CardContent>
           </Card>
 
@@ -180,7 +181,7 @@ const Grades = () => {
           <Card>
             <CardHeader>
               <CardTitle>Subject Comparison</CardTitle>
-              <CardDescription>Performance by subject - Term {selectedTerm}</CardDescription>
+              <CardDescription>Performance by subject - {selectedTerm}</CardDescription>
             </CardHeader>
             <CardContent>
               <ChartContainer config={{}} className="h-[300px]">
@@ -202,7 +203,7 @@ const Grades = () => {
         <Card>
           <CardHeader>
             <CardTitle>Detailed Grades</CardTitle>
-            <CardDescription>All grades for Term {selectedTerm}</CardDescription>
+            <CardDescription>All grades for {selectedTerm}</CardDescription>
           </CardHeader>
           <CardContent>
             {grades.length === 0 ? (

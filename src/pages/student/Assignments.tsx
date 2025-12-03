@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 const Assignments = () => {
   const [assignments, setAssignments] = useState<any[]>([]);
@@ -22,6 +23,39 @@ const Assignments = () => {
   useEffect(() => {
     fetchAssignments();
   }, [user]);
+
+  // Prevent text selection and copy on assignment descriptions
+  useEffect(() => {
+    // Prevent context menu
+    const handleContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Only prevent on assignment description text
+      if (target.closest('[data-assignment-content]')) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    // Prevent copy, cut shortcuts on assignment content
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-assignment-content]')) {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X')) {
+          e.preventDefault();
+          toast.error("Copying assignment content is not allowed");
+          return false;
+        }
+      }
+    };
+
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   const fetchAssignments = async () => {
     if (!user) return;
@@ -141,9 +175,9 @@ const Assignments = () => {
               <Card key={assignment.id}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <CardTitle>{assignment.title}</CardTitle>
-                      <CardDescription>{assignment.subjects?.name}</CardDescription>
+                    <div className="space-y-1" data-assignment-content>
+                      <CardTitle style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>{assignment.title}</CardTitle>
+                      <CardDescription style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>{assignment.subjects?.name}</CardDescription>
                     </div>
                     {assignment.submission ? (
                       <Badge className="bg-success">
@@ -158,7 +192,13 @@ const Assignments = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">{assignment.description}</p>
+                  <p 
+                    className="text-sm text-muted-foreground" 
+                    data-assignment-content
+                    style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}
+                  >
+                    {assignment.description}
+                  </p>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Calendar className="h-4 w-4" />
                     <span>Due: {new Date(assignment.due_date).toLocaleString()}</span>
