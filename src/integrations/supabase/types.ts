@@ -1446,8 +1446,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      parent_can_view_teacher: {
+        Args: { parent_user_id: string; teacher_id: string }
+        Returns: boolean
+      }
       teacher_can_view_parent: {
         Args: { parent_id: string; teacher_user_id: string }
+        Returns: boolean
+      }
+      teacher_can_view_student: {
+        Args: { student_class_id: string; teacher_user_id: string }
         Returns: boolean
       }
     }
