@@ -44,6 +44,9 @@ const Exams = () => {
   }, []);
 
   const fetchExams = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const { data } = await supabase
       .from("exams")
       .select(`
@@ -51,26 +54,69 @@ const Exams = () => {
         subject:subjects(name),
         class:classes(name)
       `)
+      .eq("created_by", user.id)
       .order("exam_date", { ascending: false });
 
     setExams(data || []);
   };
 
   const fetchClasses = async () => {
-    const { data } = await supabase.from("classes").select("*");
-    setClasses(data || []);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Get teacher's assigned classes only
+    const { data: teacherData } = await supabase
+      .from("teachers")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (teacherData) {
+      const { data: classSubjects } = await supabase
+        .from("class_subjects")
+        .select("classes(id, name)")
+        .eq("teacher_id", teacherData.id);
+
+      const uniqueClasses = Array.from(
+        new Map(classSubjects?.map(item => [item.classes?.id, item.classes]) || []).values()
+      ).filter(Boolean);
+      setClasses(uniqueClasses);
+    }
   };
 
   const fetchSubjects = async () => {
-    const { data } = await supabase.from("subjects").select("*");
-    setSubjects(data || []);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Get teacher's assigned subjects only
+    const { data: teacherData } = await supabase
+      .from("teachers")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (teacherData) {
+      const { data: classSubjects } = await supabase
+        .from("class_subjects")
+        .select("subjects(id, name)")
+        .eq("teacher_id", teacherData.id);
+
+      const uniqueSubjects = Array.from(
+        new Map(classSubjects?.map(item => [item.subjects?.id, item.subjects]) || []).values()
+      ).filter(Boolean);
+      setSubjects(uniqueSubjects);
+    }
   };
 
   const onSubmit = async (data: ExamForm) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const { error } = await supabase.from("exams").insert({
       ...data,
       duration_minutes: Number(data.duration_minutes),
       total_marks: Number(data.total_marks),
+      created_by: user.id,
     });
 
     if (error) {

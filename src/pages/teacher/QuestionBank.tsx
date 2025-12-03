@@ -68,6 +68,12 @@ const QuestionBank = () => {
     if (subjectsData) setSubjects(subjectsData);
 
     let query = supabase.from("question_bank").select("*, subjects(name)");
+    
+    // Filter by the current teacher's questions only
+    if (user?.id) {
+      query = query.eq("created_by", user.id);
+    }
+    
     if (filterSubject !== "all") query = query.eq("subject_id", filterSubject);
     if (filterType !== "all") query = query.eq("question_type", filterType);
     
