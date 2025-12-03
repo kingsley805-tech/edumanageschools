@@ -36,6 +36,9 @@ const Resources = () => {
   }, []);
 
   const fetchResources = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const { data } = await supabase
       .from("resources")
       .select(`
@@ -43,19 +46,58 @@ const Resources = () => {
         subject:subjects(name),
         class:classes(name)
       `)
+      .eq("uploaded_by", user.id)
       .order("uploaded_at", { ascending: false });
 
     setResources(data || []);
   };
 
   const fetchClasses = async () => {
-    const { data } = await supabase.from("classes").select("*");
-    setClasses(data || []);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Get teacher's assigned classes only
+    const { data: teacherData } = await supabase
+      .from("teachers")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (teacherData) {
+      const { data: classSubjects } = await supabase
+        .from("class_subjects")
+        .select("classes(id, name)")
+        .eq("teacher_id", teacherData.id);
+
+      const uniqueClasses = Array.from(
+        new Map(classSubjects?.map(item => [item.classes?.id, item.classes]) || []).values()
+      ).filter(Boolean);
+      setClasses(uniqueClasses as any);
+    }
   };
 
   const fetchSubjects = async () => {
-    const { data } = await supabase.from("subjects").select("*");
-    setSubjects(data || []);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Get teacher's assigned subjects only
+    const { data: teacherData } = await supabase
+      .from("teachers")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (teacherData) {
+      const { data: classSubjects } = await supabase
+        .from("class_subjects")
+        .select("subjects(id, name)")
+        .eq("teacher_id", teacherData.id);
+
+      const uniqueSubjects = Array.from(
+        new Map(classSubjects?.map(item => [item.subjects?.id, item.subjects]) || []).values()
+      ).filter(Boolean);
+      setSubjects(uniqueSubjects as any);
+    }
   };
 
   const onSubmit = async (data: ResourceForm) => {

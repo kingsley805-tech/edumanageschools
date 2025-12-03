@@ -94,6 +94,7 @@ const OnlineExams = () => {
     const { data: examsData } = await supabase
       .from("online_exams")
       .select("*, classes(name), subjects(name)")
+      .eq("created_by", user?.id)
       .order("start_time", { ascending: false });
     
     if (examsData) setExams(examsData as OnlineExam[]);
@@ -133,10 +134,12 @@ const OnlineExams = () => {
   const openQuestionsDialog = async (exam: OnlineExam) => {
     setSelectedExam(exam);
     
+    // Filter questions by teacher (created_by) and subject
     const { data: bankQuestions } = await supabase
       .from("question_bank")
       .select("id, question_text, question_type, marks, difficulty")
-      .eq("subject_id", exam.subject_id);
+      .eq("subject_id", exam.subject_id)
+      .eq("created_by", user?.id);
     
     if (bankQuestions) setQuestions(bankQuestions);
 

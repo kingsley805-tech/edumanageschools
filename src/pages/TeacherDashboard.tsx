@@ -22,20 +22,42 @@ const TeacherDashboard = () => {
   }, []);
 
   const fetchDashboardData = async () => {
-    const [classesRes, assignmentsRes, schedulesRes] = await Promise.all([
-      supabase.from("class_subjects").select("id, class:classes(name, id), subject:subjects(name)", { count: "exact" }),
-      supabase.from("assignments").select("id", { count: "exact", head: true }),
-      supabase.from("schedules").select("*, class:classes(name), subject:subjects(name)").eq("day_of_week", new Date().getDay())
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Get teacher record
+    const { data: teacherData } = await supabase
+      .from("teachers")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!teacherData) return;
+
+    // Fetch only classes assigned to this teacher
+    const { data: classSubjectsData } = await supabase
+      .from("class_subjects")
+      .select("id, class:classes(name, id)")
+      .eq("teacher_id", teacherData.id);
+
+    // Get unique class IDs
+    const classIds = [...new Set(classSubjectsData?.map(c => c.class?.id).filter(Boolean) || [])];
+    const uniqueClasses = classSubjectsData?.filter((item, index, self) => 
+      index === self.findIndex((t) => t.class?.id === item.class?.id)
+    ) || [];
+
+    const [assignmentsRes, schedulesRes, studentsRes] = await Promise.all([
+      supabase.from("assignments").select("id", { count: "exact", head: true }).eq("created_by", user.id),
+      supabase.from("schedules").select("*, class:classes(name), subject:subjects(name)")
+        .eq("day_of_week", new Date().getDay())
+        .eq("teacher_id", teacherData.id),
+      classIds.length > 0 
+        ? supabase.from("students").select("id", { count: "exact", head: true }).in("class_id", classIds)
+        : Promise.resolve({ count: 0 })
     ]);
 
-    const classIds = classesRes.data?.map(c => c.class?.id).filter(Boolean) || [];
-    const studentsRes = await supabase
-      .from("students")
-      .select("id", { count: "exact", head: true })
-      .in("class_id", classIds);
-
     setStats([
-      { title: "My Classes", value: classesRes.count?.toString() || "0", icon: BookOpen, color: "text-primary" },
+      { title: "My Classes", value: uniqueClasses.length.toString(), icon: BookOpen, color: "text-primary" },
       { title: "Total Students", value: studentsRes.count?.toString() || "0", icon: Users, color: "text-accent" },
       { title: "Assignments", value: assignmentsRes.count?.toString() || "0", icon: ClipboardCheck, color: "text-success" },
       { title: "Today's Classes", value: schedulesRes.data?.length.toString() || "0", icon: Calendar, color: "text-warning" },
@@ -46,6 +68,7 @@ const TeacherDashboard = () => {
     const { data: assignmentsData } = await supabase
       .from("assignments")
       .select("*, class:classes(name)")
+      .eq("created_by", user.id)
       .order("due_date", { ascending: true })
       .limit(3);
 
