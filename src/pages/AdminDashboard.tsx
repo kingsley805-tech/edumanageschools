@@ -41,18 +41,32 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     const fetchStats = async () => {
+      // Get current user's school_id for filtering
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("school_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profileData?.school_id) return;
+      const schoolId = profileData.school_id;
+
       const [studentsRes, teachersRes, feesRes, attendanceRes] = await Promise.all([
-        supabase.from("students").select("id", { count: "exact", head: true }),
-        supabase.from("teachers").select("id", { count: "exact", head: true }),
-        supabase.from("invoices").select("amount"),
-        supabase.from("attendance").select("status", { count: "exact", head: true })
+        supabase.from("students").select("id", { count: "exact", head: true }).eq("school_id", schoolId),
+        supabase.from("teachers").select("id", { count: "exact", head: true }).eq("school_id", schoolId),
+        supabase.from("invoices").select("amount, students!inner(school_id)").eq("students.school_id", schoolId),
+        supabase.from("attendance").select("status, students!inner(school_id)", { count: "exact", head: true }).eq("students.school_id", schoolId)
       ]);
 
       const totalFees = feesRes.data?.reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
       const totalAttendance = attendanceRes.count || 1;
       const presentCount = await supabase
         .from("attendance")
-        .select("id", { count: "exact", head: true })
+        .select("id, students!inner(school_id)", { count: "exact", head: true })
+        .eq("students.school_id", schoolId)
         .eq("status", "present");
       const attendanceRate = totalAttendance > 0 
         ? ((presentCount.count || 0) / totalAttendance * 100).toFixed(1)
@@ -74,11 +88,24 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     const fetchRecentActivity = async () => {
+      // Get current user's school_id for filtering
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("school_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profileData?.school_id) return;
+      const schoolId = profileData.school_id;
+
       const [studentsRes, paymentsRes, attendanceRes, assignmentsRes] = await Promise.all([
-        supabase.from("students").select("created_at, profiles(full_name), classes(name)").order("created_at", { ascending: false }).limit(10),
-        supabase.from("payments").select("created_at, amount").eq("status", "completed").order("created_at", { ascending: false }).limit(10),
-        supabase.from("attendance").select("recorded_at, classes(name)").order("recorded_at", { ascending: false }).limit(10),
-        supabase.from("assignments").select("created_at, title").order("created_at", { ascending: false }).limit(10)
+        supabase.from("students").select("created_at, profiles(full_name), classes(name)").eq("school_id", schoolId).order("created_at", { ascending: false }).limit(10),
+        supabase.from("payments").select("created_at, amount, invoices!inner(students!inner(school_id))").eq("invoices.students.school_id", schoolId).eq("status", "completed").order("created_at", { ascending: false }).limit(10),
+        supabase.from("attendance").select("recorded_at, classes(name), students!inner(school_id)").eq("students.school_id", schoolId).order("recorded_at", { ascending: false }).limit(10),
+        supabase.from("assignments").select("created_at, title, classes!inner(school_id)").eq("classes.school_id", schoolId).order("created_at", { ascending: false }).limit(10)
       ]);
 
       const activities = [
@@ -108,7 +135,20 @@ const AdminDashboard = () => {
     };
 
     const fetchClassDistribution = async () => {
-      const { data } = await supabase.from("classes").select("name, students(count)");
+      // Get current user's school_id for filtering
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("school_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profileData?.school_id) return;
+      const schoolId = profileData.school_id;
+
+      const { data } = await supabase.from("classes").select("name, students(count)").eq("school_id", schoolId);
       const distribution = (data || []).map(c => ({
         grade: c.name,
         students: (c as any).students?.length || 0,
