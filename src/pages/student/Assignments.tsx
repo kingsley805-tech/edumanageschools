@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
 import { toast } from "sonner";
 
 const Assignments = () => {
@@ -18,7 +17,6 @@ const Assignments = () => {
   const [submitting, setSubmitting] = useState(false);
   const [openDialog, setOpenDialog] = useState<string | null>(null);
   const { user } = useAuth();
-  const { toast } = useToast();
 
   useEffect(() => {
     fetchAssignments();
@@ -128,20 +126,13 @@ const Assignments = () => {
 
       if (submissionError) throw submissionError;
 
-      toast({
-        title: "Success",
-        description: "Assignment submitted successfully",
-      });
+      toast.success("Assignment submitted successfully");
 
       setOpenDialog(null);
       setSelectedFile(null);
       fetchAssignments();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     } finally {
       setSubmitting(false);
     }
