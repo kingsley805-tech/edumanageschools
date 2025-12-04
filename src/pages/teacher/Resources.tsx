@@ -106,6 +106,12 @@ const Resources = () => {
       return;
     }
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error("Not authenticated");
+      return;
+    }
+
     const fileExt = file.name.split(".").pop();
     const fileName = `${Math.random()}.${fileExt}`;
     const filePath = `${fileName}`;
@@ -127,6 +133,7 @@ const Resources = () => {
       ...data,
       file_url: urlData.publicUrl,
       file_type: fileExt,
+      uploaded_by: user.id,
     });
 
     if (insertError) {

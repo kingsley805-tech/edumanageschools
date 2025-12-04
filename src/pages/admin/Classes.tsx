@@ -78,13 +78,26 @@ const Classes = () => {
   };
 
   const fetchAvailableStudents = async () => {
+    // Get current user's school_id for filtering
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profileData?.school_id) return;
+
     const { data: allStudents } = await supabase
       .from("students")
       .select(`
         id,
         admission_no,
         profiles(full_name)
-      `);
+      `)
+      .eq("school_id", profileData.school_id);
 
     const { data: enrolledIds } = await supabase
       .from("enrollments")
