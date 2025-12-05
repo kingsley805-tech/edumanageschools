@@ -34,7 +34,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  role: "admin" | "teacher" | "parent" | "student";
+  role: "admin" | "teacher" | "parent" | "student" | "super_admin";
 }
 
 const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
@@ -114,7 +114,9 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
     }
   };
 
-  const config = roleConfig[role];
+  // Map super_admin to admin config
+  const effectiveRole = role === "super_admin" ? "admin" : role;
+  const config = roleConfig[effectiveRole];
 
   const handleLogout = async () => {
     await signOut();

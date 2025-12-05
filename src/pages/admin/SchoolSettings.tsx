@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,11 +7,13 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import { Upload, Building, Image, Save, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const SchoolSettings = () => {
   const { user } = useAuth();
+  const { role } = useUserRole();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -164,17 +167,30 @@ const SchoolSettings = () => {
     );
   }
 
-  if (!school) {
+  if (!role) {
     return (
-      <div className="text-center py-8">
-        <Building className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-        <p className="text-muted-foreground">No school associated with your account</p>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
+  const layoutRole = role === "super_admin" ? "admin" : (role as "admin" | "teacher" | "parent" | "student");
+
+  if (!school) {
+    return (
+      <DashboardLayout role={layoutRole}>
+        <div className="text-center py-8">
+          <Building className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">No school associated with your account</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <DashboardLayout role={layoutRole}>
+      <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">School Settings</h1>
         <p className="text-muted-foreground">
@@ -280,7 +296,8 @@ const SchoolSettings = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 };
 

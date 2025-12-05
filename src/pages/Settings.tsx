@@ -119,8 +119,11 @@ const Settings = () => {
     );
   }
 
+  // Map super_admin to admin for DashboardLayout
+  const layoutRole = role === "super_admin" ? "admin" : (role as "admin" | "teacher" | "parent" | "student");
+
   return (
-    <DashboardLayout role={role as "admin" | "teacher" | "parent" | "student"}>
+    <DashboardLayout role={layoutRole}>
       <div className="space-y-6">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Settings</h2>

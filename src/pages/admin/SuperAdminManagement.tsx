@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import { Shield, School, UserPlus, Trash2, Search, Building } from "lucide-react";
 import {
   Table,
@@ -43,6 +45,7 @@ interface School {
 
 const SuperAdminManagement = () => {
   const { user } = useAuth();
+  const { role } = useUserRole();
   const [superAdmins, setSuperAdmins] = useState<SuperAdmin[]>([]);
   const [allSchools, setAllSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
@@ -173,8 +176,19 @@ const SuperAdminManagement = () => {
     admin.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  if (!role) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  const layoutRole = role === "super_admin" ? "admin" : (role as "admin" | "teacher" | "parent" | "student");
+
   return (
-    <div className="space-y-6">
+    <DashboardLayout role={layoutRole}>
+      <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Super Admin Management</h1>
@@ -325,7 +339,8 @@ const SuperAdminManagement = () => {
           )}
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 };
 
