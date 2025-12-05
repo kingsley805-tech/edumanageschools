@@ -25,6 +25,8 @@ type TeacherFormData = z.infer<typeof teacherSchema>;
 
 const Teachers = () => {
   const [open, setOpen] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
   const [teachers, setTeachers] = useState<any[]>([]);
   const { toast } = useToast();
   const { register, handleSubmit, formState: { errors }, reset } = useForm<TeacherFormData>({
@@ -208,7 +210,16 @@ const Teachers = () => {
                         <Badge className="bg-success">Active</Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm">View</Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => {
+                            setSelectedTeacher(teacher);
+                            setViewDialogOpen(true);
+                          }}
+                        >
+                          View
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -217,6 +228,42 @@ const Teachers = () => {
             </Table>
           </CardContent>
         </Card>
+
+        {/* View Teacher Dialog */}
+        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Teacher Details</DialogTitle>
+              <DialogDescription>View complete teacher information</DialogDescription>
+            </DialogHeader>
+            {selectedTeacher && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">Employee Number</Label>
+                    <p className="font-medium">{selectedTeacher.employee_no}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Full Name</Label>
+                    <p className="font-medium">{selectedTeacher.profiles?.full_name}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Email</Label>
+                    <p className="font-medium">{selectedTeacher.profiles?.email}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Subject Specialty</Label>
+                    <p className="font-medium">{selectedTeacher.subject_specialty || "Not specified"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Status</Label>
+                    <Badge className="bg-success">Active</Badge>
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

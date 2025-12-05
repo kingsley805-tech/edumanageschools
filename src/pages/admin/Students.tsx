@@ -29,6 +29,8 @@ type StudentFormData = z.infer<typeof studentSchema>;
 
 const Students = () => {
   const [open, setOpen] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [students, setStudents] = useState<any[]>([]);
   const { toast } = useToast();
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<StudentFormData>({
@@ -246,7 +248,16 @@ const Students = () => {
                         <Badge className="bg-success">Active</Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm">View</Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => {
+                            setSelectedStudent(student);
+                            setViewDialogOpen(true);
+                          }}
+                        >
+                          View
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -255,6 +266,60 @@ const Students = () => {
             </Table>
           </CardContent>
         </Card>
+
+        {/* View Student Dialog */}
+        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Student Details</DialogTitle>
+              <DialogDescription>View complete student information</DialogDescription>
+            </DialogHeader>
+            {selectedStudent && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">Admission Number</Label>
+                    <p className="font-medium">{selectedStudent.admission_no}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Full Name</Label>
+                    <p className="font-medium">{selectedStudent.profiles?.full_name}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Email</Label>
+                    <p className="font-medium">{selectedStudent.profiles?.email}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Class</Label>
+                    <p className="font-medium">{selectedStudent.classes?.name || "Not assigned"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Gender</Label>
+                    <p className="font-medium capitalize">{selectedStudent.gender}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Date of Birth</Label>
+                    <p className="font-medium">
+                      {selectedStudent.date_of_birth 
+                        ? new Date(selectedStudent.date_of_birth).toLocaleDateString()
+                        : "Not provided"}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Status</Label>
+                    <Badge className="bg-success">Active</Badge>
+                  </div>
+                  {selectedStudent.guardian_email && (
+                    <div>
+                      <Label className="text-muted-foreground">Guardian Email</Label>
+                      <p className="font-medium">{selectedStudent.guardian_email}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
