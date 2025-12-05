@@ -123,7 +123,13 @@ const Auth = () => {
       return;
     }
 
-    if (signupRole === "admin") {
+    if (signupRole === "super_admin") {
+      if (!adminKey) {
+        toast.error("Super Admin key is required for super administrator accounts");
+        setIsLoading(false);
+        return;
+      }
+    } else if (signupRole === "admin") {
       if (!adminKey) {
         toast.error("Admin key is required for administrator accounts");
         setIsLoading(false);
@@ -181,6 +187,7 @@ const Auth = () => {
   };
 
   const roleConfig = {
+    super_admin: { icon: Shield, label: "Super Admin", description: "Multi-school management" },
     admin: { icon: Shield, label: "Administrator", description: "Full system access" },
     teacher: { icon: BookOpen, label: "Teacher", description: "Class and grade management" },
     parent: { icon: Users, label: "Parent", description: "Student progress tracking" },
@@ -466,7 +473,13 @@ const Auth = () => {
               
                 </div>
 
-                {signupRole === "admin" ? (
+                {signupRole === "super_admin" ? (
+                  <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 animate-fade-in">
+                    <p className="text-sm text-muted-foreground">
+                      Super admins manage multiple schools. You'll be able to assign schools after account creation.
+                    </p>
+                  </div>
+                ) : signupRole === "admin" ? (
                   <div className="space-y-4 animate-fade-in">
                     <div className="space-y-3">
                       <Label htmlFor="school-name" className="text-sm font-medium">School Name</Label>
@@ -514,7 +527,7 @@ const Auth = () => {
                         className="pl-10 pr-4 py-6 uppercase"
                         value={schoolCode}
                         onChange={(e) => setSchoolCode(e.target.value.toUpperCase())}
-                        required={signupRole !== "admin"}
+                        required={signupRole !== "admin" && signupRole !== "super_admin"}
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -551,26 +564,28 @@ const Auth = () => {
                   </Select>
                 </div>
 
-                {signupRole === "admin" && (
+                {(signupRole === "admin" || signupRole === "super_admin") && (
                   <div className="space-y-3 animate-fade-in">
                     <Label htmlFor="admin-key" className="text-sm font-medium flex items-center gap-2">
                       <Shield className="h-4 w-4 text-primary" />
-                      Admin Key (Required)
+                      {signupRole === "super_admin" ? "Super Admin Key" : "Admin Key"} (Required)
                     </Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="admin-key"
                         type="password"
-                        placeholder="Enter admin key"
+                        placeholder={signupRole === "super_admin" ? "Enter super admin key" : "Enter admin key"}
                         className="pl-10 pr-4 py-6"
                         value={adminKey}
                         onChange={(e) => setAdminKey(e.target.value)}
-                        required={signupRole === "admin"}
+                        required={signupRole === "admin" || signupRole === "super_admin"}
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      This special key is required to create an administrator account
+                      {signupRole === "super_admin" 
+                        ? "This special key is required to create a super administrator account"
+                        : "This special key is required to create an administrator account"}
                     </p>
                   </div>
                 )}

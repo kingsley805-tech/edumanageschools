@@ -19,7 +19,9 @@ import {
   Megaphone,
   ClipboardList,
   MonitorPlay,
-  MessageSquare
+  MessageSquare,
+  Shield,
+  Building
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { NotificationCenter } from "./NotificationCenter";
@@ -28,6 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { useUserRole } from "@/hooks/useUserRole";
 import { SchoolSwitcher } from "./SchoolSwitcher";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -64,6 +67,8 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
         { icon: FileText, label: "Reports", path: "/admin/reports" },
         { icon: Megaphone, label: "Announcements", path: "/admin/announcements" },
         { icon: FileText, label: "Report Cards", path: "/admin/report-cards" },
+        { icon: Building, label: "School Settings", path: "/admin/school-settings" },
+        ...(isSuperAdmin ? [{ icon: Shield, label: "Super Admin", path: "/admin/super-admin-management" }] : []),
         { icon: Settings, label: "Settings", path: "/settings" },
       ]
     },
@@ -194,10 +199,13 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
               <SchoolSwitcher />
             ) : currentSchool ? (
               <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-lg bg-primary/10 text-sm">
-                {/* School Badge Placeholder */}
-                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-xs border-2 border-white shadow-sm">
-                  {currentSchool.school_name.substring(0, 2).toUpperCase()}
-                </div>
+                {/* School Logo/Badge */}
+                <Avatar className="h-8 w-8 border-2 border-white shadow-sm">
+                  <AvatarImage src={currentSchool.logo_url || undefined} alt={currentSchool.school_name} />
+                  <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-bold text-xs">
+                    {currentSchool.school_name.substring(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
                 <div className="flex flex-col">
                   <span className="font-medium text-primary leading-tight">{currentSchool.school_name}</span>
                   <span className="text-xs text-muted-foreground leading-tight">{currentSchool.school_code}</span>
