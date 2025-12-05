@@ -19,14 +19,15 @@ import {
   Megaphone,
   ClipboardList,
   MonitorPlay,
-  MessageSquare,
-  Building2
+  MessageSquare
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { NotificationCenter } from "./NotificationCenter";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { Badge } from "@/components/ui/badge";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
+import { useUserRole } from "@/hooks/useUserRole";
+import { SchoolSwitcher } from "./SchoolSwitcher";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -40,6 +41,8 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const unreadMessages = useUnreadMessages();
   const { currentSchool } = useSchoolInfo();
+  const { role: userRole } = useUserRole();
+  const isSuperAdmin = userRole === "super_admin";
 
   const roleConfig = {
     admin: {
@@ -187,13 +190,20 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
           
           <div className="flex-1 flex items-center gap-4">
             <h1 className="text-lg font-semibold">{config.title}</h1>
-            {currentSchool && (
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 text-sm">
-                <Building2 className="h-4 w-4 text-primary" />
-                <span className="font-medium text-primary">{currentSchool.school_name}</span>
-                <span className="text-muted-foreground">({currentSchool.school_code})</span>
+            {isSuperAdmin ? (
+              <SchoolSwitcher />
+            ) : currentSchool ? (
+              <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-lg bg-primary/10 text-sm">
+                {/* School Badge Placeholder */}
+                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-xs border-2 border-white shadow-sm">
+                  {currentSchool.school_name.substring(0, 2).toUpperCase()}
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-medium text-primary leading-tight">{currentSchool.school_name}</span>
+                  <span className="text-xs text-muted-foreground leading-tight">{currentSchool.school_code}</span>
+                </div>
               </div>
-            )}
+            ) : null}
           </div>
 
           <NotificationCenter />

@@ -1365,6 +1365,35 @@ export type Database = {
           },
         ]
       }
+      super_admin_schools: {
+        Row: {
+          created_at: string | null
+          id: string
+          school_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          school_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          school_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "super_admin_schools_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teachers: {
         Row: {
           created_at: string | null
@@ -1493,7 +1522,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "teacher" | "parent" | "student"
+      app_role: "admin" | "teacher" | "parent" | "student" | "super_admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1621,7 +1650,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "teacher", "parent", "student"],
+      app_role: ["admin", "teacher", "parent", "student", "super_admin"],
     },
   },
 } as const
