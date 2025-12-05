@@ -1210,6 +1210,7 @@ export type Database = {
           created_at: string | null
           id: string
           is_active: boolean | null
+          logo_url: string | null
           school_code: string
           school_name: string
         }
@@ -1217,6 +1218,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          logo_url?: string | null
           school_code: string
           school_name: string
         }
@@ -1224,6 +1226,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          logo_url?: string | null
           school_code?: string
           school_name?: string
         }
