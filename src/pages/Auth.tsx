@@ -63,11 +63,13 @@ const Auth = () => {
   const [schoolCode, setSchoolCode] = useState("");
   const [schoolName, setSchoolName] = useState("");
   const [adminKey, setAdminKey] = useState("");
+  const [resetEmail, setResetEmail] = useState("");
 
   useEffect(() => {
     if (user && role) {
       const roleRoutes: Record<string, string> = {
         admin: "/admin",
+        super_admin: "/admin",
         teacher: "/teacher",
         parent: "/parent",
         student: "/student"
@@ -91,7 +93,7 @@ const Auth = () => {
       .from("schools")
       .select("id")
       .eq("school_code", loginSchoolCode.toUpperCase())
-      .single();
+      .maybeSingle();
 
     if (schoolError || !schoolData) {
       toast.error("Invalid school code. Please check and try again.");
@@ -157,6 +159,24 @@ const Auth = () => {
     }
 
     toast.success("Account created successfully!");
+    setIsLoading(false);
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/auth?tab=reset-password`,
+    });
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Password reset link sent to your email!");
+      setResetEmail("");
+      setActiveTab("login");
+    }
     setIsLoading(false);
   };
 
@@ -230,22 +250,6 @@ const Auth = () => {
             <form onSubmit={handleLogin}>
               <CardContent className="space-y-5">
                 <div className="space-y-3">
-                  <Label htmlFor="login-school-code" className="text-sm font-medium">School Code</Label>
-                  <div className="relative">
-                    <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="login-school-code"
-                      type="text"
-                      placeholder="Enter your school code"
-                      className="pl-10 pr-4 py-6 uppercase"
-                      value={loginSchoolCode}
-                      onChange={(e) => setLoginSchoolCode(e.target.value.toUpperCase())}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-3">
                   <Label htmlFor="login-email" className="text-sm font-medium">Email Address</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -289,6 +293,22 @@ const Auth = () => {
                     </Button>
                   </div>
                 </div>
+
+                <div className="space-y-3">
+                  <Label htmlFor="login-school-code" className="text-sm font-medium">School Code</Label>
+                  <div className="relative">
+                    <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="login-school-code"
+                      type="text"
+                      placeholder="Enter your school code"
+                      className="pl-10 pr-4 py-6 uppercase"
+                      value={loginSchoolCode}
+                      onChange={(e) => setLoginSchoolCode(e.target.value.toUpperCase())}
+                      required
+                    />
+                  </div>
+                </div>
               </CardContent>
 
               <CardFooter className="flex flex-col space-y-4 pt-2">
@@ -310,8 +330,70 @@ const Auth = () => {
                   )}
                 </Button>
 
-                <Button variant="link" type="button" className="text-sm text-muted-foreground hover:text-primary">
+                <Button 
+                  variant="link" 
+                  type="button" 
+                  className="text-sm text-muted-foreground hover:text-primary"
+                  onClick={() => setActiveTab("forgot-password")}
+                >
                   Forgot your password?
+                </Button>
+              </CardFooter>
+            </form>
+          </TabsContent>
+
+          {/* FORGOT PASSWORD TAB */}
+          <TabsContent value="forgot-password" className="animate-fade-in">
+            <form onSubmit={handleForgotPassword}>
+              <CardContent className="space-y-5">
+                <div className="text-center mb-4">
+                  <p className="text-sm text-muted-foreground">
+                    Enter your email address and we'll send you a link to reset your password.
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  <Label htmlFor="reset-email" className="text-sm font-medium">Email Address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="reset-email"
+                      type="email"
+                      placeholder="you@school.edu"
+                      className="pl-10 pr-4 py-6"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+              </CardContent>
+
+              <CardFooter className="flex flex-col space-y-4 pt-2">
+                <Button
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-primary to-accent hover:shadow-lg hover:scale-105 transition-all duration-200 py-6 text-base font-semibold group"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Sending...
+                    </div>
+                  ) : (
+                    <>
+                      Send Reset Link
+                      <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </Button>
+
+                <Button 
+                  variant="link" 
+                  type="button" 
+                  className="text-sm text-muted-foreground hover:text-primary"
+                  onClick={() => setActiveTab("login")}
+                >
+                  Back to Login
                 </Button>
               </CardFooter>
             </form>
