@@ -40,6 +40,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
+import { supabase } from "@/integrations/supabase/client";
 import schoolPicture from "@/assets/School Picture.webp";
 
 const Auth = () => {
@@ -53,6 +54,7 @@ const Auth = () => {
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [loginSchoolCode, setLoginSchoolCode] = useState("");
 
   const [signupFullName, setSignupFullName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
@@ -77,6 +79,25 @@ const Auth = () => {
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
+
+    if (!loginSchoolCode.trim()) {
+      toast.error("Please enter your school code");
+      setIsLoading(false);
+      return;
+    }
+
+    // Verify school code exists before attempting login
+    const { data: schoolData, error: schoolError } = await supabase
+      .from("schools")
+      .select("id")
+      .eq("school_code", loginSchoolCode.toUpperCase())
+      .single();
+
+    if (schoolError || !schoolData) {
+      toast.error("Invalid school code. Please check and try again.");
+      setIsLoading(false);
+      return;
+    }
 
     const { error } = await signIn(loginEmail, loginPassword);
 
@@ -208,6 +229,22 @@ const Auth = () => {
           <TabsContent value="login" className="animate-fade-in">
             <form onSubmit={handleLogin}>
               <CardContent className="space-y-5">
+                <div className="space-y-3">
+                  <Label htmlFor="login-school-code" className="text-sm font-medium">School Code</Label>
+                  <div className="relative">
+                    <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="login-school-code"
+                      type="text"
+                      placeholder="Enter your school code"
+                      className="pl-10 pr-4 py-6 uppercase"
+                      value={loginSchoolCode}
+                      onChange={(e) => setLoginSchoolCode(e.target.value.toUpperCase())}
+                      required
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-3">
                   <Label htmlFor="login-email" className="text-sm font-medium">Email Address</Label>
                   <div className="relative">

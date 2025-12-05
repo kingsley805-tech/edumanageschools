@@ -38,31 +38,53 @@ const Fees = () => {
   });
 
   useEffect(() => {
-    fetchInvoices();
-    fetchStudents();
-    fetchFeeStructures();
+    fetchData();
   }, []);
 
-  const fetchInvoices = async () => {
-    const { data, error } = await supabase
-      .from("invoices")
-      .select(`
-        *,
-        students(admission_no, profiles(full_name)),
-        fee_structures(name)
-      `)
-      .order('created_at', { ascending: false });
-    
-    if (!error && data) {
-      setInvoices(data);
+  const fetchData = async () => {
+    // Get current user's school_id for filtering
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profileData?.school_id) return;
+    const schoolId = profileData.school_id;
+
+    // Fetch all data filtered by school
+    const [invoicesRes, studentsRes, feeStructuresRes] = await Promise.all([
+      supabase
+        .from("invoices")
+        .select(`
+          *,
+          students!inner(admission_no, school_id, profiles(full_name)),
+          fee_structures(name)
+        `)
+        .eq("students.school_id", schoolId)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from("students")
+        .select("id, admission_no, profiles(full_name)")
+        .eq("school_id", schoolId),
+      supabase
+        .from("fee_structures")
+        .select("*")
+    ]);
+
+    if (invoicesRes.data) {
+      setInvoices(invoicesRes.data);
       
       // Calculate stats from actual data
       const now = new Date();
-      const totalCollected = data
+      const totalCollected = invoicesRes.data
         .filter(inv => inv.status === 'paid')
         .reduce((sum, inv) => sum + Number(inv.amount), 0);
       
-      const unpaidInvoices = data.filter(inv => inv.status !== 'paid');
+      const unpaidInvoices = invoicesRes.data.filter(inv => inv.status !== 'paid');
       const outstanding = unpaidInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0);
       
       const overdueInvoices = unpaidInvoices.filter(inv => 
@@ -78,27 +100,14 @@ const Fees = () => {
         overdueCount: overdueInvoices.length,
       });
     }
+
+    if (studentsRes.data) setStudents(studentsRes.data);
+    if (feeStructuresRes.data) setFeeStructures(feeStructuresRes.data);
   };
 
-  const fetchStudents = async () => {
-    const { data, error } = await supabase
-      .from("students")
-      .select("id, admission_no, profiles(full_name)");
-    
-    if (!error && data) {
-      setStudents(data);
-    }
-  };
-
-  const fetchFeeStructures = async () => {
-    const { data, error } = await supabase
-      .from("fee_structures")
-      .select("*");
-    
-    if (!error && data) {
-      setFeeStructures(data);
-    }
-  };
+  const fetchInvoices = fetchData;
+  const fetchStudents = fetchData;
+  const fetchFeeStructures = fetchData;
 
   const onSubmit = async (data: InvoiceFormData) => {
     try {
