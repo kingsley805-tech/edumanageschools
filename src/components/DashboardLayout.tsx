@@ -49,7 +49,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
 
   const roleConfig = {
     admin: {
-      title: "Admin Dashboard",
+      title: "Admin",
       menuItems: [
         { icon: LayoutDashboard, label: "Dashboard", path: "/admin" },
         { icon: Users, label: "Students", path: "/admin/students" },
@@ -73,7 +73,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
       ]
     },
     teacher: {
-      title: "Teacher Portal",
+      title: "Teacher",
       menuItems: [
         { icon: LayoutDashboard, label: "Dashboard", path: "/teacher" },
         { icon: BookOpen, label: "My Classes", path: "/teacher/classes" },
@@ -89,7 +89,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
       ]
     },
     parent: {
-      title: "Parent Portal",
+      title: "Parent",
       menuItems: [
         { icon: LayoutDashboard, label: "Dashboard", path: "/parent" },
         { icon: UserCircle, label: "My Children", path: "/parent/children" },
@@ -101,7 +101,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
       ]
     },
     student: {
-      title: "Student Portal",
+      title: "Student",
       menuItems: [
         { icon: LayoutDashboard, label: "Dashboard", path: "/student" },
         { icon: Calendar, label: "Schedule", path: "/student/schedule" },
@@ -132,7 +132,22 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      {/* Watermark overlay - covers entire viewport behind all content */}
+      {currentSchool?.logo_url && (
+        <div 
+          className="fixed inset-0 pointer-events-none"
+          style={{
+            backgroundImage: `url(${currentSchool.logo_url})`,
+            backgroundSize: '400px 400px',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            opacity: 0.15,
+            zIndex: 0,
+          }}
+        />
+      )}
+      
       {/* Sidebar */}
       <aside 
         className={`fixed left-0 top-0 z-40 h-screen transition-transform ${
@@ -184,7 +199,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
       </aside>
 
       {/* Main Content */}
-      <div className={`transition-all ${sidebarOpen ? "ml-64" : "ml-0"}`}>
+      <div className={`transition-all ${sidebarOpen ? "ml-64" : "ml-0"} relative z-10`}>
         {/* Top Bar */}
         <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/95 backdrop-blur px-6">
           <Button
@@ -196,36 +211,45 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
           </Button>
           
           <div className="flex-1 flex items-center gap-4">
-            <h1 className="text-lg font-semibold">{config.title}</h1>
             {isSuperAdmin ? (
               <SchoolSwitcher />
             ) : currentSchool ? (
-              <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-lg bg-primary/10 text-sm">
-                {/* School Logo/Badge */}
-                <Avatar className="h-8 w-8 border-2 border-white shadow-sm">
-                  <AvatarImage src={currentSchool.logo_url || undefined} alt={currentSchool.school_name} />
-                  <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-bold text-xs">
-                    {currentSchool.school_name.substring(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col">
-                  <span className="font-medium text-primary leading-tight">{currentSchool.school_name}</span>
-                  <span className="text-xs text-muted-foreground leading-tight">{currentSchool.school_code}</span>
+              <>
+                {currentSchool.logo_url && (
+                  <Avatar className="h-10 w-10 border-2 border-primary/20 shadow-sm">
+                    <AvatarImage src={currentSchool.logo_url} alt={currentSchool.school_name} />
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-bold text-sm">
+                      {currentSchool.school_name.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-bold">{currentSchool.school_name}</h1>
+                  {currentSchool.school_code && (
+                    <span className="text-sm text-muted-foreground font-medium">
+                      ({currentSchool.school_code})
+                    </span>
+                  )}
                 </div>
-              </div>
-            ) : null}
+                <span className="text-muted-foreground">-</span>
+                <h2 className="text-lg font-semibold">
+                  {role === "admin" || role === "super_admin" ? "Admin" : config.title}
+                </h2>
+              </>
+            ) : (
+              <h2 className="text-lg font-semibold">
+                {role === "admin" || role === "super_admin" ? "Admin" : config.title}
+              </h2>
+            )}
           </div>
 
-          <NotificationCenter />
-          
-          <div className="flex items-center gap-2 text-sm">
-            <UserCircle className="h-5 w-5" />
-            <span className="hidden md:inline">{user?.email}</span>
+          <div className="ml-auto">
+            <NotificationCenter />
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="p-6">
+        <main className="p-6 relative z-10">
           {children}
         </main>
       </div>
