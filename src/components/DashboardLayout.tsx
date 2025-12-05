@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,13 +19,14 @@ import {
   Megaphone,
   ClipboardList,
   MonitorPlay,
-  MessageSquare
+  MessageSquare,
+  Building2
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { NotificationCenter } from "./NotificationCenter";
-import { useState } from "react";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { Badge } from "@/components/ui/badge";
+import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -38,6 +39,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
   const { signOut, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const unreadMessages = useUnreadMessages();
+  const { currentSchool } = useSchoolInfo();
 
   const roleConfig = {
     admin: {
@@ -183,8 +185,15 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
             <Menu className="h-5 w-5" />
           </Button>
           
-          <div className="flex-1">
+          <div className="flex-1 flex items-center gap-4">
             <h1 className="text-lg font-semibold">{config.title}</h1>
+            {currentSchool && (
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 text-sm">
+                <Building2 className="h-4 w-4 text-primary" />
+                <span className="font-medium text-primary">{currentSchool.school_name}</span>
+                <span className="text-muted-foreground">({currentSchool.school_code})</span>
+              </div>
+            )}
           </div>
 
           <NotificationCenter />
