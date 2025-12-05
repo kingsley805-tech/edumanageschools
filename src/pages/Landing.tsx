@@ -267,8 +267,8 @@ const Landing = () => {
               <span className="font-semibold text-lg text-white">EduManage</span>
             </div>
             <div className="flex gap-6 text-sm text-white/70">
-              <a href="#" className="hover:text-cyan-300 transition-colors">Privacy</a>
-              <a href="#" className="hover:text-cyan-300 transition-colors">Terms</a>
+              <span className="cursor-pointer hover:text-cyan-300 transition-colors" onClick={() => navigate("/privacy")}>Privacy</span>
+              <span className="cursor-pointer hover:text-cyan-300 transition-colors" onClick={() => navigate("/terms")}>Terms</span>
               <span className="cursor-pointer hover:text-cyan-300 transition-colors" onClick={() => navigate("/contact")}>Contact</span>
             </div>
             <p className="text-sm text-white/60">
