@@ -198,7 +198,7 @@ const Auth = () => {
 
   return (
     <div 
-      className="min-h-screen flex items-center justify-center relative overflow-hidden p-4"
+      className="min-h-screen flex items-center justify-center relative overflow-hidden p-3 sm:p-4"
       style={{
         backgroundImage: `url(${schoolPicture})`,
         backgroundSize: 'cover',
@@ -209,24 +209,24 @@ const Auth = () => {
       {/* Minimal overlay for card readability only */}
       <div className="absolute inset-0 bg-black/5"></div>
 
-      <Card className="w-full max-w-md relative z-10 backdrop-blur-xl bg-white/50 border-white/25 shadow-2xl rounded-3xl overflow-hidden border">
+      <Card className="w-full max-w-md relative z-10 backdrop-blur-xl bg-white/50 border-white/25 shadow-2xl rounded-2xl md:rounded-3xl overflow-hidden border">
         {/* Header Gradient Bar */}
         <div className="h-1 bg-gradient-to-r from-primary to-accent"></div>
         
-        <CardHeader className="text-center space-y-3 pb-6">
-          <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent shadow-lg">
-            <GraduationCap className="h-8 w-8 text-white" />
+        <CardHeader className="text-center space-y-2 md:space-y-3 pb-4 md:pb-6 px-4 md:px-6">
+          <div className="mx-auto mb-2 flex h-12 w-12 md:h-16 md:w-16 items-center justify-center rounded-xl md:rounded-2xl bg-gradient-to-br from-primary to-accent shadow-lg">
+            <GraduationCap className="h-6 w-6 md:h-8 md:w-8 text-white" />
           </div>
-          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+          <CardTitle className="text-xl md:text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
             EduManage Portal
           </CardTitle>
-          <CardDescription className="text-base">
+          <CardDescription className="text-sm md:text-base">
             Secure access for your educational institution
           </CardDescription>
         </CardHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-2 mx-6 mb-2 gap-2">
+          <TabsList className="grid grid-cols-2 mx-4 md:mx-6 mb-2 gap-2">
             <TabsTrigger 
               value="login"
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-white transition-all duration-200"
@@ -244,16 +244,16 @@ const Auth = () => {
           {/* LOGIN TAB */}
           <TabsContent value="login" className="animate-fade-in">
             <form onSubmit={handleLogin}>
-              <CardContent className="space-y-5">
-                <div className="space-y-3">
-                  <Label htmlFor="login-email" className="text-sm font-medium">Email Address</Label>
+              <CardContent className="space-y-4 md:space-y-5 px-4 md:px-6">
+                <div className="space-y-2 md:space-y-3">
+                  <Label htmlFor="login-email" className="text-sm md:text-base font-semibold text-foreground">Email Address</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Mail className="absolute left-3 top-3 h-5 w-5 md:h-6 md:w-6 text-foreground/70" />
                     <Input
                       id="login-email"
                       type="email"
                       placeholder="you@school.edu"
-                      className="pl-10 pr-4 py-6"
+                      className="pl-10 pr-4 py-5 md:py-6 text-base"
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
                       required
@@ -261,15 +261,15 @@ const Auth = () => {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <Label htmlFor="login-password" className="text-sm font-medium">Password</Label>
+                <div className="space-y-2 md:space-y-3">
+                  <Label htmlFor="login-password" className="text-sm md:text-base font-semibold text-foreground">Password</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Lock className="absolute left-3 top-3 h-5 w-5 md:h-6 md:w-6 text-foreground/70" />
                     <Input
                       id="login-password"
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
-                      className="pl-10 pr-12 py-6"
+                      className="pl-10 pr-12 py-5 md:py-6 text-base"
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       required
@@ -290,15 +290,15 @@ const Auth = () => {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <Label htmlFor="login-school-code" className="text-sm font-medium">School Code</Label>
+                <div className="space-y-2 md:space-y-3">
+                  <Label htmlFor="login-school-code" className="text-sm md:text-base font-semibold text-foreground">School Code</Label>
                   <div className="relative">
                     <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="login-school-code"
                       type="text"
                       placeholder="Enter your school code"
-                      className="pl-10 pr-4 py-6 uppercase"
+                      className="pl-10 pr-4 py-5 md:py-6 uppercase text-base"
                       value={loginSchoolCode}
                       onChange={(e) => setLoginSchoolCode(e.target.value.toUpperCase())}
                       required
@@ -307,10 +307,10 @@ const Auth = () => {
                 </div>
               </CardContent>
 
-              <CardFooter className="flex flex-col space-y-4 pt-2">
+              <CardFooter className="flex flex-col space-y-3 md:space-y-4 pt-2 px-4 md:px-6 pb-4 md:pb-6 overflow-hidden">
                 <Button
                   type="submit"
-                  className="w-full bg-gradient-to-r from-primary to-accent hover:shadow-lg hover:scale-105 transition-all duration-200 py-6 text-base font-semibold group"
+                  className="w-full bg-gradient-to-r from-primary to-accent hover:shadow-lg hover:scale-105 transition-all duration-200 py-5 md:py-6 text-base md:text-lg font-bold group overflow-hidden"
                   disabled={isLoading}
                 >
                   {isLoading ? (
@@ -350,7 +350,7 @@ const Auth = () => {
                 <div className="space-y-3">
                   <Label htmlFor="reset-email" className="text-sm font-medium">Email Address</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Mail className="absolute left-3 top-3 h-5 w-5 md:h-6 md:w-6 text-foreground/70" />
                     <Input
                       id="reset-email"
                       type="email"
@@ -400,9 +400,9 @@ const Auth = () => {
             <form onSubmit={handleSignup}>
               <CardContent className="space-y-5">
                 <div className="space-y-3">
-                  <Label htmlFor="signup-name" className="text-sm font-medium">Full Name</Label>
+                  <Label htmlFor="signup-name" className="text-sm md:text-base font-semibold text-foreground">Full Name</Label>
                   <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <User className="absolute left-3 top-3 h-5 w-5 md:h-6 md:w-6 text-foreground/70" />
                     <Input
                       id="signup-name"
                       type="text"
@@ -418,7 +418,7 @@ const Auth = () => {
                 <div className="space-y-3">
                   <Label htmlFor="signup-email" className="text-sm font-medium">Email Address</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Mail className="absolute left-3 top-3 h-5 w-5 md:h-6 md:w-6 text-foreground/70" />
                     <Input
                       id="signup-email"
                       type="email"
@@ -432,9 +432,9 @@ const Auth = () => {
                 </div>
 
                 <div className="space-y-3">
-                  <Label htmlFor="signup-password" className="text-sm font-medium">Password</Label>
+                  <Label htmlFor="signup-password" className="text-sm md:text-base font-semibold text-foreground">Password</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Lock className="absolute left-3 top-3 h-5 w-5 md:h-6 md:w-6 text-foreground/70" />
                     <Input
                       id="signup-password"
                       type={showPassword ? "text" : "password"}
@@ -529,7 +529,7 @@ const Auth = () => {
                   <Label htmlFor="signup-role" className="text-sm font-medium">Account Type</Label>
                   <Select value={signupRole} onValueChange={setSignupRole} required>
                     <SelectTrigger id="signup-role" className="py-6 pl-10">
-                      <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <User className="absolute left-3 top-3 h-5 w-5 md:h-6 md:w-6 text-foreground/70" />
                       <SelectValue placeholder="Select your role" />
                     </SelectTrigger>
                     <SelectContent>
@@ -560,7 +560,7 @@ const Auth = () => {
                       {signupRole === "super_admin" ? "Super Admin Key" : "Admin Key"} (Required)
                     </Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Lock className="absolute left-3 top-3 h-5 w-5 md:h-6 md:w-6 text-foreground/70" />
                       <Input
                         id="admin-key"
                         type="password"

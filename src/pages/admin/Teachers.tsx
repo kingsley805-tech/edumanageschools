@@ -117,15 +117,15 @@ const Teachers = () => {
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-4 md:space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Teachers</h2>
-            <p className="text-muted-foreground">Manage teaching staff</p>
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Teachers</h2>
+            <p className="text-sm md:text-base text-muted-foreground">Manage teaching staff</p>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2">
+              <Button className="gap-2 w-full sm:w-auto">
                 <Plus className="h-4 w-4" />
                 Add Teacher
               </Button>
@@ -168,64 +168,67 @@ const Teachers = () => {
         </div>
 
         <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
+          <CardHeader className="p-4 md:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <CardTitle>All Teachers</CardTitle>
-                <CardDescription>View and manage teacher information</CardDescription>
+                <CardTitle className="text-lg md:text-xl">All Teachers</CardTitle>
+                <CardDescription className="text-sm md:text-base">View and manage teacher information</CardDescription>
               </div>
-              <div className="relative">
+              <div className="relative w-full sm:w-auto">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search teachers..." className="pl-10 w-64" />
+                <Input placeholder="Search teachers..." className="pl-10 w-full sm:w-64 text-base" />
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee No.</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {teachers.length === 0 ? (
+          <CardContent className="p-0 md:p-6 pt-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
-                      No teachers found. Add your first teacher to get started.
-                    </TableCell>
+                    <TableHead className="min-w-[120px]">Employee No.</TableHead>
+                    <TableHead className="min-w-[150px]">Name</TableHead>
+                    <TableHead className="hidden md:table-cell">Subject</TableHead>
+                    <TableHead className="hidden lg:table-cell">Email</TableHead>
+                    <TableHead className="min-w-[80px]">Status</TableHead>
+                    <TableHead className="text-right min-w-[80px]">Actions</TableHead>
                   </TableRow>
-                ) : (
-                  teachers.map((teacher) => (
-                    <TableRow key={teacher.id}>
-                      <TableCell className="font-medium">{teacher.employee_no}</TableCell>
-                      <TableCell>{teacher.profiles?.full_name}</TableCell>
-                      <TableCell>{teacher.subject_specialty}</TableCell>
-                      <TableCell>{teacher.profiles?.email}</TableCell>
-                      <TableCell>
-                        <Badge className="bg-success">Active</Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => {
-                            setSelectedTeacher(teacher);
-                            setViewDialogOpen(true);
-                          }}
-                        >
-                          View
-                        </Button>
+                </TableHeader>
+                <TableBody>
+                  {teachers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        No teachers found. Add your first teacher to get started.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    teachers.map((teacher) => (
+                      <TableRow key={teacher.id}>
+                        <TableCell className="font-medium">{teacher.employee_no}</TableCell>
+                        <TableCell className="font-medium">{teacher.profiles?.full_name}</TableCell>
+                        <TableCell className="hidden md:table-cell">{teacher.subject_specialty || "N/A"}</TableCell>
+                        <TableCell className="hidden lg:table-cell text-sm">{teacher.profiles?.email}</TableCell>
+                        <TableCell>
+                          <Badge className="bg-success text-xs">Active</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedTeacher(teacher);
+                              setViewDialogOpen(true);
+                            }}
+                            className="h-8 md:h-9"
+                          >
+                            View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
 

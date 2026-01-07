@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Plus, Trash2 } from "lucide-react";
+import { Upload, Plus, Trash2, Download, FileUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -136,6 +136,163 @@ export const BulkQuestionUpload = ({ subjects, onSuccess }: BulkQuestionUploadPr
     setGeneratedForms(false);
   };
 
+  const exportToCSV = async () => {
+    if (!subjectId) {
+      toast.error("Please select a subject first");
+      return;
+    }
+
+    // Fetch questions from the question bank for the selected subject
+    const { data: bankQuestions, error } = await supabase
+      .from("question_bank")
+      .select("*")
+      .eq("subject_id", subjectId)
+      .eq("created_by", user?.id);
+
+    if (error) {
+      toast.error("Failed to fetch questions");
+      return;
+    }
+
+    if (!bankQuestions || bankQuestions.length === 0) {
+      toast.error("No questions found for this subject");
+      return;
+    }
+
+    // Create CSV header
+    const headers = ["Question Type", "Question Text", "Option 1", "Option 2", "Option 3", "Option 4", "Correct Answer", "Marks", "Difficulty"];
+    
+    // Convert questions to CSV rows
+    const rows = bankQuestions.map((q) => {
+      const options = q.options as { id: string; text: string }[] | null;
+      const option1 = options && options[0] ? options[0].text : "";
+      const option2 = options && options[1] ? options[1].text : "";
+      const option3 = options && options[2] ? options[2].text : "";
+      const option4 = options && options[3] ? options[3].text : "";
+      
+      return [
+        q.question_type,
+        q.question_text.replace(/"/g, '""'), // Escape quotes
+        option1.replace(/"/g, '""'),
+        option2.replace(/"/g, '""'),
+        option3.replace(/"/g, '""'),
+        option4.replace(/"/g, '""'),
+        q.correct_answer,
+        q.marks.toString(),
+        q.difficulty,
+      ];
+    });
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.map(h => `"${h}"`).join(","),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(","))
+    ].join("\n");
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `questions_${subjectId}_${Date.now()}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast.success("Questions exported to CSV successfully");
+  };
+
+  const handleCSVImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!subjectId) {
+      toast.error("Please select a subject first");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const text = e.target?.result as string;
+        const lines = text.split("\n").filter(line => line.trim());
+        
+        if (lines.length < 2) {
+          toast.error("CSV file must have at least a header and one data row");
+          return;
+        }
+
+        // Skip header row
+        const dataLines = lines.slice(1);
+        const importedQuestions: BulkQuestion[] = [];
+
+        for (const line of dataLines) {
+          // Parse CSV line (handling quoted fields)
+          const fields: string[] = [];
+          let currentField = "";
+          let inQuotes = false;
+
+          for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"') {
+              if (inQuotes && line[i + 1] === '"') {
+                currentField += '"';
+                i++; // Skip next quote
+              } else {
+                inQuotes = !inQuotes;
+              }
+            } else if (char === ',' && !inQuotes) {
+              fields.push(currentField);
+              currentField = "";
+            } else {
+              currentField += char;
+            }
+          }
+          fields.push(currentField); // Add last field
+
+          if (fields.length < 9) {
+            toast.error(`Invalid CSV format. Expected 9 columns, got ${fields.length}`);
+            continue;
+          }
+
+          const [questionType, questionText, opt1, opt2, opt3, opt4, correctAnswer, marks, difficulty] = fields;
+
+          const question: BulkQuestion = {
+            question_type: questionType.trim(),
+            question_text: questionText.trim(),
+            options: [
+              { id: "1", text: opt1.trim() },
+              { id: "2", text: opt2.trim() },
+              { id: "3", text: opt3.trim() },
+              { id: "4", text: opt4.trim() },
+            ],
+            correct_answer: correctAnswer.trim(),
+            marks: parseInt(marks.trim()) || 1,
+            difficulty: difficulty.trim() || "medium",
+          };
+
+          importedQuestions.push(question);
+        }
+
+        if (importedQuestions.length === 0) {
+          toast.error("No valid questions found in CSV file");
+          return;
+        }
+
+        setQuestions(importedQuestions);
+        setGeneratedForms(true);
+        toast.success(`Imported ${importedQuestions.length} questions from CSV`);
+      } catch (error: any) {
+        toast.error(`Failed to parse CSV: ${error.message}`);
+      }
+    };
+
+    reader.readAsText(file);
+    // Reset input
+    event.target.value = "";
+  };
+
   return (
     <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
       <DialogTrigger asChild>
@@ -169,7 +326,29 @@ export const BulkQuestionUpload = ({ subjects, onSuccess }: BulkQuestionUploadPr
                 />
               </div>
             </div>
-            <Button onClick={generateForms} className="w-full">Generate Question Forms</Button>
+            <div className="flex gap-2">
+              <Button onClick={generateForms} className="flex-1">Generate Question Forms</Button>
+              <Button variant="outline" onClick={exportToCSV} disabled={!subjectId}>
+                <Download className="mr-2 h-4 w-4" /> Export CSV
+              </Button>
+              <div className="relative">
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCSVImport}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  id="csv-import"
+                />
+                <Button variant="outline" asChild>
+                  <label htmlFor="csv-import" className="cursor-pointer">
+                    <FileUp className="mr-2 h-4 w-4" /> Import CSV
+                  </label>
+                </Button>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              CSV Format: Question Type, Question Text, Option 1, Option 2, Option 3, Option 4, Correct Answer, Marks, Difficulty
+            </p>
           </div>
         ) : (
           <div className="space-y-6">

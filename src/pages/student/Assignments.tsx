@@ -1,6 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Upload, Calendar, CheckCircle } from "lucide-react";
+import { BookOpen, Upload, Calendar, CheckCircle, FileText } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -194,6 +194,19 @@ const Assignments = () => {
                     <Calendar className="h-4 w-4" />
                     <span>Due: {new Date(assignment.due_date).toLocaleString()}</span>
                   </div>
+                  {assignment.file_url && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(assignment.file_url, '_blank')}
+                        className="gap-2"
+                      >
+                        <FileText className="h-4 w-4" />
+                        View Assignment Document
+                      </Button>
+                    </div>
+                  )}
                   {assignment.submission ? (
                     <div className="space-y-2">
                       <p className="text-sm">

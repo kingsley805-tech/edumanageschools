@@ -23,12 +23,14 @@ interface ExamForm {
   duration_minutes: number;
   total_marks: number;
   term: string;
+  exam_type_id: string;
 }
 
 const Exams = () => {
   const [exams, setExams] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
+  const [examTypes, setExamTypes] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState<any>(null);
   const [resultsDialogOpen, setResultsDialogOpen] = useState(false);
@@ -41,7 +43,29 @@ const Exams = () => {
     fetchExams();
     fetchClasses();
     fetchSubjects();
+    fetchExamTypes();
   }, []);
+
+  const fetchExamTypes = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.school_id) {
+      const { data } = await supabase
+        .from("exam_types")
+        .select("*")
+        .eq("school_id", profile.school_id)
+        .order("name");
+      
+      if (data) setExamTypes(data);
+    }
+  };
 
   const fetchExams = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -52,7 +76,8 @@ const Exams = () => {
       .select(`
         *,
         subject:subjects(name),
-        class:classes(name)
+        class:classes(name),
+        exam_type:exam_types(name)
       `)
       .eq("created_by", user.id)
       .order("exam_date", { ascending: false });
@@ -116,6 +141,7 @@ const Exams = () => {
       ...data,
       duration_minutes: Number(data.duration_minutes),
       total_marks: Number(data.total_marks),
+      exam_type_id: data.exam_type_id || null,
       created_by: user.id,
     });
 
@@ -255,6 +281,25 @@ const Exams = () => {
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <Label>Exam Type</Label>
+                  <Select onValueChange={(value) => setValue("exam_type_id", value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select exam type (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {examTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.id}>
+                          {type.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Select the type of exam (e.g., Midterm, Final, Quiz)
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Exam Date</Label>
@@ -306,6 +351,7 @@ const Exams = () => {
                     <TableHead>Title</TableHead>
                     <TableHead>Subject</TableHead>
                     <TableHead>Class</TableHead>
+                    <TableHead>Exam Type</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Marks</TableHead>
                     <TableHead>Term</TableHead>
@@ -318,6 +364,13 @@ const Exams = () => {
                       <TableCell className="font-medium">{exam.title}</TableCell>
                       <TableCell>{exam.subject?.name}</TableCell>
                       <TableCell>{exam.class?.name}</TableCell>
+                      <TableCell>
+                        {exam.exam_type?.name ? (
+                          <Badge variant="secondary">{exam.exam_type.name}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         {new Date(exam.exam_date).toLocaleDateString()}
                       </TableCell>

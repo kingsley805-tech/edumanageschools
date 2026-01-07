@@ -63,6 +63,7 @@ const OnlineExams = () => {
     total_marks: 100,
     term: "",
     shuffle_questions: false,
+    shuffle_answers: false,
     show_result_immediately: true,
   });
 
@@ -127,6 +128,7 @@ const OnlineExams = () => {
       total_marks: 100,
       term: "",
       shuffle_questions: false,
+      shuffle_answers: false,
       show_result_immediately: true,
     });
   };
@@ -288,6 +290,10 @@ const OnlineExams = () => {
                   <div className="flex items-center space-x-2">
                     <Checkbox checked={formData.shuffle_questions} onCheckedChange={(c) => setFormData({ ...formData, shuffle_questions: !!c })} />
                     <Label>Shuffle Questions</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox checked={formData.shuffle_answers} onCheckedChange={(c) => setFormData({ ...formData, shuffle_answers: !!c })} />
+                    <Label>Shuffle Answers</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Checkbox checked={formData.show_result_immediately} onCheckedChange={(c) => setFormData({ ...formData, show_result_immediately: !!c })} />

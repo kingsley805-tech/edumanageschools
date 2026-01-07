@@ -7,28 +7,26 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Upload, Camera } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Camera } from "lucide-react";
+import { useState, useEffect, lazy, Suspense } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const ThemeSettings = lazy(() => import("@/components/ThemeSettings"));
 
 const Settings = () => {
-  const { role } = useUserRole();
+  const { role, loading: roleLoading } = useUserRole();
   const { user } = useAuth();
-  const [theme, setTheme] = useState<"light" | "dark">(
-    localStorage.getItem("theme") as "light" | "dark" || "light"
-  );
+  const { glassmorphism, setGlassmorphism } = useTheme();
   const [notifications, setNotifications] = useState(true);
   const [emailAlerts, setEmailAlerts] = useState(true);
   const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("theme", theme);
-  }, [theme]);
 
   useEffect(() => {
     if (user) {
@@ -39,21 +37,24 @@ const Settings = () => {
   const fetchProfile = async () => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name, phone, avatar_url")
+        .eq("id", user.id)
+        .single();
 
-    if (!error && data) {
-      setProfile(data);
-      setFullName(data.full_name || "");
-      setPhone(data.phone || "");
+      if (!error && data) {
+        setProfile(data);
+        setFullName(data.full_name || "");
+        setPhone(data.phone || "");
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const handleThemeToggle = () => {
-    setTheme(prev => prev === "light" ? "dark" : "light");
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -111,7 +112,8 @@ const Settings = () => {
     }
   };
 
-  if (!role) {
+  // Wait for role to load before rendering
+  if (roleLoading || !role) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -124,29 +126,37 @@ const Settings = () => {
 
   return (
     <DashboardLayout role={layoutRole}>
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Settings</h2>
-          <p className="text-muted-foreground">Manage your account preferences</p>
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Settings</h2>
+          <p className="text-sm md:text-base text-muted-foreground">Manage your account preferences</p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-4 md:gap-6 md:grid-cols-2">
           <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Profile</CardTitle>
-              <CardDescription>Manage your profile information</CardDescription>
+            <CardHeader className="p-4 md:p-6">
+              <CardTitle className="text-lg md:text-xl">Profile</CardTitle>
+              <CardDescription className="text-sm md:text-base">Manage your profile information</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center gap-6">
-                <Avatar className="h-24 w-24">
+            <CardContent className="space-y-4 md:space-y-6 p-4 md:p-6 pt-0">
+              {loading ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-24 w-24 rounded-full mx-auto sm:mx-0" />
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ) : (
+                <>
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 md:gap-6">
+                <Avatar className="h-20 w-20 md:h-24 md:w-24 flex-shrink-0">
                   <AvatarImage src={profile?.avatar_url} />
-                  <AvatarFallback className="text-2xl">
+                  <AvatarFallback className="text-xl md:text-2xl">
                     {fullName?.charAt(0) || user?.email?.charAt(0)}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex-1">
+                <div className="flex-1 w-full sm:w-auto text-center sm:text-left">
                   <Label htmlFor="avatar" className="cursor-pointer">
-                    <div className="flex items-center gap-2 text-sm text-primary hover:underline">
+                    <div className="flex items-center justify-center sm:justify-start gap-2 text-sm text-primary hover:underline">
                       <Camera className="h-4 w-4" />
                       {uploading ? "Uploading..." : "Change avatar"}
                     </div>
@@ -165,112 +175,128 @@ const Settings = () => {
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
+                  <Label htmlFor="fullName" className="text-sm md:text-base">Full Name</Label>
                   <Input
                     id="fullName"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Enter your full name"
+                    className="text-base py-5 md:py-6"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
+                  <Label htmlFor="phone" className="text-sm md:text-base">Phone Number</Label>
                   <Input
                     id="phone"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="Enter your phone number"
+                    className="text-base py-5 md:py-6"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email" className="text-sm md:text-base">Email Address</Label>
                 <Input
                   id="email"
                   value={user?.email || ""}
                   disabled
-                  className="bg-muted"
+                  className="bg-muted text-base py-5 md:py-6"
                 />
                 <p className="text-xs text-muted-foreground">
                   Contact admin to change your email
                 </p>
               </div>
 
-              <Button onClick={handleUpdateProfile}>
+              <Button onClick={handleUpdateProfile} className="w-full sm:w-auto">
                 Update Profile
               </Button>
+              </>
+              )}
             </CardContent>
           </Card>
 
+          <Suspense fallback={
+            <Card>
+              <CardHeader className="p-4 md:p-6">
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-4 w-48 mt-2" />
+              </CardHeader>
+              <CardContent className="p-4 md:p-6 pt-0">
+                <Skeleton className="h-32 w-full" />
+              </CardContent>
+            </Card>
+          }>
+            <ThemeSettings />
+          </Suspense>
+
           <Card>
-            <CardHeader>
-              <CardTitle>Appearance</CardTitle>
-              <CardDescription>Customize how the application looks</CardDescription>
+            <CardHeader className="p-4 md:p-6">
+              <CardTitle className="text-lg md:text-xl">Appearance</CardTitle>
+              <CardDescription className="text-sm md:text-base">Customize the visual appearance</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="theme">Dark Mode</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Enable dark mode for better viewing at night
+            <CardContent className="space-y-4 p-4 md:p-6 pt-0">
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-0.5 flex-1 min-w-0">
+                  <Label htmlFor="glassmorphism" className="text-sm md:text-base">Glassmorphism Effect</Label>
+                  <p className="text-xs md:text-sm text-muted-foreground">
+                    Apply a glass-like effect to card containers
                   </p>
                 </div>
-                <Switch
-                  id="theme"
-                  checked={theme === "dark"}
-                  onCheckedChange={handleThemeToggle}
-                />
+                <div className="flex-shrink-0">
+                  <Switch
+                    id="glassmorphism"
+                    checked={glassmorphism}
+                    onCheckedChange={setGlassmorphism}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Notifications</CardTitle>
-              <CardDescription>Manage your notification preferences</CardDescription>
+            <CardHeader className="p-4 md:p-6">
+              <CardTitle className="text-lg md:text-xl">Notifications</CardTitle>
+              <CardDescription className="text-sm md:text-base">Manage your notification preferences</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="notifications">Push Notifications</Label>
-                  <p className="text-sm text-muted-foreground">
+            <CardContent className="space-y-4 p-4 md:p-6 pt-0">
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-0.5 flex-1 min-w-0">
+                  <Label htmlFor="notifications" className="text-sm md:text-base">Push Notifications</Label>
+                  <p className="text-xs md:text-sm text-muted-foreground">
                     Receive push notifications
                   </p>
                 </div>
-                <Switch
-                  id="notifications"
-                  checked={notifications}
-                  onCheckedChange={setNotifications}
-                />
+                <div className="flex-shrink-0">
+                  <Switch
+                    id="notifications"
+                    checked={notifications}
+                    onCheckedChange={setNotifications}
+                  />
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="email">Email Alerts</Label>
-                  <p className="text-sm text-muted-foreground">
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-0.5 flex-1 min-w-0">
+                  <Label htmlFor="email" className="text-sm md:text-base">Email Alerts</Label>
+                  <p className="text-xs md:text-sm text-muted-foreground">
                     Receive email notifications
                   </p>
                 </div>
-                <Switch
-                  id="email"
-                  checked={emailAlerts}
-                  onCheckedChange={setEmailAlerts}
-                />
+                <div className="flex-shrink-0">
+                  <Switch
+                    id="email"
+                    checked={emailAlerts}
+                    onCheckedChange={setEmailAlerts}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Security</CardTitle>
-              <CardDescription>Manage your account security</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="outline">Change Password</Button>
-            </CardContent>
-          </Card>
+          
         </div>
       </div>
     </DashboardLayout>

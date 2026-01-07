@@ -163,20 +163,20 @@ const AdminDashboard = () => {
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
         {/* Stats Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:gap-6 grid-cols-2 lg:grid-cols-4">
           {stats.map((stat, index) => (
             <Card key={index} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 p-4 md:p-6">
+                <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
                   {stat.title}
                 </CardTitle>
-                <stat.icon className={`h-5 w-5 ${stat.color}`} />
+                <stat.icon className={`h-4 w-4 md:h-5 md:w-5 ${stat.color}`} />
               </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stat.value}</div>
-                <p className="text-sm text-success mt-1">
+              <CardContent className="p-4 md:p-6 pt-0">
+                <div className="text-2xl md:text-3xl font-bold">{stat.value}</div>
+                <p className="text-xs md:text-sm text-success mt-1">
                   {stat.change} from last month
                 </p>
               </CardContent>
@@ -185,20 +185,20 @@ const AdminDashboard = () => {
         </div>
 
         {/* Charts & Activity */}
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
           {/* Class Distribution */}
           <Card className="animate-fade-up">
-            <CardHeader>
-              <CardTitle>Class Distribution</CardTitle>
-              <CardDescription>Students enrolled by grade level</CardDescription>
+            <CardHeader className="p-4 md:p-6">
+              <CardTitle className="text-lg md:text-xl">Class Distribution</CardTitle>
+              <CardDescription className="text-sm md:text-base">Students enrolled by grade level</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 p-4 md:p-6 pt-0">
               {classDistribution.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">No class data available</p>
               ) : (
                 classDistribution.map((item, index) => (
                 <div key={index} className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center justify-between text-xs md:text-sm">
                     <span className="font-medium">{item.grade}</span>
                     <span className="text-muted-foreground">{item.students} students</span>
                   </div>
@@ -210,25 +210,25 @@ const AdminDashboard = () => {
 
           {/* Recent Activity */}
           <Card className="animate-fade-up" style={{ animationDelay: "0.1s" }}>
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>Latest updates across the system</CardDescription>
+            <CardHeader className="p-4 md:p-6">
+              <CardTitle className="text-lg md:text-xl">Recent Activity</CardTitle>
+              <CardDescription className="text-sm md:text-base">Latest updates across the system</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+            <CardContent className="p-4 md:p-6 pt-0">
+              <div className="space-y-3 md:space-y-4">
                 {recentActivity.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">No recent activity</p>
                 ) : (
                   recentActivity.map((activity, index) => (
-                  <div key={index} className="flex gap-3 pb-3 border-b last:border-0">
-                    <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      {activity.type === "enrollment" && <Users className="h-4 w-4 text-primary" />}
-                      {activity.type === "payment" && <DollarSign className="h-4 w-4 text-success" />}
-                      {activity.type === "attendance" && <Calendar className="h-4 w-4 text-accent" />}
-                      {activity.type === "assignment" && <BookOpen className="h-4 w-4 text-warning" />}
+                  <div key={index} className="flex gap-2 md:gap-3 pb-3 border-b last:border-0">
+                    <div className="h-8 w-8 md:h-9 md:w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      {activity.type === "enrollment" && <Users className="h-3 w-3 md:h-4 md:w-4 text-primary" />}
+                      {activity.type === "payment" && <DollarSign className="h-3 w-3 md:h-4 md:w-4 text-success" />}
+                      {activity.type === "attendance" && <Calendar className="h-3 w-3 md:h-4 md:w-4 text-accent" />}
+                      {activity.type === "assignment" && <BookOpen className="h-3 w-3 md:h-4 md:w-4 text-warning" />}
                     </div>
-                    <div className="flex-1 space-y-1">
-                      <p className="text-sm">{activity.message}</p>
+                    <div className="flex-1 space-y-1 min-w-0">
+                      <p className="text-xs md:text-sm truncate">{activity.message}</p>
                       <p className="text-xs text-muted-foreground">{activity.time}</p>
                     </div>
                   </div>
@@ -244,19 +244,19 @@ const AdminDashboard = () => {
             <CardTitle>Quick Actions</CardTitle>
             <CardDescription>Common administrative tasks</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <button onClick={() => navigate("/admin/students")} className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted transition-colors">
-                <Users className="h-5 w-5 text-primary" />
-                <span className="font-medium">Add New Student</span>
+          <CardContent className="p-4 md:p-6 pt-0">
+            <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+              <button onClick={() => navigate("/admin/students")} className="flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-lg border hover:bg-muted transition-colors text-left">
+                <Users className="h-4 w-4 md:h-5 md:w-5 text-primary flex-shrink-0" />
+                <span className="font-medium text-sm md:text-base">Add New Student</span>
               </button>
-              <button onClick={() => navigate("/admin/teachers")} className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted transition-colors">
-                <GraduationCap className="h-5 w-5 text-accent" />
-                <span className="font-medium">Add New Teacher</span>
+              <button onClick={() => navigate("/admin/teachers")} className="flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-lg border hover:bg-muted transition-colors text-left">
+                <GraduationCap className="h-4 w-4 md:h-5 md:w-5 text-accent flex-shrink-0" />
+                <span className="font-medium text-sm md:text-base">Add New Teacher</span>
               </button>
-              <button onClick={() => navigate("/admin/fees")} className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted transition-colors">
-                <DollarSign className="h-5 w-5 text-success" />
-                <span className="font-medium">Generate Invoice</span>
+              <button onClick={() => navigate("/admin/fees")} className="flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-lg border hover:bg-muted transition-colors text-left sm:col-span-2 md:col-span-1">
+                <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-success flex-shrink-0" />
+                <span className="font-medium text-sm md:text-base">Generate Invoice</span>
               </button>
             </div>
           </CardContent>

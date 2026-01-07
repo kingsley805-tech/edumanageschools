@@ -23,6 +23,7 @@ interface OnlineExam {
   duration_minutes: number;
   total_marks: number;
   show_result_immediately: boolean;
+  shuffle_answers: boolean | null;
   subjects?: { name: string };
   attempt?: { id: string; status: string; total_marks_obtained: number | null };
 }
@@ -324,19 +325,26 @@ const StudentOnlineExams = () => {
             <CardContent>
               <p className="text-lg mb-6" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>{qb?.question_text}</p>
 
-              {qb?.question_type === "multiple_choice" && (
-                <RadioGroup
-                  value={answers[qb.id] || ""}
-                  onValueChange={(v) => setAnswers({ ...answers, [qb.id]: v })}
-                >
-                  {qb.options?.map((opt) => (
-                    <div key={opt.id} className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
-                      <RadioGroupItem value={opt.id} id={opt.id} />
-                      <Label htmlFor={opt.id} className="flex-1 cursor-pointer" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>{opt.text}</Label>
+              {qb?.question_type === "multiple_choice" && (() => {
+                // Shuffle options if shuffle_answers is enabled
+                const options = takingExam.shuffle_answers 
+                  ? [...(qb.options || [])].sort(() => Math.random() - 0.5)
+                  : qb.options || [];
+                
+                return (
+                  <RadioGroup
+                    value={answers[qb.id] || ""}
+                    onValueChange={(v) => setAnswers({ ...answers, [qb.id]: v })}
+                  >
+                    {options.map((opt) => (
+                      <div key={opt.id} className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
+                        <RadioGroupItem value={opt.id} id={opt.id} />
+                        <Label htmlFor={opt.id} className="flex-1 cursor-pointer" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>{opt.text}</Label>
                     </div>
-                  ))}
-                </RadioGroup>
-              )}
+                    ))}
+                  </RadioGroup>
+                );
+              })()}
 
               {qb?.question_type === "true_false" && (
                 <RadioGroup

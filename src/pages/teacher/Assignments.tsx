@@ -1,7 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, BookOpen, Calendar, Users } from "lucide-react";
+import { Plus, BookOpen, Calendar, Users, Upload, FileText, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,7 @@ const Assignments = () => {
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [gradingSubmission, setGradingSubmission] = useState<any | null>(null);
   const [gradeValue, setGradeValue] = useState("");
+  const [assignmentFile, setAssignmentFile] = useState<File | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<AssignmentFormData>({
@@ -129,6 +130,29 @@ const Assignments = () => {
 
   const onSubmit = async (data: AssignmentFormData) => {
     try {
+      let fileUrl = null;
+
+      // Upload file if provided
+      if (assignmentFile) {
+        const fileExt = assignmentFile.name.split('.').pop();
+        const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from("assignments")
+          .upload(fileName, assignmentFile);
+
+        if (uploadError) {
+          throw new Error(`Failed to upload file: ${uploadError.message}`);
+        }
+
+        // Get public URL for the file
+        const { data: urlData } = supabase.storage
+          .from("assignments")
+          .getPublicUrl(fileName);
+        
+        fileUrl = urlData.publicUrl;
+      }
+
       const { error } = await supabase
         .from("assignments")
         .insert([{
@@ -137,6 +161,7 @@ const Assignments = () => {
           class_id: data.class_id,
           subject_id: data.subject_id,
           due_date: data.due_date,
+          file_url: fileUrl,
           created_by: user?.id,
         }]);
 
@@ -149,6 +174,7 @@ const Assignments = () => {
 
       setOpen(false);
       reset();
+      setAssignmentFile(null);
       fetchAssignments();
     } catch (error: any) {
       toast({
@@ -267,8 +293,53 @@ const Assignments = () => {
                   <Input id="due_date" type="datetime-local" {...register("due_date")} />
                   {errors.due_date && <p className="text-sm text-destructive">{errors.due_date.message}</p>}
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="assignment_file">Upload Document (Optional)</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="assignment_file"
+                      type="file"
+                      accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.size > 10 * 1024 * 1024) {
+                            toast({
+                              title: "Error",
+                              description: "File size must be less than 10MB",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          setAssignmentFile(file);
+                        }
+                      }}
+                      className="flex-1"
+                    />
+                    {assignmentFile && (
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        <span className="text-sm truncate max-w-[200px]">{assignmentFile.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setAssignmentFile(null)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Supported formats: PDF, DOC, DOCX, TXT, JPG, PNG (Max 10MB)
+                  </p>
+                </div>
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                  <Button type="button" variant="outline" onClick={() => {
+                    setOpen(false);
+                    setAssignmentFile(null);
+                  }}>Cancel</Button>
                   <Button type="submit">Create Assignment</Button>
                 </div>
               </form>
