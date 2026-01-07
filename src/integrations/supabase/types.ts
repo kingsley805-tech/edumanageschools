@@ -348,6 +348,48 @@ export type Database = {
           },
         ]
       }
+      exam_proctoring_logs: {
+        Row: {
+          attempt_id: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          student_id: string | null
+          violation_type: string
+        }
+        Insert: {
+          attempt_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          student_id?: string | null
+          violation_type: string
+        }
+        Update: {
+          attempt_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          student_id?: string | null
+          violation_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_proctoring_logs_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "online_exam_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_proctoring_logs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_results: {
         Row: {
           exam_id: string
@@ -392,6 +434,59 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_summary_reports: {
+        Row: {
+          average_score: number | null
+          created_by: string | null
+          generated_at: string | null
+          grade_distribution: Json | null
+          highest_score: number | null
+          id: string
+          lowest_score: number | null
+          online_exam_id: string | null
+          question_analytics: Json | null
+          students_attempted: number | null
+          students_passed: number | null
+          total_students: number | null
+        }
+        Insert: {
+          average_score?: number | null
+          created_by?: string | null
+          generated_at?: string | null
+          grade_distribution?: Json | null
+          highest_score?: number | null
+          id?: string
+          lowest_score?: number | null
+          online_exam_id?: string | null
+          question_analytics?: Json | null
+          students_attempted?: number | null
+          students_passed?: number | null
+          total_students?: number | null
+        }
+        Update: {
+          average_score?: number | null
+          created_by?: string | null
+          generated_at?: string | null
+          grade_distribution?: Json | null
+          highest_score?: number | null
+          id?: string
+          lowest_score?: number | null
+          online_exam_id?: string | null
+          question_analytics?: Json | null
+          students_attempted?: number | null
+          students_passed?: number | null
+          total_students?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_summary_reports_online_exam_id_fkey"
+            columns: ["online_exam_id"]
+            isOneToOne: false
+            referencedRelation: "online_exams"
             referencedColumns: ["id"]
           },
         ]
@@ -848,15 +943,20 @@ export type Database = {
           duration_minutes: number
           end_time: string
           exam_type_id: string | null
+          fullscreen_required: boolean | null
           id: string
           passing_marks: number | null
+          proctoring_enabled: boolean | null
           show_result_immediately: boolean | null
+          shuffle_answers: boolean | null
           shuffle_questions: boolean | null
           start_time: string
           subject_id: string | null
+          tab_switch_limit: number | null
           term: string | null
           title: string
           total_marks: number
+          webcam_required: boolean | null
         }
         Insert: {
           class_id?: string | null
@@ -866,15 +966,20 @@ export type Database = {
           duration_minutes: number
           end_time: string
           exam_type_id?: string | null
+          fullscreen_required?: boolean | null
           id?: string
           passing_marks?: number | null
+          proctoring_enabled?: boolean | null
           show_result_immediately?: boolean | null
+          shuffle_answers?: boolean | null
           shuffle_questions?: boolean | null
           start_time: string
           subject_id?: string | null
+          tab_switch_limit?: number | null
           term?: string | null
           title: string
           total_marks: number
+          webcam_required?: boolean | null
         }
         Update: {
           class_id?: string | null
@@ -884,15 +989,20 @@ export type Database = {
           duration_minutes?: number
           end_time?: string
           exam_type_id?: string | null
+          fullscreen_required?: boolean | null
           id?: string
           passing_marks?: number | null
+          proctoring_enabled?: boolean | null
           show_result_immediately?: boolean | null
+          shuffle_answers?: boolean | null
           shuffle_questions?: boolean | null
           start_time?: string
           subject_id?: string | null
+          tab_switch_limit?: number | null
           term?: string | null
           title?: string
           total_marks?: number
+          webcam_required?: boolean | null
         }
         Relationships: [
           {

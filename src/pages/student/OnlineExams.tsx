@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,11 +8,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Clock, FileText, CheckCircle, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Clock, FileText, CheckCircle, AlertCircle, Shield, Monitor, Eye, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { format, differenceInMinutes, differenceInSeconds } from "date-fns";
+import { format } from "date-fns";
+import { useExamProctoring } from "@/hooks/useExamProctoring";
 
 interface OnlineExam {
   id: string;
@@ -23,7 +25,12 @@ interface OnlineExam {
   duration_minutes: number;
   total_marks: number;
   show_result_immediately: boolean;
+  shuffle_questions: boolean | null;
   shuffle_answers: boolean | null;
+  proctoring_enabled: boolean | null;
+  fullscreen_required: boolean | null;
+  tab_switch_limit: number | null;
+  webcam_required: boolean | null;
   subjects?: { name: string };
   attempt?: { id: string; status: string; total_marks_obtained: number | null };
 }
@@ -53,6 +60,24 @@ const StudentOnlineExams = () => {
   const [timeLeft, setTimeLeft] = useState(0);
   const [showResult, setShowResult] = useState(false);
   const [result, setResult] = useState<{ obtained: number; total: number; grade?: string | null } | null>(null);
+  const [showProctoringWarning, setShowProctoringWarning] = useState(false);
+  const [pendingExam, setPendingExam] = useState<OnlineExam | null>(null);
+
+  const submitExamCallback = useCallback(() => {
+    if (takingExam) {
+      submitExam();
+    }
+  }, [takingExam, attemptId, questions, answers, studentId]);
+
+  const { isFullscreen, tabSwitchCount, violations } = useExamProctoring({
+    enabled: takingExam?.proctoring_enabled ?? false,
+    fullscreenRequired: takingExam?.fullscreen_required ?? true,
+    tabSwitchLimit: takingExam?.tab_switch_limit ?? 3,
+    webcamRequired: takingExam?.webcam_required ?? false,
+    attemptId,
+    studentId,
+    onAutoSubmit: submitExamCallback,
+  });
 
   useEffect(() => {
     fetchExams();
@@ -73,49 +98,6 @@ const StudentOnlineExams = () => {
       return () => clearInterval(timer);
     }
   }, [takingExam, timeLeft]);
-
-  // Prevent text selection and copy during exam
-  useEffect(() => {
-    if (takingExam) {
-      // Prevent context menu
-      const handleContextMenu = (e: MouseEvent) => {
-        e.preventDefault();
-        return false;
-      };
-
-      // Prevent copy, cut, paste shortcuts
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X' || e.key === 'v' || e.key === 'V')) {
-          e.preventDefault();
-          toast.error("Copying is disabled during exams");
-          return false;
-        }
-        // Prevent F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
-        if (e.key === 'F12' || 
-            ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'I' || e.key === 'J')) ||
-            ((e.ctrlKey || e.metaKey) && e.key === 'U')) {
-          e.preventDefault();
-          return false;
-        }
-      };
-
-      // Prevent text selection
-      const handleSelectStart = (e: Event) => {
-        e.preventDefault();
-        return false;
-      };
-
-      document.addEventListener('contextmenu', handleContextMenu);
-      document.addEventListener('keydown', handleKeyDown);
-      document.addEventListener('selectstart', handleSelectStart);
-
-      return () => {
-        document.removeEventListener('contextmenu', handleContextMenu);
-        document.removeEventListener('keydown', handleKeyDown);
-        document.removeEventListener('selectstart', handleSelectStart);
-      };
-    }
-  }, [takingExam]);
 
   const fetchExams = async () => {
     const { data: student } = await supabase
@@ -154,7 +136,19 @@ const StudentOnlineExams = () => {
     setLoading(false);
   };
 
+  const handleStartExam = (exam: OnlineExam) => {
+    if (exam.proctoring_enabled) {
+      setPendingExam(exam);
+      setShowProctoringWarning(true);
+    } else {
+      startExam(exam);
+    }
+  };
+
   const startExam = async (exam: OnlineExam) => {
+    setShowProctoringWarning(false);
+    setPendingExam(null);
+
     const { data: examQuestions, error: questionsError } = await supabase
       .from("online_exam_questions")
       .select("id, question_order, marks, question_bank(id, question_text, question_type, options)")
@@ -168,6 +162,12 @@ const StudentOnlineExams = () => {
 
     if (!examQuestions || examQuestions.length === 0) {
       return toast.error("No questions available for this exam");
+    }
+
+    // Shuffle questions if enabled
+    let orderedQuestions = examQuestions as ExamQuestion[];
+    if (exam.shuffle_questions) {
+      orderedQuestions = [...orderedQuestions].sort(() => Math.random() - 0.5);
     }
 
     // Create attempt
@@ -184,7 +184,7 @@ const StudentOnlineExams = () => {
     if (error) return toast.error("Failed to start exam");
 
     setAttemptId(attempt.id);
-    setQuestions(examQuestions as ExamQuestion[]);
+    setQuestions(orderedQuestions);
     setTakingExam(exam);
     setCurrentQuestion(0);
     setAnswers({});
@@ -196,7 +196,6 @@ const StudentOnlineExams = () => {
 
     // Save all answers
     const answerInserts = Object.entries(answers).map(([questionId, answer]) => {
-      const question = questions.find(q => q.question_bank.id === questionId);
       return {
         attempt_id: attemptId,
         question_id: questionId,
@@ -305,6 +304,22 @@ const StudentOnlineExams = () => {
     return (
       <DashboardLayout role="student">
         <div className="space-y-6 max-w-4xl mx-auto" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
+          {/* Proctoring Status Bar */}
+          {takingExam.proctoring_enabled && (
+            <Alert className="bg-orange-50 border-orange-200 dark:bg-orange-900/20">
+              <Shield className="h-4 w-4 text-orange-600" />
+              <AlertDescription className="flex items-center justify-between">
+                <span className="text-orange-800 dark:text-orange-200">
+                  Proctoring Active | Tab Switches: {tabSwitchCount}/{takingExam.tab_switch_limit}
+                  {!isFullscreen && takingExam.fullscreen_required && " | ⚠️ Fullscreen Required"}
+                </span>
+                {violations.length > 0 && (
+                  <Badge variant="destructive">{violations.length} violations</Badge>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">{takingExam.title}</h2>
             <div className="flex items-center gap-2 text-lg font-mono">
@@ -416,6 +431,12 @@ const StudentOnlineExams = () => {
                     <FileText className="h-4 w-4" />
                     <span>{exam.total_marks} marks</span>
                   </div>
+                  {exam.proctoring_enabled && (
+                    <div className="flex items-center gap-2 text-sm text-orange-600">
+                      <Shield className="h-4 w-4" />
+                      <span>Proctored Exam</span>
+                    </div>
+                  )}
                   <p className="text-sm">Start: {format(new Date(exam.start_time), "PPp")}</p>
                   {exam.attempt?.status === "submitted" && exam.attempt.total_marks_obtained !== null && (
                     <div className="flex items-center gap-2 text-sm font-medium">
@@ -426,7 +447,7 @@ const StudentOnlineExams = () => {
                 </CardContent>
                 <CardFooter>
                   {status.canTake && !exam.attempt && (
-                    <Button className="w-full" onClick={() => startExam(exam)}>Start Exam</Button>
+                    <Button className="w-full" onClick={() => handleStartExam(exam)}>Start Exam</Button>
                   )}
                   {exam.attempt?.status === "submitted" && (
                     <Button variant="outline" className="w-full" disabled>Completed</Button>
@@ -463,6 +484,49 @@ const StudentOnlineExams = () => {
               <p className="text-lg mt-4">
                 {result && result.obtained / result.total >= 0.5 ? "Congratulations! You passed!" : "Keep studying!"}
               </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Proctoring Warning Dialog */}
+        <Dialog open={showProctoringWarning} onOpenChange={setShowProctoringWarning}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-orange-500" />
+                Proctored Exam Notice
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  This exam has proctoring enabled to ensure academic integrity.
+                </AlertDescription>
+              </Alert>
+              <div className="space-y-2 text-sm">
+                <p className="font-medium">The following rules apply:</p>
+                <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                  {pendingExam?.fullscreen_required && (
+                    <li className="flex items-center gap-2">
+                      <Monitor className="h-4 w-4" /> Fullscreen mode is required
+                    </li>
+                  )}
+                  <li className="flex items-center gap-2">
+                    <Eye className="h-4 w-4" /> Tab switching is limited to {pendingExam?.tab_switch_limit || 3} times
+                  </li>
+                  <li>Right-click and copy/paste are disabled</li>
+                  <li>All violations will be recorded and reported</li>
+                </ul>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setShowProctoringWarning(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={() => pendingExam && startExam(pendingExam)}>
+                  I Understand, Start Exam
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
