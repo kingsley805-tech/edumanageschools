@@ -9,12 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Clock, FileText, CheckCircle, AlertCircle, Shield, Monitor, Eye, AlertTriangle } from "lucide-react";
+import { Clock, FileText, CheckCircle, AlertCircle, Shield, Monitor, Eye, AlertTriangle, Camera } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useExamProctoring } from "@/hooks/useExamProctoring";
+import { ExamReview } from "@/components/ExamReview";
 
 interface OnlineExam {
   id: string;
@@ -62,6 +63,9 @@ const StudentOnlineExams = () => {
   const [result, setResult] = useState<{ obtained: number; total: number; grade?: string | null } | null>(null);
   const [showProctoringWarning, setShowProctoringWarning] = useState(false);
   const [pendingExam, setPendingExam] = useState<OnlineExam | null>(null);
+  const [showReview, setShowReview] = useState(false);
+  const [reviewAttemptId, setReviewAttemptId] = useState<string | null>(null);
+  const [reviewExamTitle, setReviewExamTitle] = useState("");
 
   const submitExamCallback = useCallback(() => {
     if (takingExam) {
@@ -69,13 +73,15 @@ const StudentOnlineExams = () => {
     }
   }, [takingExam, attemptId, questions, answers, studentId]);
 
-  const { isFullscreen, tabSwitchCount, violations } = useExamProctoring({
+  const { isFullscreen, tabSwitchCount, violations, webcamStream, setVideoElement, snapshotCount } = useExamProctoring({
     enabled: takingExam?.proctoring_enabled ?? false,
     fullscreenRequired: takingExam?.fullscreen_required ?? true,
     tabSwitchLimit: takingExam?.tab_switch_limit ?? 3,
     webcamRequired: takingExam?.webcam_required ?? false,
     attemptId,
     studentId,
+    userId: user?.id ?? null,
+    snapshotIntervalSeconds: 30,
     onAutoSubmit: submitExamCallback,
   });
 
@@ -445,15 +451,23 @@ const StudentOnlineExams = () => {
                     </div>
                   )}
                 </CardContent>
-                <CardFooter>
+                <CardFooter className="flex gap-2">
                   {status.canTake && !exam.attempt && (
-                    <Button className="w-full" onClick={() => handleStartExam(exam)}>Start Exam</Button>
+                    <Button className="flex-1" onClick={() => handleStartExam(exam)}>Start Exam</Button>
                   )}
                   {exam.attempt?.status === "submitted" && (
-                    <Button variant="outline" className="w-full" disabled>Completed</Button>
+                    <>
+                      <Button variant="outline" className="flex-1" onClick={() => {
+                        setReviewAttemptId(exam.attempt!.id);
+                        setReviewExamTitle(exam.title);
+                        setShowReview(true);
+                      }}>
+                        <Eye className="h-4 w-4 mr-2" /> Review
+                      </Button>
+                    </>
                   )}
                   {!status.canTake && !exam.attempt && (
-                    <Button variant="outline" className="w-full" disabled>{status.label}</Button>
+                    <Button variant="outline" className="flex-1" disabled>{status.label}</Button>
                   )}
                 </CardFooter>
               </Card>
@@ -530,6 +544,16 @@ const StudentOnlineExams = () => {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Exam Review Dialog */}
+        {reviewAttemptId && (
+          <ExamReview
+            attemptId={reviewAttemptId}
+            examTitle={reviewExamTitle}
+            open={showReview}
+            onOpenChange={setShowReview}
+          />
+        )}
       </div>
     </DashboardLayout>
   );
