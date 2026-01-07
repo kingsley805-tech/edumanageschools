@@ -10,11 +10,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Pencil, Trash2, Eye, ListChecks } from "lucide-react";
+import { Plus, Trash2, ListChecks, BarChart3, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { ExamSummaryReport } from "@/components/ExamSummaryReport";
 
 interface OnlineExam {
   id: string;
@@ -27,6 +28,10 @@ interface OnlineExam {
   duration_minutes: number;
   total_marks: number;
   term: string | null;
+  proctoring_enabled: boolean | null;
+  fullscreen_required: boolean | null;
+  tab_switch_limit: number | null;
+  webcam_required: boolean | null;
   classes?: { name: string };
   subjects?: { name: string };
 }
@@ -50,7 +55,8 @@ const OnlineExams = () => {
   const [questionsDialogOpen, setQuestionsDialogOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState<OnlineExam | null>(null);
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
-  const [examQuestions, setExamQuestions] = useState<string[]>([]);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportExam, setReportExam] = useState<OnlineExam | null>(null);
   
   const [formData, setFormData] = useState({
     title: "",
@@ -65,6 +71,10 @@ const OnlineExams = () => {
     shuffle_questions: false,
     shuffle_answers: false,
     show_result_immediately: true,
+    proctoring_enabled: false,
+    fullscreen_required: true,
+    tab_switch_limit: 3,
+    webcam_required: false,
   });
 
   useEffect(() => {
@@ -130,13 +140,16 @@ const OnlineExams = () => {
       shuffle_questions: false,
       shuffle_answers: false,
       show_result_immediately: true,
+      proctoring_enabled: false,
+      fullscreen_required: true,
+      tab_switch_limit: 3,
+      webcam_required: false,
     });
   };
 
   const openQuestionsDialog = async (exam: OnlineExam) => {
     setSelectedExam(exam);
     
-    // Filter questions by teacher (created_by) and subject
     const { data: bankQuestions } = await supabase
       .from("question_bank")
       .select("id, question_text, question_type, marks, difficulty")
@@ -151,9 +164,8 @@ const OnlineExams = () => {
       .eq("online_exam_id", exam.id);
     
     if (existingQuestions) {
-      const ids = existingQuestions.map(q => q.question_id);
+      const ids = existingQuestions.map(q => q.question_id).filter(Boolean) as string[];
       setSelectedQuestions(ids);
-      setExamQuestions(ids);
     }
 
     setQuestionsDialogOpen(true);
@@ -162,10 +174,8 @@ const OnlineExams = () => {
   const saveQuestions = async () => {
     if (!selectedExam) return;
 
-    // Remove old questions
     await supabase.from("online_exam_questions").delete().eq("online_exam_id", selectedExam.id);
 
-    // Add new questions
     if (selectedQuestions.length > 0) {
       const inserts = selectedQuestions.map((qId, idx) => ({
         online_exam_id: selectedExam.id,
@@ -177,7 +187,6 @@ const OnlineExams = () => {
       const { error } = await supabase.from("online_exam_questions").insert(inserts);
       if (error) return toast.error("Failed to save questions");
 
-      // Update total marks
       const totalMarks = selectedQuestions.reduce((sum, qId) => {
         const q = questions.find(q => q.id === qId);
         return sum + (q?.marks || 1);
@@ -204,6 +213,11 @@ const OnlineExams = () => {
     fetchData();
   };
 
+  const openReportDialog = (exam: OnlineExam) => {
+    setReportExam(exam);
+    setReportDialogOpen(true);
+  };
+
   const getExamStatus = (exam: OnlineExam) => {
     const now = new Date();
     const start = new Date(exam.start_time);
@@ -220,7 +234,7 @@ const OnlineExams = () => {
         <div className="flex justify-between items-center">
           <div>
             <h2 className="text-3xl font-bold tracking-tight">Online Exams</h2>
-            <p className="text-muted-foreground">Create and manage online examinations</p>
+            <p className="text-muted-foreground">Create and manage online examinations with proctoring</p>
           </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
@@ -286,20 +300,63 @@ const OnlineExams = () => {
                     </Select>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox checked={formData.shuffle_questions} onCheckedChange={(c) => setFormData({ ...formData, shuffle_questions: !!c })} />
-                    <Label>Shuffle Questions</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox checked={formData.shuffle_answers} onCheckedChange={(c) => setFormData({ ...formData, shuffle_answers: !!c })} />
-                    <Label>Shuffle Answers</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox checked={formData.show_result_immediately} onCheckedChange={(c) => setFormData({ ...formData, show_result_immediately: !!c })} />
-                    <Label>Show Result Immediately</Label>
+                
+                {/* Exam Options */}
+                <div className="space-y-3 border rounded-lg p-4">
+                  <p className="font-medium text-sm">Exam Options</p>
+                  <div className="flex flex-wrap gap-4">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox checked={formData.shuffle_questions} onCheckedChange={(c) => setFormData({ ...formData, shuffle_questions: !!c })} />
+                      <Label className="text-sm">Shuffle Questions</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox checked={formData.shuffle_answers} onCheckedChange={(c) => setFormData({ ...formData, shuffle_answers: !!c })} />
+                      <Label className="text-sm">Shuffle Answers</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox checked={formData.show_result_immediately} onCheckedChange={(c) => setFormData({ ...formData, show_result_immediately: !!c })} />
+                      <Label className="text-sm">Show Result Immediately</Label>
+                    </div>
                   </div>
                 </div>
+
+                {/* Proctoring Options */}
+                <div className="space-y-3 border rounded-lg p-4 bg-orange-50 dark:bg-orange-900/10">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-orange-600" />
+                    <p className="font-medium text-sm">Proctoring Settings</p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      checked={formData.proctoring_enabled} 
+                      onCheckedChange={(c) => setFormData({ ...formData, proctoring_enabled: !!c })} 
+                    />
+                    <Label className="text-sm">Enable Proctoring</Label>
+                  </div>
+                  {formData.proctoring_enabled && (
+                    <div className="space-y-3 pl-6">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          checked={formData.fullscreen_required} 
+                          onCheckedChange={(c) => setFormData({ ...formData, fullscreen_required: !!c })} 
+                        />
+                        <Label className="text-sm">Require Fullscreen Mode</Label>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <Label className="text-sm">Tab Switch Limit:</Label>
+                        <Input 
+                          type="number" 
+                          value={formData.tab_switch_limit} 
+                          onChange={(e) => setFormData({ ...formData, tab_switch_limit: Number(e.target.value) })} 
+                          className="w-20"
+                          min={1}
+                          max={10}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <Button type="submit" className="w-full">Create Exam</Button>
               </form>
             </DialogContent>
@@ -330,7 +387,14 @@ const OnlineExams = () => {
                   const status = getExamStatus(exam);
                   return (
                     <TableRow key={exam.id}>
-                      <TableCell className="font-medium">{exam.title}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {exam.title}
+                          {exam.proctoring_enabled && (
+                            <span title="Proctoring Enabled"><Shield className="h-4 w-4 text-orange-500" /></span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{exam.classes?.name}</TableCell>
                       <TableCell>{exam.subjects?.name}</TableCell>
                       <TableCell>{format(new Date(exam.start_time), "PPp")}</TableCell>
@@ -341,6 +405,9 @@ const OnlineExams = () => {
                         <div className="flex gap-2">
                           <Button variant="ghost" size="icon" onClick={() => openQuestionsDialog(exam)} title="Manage Questions">
                             <ListChecks className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => openReportDialog(exam)} title="View Report">
+                            <BarChart3 className="h-4 w-4" />
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => handleDelete(exam.id)}>
                             <Trash2 className="h-4 w-4" />
@@ -358,6 +425,7 @@ const OnlineExams = () => {
           </CardContent>
         </Card>
 
+        {/* Questions Dialog */}
         <Dialog open={questionsDialogOpen} onOpenChange={setQuestionsDialogOpen}>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -399,6 +467,16 @@ const OnlineExams = () => {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Summary Report Dialog */}
+        {reportExam && (
+          <ExamSummaryReport
+            examId={reportExam.id}
+            examTitle={reportExam.title}
+            open={reportDialogOpen}
+            onOpenChange={setReportDialogOpen}
+          />
+        )}
       </div>
     </DashboardLayout>
   );
