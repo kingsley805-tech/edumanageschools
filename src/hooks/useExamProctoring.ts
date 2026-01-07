@@ -11,7 +11,13 @@ interface ProctoringConfig {
   studentId: string | null;
   userId: string | null;
   snapshotIntervalSeconds?: number;
+  faceDetectionEnabled?: boolean;
   onAutoSubmit?: () => void;
+}
+
+interface FaceDetectionResult {
+  faceCount: number;
+  timestamp: number;
 }
 
 export const useExamProctoring = (config: ProctoringConfig) => {
@@ -21,9 +27,14 @@ export const useExamProctoring = (config: ProctoringConfig) => {
   const [webcamStream, setWebcamStream] = useState<MediaStream | null>(null);
   const [webcamError, setWebcamError] = useState<string | null>(null);
   const [snapshotCount, setSnapshotCount] = useState(0);
+  const [faceDetectionStatus, setFaceDetectionStatus] = useState<"ok" | "no_face" | "multiple_faces">("ok");
+  const [lastFaceCount, setLastFaceCount] = useState(1);
   const isActive = useRef(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const snapshotIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const faceDetectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const faceDetectorRef = useRef<any>(null);
+  const lastFaceViolationRef = useRef<number>(0);
 
   const logViolation = useCallback(
     async (type: string, description: string, snapshotUrl?: string) => {
@@ -84,6 +95,94 @@ export const useExamProctoring = (config: ProctoringConfig) => {
     }
   }, [config.userId, config.studentId, config.attemptId]);
 
+  // Face detection using FaceDetector API (if available) or canvas-based detection
+  const detectFaces = useCallback(async (): Promise<FaceDetectionResult> => {
+    if (!videoRef.current) return { faceCount: 1, timestamp: Date.now() };
+
+    try {
+      // Check if FaceDetector API is available (Chrome only)
+      if ('FaceDetector' in window) {
+        if (!faceDetectorRef.current) {
+          // @ts-ignore - FaceDetector is not in TypeScript types
+          faceDetectorRef.current = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 5 });
+        }
+        
+        const faces = await faceDetectorRef.current.detect(videoRef.current);
+        return { faceCount: faces.length, timestamp: Date.now() };
+      }
+
+      // Fallback: basic brightness detection (very basic approximation)
+      const canvas = document.createElement("canvas");
+      canvas.width = videoRef.current.videoWidth || 640;
+      canvas.height = videoRef.current.videoHeight || 480;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return { faceCount: 1, timestamp: Date.now() };
+
+      ctx.drawImage(videoRef.current, 0, 0);
+      
+      // Get center region (where face should be)
+      const centerX = canvas.width * 0.25;
+      const centerY = canvas.height * 0.1;
+      const regionWidth = canvas.width * 0.5;
+      const regionHeight = canvas.height * 0.6;
+      
+      const imageData = ctx.getImageData(centerX, centerY, regionWidth, regionHeight);
+      const data = imageData.data;
+      
+      // Calculate brightness variance to detect presence
+      let totalBrightness = 0;
+      let pixelCount = 0;
+      
+      for (let i = 0; i < data.length; i += 4) {
+        const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        totalBrightness += brightness;
+        pixelCount++;
+      }
+      
+      const avgBrightness = totalBrightness / pixelCount;
+      
+      // Very basic heuristic: if screen is too dark or too uniform, might not be a face
+      // This is a fallback and not very accurate
+      if (avgBrightness < 30) {
+        return { faceCount: 0, timestamp: Date.now() };
+      }
+      
+      return { faceCount: 1, timestamp: Date.now() };
+    } catch (error) {
+      console.error("Face detection error:", error);
+      return { faceCount: 1, timestamp: Date.now() };
+    }
+  }, []);
+
+  const handleFaceDetectionResult = useCallback(async (result: FaceDetectionResult) => {
+    const now = Date.now();
+    const cooldownMs = 10000; // 10 second cooldown between face violations
+    
+    setLastFaceCount(result.faceCount);
+    
+    if (result.faceCount === 0) {
+      setFaceDetectionStatus("no_face");
+      
+      if (now - lastFaceViolationRef.current > cooldownMs) {
+        lastFaceViolationRef.current = now;
+        const snapshotPath = await captureSnapshot();
+        logViolation("no_face_detected", "No face detected in webcam", snapshotPath || undefined);
+        toast.warning("Please ensure your face is visible in the camera");
+      }
+    } else if (result.faceCount > 1) {
+      setFaceDetectionStatus("multiple_faces");
+      
+      if (now - lastFaceViolationRef.current > cooldownMs) {
+        lastFaceViolationRef.current = now;
+        const snapshotPath = await captureSnapshot();
+        logViolation("multiple_faces_detected", `${result.faceCount} faces detected in webcam`, snapshotPath || undefined);
+        toast.error("Multiple faces detected! Only the exam taker should be visible.");
+      }
+    } else {
+      setFaceDetectionStatus("ok");
+    }
+  }, [captureSnapshot, logViolation]);
+
   const startWebcam = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -110,6 +209,10 @@ export const useExamProctoring = (config: ProctoringConfig) => {
     if (snapshotIntervalRef.current) {
       clearInterval(snapshotIntervalRef.current);
       snapshotIntervalRef.current = null;
+    }
+    if (faceDetectionIntervalRef.current) {
+      clearInterval(faceDetectionIntervalRef.current);
+      faceDetectionIntervalRef.current = null;
     }
   }, [webcamStream]);
 
@@ -138,7 +241,7 @@ export const useExamProctoring = (config: ProctoringConfig) => {
     setIsFullscreen(false);
   }, []);
 
-  // Initialize webcam and snapshots
+  // Initialize webcam, snapshots, and face detection
   useEffect(() => {
     if (!config.enabled || !config.webcamRequired) return;
 
@@ -163,6 +266,19 @@ export const useExamProctoring = (config: ProctoringConfig) => {
             }
           }
         }, intervalMs);
+
+        // Start face detection if enabled
+        if (config.faceDetectionEnabled !== false) {
+          // Wait for video to be ready
+          setTimeout(() => {
+            faceDetectionIntervalRef.current = setInterval(async () => {
+              if (isActive.current && videoRef.current) {
+                const result = await detectFaces();
+                await handleFaceDetectionResult(result);
+              }
+            }, 3000); // Check every 3 seconds
+          }, 2000);
+        }
       }
     };
 
@@ -172,7 +288,7 @@ export const useExamProctoring = (config: ProctoringConfig) => {
       mounted = false;
       stopWebcam();
     };
-  }, [config.enabled, config.webcamRequired, config.snapshotIntervalSeconds, startWebcam, stopWebcam, captureSnapshot, config.attemptId, config.studentId]);
+  }, [config.enabled, config.webcamRequired, config.snapshotIntervalSeconds, config.faceDetectionEnabled, startWebcam, stopWebcam, captureSnapshot, detectFaces, handleFaceDetectionResult, config.attemptId, config.studentId]);
 
   // Main proctoring effect
   useEffect(() => {
@@ -293,6 +409,8 @@ export const useExamProctoring = (config: ProctoringConfig) => {
     webcamStream,
     webcamError,
     snapshotCount,
+    faceDetectionStatus,
+    lastFaceCount,
     enterFullscreen,
     exitFullscreen,
     setVideoElement,
