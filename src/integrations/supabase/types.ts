@@ -354,6 +354,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: string
+          snapshot_url: string | null
           student_id: string | null
           violation_type: string
         }
@@ -362,6 +363,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          snapshot_url?: string | null
           student_id?: string | null
           violation_type: string
         }
@@ -370,6 +372,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          snapshot_url?: string | null
           student_id?: string | null
           violation_type?: string
         }
