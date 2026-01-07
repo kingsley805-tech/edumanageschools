@@ -9,13 +9,14 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Clock, FileText, CheckCircle, AlertCircle, Shield, Monitor, Eye, AlertTriangle, Camera } from "lucide-react";
+import { Clock, FileText, CheckCircle, AlertCircle, Shield, Monitor, Eye, AlertTriangle, Camera, UserX, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useExamProctoring } from "@/hooks/useExamProctoring";
 import { ExamReview } from "@/components/ExamReview";
+import { WebcamPreview } from "@/components/WebcamPreview";
 
 interface OnlineExam {
   id: string;
@@ -73,7 +74,7 @@ const StudentOnlineExams = () => {
     }
   }, [takingExam, attemptId, questions, answers, studentId]);
 
-  const { isFullscreen, tabSwitchCount, violations, webcamStream, setVideoElement, snapshotCount } = useExamProctoring({
+  const { isFullscreen, tabSwitchCount, violations, webcamStream, setVideoElement, snapshotCount, faceDetectionStatus, lastFaceCount } = useExamProctoring({
     enabled: takingExam?.proctoring_enabled ?? false,
     fullscreenRequired: takingExam?.fullscreen_required ?? true,
     tabSwitchLimit: takingExam?.tab_switch_limit ?? 3,
@@ -82,6 +83,7 @@ const StudentOnlineExams = () => {
     studentId,
     userId: user?.id ?? null,
     snapshotIntervalSeconds: 30,
+    faceDetectionEnabled: takingExam?.webcam_required ?? false,
     onAutoSubmit: submitExamCallback,
   });
 
@@ -310,15 +312,39 @@ const StudentOnlineExams = () => {
     return (
       <DashboardLayout role="student">
         <div className="space-y-6 max-w-4xl mx-auto" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
+          {/* Webcam Preview */}
+          {takingExam.webcam_required && webcamStream && (
+            <WebcamPreview stream={webcamStream} onVideoRef={setVideoElement} />
+          )}
+
           {/* Proctoring Status Bar */}
           {takingExam.proctoring_enabled && (
             <Alert className="bg-orange-50 border-orange-200 dark:bg-orange-900/20">
               <Shield className="h-4 w-4 text-orange-600" />
-              <AlertDescription className="flex items-center justify-between">
-                <span className="text-orange-800 dark:text-orange-200">
-                  Proctoring Active | Tab Switches: {tabSwitchCount}/{takingExam.tab_switch_limit}
-                  {!isFullscreen && takingExam.fullscreen_required && " | ⚠️ Fullscreen Required"}
-                </span>
+              <AlertDescription className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-3 text-orange-800 dark:text-orange-200">
+                  <span>Proctoring Active</span>
+                  <span className="text-sm">| Tab Switches: {tabSwitchCount}/{takingExam.tab_switch_limit}</span>
+                  {!isFullscreen && takingExam.fullscreen_required && (
+                    <span className="text-red-600">| ⚠️ Fullscreen Required</span>
+                  )}
+                  {takingExam.webcam_required && (
+                    <span className="flex items-center gap-1">
+                      | <Camera className="h-3 w-3" /> 
+                      {faceDetectionStatus === "ok" ? (
+                        <span className="text-green-600">Face OK</span>
+                      ) : faceDetectionStatus === "no_face" ? (
+                        <span className="text-red-600 flex items-center gap-1">
+                          <UserX className="h-3 w-3" /> No Face
+                        </span>
+                      ) : (
+                        <span className="text-red-600 flex items-center gap-1">
+                          <Users className="h-3 w-3" /> {lastFaceCount} Faces
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </div>
                 {violations.length > 0 && (
                   <Badge variant="destructive">{violations.length} violations</Badge>
                 )}
