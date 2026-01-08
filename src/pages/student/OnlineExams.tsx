@@ -47,6 +47,8 @@ interface ExamQuestion {
     question_type: string;
     options: { id: string; text: string }[] | null;
   };
+  shuffledOptions?: { id: string; text: string }[]; // Store shuffled options to maintain consistency
+  isFlagged?: boolean; // Track if question is flagged
 }
 
 const StudentOnlineExams = () => {
@@ -59,6 +61,7 @@ const StudentOnlineExams = () => {
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [flaggedQuestions, setFlaggedQuestions] = useState<Record<string, boolean>>({});
   const [timeLeft, setTimeLeft] = useState(0);
   const [showResult, setShowResult] = useState(false);
   const [result, setResult] = useState<{ obtained: number; total: number; grade?: string | null } | null>(null);
@@ -153,6 +156,15 @@ const StudentOnlineExams = () => {
     }
   };
 
+  const shuffleArray = <T,>(array: T[]): T[] => {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+  };
+
   const startExam = async (exam: OnlineExam) => {
     setShowProctoringWarning(false);
     setPendingExam(null);
@@ -177,6 +189,14 @@ const StudentOnlineExams = () => {
     if (exam.shuffle_questions) {
       orderedQuestions = [...orderedQuestions].sort(() => Math.random() - 0.5);
     }
+
+    // Shuffle options for each question if enabled and store them
+    orderedQuestions = orderedQuestions.map(q => ({
+      ...q,
+      shuffledOptions: q.question_bank.options && exam.shuffle_answers 
+        ? shuffleArray([...q.question_bank.options])
+        : q.question_bank.options || []
+    }));
 
     // Create attempt
     const { data: attempt, error } = await supabase
@@ -305,9 +325,17 @@ const StudentOnlineExams = () => {
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
+  const toggleFlagQuestion = (questionId: string) => {
+    setFlaggedQuestions(prev => ({
+      ...prev,
+      [questionId]: !prev[questionId]
+    }));
+  };
+
   if (takingExam) {
     const q = questions[currentQuestion];
     const qb = q?.question_bank;
+    const currentQuestionId = qb?.id;
 
     return (
       <DashboardLayout role="student">
@@ -352,46 +380,101 @@ const StudentOnlineExams = () => {
             </Alert>
           )}
 
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">{takingExam.title}</h2>
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h2 className="text-2xl font-bold">{takingExam.title}</h2>
+              <p className="text-sm text-muted-foreground">Subject: {takingExam.subjects?.name}</p>
+            </div>
             <div className="flex items-center gap-2 text-lg font-mono">
               <Clock className="h-5 w-5" />
-              <span className={timeLeft < 60 ? "text-destructive" : ""}>{formatTime(timeLeft)}</span>
+              <span className={timeLeft < 300 ? "text-destructive font-semibold" : ""}>{formatTime(timeLeft)}</span>
             </div>
+          </div>
+
+          {/* Question Navigation */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {questions.map((_, index) => (
+              <Button
+                key={index}
+                variant={currentQuestion === index ? "default" : "outline"}
+                size="sm"
+                className={`w-10 h-10 p-0 rounded-full relative ${
+                  answers[questions[index]?.question_bank.id] ? "bg-green-100 dark:bg-green-900" : ""
+                }`}
+                onClick={() => setCurrentQuestion(index)}
+              >
+                {index + 1}
+                {flaggedQuestions[questions[index]?.question_bank.id] && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-500 rounded-full"></span>
+                )}
+              </Button>
+            ))}
           </div>
 
           <Progress value={((currentQuestion + 1) / questions.length) * 100} />
 
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle className="flex justify-between">
-                <span>Question {currentQuestion + 1} of {questions.length}</span>
-                <Badge>{q?.marks} marks</Badge>
+              <CardTitle className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <span>Question {currentQuestion + 1} of {questions.length}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => currentQuestionId && toggleFlagQuestion(currentQuestionId)}
+                    className="p-1 h-6 w-6"
+                    title={flaggedQuestions[currentQuestionId] ? "Unflag this question" : "Flag for review"}
+                  >
+                    {flaggedQuestions[currentQuestionId] ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-500">
+                        <path d="M5 2h14l-3.5 7 3.5 7h-4.5v6l-1 1-1-1v-6h-4l3.5-7-3.5-7h4.5v6l1-1 1 1v-6z"></path>
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 2h14l-3.5 7 3.5 7h-4.5v6l-1 1-1-1v-6h-4l3.5-7-3.5-7h4.5v6l1-1 1 1v-6z"></path>
+                      </svg>
+                    )}
+                  </Button>
+                </div>
+                <Badge variant={flaggedQuestions[currentQuestionId] ? "secondary" : "default"}>
+                  {q?.marks} mark{q?.marks !== 1 ? 's' : ''}
+                </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-lg mb-6" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>{qb?.question_text}</p>
 
-              {qb?.question_type === "multiple_choice" && (() => {
-                // Shuffle options if shuffle_answers is enabled
-                const options = takingExam.shuffle_answers 
-                  ? [...(qb.options || [])].sort(() => Math.random() - 0.5)
-                  : qb.options || [];
-                
-                return (
-                  <RadioGroup
-                    value={answers[qb.id] || ""}
-                    onValueChange={(v) => setAnswers({ ...answers, [qb.id]: v })}
-                  >
-                    {options.map((opt) => (
-                      <div key={opt.id} className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
-                        <RadioGroupItem value={opt.id} id={opt.id} />
-                        <Label htmlFor={opt.id} className="flex-1 cursor-pointer" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>{opt.text}</Label>
+              {qb?.question_type === "multiple_choice" && (
+                <RadioGroup
+                  value={answers[qb.id] || ""}
+                  onValueChange={(v) => setAnswers({ ...answers, [qb.id]: v })}
+                >
+                  {(q.shuffledOptions || qb.options || []).map((opt) => (
+                    <div 
+                      key={opt.id} 
+                      className={`flex items-center space-x-2 p-4 border rounded-lg transition-colors ${
+                        answers[qb.id] === opt.id 
+                          ? 'border-primary bg-primary/5 dark:bg-primary/10' 
+                          : 'hover:bg-muted/50'
+                      }`} 
+                      style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}
+                    >
+                      <RadioGroupItem 
+                        value={opt.id} 
+                        id={`${qb.id}-${opt.id}`} 
+                        className="h-5 w-5"
+                      />
+                      <Label 
+                        htmlFor={`${qb.id}-${opt.id}`} 
+                        className="flex-1 cursor-pointer text-base" 
+                        style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}
+                      >
+                        {opt.text}
+                      </Label>
                     </div>
-                    ))}
-                  </RadioGroup>
-                );
-              })()}
+                  ))}
+                </RadioGroup>
+              )}
 
               {qb?.question_type === "true_false" && (
                 <RadioGroup
@@ -418,15 +501,59 @@ const StudentOnlineExams = () => {
                 />
               )}
             </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button variant="outline" disabled={currentQuestion === 0} onClick={() => setCurrentQuestion(currentQuestion - 1)}>
-                Previous
-              </Button>
-              {currentQuestion < questions.length - 1 ? (
-                <Button onClick={() => setCurrentQuestion(currentQuestion + 1)}>Next</Button>
-              ) : (
-                <Button onClick={submitExam}>Submit Exam</Button>
-              )}
+            <CardFooter className="flex justify-between pt-6 border-t">
+              <div className="flex-1">
+                {currentQuestion > 0 && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setCurrentQuestion(currentQuestion - 1)}
+                    className="min-w-[100px]"
+                  >
+                    ← Previous
+                  </Button>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => currentQuestionId && toggleFlagQuestion(currentQuestionId)}
+                  className="gap-2"
+                >
+                  {flaggedQuestions[currentQuestionId] ? (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-500">
+                        <path d="M5 2h14l-3.5 7 3.5 7h-4.5v6l-1 1-1-1v-6h-4l3.5-7-3.5-7h4.5v6l1-1 1 1v-6z"></path>
+                      </svg>
+                      Flagged
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 2h14l-3.5 7 3.5 7h-4.5v6l-1 1-1-1v-6h-4l3.5-7-3.5-7h4.5v6l1-1 1 1v-6z"></path>
+                      </svg>
+                      Flag for Review
+                    </>
+                  )}
+                </Button>
+                
+                {currentQuestion < questions.length - 1 ? (
+                  <Button 
+                    onClick={() => setCurrentQuestion(currentQuestion + 1)}
+                    className="min-w-[100px]"
+                  >
+                    Next →
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={submitExam}
+                    variant="destructive"
+                    className="min-w-[150px]"
+                  >
+                    Submit Exam
+                  </Button>
+                )}
+              </div>
             </CardFooter>
           </Card>
         </div>
