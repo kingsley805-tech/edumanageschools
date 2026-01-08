@@ -494,6 +494,41 @@ export type Database = {
           },
         ]
       }
+      exam_time_extensions: {
+        Row: {
+          attempt_id: string
+          created_at: string
+          extended_by: string
+          extension_minutes: number
+          id: string
+          reason: string | null
+        }
+        Insert: {
+          attempt_id: string
+          created_at?: string
+          extended_by: string
+          extension_minutes?: number
+          id?: string
+          reason?: string | null
+        }
+        Update: {
+          attempt_id?: string
+          created_at?: string
+          extended_by?: string
+          extension_minutes?: number
+          id?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_time_extensions_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "online_exam_attempts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_types: {
         Row: {
           category: string

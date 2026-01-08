@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,7 @@ const StudentOnlineExams = () => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [flaggedQuestions, setFlaggedQuestions] = useState<Record<string, boolean>>({});
   const [timeLeft, setTimeLeft] = useState(0);
+  const [timeExtension, setTimeExtension] = useState(0);
   const [showResult, setShowResult] = useState(false);
   const [result, setResult] = useState<{ obtained: number; total: number; grade?: string | null } | null>(null);
   const [showProctoringWarning, setShowProctoringWarning] = useState(false);
@@ -70,12 +71,17 @@ const StudentOnlineExams = () => {
   const [showReview, setShowReview] = useState(false);
   const [reviewAttemptId, setReviewAttemptId] = useState<string | null>(null);
   const [reviewExamTitle, setReviewExamTitle] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Use ref to ensure stable callback that always has latest state
+  const submitExamRef = useRef<() => Promise<void>>();
+  submitExamRef.current = async () => {
+    await submitExam();
+  };
 
   const submitExamCallback = useCallback(() => {
-    if (takingExam) {
-      submitExam();
-    }
-  }, [takingExam, attemptId, questions, answers, studentId]);
+    submitExamRef.current?.();
+  }, []);
 
   const { isFullscreen, tabSwitchCount, violations, webcamStream, setVideoElement, snapshotCount, faceDetectionStatus, lastFaceCount } = useExamProctoring({
     enabled: takingExam?.proctoring_enabled ?? false,
@@ -211,16 +217,28 @@ const StudentOnlineExams = () => {
 
     if (error) return toast.error("Failed to start exam");
 
+    // Check for any existing time extensions
+    const { data: extensions } = await supabase
+      .from("exam_time_extensions")
+      .select("extension_minutes")
+      .eq("attempt_id", attempt.id);
+    
+    const totalExtension = extensions?.reduce((sum, ext) => sum + ext.extension_minutes, 0) || 0;
+
     setAttemptId(attempt.id);
     setQuestions(orderedQuestions);
     setTakingExam(exam);
     setCurrentQuestion(0);
     setAnswers({});
-    setTimeLeft(exam.duration_minutes * 60);
+    setFlaggedQuestions({});
+    setTimeExtension(totalExtension);
+    setTimeLeft((exam.duration_minutes + totalExtension) * 60);
+    setIsSubmitting(false);
   };
 
   const submitExam = async () => {
-    if (!attemptId || !takingExam || !studentId) return;
+    if (!attemptId || !takingExam || !studentId || isSubmitting) return;
+    setIsSubmitting(true);
 
     // Save all answers
     const answerInserts = Object.entries(answers).map(([questionId, answer]) => {
@@ -305,6 +323,7 @@ const StudentOnlineExams = () => {
     }
 
     setTakingExam(null);
+    setIsSubmitting(false);
     fetchExams();
   };
 
@@ -338,7 +357,7 @@ const StudentOnlineExams = () => {
     const currentQuestionId = qb?.id;
 
     return (
-      <DashboardLayout role="student">
+      <DashboardLayout role="student" hideSidebar={true}>
         <div className="space-y-6 max-w-4xl mx-auto" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
           {/* Webcam Preview */}
           {takingExam.webcam_required && webcamStream && (
@@ -549,10 +568,23 @@ const StudentOnlineExams = () => {
                     onClick={submitExam}
                     variant="destructive"
                     className="min-w-[150px]"
+                    disabled={isSubmitting}
                   >
-                    Submit Exam
+                    {isSubmitting ? "Submitting..." : "Submit Exam"}
                   </Button>
                 )}
+              </div>
+              
+              {/* Always visible submit button */}
+              <div className="mt-4 pt-4 border-t">
+                <Button 
+                  onClick={submitExam}
+                  variant="destructive"
+                  className="w-full"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Submitting..." : "Submit Exam Now"}
+                </Button>
               </div>
             </CardFooter>
           </Card>

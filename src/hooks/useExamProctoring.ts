@@ -299,9 +299,18 @@ export const useExamProctoring = (config: ProctoringConfig) => {
       const inFullscreen = !!document.fullscreenElement;
       setIsFullscreen(inFullscreen);
 
+      // Only log violation if user deliberately exited fullscreen (not just a brief transition)
+      // Don't log if we're not active or fullscreen isn't required
       if (!inFullscreen && isActive.current && config.fullscreenRequired) {
-        logViolation("fullscreen_exit", "Student exited fullscreen mode");
-        toast.warning("Please stay in fullscreen mode during the exam");
+        // Small delay to check if this was intentional
+        setTimeout(() => {
+          if (!document.fullscreenElement && isActive.current) {
+            logViolation("fullscreen_exit", "Student exited fullscreen mode");
+            toast.warning("Please stay in fullscreen mode during the exam");
+            // Re-enter fullscreen automatically
+            enterFullscreen();
+          }
+        }, 100);
       }
     };
 

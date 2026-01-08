@@ -38,9 +38,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 interface DashboardLayoutProps {
   children: ReactNode;
   role: "admin" | "teacher" | "parent" | "student" | "super_admin";
+  hideSidebar?: boolean;
 }
 
-const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
+const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { signOut, user } = useAuth();
@@ -187,7 +188,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
   return (
     <div className="min-h-screen bg-background relative">
       {/* Watermark overlay - covers entire viewport behind all content */}
-      {currentSchool?.logo_url && (
+      {currentSchool?.logo_url && !hideSidebar && (
         <div 
           className="fixed inset-0 pointer-events-none hidden md:block"
           style={{
@@ -202,19 +203,20 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
       )}
       
       {/* Mobile overlay */}
-      {sidebarOpen && (
+      {sidebarOpen && !hideSidebar && (
         <div 
           className="fixed inset-0 bg-black/50 z-30 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
       
-      {/* Sidebar */}
-      <aside 
-        className={`fixed left-0 top-0 z-40 h-screen transition-transform ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } w-64 border-r bg-card lg:bg-primary/5`}
-      >
+      {/* Sidebar - hidden when hideSidebar is true */}
+      {!hideSidebar && (
+        <aside 
+          className={`fixed left-0 top-0 z-40 h-screen transition-transform ${
+            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          } w-64 border-r bg-card lg:bg-primary/5`}
+        >
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="flex h-16 items-center gap-2 border-b px-6">
@@ -295,52 +297,57 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
           </div>
         </div>
       </aside>
+      )}
 
       {/* Main Content */}
-      <div className={`transition-all ${sidebarOpen ? "lg:ml-64" : "lg:ml-0"} relative z-10`}>
+      <div className={`transition-all ${!hideSidebar && sidebarOpen ? "lg:ml-64" : "lg:ml-0"} relative z-10`}>
         {/* Top Bar */}
-        <header className="sticky top-0 z-30 flex h-14 md:h-16 items-center gap-2 md:gap-4 border-b bg-background/95 backdrop-blur px-3 md:px-6">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="bg-background/80 hover:bg-primary/10 border border-border/50"
-          >
-            <Menu className="h-5 w-5 text-foreground" />
-          </Button>
+        <header className={`sticky top-0 z-30 flex h-14 md:h-16 items-center gap-2 md:gap-4 border-b bg-background/95 backdrop-blur px-3 md:px-6 ${hideSidebar ? "justify-end" : ""}`}>
+          {!hideSidebar && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="bg-background/80 hover:bg-primary/10 border border-border/50"
+            >
+              <Menu className="h-5 w-5 text-foreground" />
+            </Button>
+          )}
           
-          <div className="flex-1 flex items-center gap-2 md:gap-4 min-w-0">
-            {isSuperAdmin ? (
-              <SchoolSwitcher />
-            ) : currentSchool ? (
-              <>
-                {currentSchool.logo_url && (
-                  <Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-primary/20 shadow-sm flex-shrink-0">
-                    <AvatarImage src={currentSchool.logo_url} alt={currentSchool.school_name} />
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-bold text-xs md:text-sm">
-                      {currentSchool.school_name.substring(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-                <div className="flex items-center gap-1 md:gap-2 min-w-0">
-                  <h1 className="text-base md:text-xl font-bold truncate">{currentSchool.school_name}</h1>
-                  {currentSchool.school_code && (
-                    <span className="text-xs md:text-sm text-muted-foreground font-medium hidden sm:inline">
-                      ({currentSchool.school_code})
-                    </span>
+          {!hideSidebar && (
+            <div className="flex-1 flex items-center gap-2 md:gap-4 min-w-0">
+              {isSuperAdmin ? (
+                <SchoolSwitcher />
+              ) : currentSchool ? (
+                <>
+                  {currentSchool.logo_url && (
+                    <Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-primary/20 shadow-sm flex-shrink-0">
+                      <AvatarImage src={currentSchool.logo_url} alt={currentSchool.school_name} />
+                      <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-bold text-xs md:text-sm">
+                        {currentSchool.school_name.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
                   )}
-                </div>
-                <span className="text-muted-foreground hidden sm:inline">-</span>
-                <h2 className="text-sm md:text-lg font-semibold hidden sm:block">
+                  <div className="flex items-center gap-1 md:gap-2 min-w-0">
+                    <h1 className="text-base md:text-xl font-bold truncate">{currentSchool.school_name}</h1>
+                    {currentSchool.school_code && (
+                      <span className="text-xs md:text-sm text-muted-foreground font-medium hidden sm:inline">
+                        ({currentSchool.school_code})
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-muted-foreground hidden sm:inline">-</span>
+                  <h2 className="text-sm md:text-lg font-semibold hidden sm:block">
+                    {role === "admin" || role === "super_admin" ? "Admin" : config.title}
+                  </h2>
+                </>
+              ) : (
+                <h2 className="text-sm md:text-lg font-semibold">
                   {role === "admin" || role === "super_admin" ? "Admin" : config.title}
                 </h2>
-              </>
-            ) : (
-              <h2 className="text-sm md:text-lg font-semibold">
-                {role === "admin" || role === "super_admin" ? "Admin" : config.title}
-              </h2>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           <div className="ml-auto flex items-center gap-2 md:gap-3 flex-shrink-0">
             <Button
