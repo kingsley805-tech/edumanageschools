@@ -3,59 +3,31 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/card";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger
-} from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
-import { 
-  GraduationCap, 
-  Lock, 
-  Mail, 
-  User, 
-  Eye, 
-  EyeOff,
-  Shield,
-  BookOpen,
-  Users,
-  ArrowRight,
-  CheckCircle
-} from "lucide-react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { GraduationCap, Lock, Mail, User, Eye, EyeOff, Shield, BookOpen, Users, ArrowRight, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import schoolPicture from "@/assets/School Picture.webp";
-
 const Auth = () => {
   const navigate = useNavigate();
-  const { signIn, signUp, user } = useAuth();
-  const { role } = useUserRole();
-
+  const {
+    signIn,
+    signUp,
+    user
+  } = useAuth();
+  const {
+    role
+  } = useUserRole();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
   const [showPassword, setShowPassword] = useState(false);
-
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginSchoolCode, setLoginSchoolCode] = useState("");
-
   const [signupFullName, setSignupFullName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
@@ -64,7 +36,6 @@ const Auth = () => {
   const [schoolName, setSchoolName] = useState("");
   const [adminKey, setAdminKey] = useState("");
   const [resetEmail, setResetEmail] = useState("");
-
   useEffect(() => {
     if (user && role) {
       const roleRoutes: Record<string, string> = {
@@ -77,11 +48,9 @@ const Auth = () => {
       navigate(roleRoutes[role] || "/admin");
     }
   }, [user, role, navigate]);
-
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-
     if (!loginSchoolCode.trim()) {
       toast.error("Please enter your school code");
       setIsLoading(false);
@@ -89,40 +58,34 @@ const Auth = () => {
     }
 
     // Verify school code exists before attempting login
-    const { data: schoolData, error: schoolError } = await supabase
-      .from("schools")
-      .select("id")
-      .eq("school_code", loginSchoolCode.toUpperCase())
-      .maybeSingle();
-
+    const {
+      data: schoolData,
+      error: schoolError
+    } = await supabase.from("schools").select("id").eq("school_code", loginSchoolCode.toUpperCase()).maybeSingle();
     if (schoolError || !schoolData) {
       toast.error("Invalid school code. Please check and try again.");
       setIsLoading(false);
       return;
     }
-
-    const { error } = await signIn(loginEmail, loginPassword);
-
+    const {
+      error
+    } = await signIn(loginEmail, loginPassword);
     if (error) {
       toast.error(error.message);
       setIsLoading(false);
       return;
     }
-
     toast.success("Welcome back!");
     setIsLoading(false);
   };
-
   const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-
     if (!signupRole) {
       toast.error("Please select your role");
       setIsLoading(false);
       return;
     }
-
     if (signupRole === "super_admin") {
       if (!adminKey) {
         toast.error("Super Admin key is required for super administrator accounts");
@@ -147,35 +110,25 @@ const Auth = () => {
         return;
       }
     }
-
-    const { error } = await signUp(
-      signupEmail,
-      signupPassword,
-      signupFullName,
-      signupRole,
-      schoolCode,
-      adminKey,
-      schoolName
-    );
-
+    const {
+      error
+    } = await signUp(signupEmail, signupPassword, signupFullName, signupRole, schoolCode, adminKey, schoolName);
     if (error) {
       toast.error(error.message);
       setIsLoading(false);
       return;
     }
-
     toast.success("Account created successfully!");
     setIsLoading(false);
   };
-
   const handleForgotPassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-
-    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-      redirectTo: `${window.location.origin}/auth?tab=reset-password`,
+    const {
+      error
+    } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/auth?tab=reset-password`
     });
-
     if (error) {
       toast.error(error.message);
     } else {
@@ -185,27 +138,39 @@ const Auth = () => {
     }
     setIsLoading(false);
   };
-
   const roleConfig = {
-    super_admin: { icon: Shield, label: "Super Admin", description: "Multi-school management" },
-    admin: { icon: Shield, label: "Administrator", description: "Full system access" },
-    teacher: { icon: BookOpen, label: "Teacher", description: "Class and grade management" },
-    parent: { icon: Users, label: "Parent", description: "Student progress tracking" },
-    student: { icon: GraduationCap, label: "Student", description: "Learning portal access" }
+    super_admin: {
+      icon: Shield,
+      label: "Super Admin",
+      description: "Multi-school management"
+    },
+    admin: {
+      icon: Shield,
+      label: "Administrator",
+      description: "Full system access"
+    },
+    teacher: {
+      icon: BookOpen,
+      label: "Teacher",
+      description: "Class and grade management"
+    },
+    parent: {
+      icon: Users,
+      label: "Parent",
+      description: "Student progress tracking"
+    },
+    student: {
+      icon: GraduationCap,
+      label: "Student",
+      description: "Learning portal access"
+    }
   };
-
-
-
-  return (
-    <div 
-      className="min-h-screen flex items-center justify-center relative overflow-hidden p-3 sm:p-4"
-      style={{
-        backgroundImage: `url(${schoolPicture})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-      }}
-    >
+  return <div className="min-h-screen flex items-center justify-center relative overflow-hidden p-3 sm:p-4" style={{
+    backgroundImage: `url(${schoolPicture})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat'
+  }}>
       {/* Minimal overlay for card readability only */}
       <div className="absolute inset-0 bg-black/5"></div>
 
@@ -227,16 +192,10 @@ const Auth = () => {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid grid-cols-2 mx-4 md:mx-6 mb-2 gap-2">
-            <TabsTrigger 
-              value="login"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-white transition-all duration-200"
-            >
+            <TabsTrigger value="login" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-white transition-all duration-200">
               Login
             </TabsTrigger>
-            <TabsTrigger 
-              value="signup"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-white transition-all duration-200"
-            >
+            <TabsTrigger value="signup" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-white transition-all duration-200">
               Create Account
             </TabsTrigger>
           </TabsList>
@@ -249,15 +208,7 @@ const Auth = () => {
                   <Label htmlFor="login-email" className="text-sm md:text-base font-semibold text-foreground">Email Address</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-5 w-5 md:h-6 md:w-6 text-foreground/70" />
-                    <Input
-                      id="login-email"
-                      type="email"
-                      placeholder="you@school.edu"
-                      className="pl-10 pr-4 py-5 md:py-6 text-base"
-                      value={loginEmail}
-                      onChange={(e) => setLoginEmail(e.target.value)}
-                      required
-                    />
+                    <Input id="login-email" type="email" placeholder="you@school.edu" className="pl-10 pr-4 py-5 md:py-6 text-base" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} required />
                   </div>
                 </div>
 
@@ -265,27 +216,9 @@ const Auth = () => {
                   <Label htmlFor="login-password" className="text-sm md:text-base font-semibold text-foreground">Password</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-5 w-5 md:h-6 md:w-6 text-foreground/70" />
-                    <Input
-                      id="login-password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      className="pl-10 pr-12 py-5 md:py-6 text-base"
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      required
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <Eye className="h-4 w-4 text-muted-foreground" />
-                      )}
+                    <Input id="login-password" type={showPassword ? "text" : "password"} placeholder="••••••••" className="pl-10 pr-12 py-5 md:py-6 text-base" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} required />
+                    <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent" onClick={() => setShowPassword(!showPassword)}>
+                      {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
                     </Button>
                   </div>
                 </div>
@@ -294,44 +227,23 @@ const Auth = () => {
                   <Label htmlFor="login-school-code" className="text-sm md:text-base font-semibold text-foreground">School Code</Label>
                   <div className="relative">
                     <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="login-school-code"
-                      type="text"
-                      placeholder="Enter your school code"
-                      className="pl-10 pr-4 py-5 md:py-6 uppercase text-base"
-                      value={loginSchoolCode}
-                      onChange={(e) => setLoginSchoolCode(e.target.value.toUpperCase())}
-                      required
-                    />
+                    <Input id="login-school-code" type="text" placeholder="Enter your school code" className="pl-10 pr-4 py-5 md:py-6 uppercase text-base" value={loginSchoolCode} onChange={e => setLoginSchoolCode(e.target.value.toUpperCase())} required />
                   </div>
                 </div>
               </CardContent>
 
               <CardFooter className="flex flex-col space-y-3 md:space-y-4 pt-2 px-4 md:px-6 pb-4 md:pb-6 overflow-hidden">
-                <Button
-                  type="submit"
-                  className="w-full bg-gradient-to-r from-primary to-accent hover:shadow-lg hover:scale-105 transition-all duration-200 py-5 md:py-6 text-base md:text-lg font-bold group overflow-hidden"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <div className="flex items-center gap-2">
+                <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent hover:shadow-lg hover:scale-105 transition-all duration-200 py-5 md:py-6 text-base md:text-lg font-bold group overflow-hidden" disabled={isLoading}>
+                  {isLoading ? <div className="flex items-center gap-2">
                       <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       Signing in...
-                    </div>
-                  ) : (
-                    <>
+                    </div> : <>
                       Sign In to Dashboard
                       <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                    </>
-                  )}
+                    </>}
                 </Button>
 
-                <Button 
-                  variant="link" 
-                  type="button" 
-                  className="text-sm text-muted-foreground hover:text-primary"
-                  onClick={() => setActiveTab("forgot-password")}
-                >
+                <Button variant="link" type="button" className="text-sm text-muted-foreground hover:text-primary" onClick={() => setActiveTab("forgot-password")}>
                   Forgot your password?
                 </Button>
               </CardFooter>
@@ -351,44 +263,23 @@ const Auth = () => {
                   <Label htmlFor="reset-email" className="text-sm font-medium">Email Address</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-5 w-5 md:h-6 md:w-6 text-foreground/70" />
-                    <Input
-                      id="reset-email"
-                      type="email"
-                      placeholder="you@school.edu"
-                      className="pl-10 pr-4 py-6"
-                      value={resetEmail}
-                      onChange={(e) => setResetEmail(e.target.value)}
-                      required
-                    />
+                    <Input id="reset-email" type="email" placeholder="you@school.edu" className="pl-10 pr-4 py-6" value={resetEmail} onChange={e => setResetEmail(e.target.value)} required />
                   </div>
                 </div>
               </CardContent>
 
               <CardFooter className="flex flex-col space-y-4 pt-2">
-                <Button
-                  type="submit"
-                  className="w-full bg-gradient-to-r from-primary to-accent hover:shadow-lg hover:scale-105 transition-all duration-200 py-6 text-base font-semibold group"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <div className="flex items-center gap-2">
+                <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent hover:shadow-lg hover:scale-105 transition-all duration-200 py-6 text-base font-semibold group" disabled={isLoading}>
+                  {isLoading ? <div className="flex items-center gap-2">
                       <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       Sending...
-                    </div>
-                  ) : (
-                    <>
+                    </div> : <>
                       Send Reset Link
                       <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                    </>
-                  )}
+                    </>}
                 </Button>
 
-                <Button 
-                  variant="link" 
-                  type="button" 
-                  className="text-sm text-muted-foreground hover:text-primary"
-                  onClick={() => setActiveTab("login")}
-                >
+                <Button variant="link" type="button" className="text-sm text-muted-foreground hover:text-primary" onClick={() => setActiveTab("login")}>
                   Back to Login
                 </Button>
               </CardFooter>
@@ -403,15 +294,7 @@ const Auth = () => {
                   <Label htmlFor="signup-name" className="text-sm md:text-base font-semibold text-foreground">Full Name</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-3 h-5 w-5 md:h-6 md:w-6 text-foreground/70" />
-                    <Input
-                      id="signup-name"
-                      type="text"
-                      placeholder="John Doe"
-                      className="pl-10 pr-4 py-6"
-                      value={signupFullName}
-                      onChange={(e) => setSignupFullName(e.target.value)}
-                      required
-                    />
+                    <Input id="signup-name" type="text" placeholder="John Doe" className="pl-10 pr-4 py-6" value={signupFullName} onChange={e => setSignupFullName(e.target.value)} required />
                   </div>
                 </div>
 
@@ -419,15 +302,7 @@ const Auth = () => {
                   <Label htmlFor="signup-email" className="text-sm font-medium">Email Address</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-5 w-5 md:h-6 md:w-6 text-foreground/70" />
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="you@school.edu"
-                      className="pl-10 pr-4 py-6"
-                      value={signupEmail}
-                      onChange={(e) => setSignupEmail(e.target.value)}
-                      required
-                    />
+                    <Input id="signup-email" type="email" placeholder="you@school.edu" className="pl-10 pr-4 py-6" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} required />
                   </div>
                 </div>
 
@@ -435,108 +310,59 @@ const Auth = () => {
                   <Label htmlFor="signup-password" className="text-sm md:text-base font-semibold text-foreground">Password</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-5 w-5 md:h-6 md:w-6 text-foreground/70" />
-                    <Input
-                      id="signup-password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      className="pl-10 pr-12 py-6"
-                      value={signupPassword}
-                      onChange={(e) => setSignupPassword(e.target.value)}
-                      required
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <Eye className="h-4 w-4 text-muted-foreground" />
-                      )}
+                    <Input id="signup-password" type={showPassword ? "text" : "password"} placeholder="••••••••" className="pl-10 pr-12 py-6" value={signupPassword} onChange={e => setSignupPassword(e.target.value)} required />
+                    <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent" onClick={() => setShowPassword(!showPassword)}>
+                      {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
                     </Button>
                   </div>
                   
               
                 </div>
 
-                {signupRole === "super_admin" ? (
-                  <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 animate-fade-in">
+                {signupRole === "super_admin" ? <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 animate-fade-in">
                     <p className="text-sm text-muted-foreground">
                       Super admins manage multiple schools. You'll be able to assign schools after account creation.
                     </p>
-                  </div>
-                ) : signupRole === "admin" ? (
-                  <div className="space-y-4 animate-fade-in">
+                  </div> : signupRole === "admin" ? <div className="space-y-4 animate-fade-in">
                     <div className="space-y-3">
                       <Label htmlFor="school-name" className="text-sm font-medium">School Name</Label>
                       <div className="relative">
                         <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="school-name"
-                          type="text"
-                          placeholder="Enter your school name"
-                          className="pl-10 pr-4 py-6"
-                          value={schoolName}
-                          onChange={(e) => setSchoolName(e.target.value)}
-                          required={signupRole === "admin"}
-                        />
+                        <Input id="school-name" type="text" placeholder="Enter your school name" className="pl-10 pr-4 py-6" value={schoolName} onChange={e => setSchoolName(e.target.value)} required={signupRole === "admin"} />
                       </div>
                     </div>
                     <div className="space-y-3">
                       <Label htmlFor="school-code" className="text-sm font-medium">School Code</Label>
                       <div className="relative">
                         <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="school-code"
-                          type="text"
-                          placeholder="Create a unique school code"
-                          className="pl-10 pr-4 py-6 uppercase"
-                          value={schoolCode}
-                          onChange={(e) => setSchoolCode(e.target.value.toUpperCase())}
-                          required={signupRole === "admin"}
-                        />
+                        <Input id="school-code" type="text" placeholder="Create a unique school code" className="pl-10 pr-4 py-6 uppercase" value={schoolCode} onChange={e => setSchoolCode(e.target.value.toUpperCase())} required={signupRole === "admin"} />
                       </div>
                       <p className="text-xs text-muted-foreground">
                         Create a unique code for your school (e.g., SCHOOL2025)
                       </p>
                     </div>
-                  </div>
-                ) : signupRole ? (
-                  <div className="space-y-3 animate-fade-in">
+                  </div> : signupRole ? <div className="space-y-3 animate-fade-in">
                     <Label htmlFor="school-code" className="text-sm font-medium">School Code</Label>
                     <div className="relative">
                       <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="school-code"
-                        type="text"
-                        placeholder="Enter your school code"
-                        className="pl-10 pr-4 py-6 uppercase"
-                        value={schoolCode}
-                        onChange={(e) => setSchoolCode(e.target.value.toUpperCase())}
-                        required={signupRole !== "admin" && signupRole !== "super_admin"}
-                      />
+                      <Input id="school-code" type="text" placeholder="Enter your school code" className="pl-10 pr-4 py-6 uppercase" value={schoolCode} onChange={e => setSchoolCode(e.target.value.toUpperCase())} required={signupRole !== "admin" && signupRole !== "super_admin"} />
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Get this code from your school administrator
                     </p>
-                  </div>
-                ) : null}
+                  </div> : null}
 
                 <div className="space-y-3">
                   <Label htmlFor="signup-role" className="text-sm font-medium">Account Type</Label>
                   <Select value={signupRole} onValueChange={setSignupRole} required>
                     <SelectTrigger id="signup-role" className="py-6 pl-10">
-                      <User className="absolute left-3 top-3 h-5 w-5 md:h-6 md:w-6 text-foreground/70" />
+                      
                       <SelectValue placeholder="Select your role" />
                     </SelectTrigger>
                     <SelectContent>
                       {Object.entries(roleConfig).map(([key, config]) => {
-                        const IconComponent = config.icon;
-                        return (
-                          <SelectItem key={key} value={key} className="py-3">
+                      const IconComponent = config.icon;
+                      return <SelectItem key={key} value={key} className="py-3">
                             <div className="flex items-center gap-3">
                               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
                                 <IconComponent className="h-4 w-4 text-primary" />
@@ -546,62 +372,39 @@ const Auth = () => {
                                 <span className="text-xs text-muted-foreground">{config.description}</span>
                               </div>
                             </div>
-                          </SelectItem>
-                        );
-                      })}
+                          </SelectItem>;
+                    })}
                     </SelectContent>
                   </Select>
                 </div>
 
-                {(signupRole === "admin" || signupRole === "super_admin") && (
-                  <div className="space-y-3 animate-fade-in">
+                {(signupRole === "admin" || signupRole === "super_admin") && <div className="space-y-3 animate-fade-in">
                     <Label htmlFor="admin-key" className="text-sm font-medium flex items-center gap-2">
                       <Shield className="h-4 w-4 text-primary" />
                       {signupRole === "super_admin" ? "Super Admin Key" : "Admin Key"} (Required)
                     </Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-3 h-5 w-5 md:h-6 md:w-6 text-foreground/70" />
-                      <Input
-                        id="admin-key"
-                        type="password"
-                        placeholder={signupRole === "super_admin" ? "Enter super admin key" : "Enter admin key"}
-                        className="pl-10 pr-4 py-6"
-                        value={adminKey}
-                        onChange={(e) => setAdminKey(e.target.value)}
-                        required={signupRole === "admin" || signupRole === "super_admin"}
-                      />
+                      <Input id="admin-key" type="password" placeholder={signupRole === "super_admin" ? "Enter super admin key" : "Enter admin key"} className="pl-10 pr-4 py-6" value={adminKey} onChange={e => setAdminKey(e.target.value)} required={signupRole === "admin" || signupRole === "super_admin"} />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {signupRole === "super_admin" 
-                        ? "This special key is required to create a super administrator account"
-                        : "This special key is required to create an administrator account"}
+                      {signupRole === "super_admin" ? "This special key is required to create a super administrator account" : "This special key is required to create an administrator account"}
                     </p>
-                  </div>
-                )}
+                  </div>}
               </CardContent>
 
               <CardFooter className="pt-2">
-                <Button
-                  type="submit"
-                  className="w-full bg-gradient-to-r from-primary to-accent hover:shadow-lg hover:scale-105 transition-all duration-200 py-6 text-base font-semibold"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <div className="flex items-center gap-2">
+                <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent hover:shadow-lg hover:scale-105 transition-all duration-200 py-6 text-base font-semibold" disabled={isLoading}>
+                  {isLoading ? <div className="flex items-center gap-2">
                       <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       Creating account...
-                    </div>
-                  ) : (
-                    "Create Account"
-                  )}
+                    </div> : "Create Account"}
                 </Button>
               </CardFooter>
             </form>
           </TabsContent>
         </Tabs>
       </Card>
-    </div>
-  );
+    </div>;
 };
-
 export default Auth;
