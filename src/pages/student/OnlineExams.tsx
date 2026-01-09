@@ -100,6 +100,7 @@ const StudentOnlineExams = () => {
     fetchExams();
   }, [user]);
 
+  // Timer countdown
   useEffect(() => {
     if (takingExam && timeLeft > 0) {
       const timer = setInterval(() => {
@@ -115,6 +116,30 @@ const StudentOnlineExams = () => {
       return () => clearInterval(timer);
     }
   }, [takingExam, timeLeft]);
+
+  // Poll for time extensions every 30 seconds
+  useEffect(() => {
+    if (!attemptId || !takingExam) return;
+    
+    const checkExtensions = async () => {
+      const { data: extensions } = await supabase
+        .from("exam_time_extensions")
+        .select("extension_minutes")
+        .eq("attempt_id", attemptId);
+      
+      const totalExtension = extensions?.reduce((sum, ext) => sum + ext.extension_minutes, 0) || 0;
+      
+      if (totalExtension > timeExtension) {
+        const additionalTime = totalExtension - timeExtension;
+        setTimeExtension(totalExtension);
+        setTimeLeft(prev => prev + (additionalTime * 60));
+        toast.success(`Time extended by ${additionalTime} minute${additionalTime > 1 ? 's' : ''}!`);
+      }
+    };
+
+    const extensionPoller = setInterval(checkExtensions, 30000); // Check every 30 seconds
+    return () => clearInterval(extensionPoller);
+  }, [attemptId, takingExam, timeExtension]);
 
   const fetchExams = async () => {
     const { data: student } = await supabase
@@ -520,72 +545,63 @@ const StudentOnlineExams = () => {
                 />
               )}
             </CardContent>
-            <CardFooter className="flex justify-between pt-6 border-t">
-              <div className="flex-1">
-                {currentQuestion > 0 && (
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setCurrentQuestion(currentQuestion - 1)}
-                    className="min-w-[100px]"
-                  >
-                    ← Previous
-                  </Button>
-                )}
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant="ghost" 
-                  onClick={() => currentQuestionId && toggleFlagQuestion(currentQuestionId)}
-                  className="gap-2"
-                >
-                  {flaggedQuestions[currentQuestionId] ? (
-                    <>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-500">
-                        <path d="M5 2h14l-3.5 7 3.5 7h-4.5v6l-1 1-1-1v-6h-4l3.5-7-3.5-7h4.5v6l1-1 1 1v-6z"></path>
-                      </svg>
-                      Flagged
-                    </>
-                  ) : (
-                    <>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 2h14l-3.5 7 3.5 7h-4.5v6l-1 1-1-1v-6h-4l3.5-7-3.5-7h4.5v6l1-1 1 1v-6z"></path>
-                      </svg>
-                      Flag for Review
-                    </>
+            <CardFooter className="flex flex-col gap-4 pt-6 border-t">
+              <div className="flex justify-between items-center w-full">
+                <div className="flex-1">
+                  {currentQuestion > 0 && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setCurrentQuestion(currentQuestion - 1)}
+                      className="min-w-[100px]"
+                    >
+                      ← Previous
+                    </Button>
                   )}
-                </Button>
+                </div>
                 
-                {currentQuestion < questions.length - 1 ? (
+                <div className="flex items-center gap-2">
                   <Button 
-                    onClick={() => setCurrentQuestion(currentQuestion + 1)}
-                    className="min-w-[100px]"
+                    variant="ghost" 
+                    onClick={() => currentQuestionId && toggleFlagQuestion(currentQuestionId)}
+                    className="gap-2"
                   >
-                    Next →
+                    {flaggedQuestions[currentQuestionId] ? (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-500">
+                          <path d="M5 2h14l-3.5 7 3.5 7h-4.5v6l-1 1-1-1v-6h-4l3.5-7-3.5-7h4.5v6l1-1 1 1v-6z"></path>
+                        </svg>
+                        Flagged
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 2h14l-3.5 7 3.5 7h-4.5v6l-1 1-1-1v-6h-4l3.5-7-3.5-7h4.5v6l1-1 1 1v-6z"></path>
+                        </svg>
+                        Flag for Review
+                      </>
+                    )}
                   </Button>
-                ) : (
-                  <Button 
-                    onClick={submitExam}
-                    variant="destructive"
-                    className="min-w-[150px]"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? "Submitting..." : "Submit Exam"}
-                  </Button>
-                )}
+                  
+                  {currentQuestion < questions.length - 1 && (
+                    <Button 
+                      onClick={() => setCurrentQuestion(currentQuestion + 1)}
+                      className="min-w-[100px]"
+                    >
+                      Next →
+                    </Button>
+                  )}
+                </div>
               </div>
               
               {/* Always visible submit button */}
-              <div className="mt-4 pt-4 border-t">
-                <Button 
-                  onClick={submitExam}
-                  variant="destructive"
-                  className="w-full"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? "Submitting..." : "Submit Exam Now"}
-                </Button>
-              </div>
+              <Button 
+                onClick={submitExam}
+                variant="destructive"
+                className="w-full"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Submitting..." : "Submit Exam"}
+              </Button>
             </CardFooter>
           </Card>
         </div>
