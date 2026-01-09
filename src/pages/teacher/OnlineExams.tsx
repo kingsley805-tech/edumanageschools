@@ -10,13 +10,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, ListChecks, BarChart3, Shield, Camera } from "lucide-react";
+import { Plus, Trash2, ListChecks, BarChart3, Shield, Camera, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ExamSummaryReport } from "@/components/ExamSummaryReport";
 import { ProctoringSnapshotsViewer } from "@/components/ProctoringSnapshotsViewer";
+import { TimeExtensionDialog } from "@/components/TimeExtensionDialog";
 
 interface OnlineExam {
   id: string;
@@ -60,6 +61,8 @@ const OnlineExams = () => {
   const [reportExam, setReportExam] = useState<OnlineExam | null>(null);
   const [snapshotsDialogOpen, setSnapshotsDialogOpen] = useState(false);
   const [snapshotsExam, setSnapshotsExam] = useState<OnlineExam | null>(null);
+  const [timeExtensionDialogOpen, setTimeExtensionDialogOpen] = useState(false);
+  const [timeExtensionExam, setTimeExtensionExam] = useState<OnlineExam | null>(null);
   
   const [formData, setFormData] = useState({
     title: "",
@@ -224,6 +227,11 @@ const OnlineExams = () => {
   const openSnapshotsDialog = (exam: OnlineExam) => {
     setSnapshotsExam(exam);
     setSnapshotsDialogOpen(true);
+  };
+
+  const openTimeExtensionDialog = (exam: OnlineExam) => {
+    setTimeExtensionExam(exam);
+    setTimeExtensionDialogOpen(true);
   };
 
   const getExamStatus = (exam: OnlineExam) => {
@@ -410,13 +418,18 @@ const OnlineExams = () => {
                       <TableCell>{exam.total_marks}</TableCell>
                       <TableCell><Badge variant={status.variant}>{status.label}</Badge></TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
+                        <div className="flex gap-1">
                           <Button variant="ghost" size="icon" onClick={() => openQuestionsDialog(exam)} title="Manage Questions">
                             <ListChecks className="h-4 w-4" />
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => openReportDialog(exam)} title="View Report">
                             <BarChart3 className="h-4 w-4" />
                           </Button>
+                          {status.label === "Active" && (
+                            <Button variant="ghost" size="icon" onClick={() => openTimeExtensionDialog(exam)} title="Time Extensions">
+                              <Clock className="h-4 w-4" />
+                            </Button>
+                          )}
                           {exam.proctoring_enabled && (
                             <Button variant="ghost" size="icon" onClick={() => openSnapshotsDialog(exam)} title="View Proctoring Snapshots">
                               <Camera className="h-4 w-4" />
@@ -498,6 +511,16 @@ const OnlineExams = () => {
             examTitle={snapshotsExam.title}
             open={snapshotsDialogOpen}
             onOpenChange={setSnapshotsDialogOpen}
+          />
+        )}
+
+        {/* Time Extension Dialog */}
+        {timeExtensionExam && (
+          <TimeExtensionDialog
+            examId={timeExtensionExam.id}
+            examTitle={timeExtensionExam.title}
+            open={timeExtensionDialogOpen}
+            onOpenChange={setTimeExtensionDialogOpen}
           />
         )}
       </div>
