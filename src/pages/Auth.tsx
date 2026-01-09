@@ -67,14 +67,42 @@ const Auth = () => {
       setIsLoading(false);
       return;
     }
+    
+    // First sign in to get the user
     const {
-      error
+      error,
+      data: signInData
     } = await signIn(loginEmail, loginPassword);
     if (error) {
       toast.error(error.message);
       setIsLoading(false);
       return;
     }
+    
+    // Verify the school code matches the user's profile school
+    if (signInData?.user) {
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("school_id")
+        .eq("id", signInData.user.id)
+        .single();
+      
+      // Super admins don't have a school_id, so allow them
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", signInData.user.id)
+        .single();
+      
+      if (roleData?.role !== "super_admin" && profileData?.school_id !== schoolData.id) {
+        // School code doesn't match - sign out and show error
+        await supabase.auth.signOut();
+        toast.error("School code doesn't match your account. Please use the correct school code.");
+        setIsLoading(false);
+        return;
+      }
+    }
+    
     toast.success("Welcome back!");
     setIsLoading(false);
   };

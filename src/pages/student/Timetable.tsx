@@ -1,16 +1,20 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar as CalendarIcon, Clock, BookOpen } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar as CalendarIcon, Clock, BookOpen, Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
+import * as XLSX from "xlsx";
+import { toast } from "sonner";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-const Schedule = () => {
+const Timetable = () => {
   const [schedules, setSchedules] = useState<any[]>([]);
   const [className, setClassName] = useState<string>("");
+  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -20,34 +24,89 @@ const Schedule = () => {
   const fetchSchedule = async () => {
     if (!user) return;
 
-    // Get student's class
-    const { data: studentData } = await supabase
-      .from("students")
-      .select("class_id, classes(name)")
-      .eq("user_id", user.id)
-      .single();
+    try {
+      // Get student's class
+      const { data: studentData } = await supabase
+        .from("students")
+        .select("class_id, classes(name)")
+        .eq("user_id", user.id)
+        .single();
 
-    if (!studentData) return;
+      if (!studentData) {
+        setLoading(false);
+        return;
+      }
 
-    setClassName(studentData.classes?.name || "");
+      setClassName(studentData.classes?.name || "");
 
-    // Get class schedule
-    const { data: scheduleData } = await supabase
-      .from("schedules")
-      .select(`
-        *,
-        subjects(name, code),
-        teachers(
-          profiles(full_name)
-        )
-      `)
-      .eq("class_id", studentData.class_id)
-      .order("day_of_week")
-      .order("start_time");
+      // Get class schedule
+      const { data: scheduleData } = await supabase
+        .from("schedules")
+        .select(`
+          *,
+          subjects(name, code),
+          teachers(
+            profiles(full_name)
+          )
+        `)
+        .eq("class_id", studentData.class_id)
+        .order("day_of_week")
+        .order("start_time");
 
-    if (scheduleData) {
-      setSchedules(scheduleData);
+      if (scheduleData) {
+        setSchedules(scheduleData);
+      }
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const downloadTimetable = () => {
+    if (schedules.length === 0) {
+      toast.error("No timetable to download");
+      return;
+    }
+
+    // Create timetable grid
+    const timetableData: any[] = [];
+    
+    // Header row with days
+    timetableData.push([`${className} Timetable`, ...DAYS.slice(1, 6)]); // Mon-Fri only
+    
+    // Get all unique time slots from schedules
+    const timeSlots = [...new Set(schedules.map(s => s.start_time))].sort();
+    
+    timeSlots.forEach(time => {
+      const row = [time.slice(0, 5)];
+      // For each day (Mon-Fri = 1-5)
+      for (let day = 1; day <= 5; day++) {
+        const slot = schedules.find(s => s.day_of_week === day && s.start_time === time);
+        if (slot) {
+          row.push(`${slot.subjects?.name} - ${slot.teachers?.profiles?.full_name}${slot.room ? ` (${slot.room})` : ""}`);
+        } else {
+          row.push("");
+        }
+      }
+      timetableData.push(row);
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(timetableData);
+    
+    // Set column widths
+    ws["!cols"] = [
+      { wch: 10 },
+      { wch: 25 },
+      { wch: 25 },
+      { wch: 25 },
+      { wch: 25 },
+      { wch: 25 },
+    ];
+    
+    XLSX.utils.book_append_sheet(wb, ws, "Timetable");
+    XLSX.writeFile(wb, `${className.replace(/[^a-z0-9]/gi, "_")}_Timetable.xlsx`);
+    
+    toast.success("Timetable downloaded successfully");
   };
 
   // Group schedules by day
@@ -61,14 +120,35 @@ const Schedule = () => {
   // Get current day
   const today = new Date().getDay();
 
+  if (loading) {
+    return (
+      <DashboardLayout role="student">
+        <div className="space-y-6">
+          <div className="animate-pulse">
+            <div className="h-8 bg-muted rounded w-48 mb-2"></div>
+            <div className="h-4 bg-muted rounded w-64"></div>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout role="student">
       <div className="space-y-6">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">My Schedule</h2>
-          <p className="text-muted-foreground">
-            {className ? `Class timetable for ${className}` : "View your class timetable"}
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">My Timetable</h2>
+            <p className="text-muted-foreground">
+              {className ? `Class timetable for ${className}` : "View your class timetable"}
+            </p>
+          </div>
+          {schedules.length > 0 && (
+            <Button variant="outline" onClick={downloadTimetable}>
+              <Download className="h-4 w-4 mr-2" />
+              Download Timetable
+            </Button>
+          )}
         </div>
 
         {schedules.length === 0 ? (
@@ -76,9 +156,9 @@ const Schedule = () => {
             <CardContent className="flex items-center justify-center py-12">
               <div className="text-center space-y-4">
                 <CalendarIcon className="h-16 w-16 text-muted-foreground mx-auto" />
-                <p className="text-lg font-medium">No schedule available</p>
+                <p className="text-lg font-medium">No timetable available</p>
                 <p className="text-sm text-muted-foreground">
-                  Your class schedule will appear here once created
+                  Your class timetable will appear here once created
                 </p>
               </div>
             </CardContent>
@@ -90,14 +170,14 @@ const Schedule = () => {
               const isToday = dayIndex === today;
 
               return (
-                <Card key={dayIndex} className={isToday ? "border-primary" : ""}>
-                  <CardHeader>
+                <Card key={dayIndex} className={isToday ? "border-primary ring-1 ring-primary" : ""}>
+                  <CardHeader className="pb-3">
                     <div className="flex items-center gap-2">
                       <CardTitle className="flex items-center gap-2">
                         <CalendarIcon className="h-5 w-5" />
                         {day}
                       </CardTitle>
-                      {isToday && <Badge>Today</Badge>}
+                      {isToday && <Badge className="bg-primary">Today</Badge>}
                     </div>
                     {daySchedules.length > 0 && (
                       <CardDescription>{daySchedules.length} classes scheduled</CardDescription>
@@ -156,4 +236,4 @@ const Schedule = () => {
   );
 };
 
-export default Schedule;
+export default Timetable;

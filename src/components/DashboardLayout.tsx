@@ -117,7 +117,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           ]
         },
         { icon: Calendar, label: "Attendance", path: "/admin/attendance" },
-        { icon: Clock, label: "Schedule", path: "/admin/schedule" },
+        { icon: Clock, label: "Timetable", path: "/admin/timetable" },
         { icon: FileText, label: "Reports", path: "/admin/reports" },
         { icon: Megaphone, label: "Announcements", path: "/admin/announcements" },
         { icon: FileText, label: "Report Cards", path: "/admin/report-cards" },
@@ -131,6 +131,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
       menuItems: [
         { icon: LayoutDashboard, label: "Dashboard", path: "/teacher" },
         { icon: BookOpen, label: "My Classes", path: "/teacher/classes" },
+        { icon: Clock, label: "Timetable", path: "/teacher/timetable" },
         { icon: Calendar, label: "Attendance", path: "/teacher/attendance" },
         { icon: FileText, label: "Assignments", path: "/teacher/assignments" },
         { icon: Award, label: "Grades", path: "/teacher/grades" },
@@ -158,7 +159,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
       title: "Student",
       menuItems: [
         { icon: LayoutDashboard, label: "Dashboard", path: "/student" },
-        { icon: Calendar, label: "Schedule", path: "/student/schedule" },
+        { icon: Clock, label: "Timetable", path: "/student/timetable" },
         { icon: FileText, label: "Assignments", path: "/student/assignments" },
         { icon: Award, label: "Grades", path: "/student/grades" },
         { icon: MonitorPlay, label: "Online Exams", path: "/student/online-exams" },

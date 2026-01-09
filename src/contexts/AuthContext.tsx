@@ -6,8 +6,8 @@ import { useNavigate } from "react-router-dom";
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  signUp: (email: string, password: string, fullName: string, role: string, schoolCode: string, adminKey?: string, schoolName?: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, fullName: string, role: string, schoolCode: string, adminKey?: string, schoolName?: string) => Promise<{ error: any; data?: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: any; data?: any }>;
   signOut: () => Promise<void>;
   loading: boolean;
 }
@@ -60,11 +60,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error, data } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    return { error };
+    return { error, data };
   };
 
   const signOut = async () => {

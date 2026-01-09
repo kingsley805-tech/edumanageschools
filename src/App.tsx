@@ -23,7 +23,7 @@ import Classes from "./pages/admin/Classes";
 import Fees from "./pages/admin/Fees";
 import FeeStructures from "./pages/admin/FeeStructures";
 import AdminAttendance from "./pages/admin/Attendance";
-import AdminSchedule from "./pages/admin/Schedule";
+import AdminTimetable from "./pages/admin/Timetable";
 import Reports from "./pages/admin/Reports";
 import AdminAnnouncements from "./pages/admin/Announcements";
 import AdminReportCards from "./pages/admin/ReportCards";
@@ -46,7 +46,8 @@ import TeacherExams from "./pages/teacher/Exams";
 import TeacherResources from "./pages/teacher/Resources";
 import StudentResources from "./pages/student/Resources";
 import Messages from "./pages/Messages";
-import Schedule from "./pages/student/Schedule";
+import StudentTimetable from "./pages/student/Timetable";
+import TeacherTimetable from "./pages/teacher/Timetable";
 import NotFound from "./pages/NotFound";
 import ExamTypes from "./pages/admin/ExamTypes";
 import GradeScales from "./pages/admin/GradeScales";
@@ -142,9 +143,9 @@ function App() {
                   <AdminAttendance />
                 </ProtectedRoute>
               } />
-              <Route path="/admin/schedule" element={
+              <Route path="/admin/timetable" element={
                 <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
-                  <AdminSchedule />
+                  <AdminTimetable />
                 </ProtectedRoute>
               } />
               <Route path="/admin/reports" element={
@@ -287,9 +288,14 @@ function App() {
                   <StudentGrades />
                 </ProtectedRoute>
               } />
-              <Route path="/student/schedule" element={
+              <Route path="/student/timetable" element={
                 <ProtectedRoute allowedRoles={["student"]}>
-                  <Schedule />
+                  <StudentTimetable />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher/timetable" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <TeacherTimetable />
                 </ProtectedRoute>
               } />
               <Route path="/student/resources" element={
