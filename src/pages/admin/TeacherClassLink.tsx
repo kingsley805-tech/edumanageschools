@@ -32,25 +32,64 @@ const TeacherClassLink = () => {
   }, [selectedTeacher]);
 
   const fetchTeachers = async () => {
+    // Get current user's school_id for filtering
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profileData?.school_id) return;
+
     const { data } = await supabase
       .from("teachers")
-      .select("id, employee_no, subject_specialty, profiles(full_name)");
+      .select("id, employee_no, subject_specialty, profiles(full_name)")
+      .eq("school_id", profileData.school_id);
     
     if (data) setTeachers(data);
   };
 
   const fetchClasses = async () => {
+    // Get current user's school_id for filtering
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profileData?.school_id) return;
+
     const { data } = await supabase
       .from("classes")
-      .select("id, name, level");
+      .select("id, name, level")
+      .eq("school_id", profileData.school_id);
     
     if (data) setClasses(data);
   };
 
   const fetchSubjects = async () => {
+    // Get current user's school_id for filtering
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profileData?.school_id) return;
+
     const { data } = await supabase
       .from("subjects")
-      .select("id, name, code");
+      .select("id, name, code")
+      .eq("school_id", profileData.school_id);
     
     if (data) setSubjects(data);
   };

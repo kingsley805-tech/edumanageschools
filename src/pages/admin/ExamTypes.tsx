@@ -33,7 +33,26 @@ const ExamTypes = () => {
   }, []);
 
   const fetchExamTypes = async () => {
-    const { data, error } = await supabase.from("exam_types").select("*").order("name");
+    // Get current user's school_id for filtering
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    if (!currentUser) return;
+
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", currentUser.id)
+      .single();
+
+    if (!profileData?.school_id) {
+      setLoading(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("exam_types")
+      .select("*")
+      .eq("school_id", profileData.school_id)
+      .order("name");
     if (!error && data) setExamTypes(data);
     setLoading(false);
   };

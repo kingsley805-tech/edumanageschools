@@ -46,12 +46,28 @@ const Classes = () => {
   }, [selectedClass]);
 
   const fetchClasses = async () => {
+    // Get current user's school_id for filtering
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profileData?.school_id) {
+      console.error("School not found for user");
+      return;
+    }
+
     const { data, error } = await supabase
       .from("classes")
       .select(`
         *,
         students(count)
       `)
+      .eq("school_id", profileData.school_id)
       .order("name");
     
     if (!error && data) {

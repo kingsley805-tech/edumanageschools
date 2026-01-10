@@ -22,9 +22,25 @@ const ReportCards = () => {
   }, []);
 
   const fetchStudents = async () => {
+    // Get current user's school_id for filtering
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profileData?.school_id) {
+      setStudents([]);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("students")
-      .select("id, admission_no, user_id, class_id");
+      .select("id, admission_no, user_id, class_id")
+      .eq("school_id", profileData.school_id);
 
     if (error) {
       toast({ title: "Error fetching students", variant: "destructive" });

@@ -24,6 +24,8 @@ const FeeStructures = () => {
   }, []);
 
   const fetchFeeStructures = async () => {
+    // Fee structures don't have school_id in schema, so they are global
+    // This is by design - fee structures can be shared across schools
     const { data, error } = await supabase
       .from("fee_structures")
       .select("*")

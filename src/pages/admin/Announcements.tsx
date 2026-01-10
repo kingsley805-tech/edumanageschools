@@ -26,9 +26,25 @@ const Announcements = () => {
   }, []);
 
   const fetchAnnouncements = async () => {
+    // Get current user's school_id for filtering
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profileData?.school_id) return;
+
+    // Fetch announcements by users in the same school
     const { data, error } = await supabase
       .from("announcements")
-      .select("*")
+      .select(`
+        *,
+        profiles:created_by(full_name, school_id)
+      `)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -36,25 +52,16 @@ const Announcements = () => {
       return;
     }
 
-    // Fetch creator profiles separately
-    const announcementsWithProfiles = await Promise.all(
-      (data || []).map(async (announcement) => {
-        if (!announcement.created_by) return announcement;
+    // Filter announcements by school - only show announcements from same school
+    const filteredAnnouncements = (data || []).filter((announcement) => {
+      const profiles = announcement.profiles as any;
+      return profiles?.school_id === profileData.school_id;
+    }).map(announcement => ({
+      ...announcement,
+      creator_name: (announcement.profiles as any)?.full_name || "Unknown",
+    }));
 
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("full_name")
-          .eq("id", announcement.created_by)
-          .single();
-
-        return {
-          ...announcement,
-          creator_name: profile?.full_name || "Unknown",
-        };
-      })
-    );
-
-    setAnnouncements(announcementsWithProfiles);
+    setAnnouncements(filteredAnnouncements);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
