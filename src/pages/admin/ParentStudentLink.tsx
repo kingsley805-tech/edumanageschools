@@ -29,17 +29,43 @@ const ParentStudentLink = () => {
   }, [selectedParent]);
 
   const fetchParents = async () => {
+    // Get current user's school_id for filtering
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profileData?.school_id) return;
+
     const { data } = await supabase
       .from("parents")
-      .select("id, profiles(full_name, email)");
+      .select("id, profiles(full_name, email)")
+      .eq("school_id", profileData.school_id);
     
     if (data) setParents(data);
   };
 
   const fetchStudents = async () => {
+    // Get current user's school_id for filtering
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profileData?.school_id) return;
+
     const { data } = await supabase
       .from("students")
-      .select("id, admission_no, profiles(full_name)");
+      .select("id, admission_no, profiles(full_name)")
+      .eq("school_id", profileData.school_id);
     
     if (data) setStudents(data);
   };

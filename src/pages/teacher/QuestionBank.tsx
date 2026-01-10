@@ -64,15 +64,34 @@ const QuestionBank = () => {
   }, [filterSubject, filterType]);
 
   const fetchData = async () => {
-    const { data: subjectsData } = await supabase.from("subjects").select("id, name");
-    if (subjectsData) setSubjects(subjectsData);
+    if (!user?.id) return;
+
+    // Get teacher's assigned subjects only
+    const { data: teacherData } = await supabase
+      .from("teachers")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (teacherData) {
+      const { data: classSubjects } = await supabase
+        .from("class_subjects")
+        .select("subjects(id, name)")
+        .eq("teacher_id", teacherData.id);
+
+      const uniqueSubjects = Array.from(
+        new Map(classSubjects?.map(item => [item.subjects?.id, item.subjects]) || []).values()
+      ).filter(Boolean) as Subject[];
+      setSubjects(uniqueSubjects);
+    } else {
+      // Fallback: no subjects if teacher not found
+      setSubjects([]);
+    }
 
     let query = supabase.from("question_bank").select("*, subjects(name)");
     
     // Filter by the current teacher's questions only
-    if (user?.id) {
-      query = query.eq("created_by", user.id);
-    }
+    query = query.eq("created_by", user.id);
     
     if (filterSubject !== "all") query = query.eq("subject_id", filterSubject);
     if (filterType !== "all") query = query.eq("question_type", filterType);

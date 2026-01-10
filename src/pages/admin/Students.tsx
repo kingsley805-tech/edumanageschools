@@ -58,6 +58,7 @@ const Students = () => {
     }
 
     // Filter students by school_id explicitly (defensive programming)
+    // This includes students who self-registered with this school's code
     const { data, error } = await supabase
       .from("students")
       .select(`

@@ -33,7 +33,26 @@ const GradeScales = () => {
   }, []);
 
   const fetchGradeScales = async () => {
-    const { data, error } = await supabase.from("grade_scales").select("*").order("min_score", { ascending: false });
+    // Get current user's school_id for filtering
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    if (!currentUser) return;
+
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", currentUser.id)
+      .single();
+
+    if (!profileData?.school_id) {
+      setLoading(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("grade_scales")
+      .select("*")
+      .eq("school_id", profileData.school_id)
+      .order("min_score", { ascending: false });
     if (!error && data) setGradeScales(data);
     setLoading(false);
   };

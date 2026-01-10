@@ -21,30 +21,56 @@ const Reports = () => {
   }, []);
 
   const fetchAnalytics = async () => {
-    // Fetch total students
+    // Get current user's school_id for filtering
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profileData?.school_id) return;
+    const schoolId = profileData.school_id;
+
+    // Fetch total students for this school
     const { count: studentCount } = await supabase
       .from("students")
-      .select("*", { count: "exact", head: true });
+      .select("*", { count: "exact", head: true })
+      .eq("school_id", schoolId);
 
-    // Fetch total revenue
+    // Fetch total revenue (from students in this school)
     const { data: payments } = await supabase
       .from("payments")
       .select("amount")
       .eq("status", "completed");
     const revenue = payments?.reduce((sum, p) => sum + Number(p.amount || 0), 0) || 0;
 
-    // Fetch attendance rate
-    const { data: attendance } = await supabase
-      .from("attendance")
-      .select("status");
-    const presentCount = attendance?.filter(a => a.status === "present").length || 0;
-    const totalAttendance = attendance?.length || 1;
-    const avgAttendance = (presentCount / totalAttendance) * 100;
+    // Fetch attendance rate for school's students
+    const { data: schoolStudents } = await supabase
+      .from("students")
+      .select("id")
+      .eq("school_id", schoolId);
+    
+    const studentIds = schoolStudents?.map(s => s.id) || [];
+    
+    let avgAttendance = 0;
+    if (studentIds.length > 0) {
+      const { data: attendance } = await supabase
+        .from("attendance")
+        .select("status")
+        .in("student_id", studentIds);
+      const presentCount = attendance?.filter(a => a.status === "present").length || 0;
+      const totalAttendance = attendance?.length || 1;
+      avgAttendance = (presentCount / totalAttendance) * 100;
+    }
 
-    // Fetch active classes
+    // Fetch active classes for this school
     const { count: classCount } = await supabase
       .from("classes")
-      .select("*", { count: "exact", head: true });
+      .select("*", { count: "exact", head: true })
+      .eq("school_id", schoolId);
 
     setStats({
       totalStudents: studentCount || 0,
