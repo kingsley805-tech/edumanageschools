@@ -2,7 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Filter } from "lucide-react";
+import { Plus, Search, Filter, Pencil } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -22,27 +22,71 @@ const studentSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
   date_of_birth: z.string().min(1, "Date of birth is required"),
   gender: z.enum(["male", "female", "other"]),
-  guardian_email: z.string().email("Invalid guardian email").optional(),
+  guardian_email: z.string().email("Invalid guardian email").optional().or(z.literal("")),
+});
+
+const editStudentSchema = z.object({
+  admission_no: z.string().min(1, "Admission number is required"),
+  full_name: z.string().min(1, "Full name is required"),
+  date_of_birth: z.string().optional(),
+  gender: z.enum(["male", "female", "other"]).optional(),
+  class_id: z.string().optional(),
 });
 
 type StudentFormData = z.infer<typeof studentSchema>;
+type EditStudentFormData = z.infer<typeof editStudentSchema>;
 
 const Students = () => {
   const [open, setOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [students, setStudents] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [schoolId, setSchoolId] = useState<string | null>(null);
   const { toast } = useToast();
+  
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<StudentFormData>({
     resolver: zodResolver(studentSchema),
   });
 
+  const { 
+    register: registerEdit, 
+    handleSubmit: handleEditSubmit, 
+    formState: { errors: editErrors }, 
+    reset: resetEdit, 
+    setValue: setEditValue 
+  } = useForm<EditStudentFormData>({
+    resolver: zodResolver(editStudentSchema),
+  });
+
   useEffect(() => {
     fetchStudents();
+    fetchClasses();
   }, []);
 
+  const fetchClasses = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profileData?.school_id) return;
+    setSchoolId(profileData.school_id);
+
+    const { data } = await supabase
+      .from("classes")
+      .select("id, name, level")
+      .eq("school_id", profileData.school_id);
+    
+    if (data) setClasses(data);
+  };
+
   const fetchStudents = async () => {
-    // Get current user's school_id for explicit filtering
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -57,8 +101,6 @@ const Students = () => {
       return;
     }
 
-    // Filter students by school_id explicitly (defensive programming)
-    // This includes students who self-registered with this school's code
     const { data, error } = await supabase
       .from("students")
       .select(`
@@ -75,10 +117,8 @@ const Students = () => {
     }
   };
 
-
   const onSubmit = async (data: StudentFormData) => {
     try {
-      // Get current user's school_id and school_code
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
@@ -91,7 +131,6 @@ const Students = () => {
       if (!profileData?.school_id) throw new Error("School not found");
       const schoolCode = (profileData.schools as any)?.school_code;
 
-      // Call edge function to create user without auto-login
       const { data: result, error } = await supabase.functions.invoke('create-user-account', {
         body: {
           email: data.email,
@@ -102,7 +141,7 @@ const Students = () => {
           admission_no: data.admission_no,
           date_of_birth: data.date_of_birth,
           gender: data.gender,
-          guardian_email: data.guardian_email,
+          guardian_email: data.guardian_email || undefined,
         },
       });
 
@@ -115,6 +154,61 @@ const Students = () => {
 
       setOpen(false);
       reset();
+      fetchStudents();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openEditDialog = (student: any) => {
+    setSelectedStudent(student);
+    resetEdit({
+      admission_no: student.admission_no || "",
+      full_name: student.profiles?.full_name || "",
+      date_of_birth: student.date_of_birth || "",
+      gender: student.gender || undefined,
+      class_id: student.class_id || "",
+    });
+    setEditDialogOpen(true);
+  };
+
+  const onEditSubmit = async (data: EditStudentFormData) => {
+    if (!selectedStudent) return;
+
+    try {
+      // Update students table
+      const { error: studentError } = await supabase
+        .from("students")
+        .update({
+          admission_no: data.admission_no,
+          date_of_birth: data.date_of_birth || null,
+          gender: data.gender || null,
+          class_id: data.class_id || null,
+        })
+        .eq("id", selectedStudent.id);
+
+      if (studentError) throw studentError;
+
+      // Update profiles table for full_name
+      if (selectedStudent.user_id) {
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({ full_name: data.full_name })
+          .eq("id", selectedStudent.user_id);
+
+        if (profileError) throw profileError;
+      }
+
+      toast({
+        title: "Success",
+        description: "Student updated successfully",
+      });
+
+      setEditDialogOpen(false);
       fetchStudents();
     } catch (error: any) {
       toast({
@@ -229,7 +323,7 @@ const Students = () => {
                     <TableHead className="hidden sm:table-cell">Class</TableHead>
                     <TableHead className="hidden md:table-cell">Gender</TableHead>
                     <TableHead className="min-w-[80px]">Status</TableHead>
-                    <TableHead className="text-right min-w-[80px]">Actions</TableHead>
+                    <TableHead className="text-right min-w-[120px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -242,25 +336,37 @@ const Students = () => {
                   ) : (
                     students.map((student) => (
                       <TableRow key={student.id}>
-                        <TableCell className="font-medium">{student.admission_no}</TableCell>
+                        <TableCell className="font-medium">
+                          {student.admission_no || <Badge variant="outline" className="text-xs">Not assigned</Badge>}
+                        </TableCell>
                         <TableCell className="font-medium">{student.profiles?.full_name}</TableCell>
                         <TableCell className="hidden sm:table-cell">{student.classes?.name || "N/A"}</TableCell>
-                        <TableCell className="hidden md:table-cell capitalize">{student.gender}</TableCell>
+                        <TableCell className="hidden md:table-cell capitalize">{student.gender || "N/A"}</TableCell>
                         <TableCell>
                           <Badge className="bg-success text-xs">Active</Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => {
-                              setSelectedStudent(student);
-                              setViewDialogOpen(true);
-                            }}
-                            className="h-8 md:h-9"
-                          >
-                            View
-                          </Button>
+                          <div className="flex justify-end gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => openEditDialog(student)}
+                              className="h-8 md:h-9"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => {
+                                setSelectedStudent(student);
+                                setViewDialogOpen(true);
+                              }}
+                              className="h-8 md:h-9"
+                            >
+                              View
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -270,6 +376,72 @@ const Students = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Edit Student Dialog */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Student</DialogTitle>
+              <DialogDescription>Update student information</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleEditSubmit(onEditSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit_admission_no">Admission Number</Label>
+                  <Input id="edit_admission_no" {...registerEdit("admission_no")} />
+                  {editErrors.admission_no && <p className="text-sm text-destructive">{editErrors.admission_no.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_full_name">Full Name</Label>
+                  <Input id="edit_full_name" {...registerEdit("full_name")} />
+                  {editErrors.full_name && <p className="text-sm text-destructive">{editErrors.full_name.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_date_of_birth">Date of Birth</Label>
+                  <Input id="edit_date_of_birth" type="date" {...registerEdit("date_of_birth")} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_gender">Gender</Label>
+                  <Select 
+                    defaultValue={selectedStudent?.gender}
+                    onValueChange={(value) => setEditValue("gender", value as any)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="edit_class">Class</Label>
+                  <Select 
+                    defaultValue={selectedStudent?.class_id}
+                    onValueChange={(value) => setEditValue("class_id", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classes.map((cls) => (
+                        <SelectItem key={cls.id} value={cls.id}>
+                          {cls.name} {cls.level && `(${cls.level})`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+                <Button type="submit">Save Changes</Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {/* View Student Dialog */}
         <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
@@ -283,7 +455,7 @@ const Students = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">Admission Number</Label>
-                    <p className="font-medium">{selectedStudent.admission_no}</p>
+                    <p className="font-medium">{selectedStudent.admission_no || "Not assigned"}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Full Name</Label>
@@ -299,7 +471,7 @@ const Students = () => {
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Gender</Label>
-                    <p className="font-medium capitalize">{selectedStudent.gender}</p>
+                    <p className="font-medium capitalize">{selectedStudent.gender || "Not specified"}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Date of Birth</Label>
@@ -313,12 +485,6 @@ const Students = () => {
                     <Label className="text-muted-foreground">Status</Label>
                     <Badge className="bg-success">Active</Badge>
                   </div>
-                  {selectedStudent.guardian_email && (
-                    <div>
-                      <Label className="text-muted-foreground">Guardian Email</Label>
-                      <p className="font-medium">{selectedStudent.guardian_email}</p>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
