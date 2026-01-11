@@ -131,18 +131,54 @@ const Auth = () => {
         setIsLoading(false);
         return;
       }
+      // For admins, check if school code already exists (they need unique codes to create new schools)
+      const { data: existingSchool } = await supabase
+        .from("schools")
+        .select("id")
+        .eq("school_code", schoolCode.toUpperCase())
+        .maybeSingle();
+      
+      if (existingSchool) {
+        toast.error("This school code already exists. Please choose a different unique code for your school.");
+        setIsLoading(false);
+        return;
+      }
     } else {
+      // For non-admin users (teacher, student, parent), verify school exists
       if (!schoolCode) {
         toast.error("Please enter your school code");
+        setIsLoading(false);
+        return;
+      }
+      const { data: schoolExists } = await supabase
+        .from("schools")
+        .select("id")
+        .eq("school_code", schoolCode.toUpperCase())
+        .eq("is_active", true)
+        .maybeSingle();
+      
+      if (!schoolExists) {
+        toast.error("Invalid school code. Please check with your school administrator for the correct code.");
         setIsLoading(false);
         return;
       }
     }
     const {
       error
-    } = await signUp(signupEmail, signupPassword, signupFullName, signupRole, schoolCode, adminKey, schoolName);
+    } = await signUp(signupEmail, signupPassword, signupFullName, signupRole, schoolCode.toUpperCase(), adminKey, schoolName);
     if (error) {
-      toast.error(error.message);
+      // Provide clearer error messages
+      if (error.message?.includes("School code already exists")) {
+        toast.error("This school code is already taken. Please choose a different unique code.");
+      } else if (error.message?.includes("Invalid school code")) {
+        toast.error("The school code you entered doesn't exist. Please check with your administrator.");
+      } else if (error.message?.includes("Invalid admin key")) {
+        toast.error("The admin key you entered is incorrect. Please check and try again.");
+      } else if (error.message?.includes("Invalid super admin key")) {
+        toast.error("The super admin key you entered is incorrect.");
+      } else {
+        toast.error(error.message || "Failed to create account. Please try again.");
+      }
       setIsLoading(false);
       return;
     }
