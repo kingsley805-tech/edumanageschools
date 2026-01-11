@@ -2,7 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Pencil } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -21,16 +21,34 @@ const teacherSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
+const editTeacherSchema = z.object({
+  employee_no: z.string().min(1, "Employee number is required"),
+  full_name: z.string().min(1, "Full name is required"),
+  subject_specialty: z.string().optional(),
+});
+
 type TeacherFormData = z.infer<typeof teacherSchema>;
+type EditTeacherFormData = z.infer<typeof editTeacherSchema>;
 
 const Teachers = () => {
   const [open, setOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
   const [teachers, setTeachers] = useState<any[]>([]);
   const { toast } = useToast();
+  
   const { register, handleSubmit, formState: { errors }, reset } = useForm<TeacherFormData>({
     resolver: zodResolver(teacherSchema),
+  });
+
+  const { 
+    register: registerEdit, 
+    handleSubmit: handleEditSubmit, 
+    formState: { errors: editErrors }, 
+    reset: resetEdit 
+  } = useForm<EditTeacherFormData>({
+    resolver: zodResolver(editTeacherSchema),
   });
 
   useEffect(() => {
@@ -38,7 +56,6 @@ const Teachers = () => {
   }, []);
 
   const fetchTeachers = async () => {
-    // Get current user's school_id for explicit filtering
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -53,7 +70,6 @@ const Teachers = () => {
       return;
     }
 
-    // Filter teachers by school_id explicitly (defensive programming)
     const { data, error } = await supabase
       .from("teachers")
       .select(`
@@ -71,7 +87,6 @@ const Teachers = () => {
 
   const onSubmit = async (data: TeacherFormData) => {
     try {
-      // Get current user's school_id and school_code
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
@@ -84,7 +99,6 @@ const Teachers = () => {
       if (!profileData?.school_id) throw new Error("School not found");
       const schoolCode = (profileData.schools as any)?.school_code;
 
-      // Call edge function to create user without auto-login
       const { data: result, error } = await supabase.functions.invoke('create-user-account', {
         body: {
           email: data.email,
@@ -105,6 +119,57 @@ const Teachers = () => {
 
       setOpen(false);
       reset();
+      fetchTeachers();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openEditDialog = (teacher: any) => {
+    setSelectedTeacher(teacher);
+    resetEdit({
+      employee_no: teacher.employee_no || "",
+      full_name: teacher.profiles?.full_name || "",
+      subject_specialty: teacher.subject_specialty || "",
+    });
+    setEditDialogOpen(true);
+  };
+
+  const onEditSubmit = async (data: EditTeacherFormData) => {
+    if (!selectedTeacher) return;
+
+    try {
+      // Update teachers table
+      const { error: teacherError } = await supabase
+        .from("teachers")
+        .update({
+          employee_no: data.employee_no,
+          subject_specialty: data.subject_specialty || null,
+        })
+        .eq("id", selectedTeacher.id);
+
+      if (teacherError) throw teacherError;
+
+      // Update profiles table for full_name
+      if (selectedTeacher.user_id) {
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({ full_name: data.full_name })
+          .eq("id", selectedTeacher.user_id);
+
+        if (profileError) throw profileError;
+      }
+
+      toast({
+        title: "Success",
+        description: "Teacher updated successfully",
+      });
+
+      setEditDialogOpen(false);
       fetchTeachers();
     } catch (error: any) {
       toast({
@@ -190,7 +255,7 @@ const Teachers = () => {
                     <TableHead className="hidden md:table-cell">Subject</TableHead>
                     <TableHead className="hidden lg:table-cell">Email</TableHead>
                     <TableHead className="min-w-[80px]">Status</TableHead>
-                    <TableHead className="text-right min-w-[80px]">Actions</TableHead>
+                    <TableHead className="text-right min-w-[120px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -203,7 +268,9 @@ const Teachers = () => {
                   ) : (
                     teachers.map((teacher) => (
                       <TableRow key={teacher.id}>
-                        <TableCell className="font-medium">{teacher.employee_no}</TableCell>
+                        <TableCell className="font-medium">
+                          {teacher.employee_no || <Badge variant="outline" className="text-xs">Not assigned</Badge>}
+                        </TableCell>
                         <TableCell className="font-medium">{teacher.profiles?.full_name}</TableCell>
                         <TableCell className="hidden md:table-cell">{teacher.subject_specialty || "N/A"}</TableCell>
                         <TableCell className="hidden lg:table-cell text-sm">{teacher.profiles?.email}</TableCell>
@@ -211,17 +278,27 @@ const Teachers = () => {
                           <Badge className="bg-success text-xs">Active</Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => {
-                              setSelectedTeacher(teacher);
-                              setViewDialogOpen(true);
-                            }}
-                            className="h-8 md:h-9"
-                          >
-                            View
-                          </Button>
+                          <div className="flex justify-end gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => openEditDialog(teacher)}
+                              className="h-8 md:h-9"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => {
+                                setSelectedTeacher(teacher);
+                                setViewDialogOpen(true);
+                              }}
+                              className="h-8 md:h-9"
+                            >
+                              View
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -231,6 +308,38 @@ const Teachers = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Edit Teacher Dialog */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Teacher</DialogTitle>
+              <DialogDescription>Update teacher information</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleEditSubmit(onEditSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit_employee_no">Employee Number</Label>
+                  <Input id="edit_employee_no" {...registerEdit("employee_no")} />
+                  {editErrors.employee_no && <p className="text-sm text-destructive">{editErrors.employee_no.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_full_name">Full Name</Label>
+                  <Input id="edit_full_name" {...registerEdit("full_name")} />
+                  {editErrors.full_name && <p className="text-sm text-destructive">{editErrors.full_name.message}</p>}
+                </div>
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="edit_subject_specialty">Subject Specialty</Label>
+                  <Input id="edit_subject_specialty" {...registerEdit("subject_specialty")} placeholder="e.g. Mathematics, Physics" />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+                <Button type="submit">Save Changes</Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {/* View Teacher Dialog */}
         <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
@@ -244,7 +353,7 @@ const Teachers = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">Employee Number</Label>
-                    <p className="font-medium">{selectedTeacher.employee_no}</p>
+                    <p className="font-medium">{selectedTeacher.employee_no || "Not assigned"}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Full Name</Label>
