@@ -34,6 +34,8 @@ interface OnlineExam {
   fullscreen_required: boolean | null;
   tab_switch_limit: number | null;
   webcam_required: boolean | null;
+  question_pool_size: number | null;
+  questions_to_answer: number | null;
   classes?: { name: string };
   subjects?: { name: string };
 }
@@ -81,6 +83,8 @@ const OnlineExams = () => {
     fullscreen_required: true,
     tab_switch_limit: 3,
     webcam_required: false,
+    question_pool_size: null as number | null,
+    questions_to_answer: null as number | null,
   });
 
   useEffect(() => {
@@ -150,6 +154,8 @@ const OnlineExams = () => {
       fullscreen_required: true,
       tab_switch_limit: 3,
       webcam_required: false,
+      question_pool_size: null,
+      questions_to_answer: null,
     });
   };
 
@@ -336,6 +342,45 @@ const OnlineExams = () => {
                   </div>
                 </div>
 
+                {/* Question Pool Settings */}
+                <div className="space-y-3 border rounded-lg p-4 bg-blue-50 dark:bg-blue-900/10">
+                  <div className="flex items-center gap-2">
+                    <ListChecks className="h-4 w-4 text-blue-600" />
+                    <p className="font-medium text-sm">Question Pool Settings</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Select more questions than students will answer. Each student gets a random subset preventing cheating.
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm">Total Questions in Pool</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.question_pool_size || ""} 
+                        onChange={(e) => setFormData({ ...formData, question_pool_size: e.target.value ? Number(e.target.value) : null })}
+                        placeholder="e.g., 30"
+                        min={1}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm">Questions Each Student Answers</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.questions_to_answer || ""} 
+                        onChange={(e) => setFormData({ ...formData, questions_to_answer: e.target.value ? Number(e.target.value) : null })}
+                        placeholder="e.g., 20"
+                        min={1}
+                        max={formData.question_pool_size || undefined}
+                      />
+                    </div>
+                  </div>
+                  {formData.question_pool_size && formData.questions_to_answer && (
+                    <p className="text-xs text-blue-600 dark:text-blue-400">
+                      Each student will receive {formData.questions_to_answer} random questions from a pool of {formData.question_pool_size}
+                    </p>
+                  )}
+                </div>
+
                 {/* Proctoring Options */}
                 <div className="space-y-3 border rounded-lg p-4 bg-orange-50 dark:bg-orange-900/10">
                   <div className="flex items-center gap-2">
@@ -458,7 +503,19 @@ const OnlineExams = () => {
               <DialogTitle>Manage Questions - {selectedExam?.title}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">Select questions from the question bank for this exam</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">Select questions from the question bank for this exam</p>
+                {selectedExam?.question_pool_size && selectedExam?.questions_to_answer && (
+                  <Badge variant="secondary">
+                    Pool Mode: {selectedExam.questions_to_answer} of {selectedExam.question_pool_size} questions per student
+                  </Badge>
+                )}
+              </div>
+              {selectedExam?.question_pool_size && selectedQuestions.length < selectedExam.question_pool_size && (
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-amber-800 dark:text-amber-200 text-sm">
+                  ⚠️ Select at least {selectedExam.question_pool_size} questions for the pool. Currently selected: {selectedQuestions.length}
+                </div>
+              )}
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -487,7 +544,14 @@ const OnlineExams = () => {
                 </TableBody>
               </Table>
               <div className="flex justify-between items-center">
-                <p>Selected: {selectedQuestions.length} questions | Total Marks: {selectedQuestions.reduce((sum, qId) => sum + (questions.find(q => q.id === qId)?.marks || 0), 0)}</p>
+                <div>
+                  <p>Selected: {selectedQuestions.length} questions | Total Marks: {selectedQuestions.reduce((sum, qId) => sum + (questions.find(q => q.id === qId)?.marks || 0), 0)}</p>
+                  {selectedExam?.questions_to_answer && (
+                    <p className="text-xs text-muted-foreground">
+                      Each student will answer {selectedExam.questions_to_answer} questions with {Math.round((selectedQuestions.reduce((sum, qId) => sum + (questions.find(q => q.id === qId)?.marks || 0), 0) / selectedQuestions.length) * selectedExam.questions_to_answer)} marks approx.
+                    </p>
+                  )}
+                </div>
                 <Button onClick={saveQuestions}>Save Questions</Button>
               </div>
             </div>

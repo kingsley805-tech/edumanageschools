@@ -23,7 +23,8 @@ import {
   Shield,
   Building,
   ChevronDown,
-  Link as LinkIcon
+  Link as LinkIcon,
+  UserPlus
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { NotificationCenter } from "./NotificationCenter";
@@ -78,6 +79,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
       title: "Admin",
       menuItems: [
         { icon: LayoutDashboard, label: "Dashboard", path: "/admin" },
+        { icon: UserPlus, label: "Pending Approvals", path: "/admin/pending-users" },
         { 
           type: "group",
           label: "Personnel",

@@ -56,6 +56,7 @@ import TeacherOnlineExams from "./pages/teacher/OnlineExams";
 import StudentOnlineExams from "./pages/student/OnlineExams";
 import SuperAdminManagement from "./pages/admin/SuperAdminManagement";
 import SchoolSettings from "./pages/admin/SchoolSettings";
+import PendingUsers from "./pages/admin/PendingUsers";
 
 function App() {
   const [queryClient] = useState(() => new QueryClient());
@@ -196,6 +197,11 @@ function App() {
               <Route path="/admin/school-settings" element={
                 <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
                   <SchoolSettings />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/pending-users" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                  <PendingUsers />
                 </ProtectedRoute>
               } />
               <Route path="/teacher" element={

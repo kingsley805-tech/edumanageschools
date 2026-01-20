@@ -890,6 +890,7 @@ export type Database = {
       }
       online_exam_attempts: {
         Row: {
+          assigned_questions: Json | null
           id: string
           online_exam_id: string | null
           started_at: string | null
@@ -899,6 +900,7 @@ export type Database = {
           total_marks_obtained: number | null
         }
         Insert: {
+          assigned_questions?: Json | null
           id?: string
           online_exam_id?: string | null
           started_at?: string | null
@@ -908,6 +910,7 @@ export type Database = {
           total_marks_obtained?: number | null
         }
         Update: {
+          assigned_questions?: Json | null
           id?: string
           online_exam_id?: string | null
           started_at?: string | null
@@ -985,6 +988,8 @@ export type Database = {
           id: string
           passing_marks: number | null
           proctoring_enabled: boolean | null
+          question_pool_size: number | null
+          questions_to_answer: number | null
           show_result_immediately: boolean | null
           shuffle_answers: boolean | null
           shuffle_questions: boolean | null
@@ -1008,6 +1013,8 @@ export type Database = {
           id?: string
           passing_marks?: number | null
           proctoring_enabled?: boolean | null
+          question_pool_size?: number | null
+          questions_to_answer?: number | null
           show_result_immediately?: boolean | null
           shuffle_answers?: boolean | null
           shuffle_questions?: boolean | null
@@ -1031,6 +1038,8 @@ export type Database = {
           id?: string
           passing_marks?: number | null
           proctoring_enabled?: boolean | null
+          question_pool_size?: number | null
+          questions_to_answer?: number | null
           show_result_immediately?: boolean | null
           shuffle_answers?: boolean | null
           shuffle_questions?: boolean | null

@@ -33,8 +33,10 @@ interface OnlineExam {
   fullscreen_required: boolean | null;
   tab_switch_limit: number | null;
   webcam_required: boolean | null;
+  question_pool_size: number | null;
+  questions_to_answer: number | null;
   subjects?: { name: string };
-  attempt?: { id: string; status: string; total_marks_obtained: number | null };
+  attempt?: { id: string; status: string; total_marks_obtained: number | null; assigned_questions?: string[] | null };
 }
 
 interface ExamQuestion {
@@ -215,9 +217,16 @@ const StudentOnlineExams = () => {
       return toast.error("No questions available for this exam");
     }
 
-    // Shuffle questions if enabled
     let orderedQuestions = examQuestions as ExamQuestion[];
-    if (exam.shuffle_questions) {
+    
+    // Handle question pool randomization - each student gets a unique subset
+    if (exam.question_pool_size && exam.questions_to_answer && exam.questions_to_answer < orderedQuestions.length) {
+      // Shuffle all questions first
+      orderedQuestions = shuffleArray([...orderedQuestions]);
+      // Take only the number of questions the student needs to answer
+      orderedQuestions = orderedQuestions.slice(0, exam.questions_to_answer);
+    } else if (exam.shuffle_questions) {
+      // Regular shuffle if no pool settings
       orderedQuestions = [...orderedQuestions].sort(() => Math.random() - 0.5);
     }
 
@@ -229,18 +238,25 @@ const StudentOnlineExams = () => {
         : q.question_bank.options || []
     }));
 
-    // Create attempt
+    // Store assigned question IDs for this student's attempt
+    const assignedQuestionIds = orderedQuestions.map(q => q.question_bank.id);
+
+    // Create attempt with assigned questions
     const { data: attempt, error } = await supabase
       .from("online_exam_attempts")
       .insert({
         online_exam_id: exam.id,
         student_id: studentId,
         status: "in_progress",
+        assigned_questions: assignedQuestionIds,
       })
       .select()
       .single();
 
     if (error) return toast.error("Failed to start exam");
+
+    // Calculate total marks for this student's question set
+    const studentTotalMarks = orderedQuestions.reduce((sum, q) => sum + q.marks, 0);
 
     // Check for any existing time extensions
     const { data: extensions } = await supabase
@@ -252,7 +268,8 @@ const StudentOnlineExams = () => {
 
     setAttemptId(attempt.id);
     setQuestions(orderedQuestions);
-    setTakingExam(exam);
+    // Update the exam's total_marks to reflect this student's question set
+    setTakingExam({ ...exam, total_marks: studentTotalMarks });
     setCurrentQuestion(0);
     setAnswers({});
     setFlaggedQuestions({});
