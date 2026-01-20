@@ -36,6 +36,7 @@ interface AttemptDetails {
   submitted_at: string | null;
   total_marks_obtained: number | null;
   status: string;
+  assigned_questions: string[] | null;
   online_exams: {
     title: string;
     total_marks: number;
@@ -49,6 +50,7 @@ export const ExamReview = ({ attemptId, examTitle, open, onOpenChange }: ExamRev
   const [attempt, setAttempt] = useState<AttemptDetails | null>(null);
   const [questions, setQuestions] = useState<ReviewQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [studentTotalMarks, setStudentTotalMarks] = useState(0);
 
   useEffect(() => {
     if (open) {
@@ -58,11 +60,13 @@ export const ExamReview = ({ attemptId, examTitle, open, onOpenChange }: ExamRev
 
   const fetchReviewData = async () => {
     setLoading(true);
+    setCurrentIndex(0);
 
+    // Fetch attempt data including assigned_questions
     const { data: attemptData } = await supabase
       .from("online_exam_attempts")
       .select(`
-        id, started_at, submitted_at, total_marks_obtained, status,
+        id, started_at, submitted_at, total_marks_obtained, status, assigned_questions,
         online_exams(title, total_marks, duration_minutes, passing_marks)
       `)
       .eq("id", attemptId)
@@ -72,18 +76,21 @@ export const ExamReview = ({ attemptId, examTitle, open, onOpenChange }: ExamRev
       setAttempt(attemptData as unknown as AttemptDetails);
     }
 
+    // Fetch student's answers
     const { data: answersData } = await supabase
       .from("online_exam_answers")
       .select("question_id, student_answer, is_correct, marks_obtained")
       .eq("attempt_id", attemptId);
 
+    // Get the exam ID for this attempt
     const { data: attemptForExam } = await supabase
       .from("online_exam_attempts")
-      .select("online_exam_id")
+      .select("online_exam_id, assigned_questions")
       .eq("id", attemptId)
       .single();
 
     if (attemptForExam) {
+      // Get all exam questions
       const { data: examQuestions } = await supabase
         .from("online_exam_questions")
         .select(`
@@ -94,7 +101,25 @@ export const ExamReview = ({ attemptId, examTitle, open, onOpenChange }: ExamRev
         .order("question_order");
 
       if (examQuestions) {
-        const reviewQuestions: ReviewQuestion[] = examQuestions.map((eq: any) => {
+        // Get the student's assigned questions list
+        const assignedQuestionIds = attemptForExam.assigned_questions as string[] | null;
+
+        // Filter questions to only show the student's assigned questions
+        let filteredQuestions = examQuestions;
+        if (assignedQuestionIds && assignedQuestionIds.length > 0) {
+          filteredQuestions = examQuestions.filter((eq: any) => 
+            assignedQuestionIds.includes(eq.question_bank?.id)
+          );
+          
+          // Sort by the order they were assigned
+          filteredQuestions.sort((a: any, b: any) => {
+            const aIndex = assignedQuestionIds.indexOf(a.question_bank?.id);
+            const bIndex = assignedQuestionIds.indexOf(b.question_bank?.id);
+            return aIndex - bIndex;
+          });
+        }
+
+        const reviewQuestions: ReviewQuestion[] = filteredQuestions.map((eq: any) => {
           const answer = answersData?.find(a => a.question_id === eq.question_bank?.id);
           return {
             ...eq,
@@ -103,27 +128,34 @@ export const ExamReview = ({ attemptId, examTitle, open, onOpenChange }: ExamRev
             marks_obtained: answer?.marks_obtained ?? null,
           };
         });
+
         setQuestions(reviewQuestions);
+        
+        // Calculate total marks for this student's specific question set
+        const totalMarks = reviewQuestions.reduce((sum, q) => sum + q.marks, 0);
+        setStudentTotalMarks(totalMarks);
       }
     }
 
     setLoading(false);
   };
 
+  // Calculate stats based on the student's specific question set
+  const totalObtained = attempt?.total_marks_obtained || 0;
   const stats = {
     correct: questions.filter(q => q.is_correct === true).length,
     wrong: questions.filter(q => q.is_correct === false).length,
     skipped: questions.filter(q => q.student_answer === null).length,
-    percentage: attempt ? ((attempt.total_marks_obtained || 0) / attempt.online_exams.total_marks) * 100 : 0,
-    passed: attempt ? (attempt.total_marks_obtained || 0) >= (attempt.online_exams.passing_marks || attempt.online_exams.total_marks * 0.5) : false,
+    percentage: studentTotalMarks > 0 ? (totalObtained / studentTotalMarks) * 100 : 0,
+    passed: attempt ? totalObtained >= (attempt.online_exams.passing_marks || studentTotalMarks * 0.5) : false,
   };
 
   const currentQuestion = questions[currentIndex];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
+      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
+        <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b">
           <DialogTitle className="flex items-center gap-2">
             <Award className="h-5 w-5" />
             Exam Review: {examTitle}
@@ -131,17 +163,17 @@ export const ExamReview = ({ attemptId, examTitle, open, onOpenChange }: ExamRev
         </DialogHeader>
 
         {loading ? (
-          <div className="flex justify-center py-12">
+          <div className="flex justify-center py-12 flex-1">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         ) : (
-          <ScrollArea className="flex-1 max-h-[calc(90vh-120px)]">
-            <div className="space-y-4 pr-4">
+          <ScrollArea className="flex-1 h-full">
+            <div className="space-y-4 p-6">
               {/* Summary Stats */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <Card className="p-3">
                   <div className="text-center">
-                    <p className="text-2xl font-bold">{attempt?.total_marks_obtained || 0}/{attempt?.online_exams.total_marks}</p>
+                    <p className="text-2xl font-bold">{totalObtained}/{studentTotalMarks}</p>
                     <p className="text-xs text-muted-foreground">Score</p>
                   </div>
                 </Card>
@@ -299,7 +331,7 @@ export const ExamReview = ({ attemptId, examTitle, open, onOpenChange }: ExamRev
               )}
 
               {/* Navigation */}
-              <div className="flex justify-between pt-2 border-t">
+              <div className="flex justify-between pt-4 border-t sticky bottom-0 bg-background pb-2">
                 <Button
                   variant="outline"
                   onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
