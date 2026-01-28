@@ -57,6 +57,7 @@ import StudentOnlineExams from "./pages/student/OnlineExams";
 import SuperAdminManagement from "./pages/admin/SuperAdminManagement";
 import SchoolSettings from "./pages/admin/SchoolSettings";
 import PendingUsers from "./pages/admin/PendingUsers";
+import NumberGenerator from "./pages/admin/NumberGenerator";
 
 function App() {
   const [queryClient] = useState(() => new QueryClient());
@@ -196,7 +197,12 @@ function App() {
               } />
               <Route path="/admin/school-settings" element={
                 <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
-                  <SchoolSettings />
+                <SchoolSettings />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/number-generator" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                  <NumberGenerator />
                 </ProtectedRoute>
               } />
               <Route path="/admin/pending-users" element={
