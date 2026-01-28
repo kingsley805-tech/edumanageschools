@@ -23,6 +23,8 @@ import {
   Shield,
   Building,
   ChevronDown,
+  Hash,
+  UserCheck,
   Link as LinkIcon,
   UserPlus
 } from "lucide-react";
@@ -92,6 +94,15 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
         { icon: BookOpen, label: "Classes", path: "/admin/classes" },
         { icon: BookOpen, label: "Subjects", path: "/admin/subjects" },
         { 
+          type: "group",
+          label: "Registration",
+          icon: Hash,
+          items: [
+            { icon: Hash, label: "Number Generator", path: "/admin/number-generator" },
+            { icon: UserCheck, label: "Pending Users", path: "/admin/pending-users" },
+          ]
+        },
+        {
           type: "group",
           label: "Linking",
           icon: LinkIcon,

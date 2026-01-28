@@ -26,42 +26,27 @@ const Announcements = () => {
   }, []);
 
   const fetchAnnouncements = async () => {
-    // Get current user's school_id for filtering
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("school_id")
-      .eq("id", user.id)
-      .single();
-
-    if (!profileData?.school_id) return;
-
-    // Fetch announcements by users in the same school
+    // RLS now handles school filtering via school_id column
     const { data, error } = await supabase
       .from("announcements")
       .select(`
         *,
-        profiles:created_by(full_name, school_id)
+        profiles:created_by(full_name)
       `)
       .order("created_at", { ascending: false });
 
     if (error) {
+      console.error("Error fetching announcements:", error);
       toast({ title: "Error fetching announcements", variant: "destructive" });
       return;
     }
 
-    // Filter announcements by school - only show announcements from same school
-    const filteredAnnouncements = (data || []).filter((announcement) => {
-      const profiles = announcement.profiles as any;
-      return profiles?.school_id === profileData.school_id;
-    }).map(announcement => ({
+    const formattedAnnouncements = (data || []).map(announcement => ({
       ...announcement,
       creator_name: (announcement.profiles as any)?.full_name || "Unknown",
     }));
 
-    setAnnouncements(filteredAnnouncements);
+    setAnnouncements(formattedAnnouncements);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -69,6 +54,18 @@ const Announcements = () => {
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
+    // Get user's school_id
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile?.school_id) {
+      toast({ title: "Error: No school found", variant: "destructive" });
+      return;
+    }
 
     const { error } = await supabase
       .from("announcements")
@@ -78,6 +75,7 @@ const Announcements = () => {
         priority,
         target_roles: targetRoles,
         created_by: user.id,
+        school_id: profile.school_id,
       });
 
     if (error) {
