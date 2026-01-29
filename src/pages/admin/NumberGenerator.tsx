@@ -7,8 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Hash, Plus, Users, Briefcase, RefreshCw, Download, Search, Copy, Check } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Hash, Plus, Users, Briefcase, RefreshCw, Search, Copy, Check, Layers } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -36,17 +36,18 @@ interface RegistrationNumber {
 const NumberGenerator = () => {
   const [numbers, setNumbers] = useState<RegistrationNumber[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  const [showBulkDialog, setShowBulkDialog] = useState(false);
+  const [showSingleDialog, setShowSingleDialog] = useState(false);
   const [numberType, setNumberType] = useState<"student" | "employee">("student");
-  const [prefix, setPrefix] = useState("");
   const [bulkCount, setBulkCount] = useState(1);
-  const [startNumber, setStartNumber] = useState(1);
   const [generating, setGenerating] = useState(false);
   const [filterType, setFilterType] = useState<"all" | "student" | "employee">("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "unused" | "used">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const { toast } = useToast();
+
+  const currentYear = new Date().getFullYear();
 
   const copyToClipboard = async (text: string, id: string) => {
     try {
@@ -95,10 +96,47 @@ const NumberGenerator = () => {
     setLoading(false);
   };
 
-  const generateNumbers = async () => {
+  const getPrefix = (type: "student" | "employee") => {
+    return type === "student" ? `ADM-${currentYear}-` : `EMP-${currentYear}-`;
+  };
+
+  const getNextSequenceNumber = async (schoolId: string, type: "student" | "employee"): Promise<number> => {
+    const prefix = getPrefix(type);
+    
+    // Get the latest number for this school, type, and year
+    const { data, error } = await supabase
+      .from("registration_numbers")
+      .select("registration_number")
+      .eq("school_id", schoolId)
+      .eq("number_type", type)
+      .like("registration_number", `${prefix}%`)
+      .order("registration_number", { ascending: false })
+      .limit(1);
+
+    if (error || !data || data.length === 0) {
+      return 1; // Start from 001 if no existing numbers
+    }
+
+    // Extract the numeric suffix from the last number
+    const lastNumber = data[0].registration_number;
+    const suffix = lastNumber.replace(prefix, "");
+    const lastSequence = parseInt(suffix, 10);
+
+    return isNaN(lastSequence) ? 1 : lastSequence + 1;
+  };
+
+  const generateBulkNumbers = async () => {
+    if (bulkCount < 1 || bulkCount > 100) {
+      toast({ title: "Invalid count", description: "Count must be between 1 and 100", variant: "destructive" });
+      return;
+    }
+
     setGenerating(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setGenerating(false);
+      return;
+    }
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -112,11 +150,14 @@ const NumberGenerator = () => {
       return;
     }
 
+    const prefix = getPrefix(numberType);
+    const startSequence = await getNextSequenceNumber(profile.school_id, numberType);
+
     const numbersToInsert = [];
     for (let i = 0; i < bulkCount; i++) {
-      const num = startNumber + i;
-      const paddedNum = num.toString().padStart(4, '0');
-      const registrationNumber = prefix ? `${prefix}${paddedNum}` : paddedNum;
+      const sequence = startSequence + i;
+      const paddedNum = sequence.toString().padStart(3, '0');
+      const registrationNumber = `${prefix}${paddedNum}`;
       
       numbersToInsert.push({
         school_id: profile.school_id,
@@ -135,7 +176,7 @@ const NumberGenerator = () => {
       if (error.code === "23505") {
         toast({ 
           title: "Duplicate number detected", 
-          description: "Some numbers already exist. Please use a different prefix or starting number.",
+          description: "Some numbers already exist. Please try again.",
           variant: "destructive" 
         });
       } else {
@@ -145,22 +186,94 @@ const NumberGenerator = () => {
       // Log the action
       await supabase.from("audit_logs").insert({
         school_id: profile.school_id,
-        action_type: "generate",
+        action_type: "bulk_generate",
         entity_type: "registration_number",
         performed_by: user.id,
         details: {
           number_type: numberType,
           count: bulkCount,
-          prefix: prefix,
-          start_number: startNumber,
+          format: numberType === "student" ? `ADM-${currentYear}-NNN` : `EMP-${currentYear}-NNN`,
+          start_sequence: startSequence,
         },
       });
 
-      toast({ title: `Generated ${bulkCount} ${numberType} number(s) successfully` });
-      setShowGenerateDialog(false);
-      setPrefix("");
+      toast({ 
+        title: "Success", 
+        description: `Generated ${bulkCount} ${numberType === "student" ? "student" : "employee"} number(s)` 
+      });
+      setShowBulkDialog(false);
       setBulkCount(1);
-      setStartNumber(1);
+      setNumberType("student");
+      fetchNumbers();
+    }
+    setGenerating(false);
+  };
+
+  const generateSingleNumber = async () => {
+    setGenerating(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setGenerating(false);
+      return;
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile?.school_id) {
+      toast({ title: "Error: No school found", variant: "destructive" });
+      setGenerating(false);
+      return;
+    }
+
+    const prefix = getPrefix(numberType);
+    const sequence = await getNextSequenceNumber(profile.school_id, numberType);
+    const paddedNum = sequence.toString().padStart(3, '0');
+    const registrationNumber = `${prefix}${paddedNum}`;
+
+    const { error } = await supabase
+      .from("registration_numbers")
+      .insert({
+        school_id: profile.school_id,
+        number_type: numberType,
+        registration_number: registrationNumber,
+        status: "unused",
+        generated_by: user.id,
+      });
+
+    if (error) {
+      if (error.code === "23505") {
+        toast({ 
+          title: "Duplicate number detected", 
+          description: "This number already exists. Please try again.",
+          variant: "destructive" 
+        });
+      } else {
+        toast({ title: "Error generating number", description: error.message, variant: "destructive" });
+      }
+    } else {
+      // Log the action
+      await supabase.from("audit_logs").insert({
+        school_id: profile.school_id,
+        action_type: "single_generate",
+        entity_type: "registration_number",
+        performed_by: user.id,
+        details: {
+          number_type: numberType,
+          registration_number: registrationNumber,
+          format: numberType === "student" ? `ADM-${currentYear}-NNN` : `EMP-${currentYear}-NNN`,
+        },
+      });
+
+      toast({ 
+        title: "Success", 
+        description: `Generated ${registrationNumber}` 
+      });
+      setShowSingleDialog(false);
+      setNumberType("student");
       fetchNumbers();
     }
     setGenerating(false);
@@ -188,106 +301,171 @@ const NumberGenerator = () => {
             <h2 className="text-3xl font-bold tracking-tight">Registration Numbers</h2>
             <p className="text-muted-foreground">Generate and manage student/employee registration numbers</p>
           </div>
-          <Dialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Generate Numbers
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Generate Registration Numbers</DialogTitle>
-                <DialogDescription>
-                  Create new registration numbers for students or employees
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>Number Type</Label>
-                  <Select value={numberType} onValueChange={(v: "student" | "employee") => setNumberType(v)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="student">
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4" />
-                          Student Number
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="employee">
-                        <div className="flex items-center gap-2">
-                          <Briefcase className="h-4 w-4" />
-                          Employee Number
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Prefix (Optional)</Label>
-                  <Input
-                    placeholder="e.g., STU, EMP, 2024"
-                    value={prefix}
-                    onChange={(e) => setPrefix(e.target.value.toUpperCase())}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Letters/numbers to add before the number (e.g., STU0001)
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
+          <div className="flex gap-2">
+            {/* Single Generate Dialog */}
+            <Dialog open={showSingleDialog} onOpenChange={setShowSingleDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Single Generate
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Single Generate</DialogTitle>
+                  <DialogDescription>
+                    Generate a single registration number
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label>Starting Number</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={startNumber}
-                      onChange={(e) => setStartNumber(parseInt(e.target.value) || 1)}
-                    />
+                    <Label>Type</Label>
+                    <Select value={numberType} onValueChange={(v: "student" | "employee") => setNumberType(v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="student">
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            Student (ADM-{currentYear}-NNN)
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="employee">
+                          <div className="flex items-center gap-2">
+                            <Briefcase className="h-4 w-4" />
+                            Employee (EMP-{currentYear}-NNN)
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
+
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm font-medium">Format:</p>
+                    <p className="text-sm text-muted-foreground font-mono">
+                      {numberType === "student" ? `ADM-${currentYear}-NNN` : `EMP-${currentYear}-NNN`}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      The next sequential number will be automatically assigned
+                    </p>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowSingleDialog(false)}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={generateSingleNumber}
+                    disabled={generating}
+                  >
+                    {generating ? (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Hash className="mr-2 h-4 w-4" />
+                        Generate Number
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Bulk Generate Dialog */}
+            <Dialog open={showBulkDialog} onOpenChange={setShowBulkDialog}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Layers className="mr-2 h-4 w-4" />
+                  Bulk Generate
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Bulk Generate</DialogTitle>
+                  <DialogDescription>
+                    Generate multiple registration numbers at once
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label>Quantity</Label>
+                    <Label>Type</Label>
+                    <Select value={numberType} onValueChange={(v: "student" | "employee") => setNumberType(v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="student">
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            Student (ADM-{currentYear}-NNN)
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="employee">
+                          <div className="flex items-center gap-2">
+                            <Briefcase className="h-4 w-4" />
+                            Employee (EMP-{currentYear}-NNN)
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Count (1-100)</Label>
                     <Input
                       type="number"
                       min={1}
                       max={100}
                       value={bulkCount}
-                      onChange={(e) => setBulkCount(Math.min(100, parseInt(e.target.value) || 1))}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value) || 1;
+                        setBulkCount(Math.max(1, Math.min(100, value)));
+                      }}
+                      placeholder="Enter number of codes to generate"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Minimum: 1, Maximum: 100
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm font-medium">Format:</p>
+                    <p className="text-sm text-muted-foreground font-mono">
+                      {numberType === "student" ? `ADM-${currentYear}-NNN` : `EMP-${currentYear}-NNN`}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {bulkCount} sequential number(s) will be generated starting from the next available sequence
+                    </p>
                   </div>
                 </div>
-
-                <div className="p-3 bg-muted rounded-lg">
-                  <p className="text-sm font-medium">Preview:</p>
-                  <p className="text-sm text-muted-foreground">
-                    {prefix}{startNumber.toString().padStart(4, '0')} 
-                    {bulkCount > 1 && ` to ${prefix}${(startNumber + bulkCount - 1).toString().padStart(4, '0')}`}
-                  </p>
-                </div>
-
-                <Button 
-                  onClick={generateNumbers} 
-                  className="w-full"
-                  disabled={generating}
-                >
-                  {generating ? (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Hash className="mr-2 h-4 w-4" />
-                      Generate {bulkCount} Number{bulkCount > 1 ? 's' : ''}
-                    </>
-                  )}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowBulkDialog(false)}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={generateBulkNumbers}
+                    disabled={generating || bulkCount < 1 || bulkCount > 100}
+                  >
+                    {generating ? (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Layers className="mr-2 h-4 w-4" />
+                        Generate Numbers
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -401,10 +579,16 @@ const NumberGenerator = () => {
                 <p className="text-muted-foreground mb-4">
                   Generate numbers for students and employees to register
                 </p>
-                <Button onClick={() => setShowGenerateDialog(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Generate First Numbers
-                </Button>
+                <div className="flex gap-2 justify-center">
+                  <Button variant="outline" onClick={() => setShowSingleDialog(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Single Generate
+                  </Button>
+                  <Button onClick={() => setShowBulkDialog(true)}>
+                    <Layers className="mr-2 h-4 w-4" />
+                    Bulk Generate
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="rounded-md border">
@@ -413,10 +597,9 @@ const NumberGenerator = () => {
                     <TableRow>
                       <TableHead>Registration Number</TableHead>
                       <TableHead className="w-[60px]">Copy</TableHead>
-                      <TableHead>Type</TableHead>
+                      <TableHead>Role Type</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Assigned To</TableHead>
-                      <TableHead>Generated</TableHead>
                       <TableHead>Used On</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -437,14 +620,14 @@ const NumberGenerator = () => {
                                   onClick={() => copyToClipboard(num.registration_number, num.id)}
                                 >
                                   {copiedId === num.id ? (
-                                    <Check className="h-4 w-4 text-success" />
+                                    <Check className="h-4 w-4 text-primary" />
                                   ) : (
                                     <Copy className="h-4 w-4" />
                                   )}
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p>Copy to clipboard</p>
+                                {copiedId === num.id ? "Copied!" : "Copy to clipboard"}
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -459,11 +642,8 @@ const NumberGenerator = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge 
-                            variant={num.status === "unused" ? "outline" : "default"}
-                            className={num.status === "used" ? "bg-success hover:bg-success/90" : ""}
-                          >
-                            {num.status === "unused" ? "Available" : "Used"}
+                          <Badge variant={num.status === "unused" ? "outline" : "default"}>
+                            {num.status === "unused" ? "Unused" : "Used"}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -477,16 +657,8 @@ const NumberGenerator = () => {
                           )}
                         </TableCell>
                         <TableCell>
-                          <div>
-                            <p className="text-sm">{format(new Date(num.generated_at), "PP")}</p>
-                            {num.generator && (
-                              <p className="text-xs text-muted-foreground">by {num.generator.full_name}</p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
                           {num.used_at ? (
-                            format(new Date(num.used_at), "PP")
+                            format(new Date(num.used_at), "MMM d, yyyy h:mm a")
                           ) : (
                             <span className="text-muted-foreground">—</span>
                           )}
