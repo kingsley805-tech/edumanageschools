@@ -162,8 +162,31 @@ const QuestionBank = () => {
   };
 
   const handleDelete = async (id: string) => {
+    // Check if question is used in any exams first
+    const { data: usedInExams } = await supabase
+      .from("online_exam_questions")
+      .select("id, online_exams(title)")
+      .eq("question_id", id);
+
+    if (usedInExams && usedInExams.length > 0) {
+      const examNames = usedInExams
+        .map((e) => (e.online_exams as any)?.title)
+        .filter(Boolean)
+        .slice(0, 3)
+        .join(", ");
+      
+      const confirmDelete = window.confirm(
+        `This question is used in ${usedInExams.length} exam(s)${examNames ? ` (${examNames}${usedInExams.length > 3 ? "..." : ""})` : ""}.\n\nDeleting it will remove it from these exams. Continue?`
+      );
+      
+      if (!confirmDelete) return;
+    }
+
     const { error } = await supabase.from("question_bank").delete().eq("id", id);
-    if (error) return toast.error("Failed to delete question");
+    if (error) {
+      console.error("Delete error:", error);
+      return toast.error("Failed to delete question");
+    }
     toast.success("Question deleted");
     fetchData();
   };

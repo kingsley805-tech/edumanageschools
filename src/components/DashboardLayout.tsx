@@ -109,6 +109,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           items: [
             { icon: Users, label: "Parent-Student Link", path: "/admin/parent-student-link" },
             { icon: BookOpen, label: "Teacher-Class Link", path: "/admin/teacher-class-link" },
+            { icon: Users, label: "Parent Contacts", path: "/admin/parent-contacts" },
           ]
         },
         { 

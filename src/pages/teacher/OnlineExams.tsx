@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, ListChecks, BarChart3, Shield, Camera, Clock } from "lucide-react";
+import { Plus, Trash2, ListChecks, BarChart3, Shield, Camera, Clock, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -36,6 +36,7 @@ interface OnlineExam {
   webcam_required: boolean | null;
   question_pool_size: number | null;
   questions_to_answer: number | null;
+  is_published: boolean;
   classes?: { name: string };
   subjects?: { name: string };
 }
@@ -222,6 +223,18 @@ const OnlineExams = () => {
     const { error } = await supabase.from("online_exams").delete().eq("id", id);
     if (error) return toast.error("Failed to delete exam");
     toast.success("Exam deleted");
+    fetchData();
+  };
+
+  const handleTogglePublish = async (exam: OnlineExam) => {
+    const newStatus = !exam.is_published;
+    const { error } = await supabase
+      .from("online_exams")
+      .update({ is_published: newStatus })
+      .eq("id", exam.id);
+    
+    if (error) return toast.error("Failed to update exam status");
+    toast.success(newStatus ? "Exam published - now visible to students" : "Exam unpublished - hidden from students");
     fetchData();
   };
 
@@ -440,6 +453,7 @@ const OnlineExams = () => {
                   <TableHead>Duration</TableHead>
                   <TableHead>Marks</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Published</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -462,6 +476,26 @@ const OnlineExams = () => {
                       <TableCell>{exam.duration_minutes} min</TableCell>
                       <TableCell>{exam.total_marks}</TableCell>
                       <TableCell><Badge variant={status.variant}>{status.label}</Badge></TableCell>
+                      <TableCell>
+                        <Button
+                          variant={exam.is_published ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handleTogglePublish(exam)}
+                          className="gap-1"
+                        >
+                          {exam.is_published ? (
+                            <>
+                              <Eye className="h-3 w-3" />
+                              Published
+                            </>
+                          ) : (
+                            <>
+                              <EyeOff className="h-3 w-3" />
+                              Unpublished
+                            </>
+                          )}
+                        </Button>
+                      </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" onClick={() => openQuestionsDialog(exam)} title="Manage Questions">
@@ -489,7 +523,7 @@ const OnlineExams = () => {
                   );
                 })}
                 {exams.length === 0 && !loading && (
-                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">No online exams found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">No online exams found</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
