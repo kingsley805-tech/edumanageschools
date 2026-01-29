@@ -148,13 +148,30 @@ const AdminDashboard = () => {
       if (!profileData?.school_id) return;
       const schoolId = profileData.school_id;
 
-      const { data } = await supabase.from("classes").select("name, students(count)").eq("school_id", schoolId);
-      const distribution = (data || []).map(c => ({
-        grade: c.name,
-        students: (c as any).students?.length || 0,
-        percentage: Math.min(100, ((c as any).students?.length || 0) / 5)
-      })).slice(0, 4);
-      setClassDistribution(distribution);
+      // Fetch classes with proper student count aggregation
+      const { data: classesData } = await supabase.from("classes").select("id, name").eq("school_id", schoolId);
+      
+      if (!classesData) {
+        setClassDistribution([]);
+        return;
+      }
+
+      // For each class, count students properly
+      const distribution = await Promise.all(classesData.map(async (cls) => {
+        const { count } = await supabase
+          .from("students")
+          .select("id", { count: "exact", head: true })
+          .eq("class_id", cls.id)
+          .eq("school_id", schoolId);
+        
+        return {
+          grade: cls.name,
+          students: count || 0,
+          percentage: Math.min(100, ((count || 0) / 50) * 100) // Assume max 50 students per class for progress bar
+        };
+      }));
+      
+      setClassDistribution(distribution.slice(0, 4));
     };
 
     fetchRecentActivity();

@@ -39,6 +39,9 @@ const Auth = () => {
   // Registration number for students/employees
   const [registrationNumber, setRegistrationNumber] = useState("");
   
+  // Gender for students
+  const [gender, setGender] = useState("");
+  
   // Parent child linking
   const [childStudentNumbers, setChildStudentNumbers] = useState<string[]>([""]);
   
@@ -246,6 +249,13 @@ const Auth = () => {
           setIsLoading(false);
           return;
         }
+
+        // Validate gender for students
+        if (signupRole === "student" && !gender) {
+          toast.error("Please select your gender");
+          setIsLoading(false);
+          return;
+        }
       }
 
       // Validate child student numbers for parents
@@ -296,10 +306,21 @@ const Auth = () => {
     // After successful signup, mark registration number as used and link children
     if (schoolId) {
       if (signupRole === "student" || signupRole === "teacher") {
-        // Mark registration number as used
-        const { data: { user: newUser } } = await supabase.auth.getUser();
+        // Wait a moment for the user to be created, then mark registration number as used
+        // First try to get the user from auth, if that fails, we'll retry a few times
+        let newUser = null;
+        let retries = 5;
+        
+        while (!newUser && retries > 0) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          const { data } = await supabase.auth.getUser();
+          newUser = data?.user;
+          retries--;
+        }
+        
         if (newUser) {
-          await supabase
+          // Mark registration number as used
+          const { error: updateError } = await supabase
             .from("registration_numbers")
             .update({
               status: "used",
@@ -309,11 +330,21 @@ const Auth = () => {
             .eq("registration_number", registrationNumber.toUpperCase())
             .eq("school_id", schoolId);
 
-          // Update the student/teacher record with the registration number
+          if (updateError) {
+            console.error("Error marking registration number as used:", updateError);
+          }
+
+          // Wait for the trigger to create the student/teacher record
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          // Update the student/teacher record with the registration number and gender
           if (signupRole === "student") {
             await supabase
               .from("students")
-              .update({ admission_no: registrationNumber.toUpperCase() })
+              .update({ 
+                admission_no: registrationNumber.toUpperCase(),
+                gender: gender 
+              })
               .eq("user_id", newUser.id);
           } else {
             await supabase
@@ -321,6 +352,8 @@ const Auth = () => {
               .update({ employee_no: registrationNumber.toUpperCase() })
               .eq("user_id", newUser.id);
           }
+        } else {
+          console.error("Could not get new user after signup");
         }
       }
 
@@ -688,6 +721,25 @@ const Auth = () => {
                         This number is provided by your school administrator
                       </p>
                     </div>
+                    
+                    {/* Gender for students */}
+                    {signupRole === "student" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="gender" className="text-sm font-medium flex items-center gap-2">
+                          <User className="h-4 w-4 text-primary" />
+                          Gender (Required)
+                        </Label>
+                        <Select value={gender} onValueChange={setGender} required>
+                          <SelectTrigger id="gender" className="py-5">
+                            <SelectValue placeholder="Select your gender" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="male">Male</SelectItem>
+                            <SelectItem value="female">Female</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                 )}
 

@@ -281,8 +281,8 @@ const Timetable = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Class Timetable</h2>
-            <p className="text-muted-foreground">Manage class timetables and schedules</p>
+            <h2 className="text-3xl font-bold tracking-tight">Permanent Timetable</h2>
+            <p className="text-muted-foreground">Manage permanent class timetables and schedules</p>
           </div>
           <div className="flex gap-2">
             {selectedClass && schedules.length > 0 && (
@@ -420,9 +420,9 @@ const Timetable = () => {
         {selectedClass && (
           <Card>
             <CardHeader>
-              <CardTitle>Weekly Timetable</CardTitle>
+              <CardTitle>Permanent Timetable</CardTitle>
               <CardDescription>
-                Timetable for {classes.find((c) => c.id === selectedClass)?.name}
+                Schedule for {classes.find((c) => c.id === selectedClass)?.name}
               </CardDescription>
             </CardHeader>
             <CardContent>
