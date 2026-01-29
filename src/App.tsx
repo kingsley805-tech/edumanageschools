@@ -49,7 +49,7 @@ import Messages from "./pages/Messages";
 import StudentTimetable from "./pages/student/Timetable";
 import TeacherTimetable from "./pages/teacher/Timetable";
 import NotFound from "./pages/NotFound";
-import ExamTypes from "./pages/admin/ExamTypes";
+
 import GradeScales from "./pages/admin/GradeScales";
 import QuestionBank from "./pages/teacher/QuestionBank";
 import TeacherOnlineExams from "./pages/teacher/OnlineExams";
@@ -179,11 +179,6 @@ function App() {
               <Route path="/admin/subjects" element={
                 <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
                   <Subjects />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/exam-types" element={
-                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
-                  <ExamTypes />
                 </ProtectedRoute>
               } />
               <Route path="/admin/grade-scales" element={

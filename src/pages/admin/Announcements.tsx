@@ -27,12 +27,10 @@ const Announcements = () => {
 
   const fetchAnnouncements = async () => {
     // RLS now handles school filtering via school_id column
+    // Fetch announcements separately, then fetch creator names
     const { data, error } = await supabase
       .from("announcements")
-      .select(`
-        *,
-        profiles:created_by(full_name)
-      `)
+      .select("*")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -41,9 +39,24 @@ const Announcements = () => {
       return;
     }
 
+    // Get unique creator IDs and fetch their names
+    const creatorIds = [...new Set((data || []).map(a => a.created_by).filter(Boolean))];
+    let creatorNames: Record<string, string> = {};
+    
+    if (creatorIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", creatorIds);
+      
+      if (profiles) {
+        creatorNames = profiles.reduce((acc, p) => ({ ...acc, [p.id]: p.full_name || "Unknown" }), {});
+      }
+    }
+
     const formattedAnnouncements = (data || []).map(announcement => ({
       ...announcement,
-      creator_name: (announcement.profiles as any)?.full_name || "Unknown",
+      creator_name: announcement.created_by ? creatorNames[announcement.created_by] || "Unknown" : "Unknown",
     }));
 
     setAnnouncements(formattedAnnouncements);

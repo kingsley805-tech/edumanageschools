@@ -17,7 +17,6 @@ import {
   Settings,
   Clock,
   Megaphone,
-  ClipboardList,
   MonitorPlay,
   MessageSquare,
   Shield,
@@ -25,8 +24,7 @@ import {
   ChevronDown,
   Hash,
   UserCheck,
-  Link as LinkIcon,
-  UserPlus
+  Link as LinkIcon
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { NotificationCenter } from "./NotificationCenter";
@@ -81,7 +79,6 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
       title: "Admin",
       menuItems: [
         { icon: LayoutDashboard, label: "Dashboard", path: "/admin" },
-        { icon: UserPlus, label: "Pending Approvals", path: "/admin/pending-users" },
         { 
           type: "group",
           label: "Personnel",
@@ -99,7 +96,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           icon: Hash,
           items: [
             { icon: Hash, label: "Number Generator", path: "/admin/number-generator" },
-            { icon: UserCheck, label: "Pending Users", path: "/admin/pending-users" },
+            { icon: UserCheck, label: "Pending Approvals", path: "/admin/pending-users" },
           ]
         },
         {
@@ -112,15 +109,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
             { icon: Users, label: "Parent Contacts", path: "/admin/parent-contacts" },
           ]
         },
-        { 
-          type: "group",
-          label: "Exams",
-          icon: ClipboardList,
-          items: [
-            { icon: ClipboardList, label: "Exam Types", path: "/admin/exam-types" },
-            { icon: Award, label: "Grade Scales", path: "/admin/grade-scales" },
-          ]
-        },
+        { icon: Award, label: "Grade Scales", path: "/admin/grade-scales" },
         { 
           type: "group",
           label: "Payments",
@@ -150,7 +139,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
         { icon: FileText, label: "Assignments", path: "/teacher/assignments" },
         { icon: Award, label: "Grades", path: "/teacher/grades" },
         { icon: FileText, label: "Exams", path: "/teacher/exams" },
-        { icon: ClipboardList, label: "Question Bank", path: "/teacher/question-bank" },
+        { icon: FileText, label: "Question Bank", path: "/teacher/question-bank" },
         { icon: MonitorPlay, label: "Online Exams", path: "/teacher/online-exams" },
         { icon: BookOpen, label: "Resources", path: "/teacher/resources" },
         { icon: MessageSquare, label: "Messages", path: "/messages", showBadge: true },
