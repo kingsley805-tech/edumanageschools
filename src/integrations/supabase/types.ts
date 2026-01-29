@@ -1045,6 +1045,7 @@ export type Database = {
           exam_type_id: string | null
           fullscreen_required: boolean | null
           id: string
+          is_published: boolean
           passing_marks: number | null
           proctoring_enabled: boolean | null
           question_pool_size: number | null
@@ -1070,6 +1071,7 @@ export type Database = {
           exam_type_id?: string | null
           fullscreen_required?: boolean | null
           id?: string
+          is_published?: boolean
           passing_marks?: number | null
           proctoring_enabled?: boolean | null
           question_pool_size?: number | null
@@ -1095,6 +1097,7 @@ export type Database = {
           exam_type_id?: string | null
           fullscreen_required?: boolean | null
           id?: string
+          is_published?: boolean
           passing_marks?: number | null
           proctoring_enabled?: boolean | null
           question_pool_size?: number | null
@@ -1177,21 +1180,27 @@ export type Database = {
         Row: {
           address: string | null
           created_at: string | null
+          emergency_contact: string | null
           id: string
+          phone: string | null
           school_id: string | null
           user_id: string | null
         }
         Insert: {
           address?: string | null
           created_at?: string | null
+          emergency_contact?: string | null
           id?: string
+          phone?: string | null
           school_id?: string | null
           user_id?: string | null
         }
         Update: {
           address?: string | null
           created_at?: string | null
+          emergency_contact?: string | null
           id?: string
+          phone?: string | null
           school_id?: string | null
           user_id?: string | null
         }

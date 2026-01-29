@@ -58,6 +58,7 @@ import SuperAdminManagement from "./pages/admin/SuperAdminManagement";
 import SchoolSettings from "./pages/admin/SchoolSettings";
 import PendingUsers from "./pages/admin/PendingUsers";
 import NumberGenerator from "./pages/admin/NumberGenerator";
+import ParentContacts from "./pages/admin/ParentContacts";
 
 function App() {
   const [queryClient] = useState(() => new QueryClient());
@@ -208,6 +209,11 @@ function App() {
               <Route path="/admin/pending-users" element={
                 <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
                   <PendingUsers />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/parent-contacts" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                  <ParentContacts />
                 </ProtectedRoute>
               } />
               <Route path="/teacher" element={

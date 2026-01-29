@@ -161,6 +161,7 @@ const StudentOnlineExams = () => {
       .from("online_exams")
       .select("*, subjects(name)")
       .eq("class_id", student.class_id)
+      .eq("is_published", true)
       .order("start_time", { ascending: false });
 
     if (examsData) {
