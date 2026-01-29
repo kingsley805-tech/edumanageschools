@@ -8,10 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Hash, Plus, Users, Briefcase, RefreshCw, Download, Search } from "lucide-react";
+import { Hash, Plus, Users, Briefcase, RefreshCw, Download, Search, Copy, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface RegistrationNumber {
   id: string;
@@ -44,7 +45,19 @@ const NumberGenerator = () => {
   const [filterType, setFilterType] = useState<"all" | "student" | "employee">("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "unused" | "used">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const { toast } = useToast();
+
+  const copyToClipboard = async (text: string, id: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      toast({ title: "Copied!", description: `${text} copied to clipboard` });
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      toast({ title: "Failed to copy", variant: "destructive" });
+    }
+  };
 
   useEffect(() => {
     fetchNumbers();
@@ -399,6 +412,7 @@ const NumberGenerator = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Registration Number</TableHead>
+                      <TableHead className="w-[60px]">Copy</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Assigned To</TableHead>
@@ -413,6 +427,29 @@ const NumberGenerator = () => {
                           {num.registration_number}
                         </TableCell>
                         <TableCell>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => copyToClipboard(num.registration_number, num.id)}
+                                >
+                                  {copiedId === num.id ? (
+                                    <Check className="h-4 w-4 text-success" />
+                                  ) : (
+                                    <Copy className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Copy to clipboard</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </TableCell>
+                        <TableCell>
                           <Badge variant={num.number_type === "student" ? "default" : "secondary"}>
                             {num.number_type === "student" ? (
                               <><Users className="h-3 w-3 mr-1" /> Student</>
@@ -422,7 +459,10 @@ const NumberGenerator = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={num.status === "unused" ? "outline" : "default"}>
+                          <Badge 
+                            variant={num.status === "unused" ? "outline" : "default"}
+                            className={num.status === "used" ? "bg-success hover:bg-success/90" : ""}
+                          >
                             {num.status === "unused" ? "Available" : "Used"}
                           </Badge>
                         </TableCell>

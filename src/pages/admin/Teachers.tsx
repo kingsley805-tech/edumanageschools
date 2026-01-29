@@ -2,10 +2,11 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Pencil } from "lucide-react";
+import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -36,6 +37,7 @@ const Teachers = () => {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
   const [teachers, setTeachers] = useState<any[]>([]);
+  const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
   
   const { register, handleSubmit, formState: { errors }, reset } = useForm<TeacherFormData>({
@@ -180,6 +182,45 @@ const Teachers = () => {
     }
   };
 
+  const handleDeleteTeacher = async (teacher: any) => {
+    if (!teacher?.user_id) {
+      toast({
+        title: "Error",
+        description: "Cannot delete teacher: No user account associated",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-user-account', {
+        body: {
+          user_id: teacher.user_id,
+          user_role: 'teacher',
+          user_name: teacher.profiles?.full_name,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Teacher deleted successfully. Employee number remains locked.",
+      });
+
+      fetchTeachers();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete teacher",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <DashboardLayout role="admin">
       <div className="space-y-4 md:space-y-6">
@@ -298,6 +339,37 @@ const Teachers = () => {
                             >
                               View
                             </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="h-8 md:h-9 text-destructive hover:text-destructive"
+                                  disabled={deleting}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Teacher</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete {teacher.profiles?.full_name}? 
+                                    This action cannot be undone. The employee number will remain 
+                                    locked and cannot be reused.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => handleDeleteTeacher(teacher)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         </TableCell>
                       </TableRow>
