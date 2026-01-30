@@ -276,15 +276,17 @@ const Auth = () => {
       }
     }
 
-    // Proceed with signup - pass registration number via metadata
-    const { error } = await signUp(
+    // Proceed with signup - pass registration number and gender via metadata
+    const { error, data } = await signUp(
       signupEmail, 
       signupPassword, 
       signupFullName, 
       signupRole, 
       schoolCode.toUpperCase(), 
       adminKey, 
-      schoolName
+      schoolName,
+      registrationNumber.toUpperCase(),
+      gender
     );
     
     if (error) {
@@ -303,103 +305,54 @@ const Auth = () => {
       return;
     }
 
-    // After successful signup, mark registration number as used and link children
-    if (schoolId) {
-      if (signupRole === "student" || signupRole === "teacher") {
-        // Wait a moment for the user to be created, then mark registration number as used
-        // First try to get the user from auth, if that fails, we'll retry a few times
-        let newUser = null;
-        let retries = 5;
-        
-        while (!newUser && retries > 0) {
-          await new Promise(resolve => setTimeout(resolve, 500));
-          const { data } = await supabase.auth.getUser();
-          newUser = data?.user;
-          retries--;
-        }
-        
-        if (newUser) {
-          // Mark registration number as used
-          const { error: updateError } = await supabase
-            .from("registration_numbers")
-            .update({
-              status: "used",
-              assigned_user_id: newUser.id,
-              used_at: new Date().toISOString()
-            })
-            .eq("registration_number", registrationNumber.toUpperCase())
-            .eq("school_id", schoolId);
+    // After successful signup - the handle_new_user trigger now handles:
+    // - Creating the student/teacher record with admission_no/employee_no and gender
+    // - The mark_student/teacher_registration_used triggers will mark the number as used
+    
+    if (schoolId && signupRole === "parent") {
+      // Link parent to children - wait for trigger to create parent record
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      const { data: { user: newUser } } = await supabase.auth.getUser();
+      if (newUser) {
+        // Get the parent record
+        const { data: parentRecord } = await supabase
+          .from("parents")
+          .select("id")
+          .eq("user_id", newUser.id)
+          .single();
 
-          if (updateError) {
-            console.error("Error marking registration number as used:", updateError);
-          }
+        if (parentRecord) {
+          for (const childNum of childStudentNumbers) {
+            if (!childNum.trim()) continue;
 
-          // Wait for the trigger to create the student/teacher record
-          await new Promise(resolve => setTimeout(resolve, 1000));
-
-          // Update the student/teacher record with the registration number and gender
-          if (signupRole === "student") {
-            await supabase
+            // Get student by admission number
+            const { data: student } = await supabase
               .from("students")
-              .update({ 
-                admission_no: registrationNumber.toUpperCase(),
-                gender: gender 
-              })
-              .eq("user_id", newUser.id);
-          } else {
-            await supabase
-              .from("teachers")
-              .update({ employee_no: registrationNumber.toUpperCase() })
-              .eq("user_id", newUser.id);
-          }
-        } else {
-          console.error("Could not get new user after signup");
-        }
-      }
+              .select("id")
+              .eq("admission_no", childNum.toUpperCase())
+              .eq("school_id", schoolId)
+              .single();
 
-      if (signupRole === "parent") {
-        // Link parent to children
-        const { data: { user: newUser } } = await supabase.auth.getUser();
-        if (newUser) {
-          // Get the parent record
-          const { data: parentRecord } = await supabase
-            .from("parents")
-            .select("id")
-            .eq("user_id", newUser.id)
-            .single();
+            if (student) {
+              // Create parent-student link
+              await supabase.from("parent_student_links").insert({
+                parent_id: parentRecord.id,
+                student_id: student.id,
+              });
 
-          if (parentRecord) {
-            for (const childNum of childStudentNumbers) {
-              if (!childNum.trim()) continue;
-
-              // Get student by admission number
-              const { data: student } = await supabase
+              // Also update guardian_id on first child
+              await supabase
                 .from("students")
-                .select("id")
-                .eq("admission_no", childNum.toUpperCase())
-                .eq("school_id", schoolId)
-                .single();
-
-              if (student) {
-                // Create parent-student link
-                await supabase.from("parent_student_links").insert({
-                  parent_id: parentRecord.id,
-                  student_id: student.id,
-                });
-
-                // Also update guardian_id on first child
-                await supabase
-                  .from("students")
-                  .update({ guardian_id: parentRecord.id })
-                  .eq("id", student.id)
-                  .is("guardian_id", null);
-              }
+                .update({ guardian_id: parentRecord.id })
+                .eq("id", student.id)
+                .is("guardian_id", null);
             }
           }
         }
       }
     }
-
+    
     toast.success("Account created successfully!");
     setIsLoading(false);
   };

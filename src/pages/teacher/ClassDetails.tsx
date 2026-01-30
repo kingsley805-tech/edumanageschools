@@ -68,28 +68,36 @@ const ClassDetails = () => {
 
       if (!classData) return;
 
-      const { data: classSubject } = await supabase
+      const { data: classSubjects } = await supabase
         .from("class_subjects")
         .select("subject:subjects(id, name)")
-        .eq("class_id", classId)
-        .single();
+        .eq("class_id", classId);
 
       setClassDetails({
         ...classData,
-        subject: classSubject?.subject || { id: "", name: "N/A" }
+        subject: classSubjects?.[0]?.subject || { id: "", name: "N/A" }
       });
 
+      // Fixed: Get all students with proper join
       const { data: studentsData } = await supabase
         .from("students")
         .select(`
           id,
           admission_no,
-          user:profiles(full_name, email)
+          gender,
+          profiles!inner(full_name, email)
         `)
         .eq("class_id", classId)
         .order("admission_no");
 
-      setStudents(studentsData || []);
+      setStudents((studentsData || []).map(s => ({
+        id: s.id,
+        admission_no: s.admission_no,
+        user: {
+          full_name: (s.profiles as any)?.full_name || "Unknown",
+          email: (s.profiles as any)?.email || ""
+        }
+      })));
 
       const { data: schedulesData } = await supabase
         .from("schedules")
