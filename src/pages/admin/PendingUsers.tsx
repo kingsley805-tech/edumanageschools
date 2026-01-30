@@ -177,11 +177,37 @@ const PendingUsers = () => {
     setLoading(false);
   };
 
-  const openApprovalDialog = (user: PendingUser) => {
+  const getNextRegistrationNumber = async (type: "student" | "employee") => {
+    if (!schoolId) return null;
+    
+    // Get the next available unused registration number
+    const { data } = await supabase
+      .from("registration_numbers")
+      .select("registration_number")
+      .eq("school_id", schoolId)
+      .eq("number_type", type)
+      .eq("status", "unused")
+      .order("registration_number", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    
+    return data?.registration_number || null;
+  };
+
+  const openApprovalDialog = async (user: PendingUser) => {
     setSelectedUser(user);
+    
+    // Auto-fetch next available number
+    let nextNumber = "";
+    if (user.role === "student") {
+      nextNumber = await getNextRegistrationNumber("student") || "";
+    } else if (user.role === "teacher") {
+      nextNumber = await getNextRegistrationNumber("employee") || "";
+    }
+    
     setApprovalData({
-      admission_no: "",
-      employee_no: "",
+      admission_no: nextNumber,
+      employee_no: nextNumber,
       class_id: user.class_id || "",
       subject_specialty: "",
     });
@@ -189,39 +215,53 @@ const PendingUsers = () => {
   };
 
   const handleApprove = async () => {
-    if (!selectedUser) return;
+    if (!selectedUser || !schoolId) return;
 
     try {
       if (selectedUser.role === "student") {
-        if (!approvalData.admission_no) {
-          return toast.error("Please enter an admission number");
+        // Get next available number if not already set
+        let admissionNo = approvalData.class_id ? await getNextRegistrationNumber("student") : approvalData.admission_no;
+        if (!admissionNo) {
+          admissionNo = await getNextRegistrationNumber("student");
         }
         
+        if (!admissionNo) {
+          return toast.error("No available admission numbers. Please generate new numbers first.");
+        }
+        
+        // Update student record - trigger will mark registration number as used
         const { error } = await supabase
           .from("students")
           .update({
-            admission_no: approvalData.admission_no,
+            admission_no: admissionNo,
             class_id: approvalData.class_id || null,
           })
           .eq("id", selectedUser.id);
 
         if (error) throw error;
-        toast.success("Student approved successfully");
+        toast.success(`Student approved with admission number: ${admissionNo}`);
       } else if (selectedUser.role === "teacher") {
-        if (!approvalData.employee_no) {
-          return toast.error("Please enter an employee number");
+        // Get next available number if not already set
+        let employeeNo = approvalData.employee_no;
+        if (!employeeNo) {
+          employeeNo = await getNextRegistrationNumber("employee");
+        }
+        
+        if (!employeeNo) {
+          return toast.error("No available employee numbers. Please generate new numbers first.");
         }
 
+        // Update teacher record - trigger will mark registration number as used
         const { error } = await supabase
           .from("teachers")
           .update({
-            employee_no: approvalData.employee_no,
+            employee_no: employeeNo,
             subject_specialty: approvalData.subject_specialty || null,
           })
           .eq("id", selectedUser.id);
 
         if (error) throw error;
-        toast.success("Teacher approved successfully");
+        toast.success(`Teacher approved with employee number: ${employeeNo}`);
       }
 
       setApprovalDialogOpen(false);
@@ -534,66 +574,57 @@ const PendingUsers = () => {
               Approve {selectedUser?.role === "student" ? "Student" : "Teacher"}
             </DialogTitle>
             <DialogDescription>
-              Assign {selectedUser?.role === "student" ? "an admission number" : "an employee number"} to activate this account
+              {selectedUser?.role === "student" 
+                ? "Assign a class to activate this student account. An admission number will be auto-assigned."
+                : "An employee number will be auto-assigned to activate this account."
+              }
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="p-4 bg-muted rounded-lg">
               <p className="font-medium">{selectedUser?.full_name}</p>
               <p className="text-sm text-muted-foreground">{selectedUser?.email}</p>
+              {approvalData.admission_no && selectedUser?.role === "student" && (
+                <p className="text-sm text-primary mt-1">
+                  Will be assigned: <strong>{approvalData.admission_no}</strong>
+                </p>
+              )}
+              {approvalData.employee_no && selectedUser?.role === "teacher" && (
+                <p className="text-sm text-primary mt-1">
+                  Will be assigned: <strong>{approvalData.employee_no}</strong>
+                </p>
+              )}
             </div>
 
             {selectedUser?.role === "student" && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="admission_no">Admission Number *</Label>
-                  <Input
-                    id="admission_no"
-                    value={approvalData.admission_no}
-                    onChange={(e) => setApprovalData({ ...approvalData, admission_no: e.target.value })}
-                    placeholder="e.g., STU2024001"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="class_id">Assign Class</Label>
-                  <Select
-                    value={approvalData.class_id}
-                    onValueChange={(v) => setApprovalData({ ...approvalData, class_id: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select class" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {classes.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </>
+              <div className="space-y-2">
+                <Label htmlFor="class_id">Assign Class *</Label>
+                <Select
+                  value={approvalData.class_id}
+                  onValueChange={(v) => setApprovalData({ ...approvalData, class_id: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
 
             {selectedUser?.role === "teacher" && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="employee_no">Employee Number *</Label>
-                  <Input
-                    id="employee_no"
-                    value={approvalData.employee_no}
-                    onChange={(e) => setApprovalData({ ...approvalData, employee_no: e.target.value })}
-                    placeholder="e.g., TCH2024001"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="subject_specialty">Subject Specialty</Label>
-                  <Input
-                    id="subject_specialty"
-                    value={approvalData.subject_specialty}
-                    onChange={(e) => setApprovalData({ ...approvalData, subject_specialty: e.target.value })}
-                    placeholder="e.g., Mathematics"
-                  />
-                </div>
-              </>
+              <div className="space-y-2">
+                <Label htmlFor="subject_specialty">Subject Specialty</Label>
+                <Input
+                  id="subject_specialty"
+                  value={approvalData.subject_specialty}
+                  onChange={(e) => setApprovalData({ ...approvalData, subject_specialty: e.target.value })}
+                  placeholder="e.g., Mathematics"
+                />
+              </div>
             )}
 
             <div className="flex justify-end gap-2 pt-4">

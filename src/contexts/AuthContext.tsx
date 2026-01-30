@@ -6,7 +6,17 @@ import { useNavigate } from "react-router-dom";
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  signUp: (email: string, password: string, fullName: string, role: string, schoolCode: string, adminKey?: string, schoolName?: string) => Promise<{ error: any; data?: any }>;
+  signUp: (
+    email: string, 
+    password: string, 
+    fullName: string, 
+    role: string, 
+    schoolCode: string, 
+    adminKey?: string, 
+    schoolName?: string,
+    registrationNumber?: string,
+    gender?: string
+  ) => Promise<{ error: any; data?: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any; data?: any }>;
   signOut: () => Promise<void>;
   loading: boolean;
@@ -40,8 +50,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string, role: string, schoolCode: string, adminKey?: string, schoolName?: string) => {
-    const { error } = await supabase.auth.signUp({
+  const signUp = async (
+    email: string, 
+    password: string, 
+    fullName: string, 
+    role: string, 
+    schoolCode: string, 
+    adminKey?: string, 
+    schoolName?: string,
+    registrationNumber?: string,
+    gender?: string
+  ) => {
+    const { error, data } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -52,11 +72,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           school_code: schoolCode,
           school_name: schoolName || '',
           admin_key: adminKey || '',
+          registration_number: registrationNumber || '',
+          gender: gender || '',
         },
       },
     });
 
-    return { error };
+    return { error, data };
   };
 
   const signIn = async (email: string, password: string) => {
