@@ -459,7 +459,7 @@ const Auth = () => {
 
       {/* Right Panel - Auth Form */}
       <div className="lg:w-1/2 flex items-center justify-center p-4 lg:p-8 bg-background">
-        <div className="w-full max-w-md space-y-6">
+        <div className="w-full max-w-md space-y-6 bg-card rounded-2xl p-6 shadow-md border border-border">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
@@ -657,7 +657,7 @@ const Auth = () => {
 
           {/* Signup Form */}
           {activeTab === "signup" && (
-            <form onSubmit={handleSignup} className="space-y-4 animate-fade-in max-h-[60vh] overflow-y-auto pr-2">
+            <form onSubmit={handleSignup} className="space-y-4 animate-fade-in max-h-[64vh] overflow-y-auto pr-3 pb-2 custom-scrollbar">
               <div className="space-y-2">
                 <Label htmlFor="signup-name" className="text-sm font-medium text-foreground">
                   Full Name

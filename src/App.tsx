@@ -8,6 +8,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import Landing from "./pages/Landing";
+import Loader from "./pages/loader";
 import Auth from "./pages/Auth";
 import Contact from "./pages/Contact";
 import Privacy from "./pages/Privacy";
@@ -106,7 +107,7 @@ function App() {
           <ThemeProvider>
             <AuthProvider>
               <Routes>
-              <Route path="/" element={<Landing />} />
+              <Route path="/" element={<Loader />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/privacy" element={<Privacy />} />

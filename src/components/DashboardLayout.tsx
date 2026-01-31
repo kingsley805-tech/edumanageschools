@@ -231,7 +231,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           </div>
 
           {/* Menu Items */}
-          <nav className="flex-1 space-y-1 p-4 overflow-y-auto overflow-x-hidden">
+          <nav className="flex-1 space-y-1 p-4 overflow-y-auto overflow-x-hidden custom-scrollbar">
             {config.menuItems.map((item: any, index: number) => {
               if (item.type === "group") {
                 const groupKey = `group-${index}`;

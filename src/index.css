@@ -373,4 +373,32 @@ All colors MUST be HSL.
     -webkit-backdrop-filter: blur(12px);
     border-color: hsl(var(--border) / 0.5) !important;
   }
+
+  /* Custom scrollbar styling for native scroll areas */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--primary)) transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, hsl(var(--primary) / 0.9), hsl(var(--accent) / 0.9));
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    filter: brightness(0.95);
+  }
+  /* Dark mode adjustments */
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, hsl(var(--primary) / 0.7), hsl(0 0% 0% / 0.35));
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.2);
+  }
 }
