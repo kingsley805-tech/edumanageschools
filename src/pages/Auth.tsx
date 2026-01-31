@@ -405,13 +405,11 @@ const Auth = () => {
     <div className="min-h-screen flex flex-col lg:flex-row bg-[hsl(200,25%,18%)]">
       {/* Left Panel - Hero Section */}
       <div className="relative lg:w-1/2 min-h-[300px] lg:min-h-screen flex flex-col">
-        {/* Background Image with Overlay */}
+        {/* Background Image */}
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${schoolPicture})` }}
-        >
-          <div className="absolute inset-0 bg-[hsl(200,35%,20%)]/85" />
-        </div>
+        />
         
         {/* Content */}
         <div className="relative z-10 flex flex-col h-full p-6 lg:p-10">
