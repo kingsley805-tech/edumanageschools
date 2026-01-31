@@ -45,28 +45,8 @@ export default function SchoolLoader() {
       </div>
 
       <div className="relative z-10 text-center">
-        <div className="mb-8 relative inline-block">
-          <div className="w-40 h-40 mx-auto relative" style={{ animation: 'bounce 2s ease-in-out infinite' }}>
-            <div className="absolute inset-0 rounded-lg shadow-2xl" style={{ background: '#1E3A8A', animation: 'pageFlip 2s ease-in-out infinite' }}>
-              <div className="absolute top-0 left-1/2 w-px h-full bg-white opacity-30" />
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="absolute left-3 right-3 h-px bg-white opacity-20" style={{ top: `${20 + i * 12}%` }} />
-              ))}
-            </div>
-
-            <div className="absolute -top-8 -right-8 w-16 h-16" style={{ animation: 'float 3s ease-in-out infinite' }}>
-              <div className="w-full h-full relative" style={{ background: '#1E3A8A', clipPath: 'polygon(50% 0%, 0% 50%, 50% 50%, 100% 50%)' }}>
-                <div className="absolute w-8 h-8 rounded-full" style={{ background: '#1E3A8A', top: '50%', left: '50%', transform: 'translate(-50%, -25%)' }} />
-              </div>
-              <div className="absolute bottom-0 left-1/2 w-px h-4 bg-yellow-500" style={{ transform: 'translateX(-50%)' }}>
-                <div className="absolute bottom-0 left-1/2 w-2 h-2 rounded-full bg-yellow-500" style={{ transform: 'translateX(-50%)' }} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <h1 className="text-4xl font-bold mb-2" style={{ color: '#1E3A8A', animation: 'fadeInUp 0.8s ease-out' }}>
-          School Management System
+        <h1 className="text-5xl font-bold mb-8" style={{ color: '#1E3A8A', animation: 'fadeInUp 0.8s ease-out' }}>
+          EduManage
         </h1>
 
         <p className="text-lg mb-8 text-gray-600" style={{ animation: 'fadeInUp 0.8s ease-out 0.2s backwards' }}>
