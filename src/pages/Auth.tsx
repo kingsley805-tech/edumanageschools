@@ -3,15 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GraduationCap, Lock, Mail, User, Eye, EyeOff, Shield, BookOpen, Users, ArrowRight, Hash, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
-import { Badge } from "@/components/ui/badge";
 import schoolPicture from "@/assets/School Picture.webp";
 
 const Auth = () => {
@@ -19,7 +16,7 @@ const Auth = () => {
   const { signIn, signUp, user } = useAuth();
   const { role } = useUserRole();
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("login");
+  const [activeTab, setActiveTab] = useState<"login" | "signup" | "forgot-password">("login");
   const [showPassword, setShowPassword] = useState(false);
   
   // Login fields
@@ -141,7 +138,6 @@ const Auth = () => {
     for (const num of numbers) {
       if (!num.trim()) continue;
       
-      // Check if student with this admission number exists
       const { data: student, error } = await supabase
         .from("students")
         .select("id, school_id, user_id, profiles:user_id(full_name)")
@@ -178,7 +174,6 @@ const Auth = () => {
 
     let schoolId: string | null = null;
 
-    // Super admin validation
     if (signupRole === "super_admin") {
       if (!adminKey) {
         toast.error("Super Admin key is required for super administrator accounts");
@@ -186,7 +181,6 @@ const Auth = () => {
         return;
       }
     } 
-    // Admin validation - creating new school
     else if (signupRole === "admin") {
       if (!adminKey) {
         toast.error("Admin key is required for administrator accounts");
@@ -210,7 +204,6 @@ const Auth = () => {
         return;
       }
     } 
-    // Student/Teacher/Parent - need existing school
     else {
       if (!schoolCode) {
         toast.error("Please enter your school code");
@@ -233,7 +226,6 @@ const Auth = () => {
       
       schoolId = schoolExists.id;
 
-      // Validate registration number for student/teacher
       if (signupRole === "student" || signupRole === "teacher") {
         if (!registrationNumber.trim()) {
           toast.error(`Please enter your ${signupRole === "student" ? "Student" : "Employee"} registration number`);
@@ -250,7 +242,6 @@ const Auth = () => {
           return;
         }
 
-        // Validate gender for students
         if (signupRole === "student" && !gender) {
           toast.error("Please select your gender");
           setIsLoading(false);
@@ -258,7 +249,6 @@ const Auth = () => {
         }
       }
 
-      // Validate child student numbers for parents
       if (signupRole === "parent") {
         const nonEmptyNumbers = childStudentNumbers.filter(n => n.trim());
         if (nonEmptyNumbers.length === 0) {
@@ -276,7 +266,6 @@ const Auth = () => {
       }
     }
 
-    // Proceed with signup - pass registration number and gender via metadata
     const { error, data } = await signUp(
       signupEmail, 
       signupPassword, 
@@ -304,18 +293,12 @@ const Auth = () => {
       setIsLoading(false);
       return;
     }
-
-    // After successful signup - the handle_new_user trigger now handles:
-    // - Creating the student/teacher record with admission_no/employee_no and gender
-    // - The mark_student/teacher_registration_used triggers will mark the number as used
     
     if (schoolId && signupRole === "parent") {
-      // Link parent to children - wait for trigger to create parent record
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       const { data: { user: newUser } } = await supabase.auth.getUser();
       if (newUser) {
-        // Get the parent record
         const { data: parentRecord } = await supabase
           .from("parents")
           .select("id")
@@ -326,7 +309,6 @@ const Auth = () => {
           for (const childNum of childStudentNumbers) {
             if (!childNum.trim()) continue;
 
-            // Get student by admission number
             const { data: student } = await supabase
               .from("students")
               .select("id")
@@ -335,13 +317,11 @@ const Auth = () => {
               .single();
 
             if (student) {
-              // Create parent-student link
               await supabase.from("parent_student_links").insert({
                 parent_id: parentRecord.id,
                 student_id: student.id,
               });
 
-              // Also update guardian_id on first child
               await supabase
                 .from("students")
                 .update({ guardian_id: parentRecord.id })
@@ -422,374 +402,584 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden p-3 sm:p-4" style={{
-      backgroundImage: `url(${schoolPicture})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat'
-    }}>
-      <div className="absolute inset-0 bg-black/5"></div>
-
-      <Card className="w-full max-w-md relative z-10 backdrop-blur-xl bg-white/50 border-white/25 shadow-2xl rounded-2xl md:rounded-3xl overflow-hidden border max-h-[90vh] overflow-y-auto">
-        <div className="h-1 bg-gradient-to-r from-primary to-accent"></div>
+    <div className="min-h-screen flex flex-col lg:flex-row bg-[hsl(200,25%,18%)]">
+      {/* Left Panel - Hero Section */}
+      <div className="relative lg:w-1/2 min-h-[300px] lg:min-h-screen flex flex-col">
+        {/* Background Image with Overlay */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${schoolPicture})` }}
+        >
+          <div className="absolute inset-0 bg-[hsl(200,35%,20%)]/85" />
+        </div>
         
-        <CardHeader className="text-center space-y-2 md:space-y-3 pb-4 md:pb-6 px-4 md:px-6">
-          <div className="mx-auto mb-2 flex h-12 w-12 md:h-16 md:w-16 items-center justify-center rounded-xl md:rounded-2xl bg-gradient-to-br from-primary to-accent shadow-lg">
-            <GraduationCap className="h-6 w-6 md:h-8 md:w-8 text-white" />
+        {/* Content */}
+        <div className="relative z-10 flex flex-col h-full p-6 lg:p-10">
+          {/* Logo & Title */}
+          <div className="flex items-center gap-3 mb-8">
+            <div className="flex h-10 w-10 lg:h-12 lg:w-12 items-center justify-center rounded-xl bg-accent/20 backdrop-blur-sm">
+              <GraduationCap className="h-5 w-5 lg:h-6 lg:w-6 text-accent" />
+            </div>
+            <div>
+              <span className="text-xs lg:text-sm font-medium tracking-widest text-accent uppercase">
+                EDUMANAGE
+              </span>
+              <h1 className="text-xl lg:text-2xl font-bold text-white">
+                Your school, organized.
+              </h1>
+            </div>
           </div>
-          <CardTitle className="text-xl md:text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-            EduManage Portal
-          </CardTitle>
-          <CardDescription className="text-sm md:text-base">
-            Secure access for your educational institution
-          </CardDescription>
-        </CardHeader>
+          
+          {/* Main Content - Hidden on mobile, shown on desktop */}
+          <div className="hidden lg:flex flex-1 items-center justify-center">
+            <p className="text-lg text-white/90 text-center max-w-md leading-relaxed">
+              All-in-one portal for teachers, students, and parents.
+            </p>
+          </div>
+          
+          {/* Feature Badges */}
+          <div className="flex flex-wrap gap-3 mt-auto">
+            <div className="flex-1 min-w-[140px] bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+              <span className="text-[10px] lg:text-xs font-medium tracking-widest text-accent uppercase block mb-1">
+                SECURE ACCESS
+              </span>
+              <span className="text-sm lg:text-base font-semibold text-white">
+                Role-based dashboards
+              </span>
+            </div>
+            <div className="flex-1 min-w-[140px] bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+              <span className="text-[10px] lg:text-xs font-medium tracking-widest text-accent uppercase block mb-1">
+                SCHOOLS
+              </span>
+              <span className="text-sm lg:text-base font-semibold text-white">
+                Join with your school code
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-2 mx-4 md:mx-6 mb-2 gap-2">
-            <TabsTrigger value="login" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-white transition-all duration-200">
-              Login
-            </TabsTrigger>
-            <TabsTrigger value="signup" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-white transition-all duration-200">
-              Create Account
-            </TabsTrigger>
-          </TabsList>
+      {/* Right Panel - Auth Form */}
+      <div className="lg:w-1/2 flex items-center justify-center p-4 lg:p-8 bg-background">
+        <div className="w-full max-w-md space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
+                WELCOME TO EDUMANAGE
+              </span>
+              <h2 className="text-2xl lg:text-3xl font-bold text-foreground mt-1">
+                Access your school portal
+              </h2>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-muted">
+              <GraduationCap className="h-5 w-5 text-muted-foreground" />
+            </div>
+          </div>
 
-          {/* LOGIN TAB */}
-          <TabsContent value="login" className="animate-fade-in">
-            <form onSubmit={handleLogin}>
-              <CardContent className="space-y-4 md:space-y-5 px-4 md:px-6">
-                <div className="space-y-2 md:space-y-3">
-                  <Label htmlFor="login-email" className="text-sm md:text-base font-semibold text-foreground">Email Address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-5 w-5 md:h-6 md:w-6 text-foreground/70" />
-                    <Input id="login-email" type="email" placeholder="you@school.edu" className="pl-10 pr-4 py-5 md:py-6 text-base" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} required />
-                  </div>
+          {/* Tab Toggle */}
+          {activeTab !== "forgot-password" && (
+            <div className="flex bg-muted rounded-full p-1">
+              <button
+                type="button"
+                onClick={() => setActiveTab("login")}
+                className={`flex-1 py-2.5 px-4 rounded-full text-sm font-medium transition-all duration-200 ${
+                  activeTab === "login"
+                    ? "bg-[hsl(200,35%,20%)] text-white shadow-md"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Login
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("signup")}
+                className={`flex-1 py-2.5 px-4 rounded-full text-sm font-medium transition-all duration-200 ${
+                  activeTab === "signup"
+                    ? "bg-[hsl(200,35%,20%)] text-white shadow-md"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Create Account
+              </button>
+            </div>
+          )}
+
+          {/* Login Form */}
+          {activeTab === "login" && (
+            <form onSubmit={handleLogin} className="space-y-4 animate-fade-in">
+              <div className="space-y-2">
+                <Label htmlFor="login-email" className="text-sm font-medium text-foreground">
+                  Email Address
+                </Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    id="login-email"
+                    type="email"
+                    placeholder="you@school.edu"
+                    className="pl-10 h-12 border-2 focus:border-primary"
+                    value={loginEmail}
+                    onChange={e => setLoginEmail(e.target.value)}
+                    required
+                  />
                 </div>
+              </div>
 
-                <div className="space-y-2 md:space-y-3">
-                  <Label htmlFor="login-password" className="text-sm md:text-base font-semibold text-foreground">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-5 w-5 md:h-6 md:w-6 text-foreground/70" />
-                    <Input id="login-password" type={showPassword ? "text" : "password"} placeholder="••••••••" className="pl-10 pr-12 py-5 md:py-6 text-base" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} required />
-                    <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent" onClick={() => setShowPassword(!showPassword)}>
-                      {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
-                    </Button>
-                  </div>
+              <div className="space-y-2">
+                <Label htmlFor="login-password" className="text-sm font-medium text-foreground">
+                  Password
+                </Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    id="login-password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    className="pl-10 pr-12 h-12 border-2 focus:border-primary"
+                    value={loginPassword}
+                    onChange={e => setLoginPassword(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
                 </div>
+              </div>
 
-                <div className="space-y-2 md:space-y-3">
-                  <Label htmlFor="login-school-code" className="text-sm md:text-base font-semibold text-foreground">School Code</Label>
-                  <div className="relative">
-                    <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input id="login-school-code" type="text" placeholder="Enter your school code" className="pl-10 pr-4 py-5 md:py-6 uppercase text-base" value={loginSchoolCode} onChange={e => setLoginSchoolCode(e.target.value.toUpperCase())} required />
-                  </div>
+              <div className="space-y-2">
+                <Label htmlFor="login-school-code" className="text-sm font-medium text-foreground">
+                  School Code
+                </Label>
+                <div className="relative">
+                  <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    id="login-school-code"
+                    type="text"
+                    placeholder="ENTER YOUR SCHOOL CODE"
+                    className="pl-10 h-12 border-2 focus:border-primary uppercase"
+                    value={loginSchoolCode}
+                    onChange={e => setLoginSchoolCode(e.target.value.toUpperCase())}
+                    required
+                  />
                 </div>
-              </CardContent>
+              </div>
 
-              <CardFooter className="flex flex-col space-y-3 md:space-y-4 pt-2 px-4 md:px-6 pb-4 md:pb-6 overflow-hidden">
-                <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent hover:shadow-lg hover:scale-105 transition-all duration-200 py-5 md:py-6 text-base md:text-lg font-bold group overflow-hidden" disabled={isLoading}>
-                  {isLoading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Signing in...
-                    </div>
-                  ) : (
-                    <>
-                      Sign In to Dashboard
-                      <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                    </>
-                  )}
-                </Button>
+              <Button
+                type="submit"
+                className="w-full h-12 bg-[hsl(200,35%,20%)] hover:bg-[hsl(200,35%,25%)] text-white font-semibold text-base group"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Signing in...
+                  </div>
+                ) : (
+                  <>
+                    Sign In
+                    <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
+              </Button>
 
-                <Button variant="link" type="button" className="text-sm text-muted-foreground hover:text-primary" onClick={() => setActiveTab("forgot-password")}>
+              <div className="text-center space-y-2">
+                <button
+                  type="button"
+                  className="text-sm font-medium text-[hsl(200,35%,25%)] hover:underline"
+                  onClick={() => setActiveTab("forgot-password")}
+                >
                   Forgot your password?
-                </Button>
-              </CardFooter>
+                </button>
+                <p className="text-xs text-muted-foreground">
+                  Having trouble? The account may exist but be incomplete. Try password reset or contact support.
+                </p>
+              </div>
             </form>
-          </TabsContent>
+          )}
 
-          {/* FORGOT PASSWORD TAB */}
-          <TabsContent value="forgot-password" className="animate-fade-in">
-            <form onSubmit={handleForgotPassword}>
-              <CardContent className="space-y-5">
-                <div className="text-center mb-4">
+          {/* Forgot Password Form */}
+          {activeTab === "forgot-password" && (
+            <form onSubmit={handleForgotPassword} className="space-y-4 animate-fade-in">
+              <div className="text-center mb-4">
+                <p className="text-sm text-muted-foreground">
+                  Enter your email address and we'll send you a link to reset your password.
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="reset-email" className="text-sm font-medium text-foreground">
+                  Email Address
+                </Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    placeholder="you@school.edu"
+                    className="pl-10 h-12 border-2 focus:border-primary"
+                    value={resetEmail}
+                    onChange={e => setResetEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full h-12 bg-[hsl(200,35%,20%)] hover:bg-[hsl(200,35%,25%)] text-white font-semibold text-base group"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Sending...
+                  </div>
+                ) : (
+                  <>
+                    Send Reset Link
+                    <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
+              </Button>
+
+              <button
+                type="button"
+                className="w-full text-sm font-medium text-muted-foreground hover:text-foreground"
+                onClick={() => setActiveTab("login")}
+              >
+                Back to Login
+              </button>
+            </form>
+          )}
+
+          {/* Signup Form */}
+          {activeTab === "signup" && (
+            <form onSubmit={handleSignup} className="space-y-4 animate-fade-in max-h-[60vh] overflow-y-auto pr-2">
+              <div className="space-y-2">
+                <Label htmlFor="signup-name" className="text-sm font-medium text-foreground">
+                  Full Name
+                </Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    id="signup-name"
+                    type="text"
+                    placeholder="John Doe"
+                    className="pl-10 h-12 border-2 focus:border-primary"
+                    value={signupFullName}
+                    onChange={e => setSignupFullName(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="signup-email" className="text-sm font-medium text-foreground">
+                  Email Address
+                </Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    id="signup-email"
+                    type="email"
+                    placeholder="you@school.edu"
+                    className="pl-10 h-12 border-2 focus:border-primary"
+                    value={signupEmail}
+                    onChange={e => setSignupEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="signup-password" className="text-sm font-medium text-foreground">
+                  Password
+                </Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    id="signup-password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    className="pl-10 pr-12 h-12 border-2 focus:border-primary"
+                    value={signupPassword}
+                    onChange={e => setSignupPassword(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Account Type Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="signup-role" className="text-sm font-medium text-foreground">
+                  Account Type
+                </Label>
+                <Select value={signupRole} onValueChange={setSignupRole} required>
+                  <SelectTrigger id="signup-role" className="h-12 border-2 focus:border-primary">
+                    <SelectValue placeholder="Select your role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(roleConfig).map(([key, config]) => {
+                      const IconComponent = config.icon;
+                      return (
+                        <SelectItem key={key} value={key} className="py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                              <IconComponent className="h-4 w-4 text-primary" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{config.label}</span>
+                              <span className="text-xs text-muted-foreground">{config.description}</span>
+                            </div>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Super Admin Info */}
+              {signupRole === "super_admin" && (
+                <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 animate-fade-in">
                   <p className="text-sm text-muted-foreground">
-                    Enter your email address and we'll send you a link to reset your password.
+                    Super admins manage multiple schools. You'll be able to assign schools after account creation.
                   </p>
                 </div>
-                <div className="space-y-3">
-                  <Label htmlFor="reset-email" className="text-sm font-medium">Email Address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-5 w-5 md:h-6 md:w-6 text-foreground/70" />
-                    <Input id="reset-email" type="email" placeholder="you@school.edu" className="pl-10 pr-4 py-6" value={resetEmail} onChange={e => setResetEmail(e.target.value)} required />
-                  </div>
-                </div>
-              </CardContent>
+              )}
 
-              <CardFooter className="flex flex-col space-y-4 pt-2">
-                <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent hover:shadow-lg hover:scale-105 transition-all duration-200 py-6 text-base font-semibold group" disabled={isLoading}>
-                  {isLoading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Sending...
-                    </div>
-                  ) : (
-                    <>
-                      Send Reset Link
-                      <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                    </>
-                  )}
-                </Button>
-
-                <Button variant="link" type="button" className="text-sm text-muted-foreground hover:text-primary" onClick={() => setActiveTab("login")}>
-                  Back to Login
-                </Button>
-              </CardFooter>
-            </form>
-          </TabsContent>
-
-          {/* SIGN UP TAB */}
-          <TabsContent value="signup" className="animate-fade-in">
-            <form onSubmit={handleSignup}>
-              <CardContent className="space-y-4 px-4 md:px-6">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name" className="text-sm font-semibold text-foreground">Full Name</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 h-5 w-5 text-foreground/70" />
-                    <Input id="signup-name" type="text" placeholder="John Doe" className="pl-10 pr-4 py-5" value={signupFullName} onChange={e => setSignupFullName(e.target.value)} required />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email" className="text-sm font-medium">Email Address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-5 w-5 text-foreground/70" />
-                    <Input id="signup-email" type="email" placeholder="you@school.edu" className="pl-10 pr-4 py-5" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} required />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password" className="text-sm font-semibold text-foreground">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-5 w-5 text-foreground/70" />
-                    <Input id="signup-password" type={showPassword ? "text" : "password"} placeholder="••••••••" className="pl-10 pr-12 py-5" value={signupPassword} onChange={e => setSignupPassword(e.target.value)} required />
-                    <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent" onClick={() => setShowPassword(!showPassword)}>
-                      {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Account Type Selection */}
-                <div className="space-y-2">
-                  <Label htmlFor="signup-role" className="text-sm font-medium">Account Type</Label>
-                  <Select value={signupRole} onValueChange={setSignupRole} required>
-                    <SelectTrigger id="signup-role" className="py-5">
-                      <SelectValue placeholder="Select your role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(roleConfig).map(([key, config]) => {
-                        const IconComponent = config.icon;
-                        return (
-                          <SelectItem key={key} value={key} className="py-3">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                                <IconComponent className="h-4 w-4 text-primary" />
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="font-medium">{config.label}</span>
-                                <span className="text-xs text-muted-foreground">{config.description}</span>
-                              </div>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Super Admin Info */}
-                {signupRole === "super_admin" && (
-                  <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 animate-fade-in">
-                    <p className="text-sm text-muted-foreground">
-                      Super admins manage multiple schools. You'll be able to assign schools after account creation.
-                    </p>
-                  </div>
-                )}
-
-                {/* Admin - New School Creation */}
-                {signupRole === "admin" && (
-                  <div className="space-y-3 animate-fade-in">
-                    <div className="space-y-2">
-                      <Label htmlFor="school-name" className="text-sm font-medium">School Name</Label>
-                      <div className="relative">
-                        <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input id="school-name" type="text" placeholder="Enter your school name" className="pl-10 pr-4 py-5" value={schoolName} onChange={e => setSchoolName(e.target.value)} required />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="school-code" className="text-sm font-medium">School Code</Label>
-                      <div className="relative">
-                        <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input id="school-code" type="text" placeholder="Create a unique school code" className="pl-10 pr-4 py-5 uppercase" value={schoolCode} onChange={e => setSchoolCode(e.target.value.toUpperCase())} required />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Create a unique code for your school (e.g., SCHOOL2025)
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Teacher/Student - School Code + Registration Number */}
-                {(signupRole === "teacher" || signupRole === "student") && (
-                  <div className="space-y-3 animate-fade-in">
-                    <div className="space-y-2">
-                      <Label htmlFor="school-code" className="text-sm font-medium">School Code</Label>
-                      <div className="relative">
-                        <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input id="school-code" type="text" placeholder="Enter your school code" className="pl-10 pr-4 py-5 uppercase" value={schoolCode} onChange={e => setSchoolCode(e.target.value.toUpperCase())} required />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Get this code from your school administrator
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="reg-number" className="text-sm font-medium flex items-center gap-2">
-                        <Hash className="h-4 w-4 text-primary" />
-                        {signupRole === "student" ? "Student Number" : "Employee Number"} (Required)
-                      </Label>
-                      <div className="relative">
-                        <Hash className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                          id="reg-number" 
-                          type="text" 
-                          placeholder={`Enter your ${signupRole === "student" ? "student" : "employee"} number`}
-                          className="pl-10 pr-4 py-5 uppercase" 
-                          value={registrationNumber} 
-                          onChange={e => setRegistrationNumber(e.target.value.toUpperCase())} 
-                          required 
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        This number is provided by your school administrator
-                      </p>
-                    </div>
-                    
-                    {/* Gender for students */}
-                    {signupRole === "student" && (
-                      <div className="space-y-2">
-                        <Label htmlFor="gender" className="text-sm font-medium flex items-center gap-2">
-                          <User className="h-4 w-4 text-primary" />
-                          Gender (Required)
-                        </Label>
-                        <Select value={gender} onValueChange={setGender} required>
-                          <SelectTrigger id="gender" className="py-5">
-                            <SelectValue placeholder="Select your gender" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="male">Male</SelectItem>
-                            <SelectItem value="female">Female</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Parent - School Code + Children Numbers */}
-                {signupRole === "parent" && (
-                  <div className="space-y-3 animate-fade-in">
-                    <div className="space-y-2">
-                      <Label htmlFor="school-code" className="text-sm font-medium">School Code</Label>
-                      <div className="relative">
-                        <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input id="school-code" type="text" placeholder="Enter your school code" className="pl-10 pr-4 py-5 uppercase" value={schoolCode} onChange={e => setSchoolCode(e.target.value.toUpperCase())} required />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium flex items-center gap-2">
-                        <Users className="h-4 w-4 text-primary" />
-                        Children's Student Numbers
-                      </Label>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        Enter your children's student numbers to link your account
-                      </p>
-                      
-                      {childStudentNumbers.map((num, index) => (
-                        <div key={index} className="flex gap-2">
-                          <div className="relative flex-1">
-                            <Hash className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              type="text"
-                              placeholder={`Child ${index + 1} student number`}
-                              className="pl-10 pr-4 py-5 uppercase"
-                              value={num}
-                              onChange={e => updateChildNumber(index, e.target.value)}
-                              required={index === 0}
-                            />
-                          </div>
-                          {childStudentNumbers.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              onClick={() => removeChildNumberField(index)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                      
-                      {childStudentNumbers.length < 10 && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={addChildNumberField}
-                          className="w-full"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Another Child
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Admin Key for Admin/Super Admin */}
-                {(signupRole === "admin" || signupRole === "super_admin") && (
-                  <div className="space-y-2 animate-fade-in">
-                    <Label htmlFor="admin-key" className="text-sm font-medium flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-primary" />
-                      {signupRole === "super_admin" ? "Super Admin Key" : "Admin Key"} (Required)
+              {/* Admin - New School Creation */}
+              {signupRole === "admin" && (
+                <div className="space-y-4 animate-fade-in">
+                  <div className="space-y-2">
+                    <Label htmlFor="school-name" className="text-sm font-medium text-foreground">
+                      School Name
                     </Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-5 w-5 text-foreground/70" />
-                      <Input id="admin-key" type="password" placeholder={signupRole === "super_admin" ? "Enter super admin key" : "Enter admin key"} className="pl-10 pr-4 py-5" value={adminKey} onChange={e => setAdminKey(e.target.value)} required />
+                      <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        id="school-name"
+                        type="text"
+                        placeholder="Enter your school name"
+                        className="pl-10 h-12 border-2 focus:border-primary"
+                        value={schoolName}
+                        onChange={e => setSchoolName(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="school-code" className="text-sm font-medium text-foreground">
+                      School Code
+                    </Label>
+                    <div className="relative">
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        id="school-code"
+                        type="text"
+                        placeholder="Create a unique school code"
+                        className="pl-10 h-12 border-2 focus:border-primary uppercase"
+                        value={schoolCode}
+                        onChange={e => setSchoolCode(e.target.value.toUpperCase())}
+                        required
+                      />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {signupRole === "super_admin" ? "This special key is required to create a super administrator account" : "This special key is required to create an administrator account"}
+                      Create a unique code for your school (e.g., SCHOOL2025)
                     </p>
                   </div>
-                )}
-              </CardContent>
+                </div>
+              )}
 
-              <CardFooter className="pt-2 px-4 md:px-6 pb-4 md:pb-6">
-                <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent hover:shadow-lg hover:scale-105 transition-all duration-200 py-5 text-base font-semibold" disabled={isLoading}>
-                  {isLoading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Creating account...
+              {/* Teacher/Student - School Code + Registration Number */}
+              {(signupRole === "teacher" || signupRole === "student") && (
+                <div className="space-y-4 animate-fade-in">
+                  <div className="space-y-2">
+                    <Label htmlFor="school-code" className="text-sm font-medium text-foreground">
+                      School Code
+                    </Label>
+                    <div className="relative">
+                      <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        id="school-code"
+                        type="text"
+                        placeholder="Enter your school code"
+                        className="pl-10 h-12 border-2 focus:border-primary uppercase"
+                        value={schoolCode}
+                        onChange={e => setSchoolCode(e.target.value.toUpperCase())}
+                        required
+                      />
                     </div>
-                  ) : "Create Account"}
-                </Button>
-              </CardFooter>
+                    <p className="text-xs text-muted-foreground">
+                      Get this code from your school administrator
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="reg-number" className="text-sm font-medium text-foreground">
+                      {signupRole === "student" ? "Student Number" : "Employee Number"}
+                    </Label>
+                    <div className="relative">
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        id="reg-number"
+                        type="text"
+                        placeholder={`Enter your ${signupRole === "student" ? "student" : "employee"} number`}
+                        className="pl-10 h-12 border-2 focus:border-primary uppercase"
+                        value={registrationNumber}
+                        onChange={e => setRegistrationNumber(e.target.value.toUpperCase())}
+                        required
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      This number is provided by your school administrator
+                    </p>
+                  </div>
+                  
+                  {signupRole === "student" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="gender" className="text-sm font-medium text-foreground">
+                        Gender
+                      </Label>
+                      <Select value={gender} onValueChange={setGender} required>
+                        <SelectTrigger id="gender" className="h-12 border-2 focus:border-primary">
+                          <SelectValue placeholder="Select your gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Parent - School Code + Children Numbers */}
+              {signupRole === "parent" && (
+                <div className="space-y-4 animate-fade-in">
+                  <div className="space-y-2">
+                    <Label htmlFor="school-code" className="text-sm font-medium text-foreground">
+                      School Code
+                    </Label>
+                    <div className="relative">
+                      <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        id="school-code"
+                        type="text"
+                        placeholder="Enter your school code"
+                        className="pl-10 h-12 border-2 focus:border-primary uppercase"
+                        value={schoolCode}
+                        onChange={e => setSchoolCode(e.target.value.toUpperCase())}
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-foreground">
+                      Children's Student Numbers
+                    </Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Enter your children's student numbers to link your account
+                    </p>
+                    
+                    {childStudentNumbers.map((num, index) => (
+                      <div key={index} className="flex gap-2">
+                        <div className="relative flex-1">
+                          <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                          <Input
+                            type="text"
+                            placeholder={`Child ${index + 1} student number`}
+                            className="pl-10 h-12 border-2 focus:border-primary uppercase"
+                            value={num}
+                            onChange={e => updateChildNumber(index, e.target.value)}
+                            required={index === 0}
+                          />
+                        </div>
+                        {childStudentNumbers.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-12 w-12"
+                            onClick={() => removeChildNumberField(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    
+                    {childStudentNumbers.length < 10 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={addChildNumberField}
+                        className="w-full h-10"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Another Child
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Admin Key for Admin/Super Admin */}
+              {(signupRole === "admin" || signupRole === "super_admin") && (
+                <div className="space-y-2 animate-fade-in">
+                  <Label htmlFor="admin-key" className="text-sm font-medium text-foreground">
+                    {signupRole === "super_admin" ? "Super Admin Key" : "Admin Key"}
+                  </Label>
+                  <div className="relative">
+                    <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input
+                      id="admin-key"
+                      type="password"
+                      placeholder={signupRole === "super_admin" ? "Enter super admin key" : "Enter admin key"}
+                      className="pl-10 h-12 border-2 focus:border-primary"
+                      value={adminKey}
+                      onChange={e => setAdminKey(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {signupRole === "super_admin" 
+                      ? "This special key is required to create a super administrator account" 
+                      : "This special key is required to create an administrator account"}
+                  </p>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full h-12 bg-[hsl(200,35%,20%)] hover:bg-[hsl(200,35%,25%)] text-white font-semibold text-base"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Creating account...
+                  </div>
+                ) : "Create Account"}
+              </Button>
             </form>
-          </TabsContent>
-        </Tabs>
-      </Card>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
