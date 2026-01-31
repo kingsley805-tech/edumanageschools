@@ -25,7 +25,7 @@ const Terms = () => {
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-background/20 border-b border-white/10 supports-[backdrop-filter]:bg-background/10 shadow-lg shadow-black/10">
         <div className="container flex h-14 md:h-16 items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-2 md:gap-3 cursor-pointer" onClick={() => navigate("/")}>
-            <img src="/edulogo 1.svg" alt="EduManage Logo" className="h-6 md:h-8 w-auto" />
+           
             <span className="text-lg md:text-xl font-bold tracking-wide bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               EduManage
             </span>

@@ -129,7 +129,7 @@ const Landing = () => {
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100 shadow-sm transition-all duration-300">
         <div className="container flex h-16 md:h-20 items-center justify-between px-4 md:px-6 max-w-7xl mx-auto">
           <div className="flex items-center gap-3">
-            <img src="/edulogo 1.svg" alt="EduManage Logo" className="h-8 md:h-10 w-auto" />
+           
             <span className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
               EduManage
             </span>
