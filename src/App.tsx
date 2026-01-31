@@ -108,6 +108,7 @@ function App() {
             <AuthProvider>
               <Routes>
               <Route path="/" element={<Loader />} />
+              <Route path="/landing" element={<Landing />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/privacy" element={<Privacy />} />
