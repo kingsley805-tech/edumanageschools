@@ -7,6 +7,9 @@ interface School {
   school_name: string;
   school_code: string;
   logo_url: string | null;
+  theme_primary?: string | null;
+  theme_secondary?: string | null;
+  theme_accent?: string | null;
 }
 
 export const useSchoolInfo = () => {
@@ -27,7 +30,9 @@ export const useSchoolInfo = () => {
     try {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("school_id, schools(id, school_name, school_code, logo_url)")
+        .select(
+          "school_id, schools(id, school_name, school_code, logo_url, theme_primary, theme_secondary, theme_accent)"
+        )
         .eq("id", user?.id)
         .single();
 

@@ -1557,6 +1557,9 @@ export type Database = {
           logo_url: string | null
           school_code: string
           school_name: string
+          theme_primary: string | null
+          theme_secondary: string | null
+          theme_accent: string | null
         }
         Insert: {
           admin_key?: string | null
@@ -1566,6 +1569,9 @@ export type Database = {
           logo_url?: string | null
           school_code: string
           school_name: string
+          theme_primary?: string | null
+          theme_secondary?: string | null
+          theme_accent?: string | null
         }
         Update: {
           admin_key?: string | null
@@ -1575,6 +1581,9 @@ export type Database = {
           logo_url?: string | null
           school_code?: string
           school_name?: string
+          theme_primary?: string | null
+          theme_secondary?: string | null
+          theme_accent?: string | null
         }
         Relationships: []
       }

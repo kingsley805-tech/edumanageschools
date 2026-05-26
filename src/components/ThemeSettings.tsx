@@ -7,19 +7,17 @@ import { GradientColorPicker } from "./GradientColorPicker";
 import { toast } from "sonner";
 
 const themes = [
-  { id: "default", name: "Default", colors: "bg-gradient-to-br from-blue-500 to-cyan-500" },
-  { id: "dark", name: "Dark", colors: "bg-gradient-to-br from-slate-800 to-slate-900" },
-  { id: "blue", name: "Blue", colors: "bg-gradient-to-br from-blue-500 to-blue-600" },
-  { id: "purple", name: "Purple", colors: "bg-gradient-to-br from-purple-500 to-purple-600" },
-  { id: "green", name: "Green", colors: "bg-gradient-to-br from-green-500 to-green-600" },
-  { id: "custom", name: "Custom", colors: "bg-gradient-to-br from-pink-500 to-orange-500" },
+  { id: "default", name: "Green / Black / White", colors: "bg-gradient-to-br from-green-600 via-neutral-900 to-white border border-border" },
+  { id: "green", name: "Forest Green", colors: "bg-gradient-to-br from-green-700 to-green-500" },
+  { id: "dark", name: "Dark Mode", colors: "bg-gradient-to-br from-neutral-900 to-black" },
+  { id: "custom", name: "Custom", colors: "bg-gradient-to-br from-green-500 via-black to-white" },
 ];
 
 const defaultCustomColors = {
-  primary: "217 91% 60%",
-  accent: "189 94% 43%",
+  primary: "142 71% 38%",
+  accent: "142 71% 38%",
   background: "0 0% 100%",
-  foreground: "220 13% 13%",
+  foreground: "0 0% 4%",
 };
 
 export default function ThemeSettings() {
@@ -56,7 +54,10 @@ export default function ThemeSettings() {
             <Palette className="h-4 w-4 md:h-5 md:w-5" />
             Theme Selection
           </CardTitle>
-          <CardDescription className="text-sm md:text-base">Choose a theme for your portal</CardDescription>
+          <CardDescription className="text-sm md:text-base">
+            Personal display preference. School admins set organization-wide brand colors in School
+            Settings — those apply to everyone at your school.
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-4 md:p-6 pt-0">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">

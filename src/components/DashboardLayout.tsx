@@ -266,13 +266,13 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
         <aside 
           className={`fixed left-0 top-0 z-40 h-screen transition-transform ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          } w-64 border-r bg-card lg:bg-primary/5`}
+          } w-64 border-r bg-sidebar text-sidebar-foreground border-sidebar-border`}
         >
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="flex h-16 items-center gap-2 border-b px-6">
-            <GraduationCap className="h-7 w-7 text-primary" />
-            <span className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <GraduationCap className="h-7 w-7 text-[hsl(var(--sidebar-primary))]" />
+            <span className="text-lg font-bold text-sidebar-foreground">
               EduManage
             </span>
           </div>

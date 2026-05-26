@@ -21,10 +21,10 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 const defaultCustomColors: CustomThemeColors = {
-  primary: "217 91% 60%",
-  accent: "189 94% 43%",
+  primary: "142 71% 38%",
+  accent: "142 71% 38%",
   background: "0 0% 100%",
-  foreground: "220 13% 13%",
+  foreground: "0 0% 4%",
 };
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {

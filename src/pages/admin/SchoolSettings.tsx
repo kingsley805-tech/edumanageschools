@@ -8,23 +8,32 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Upload, Building, Image, Save, Loader2 } from "lucide-react";
+import { useSchoolTheme } from "@/contexts/SchoolThemeContext";
+import { SchoolBrandColorPicker } from "@/components/SchoolBrandColorPicker";
+import { BRAND_DEFAULTS, parseSchoolBrand, type BrandColors } from "@/lib/themeColors";
+import { Upload, Building, Image, Save, Loader2, Palette } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const SchoolSettings = () => {
   const { user } = useAuth();
   const { role } = useUserRole();
+  const { applyColors, refreshSchoolTheme } = useSchoolTheme();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingBrand, setSavingBrand] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [school, setSchool] = useState<{
     id: string;
     school_name: string;
     school_code: string;
     logo_url: string | null;
+    theme_primary: string | null;
+    theme_secondary: string | null;
+    theme_accent: string | null;
   } | null>(null);
   const [schoolName, setSchoolName] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [brandColors, setBrandColors] = useState<BrandColors>({ ...BRAND_DEFAULTS });
 
   useEffect(() => {
     fetchSchoolData();
@@ -32,10 +41,9 @@ const SchoolSettings = () => {
 
   const fetchSchoolData = async () => {
     if (!user) return;
-    
+
     setLoading(true);
     try {
-      // Get user's school
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("school_id")
@@ -47,17 +55,22 @@ const SchoolSettings = () => {
       if (profile?.school_id) {
         const { data: schoolData, error: schoolError } = await supabase
           .from("schools")
-          .select("id, school_name, school_code, logo_url")
+          .select(
+            "id, school_name, school_code, logo_url, theme_primary, theme_secondary, theme_accent"
+          )
           .eq("id", profile.school_id)
           .single();
 
         if (schoolError) throw schoolError;
-        
+
         setSchool(schoolData);
         setSchoolName(schoolData.school_name);
         setPreviewUrl(schoolData.logo_url);
+        const colors = parseSchoolBrand(schoolData);
+        setBrandColors(colors);
+        applyColors(colors);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching school:", error);
       toast.error("Failed to load school settings");
     } finally {
@@ -69,13 +82,11 @@ const SchoolSettings = () => {
     const file = e.target.files?.[0];
     if (!file || !school) return;
 
-    // Validate file type
     if (!file.type.startsWith("image/")) {
       toast.error("Please upload an image file");
       return;
     }
 
-    // Validate file size (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
       toast.error("Image size must be less than 2MB");
       return;
@@ -87,7 +98,6 @@ const SchoolSettings = () => {
       const fileName = `${school.id}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // Delete old logo if exists
       if (school.logo_url) {
         const oldPath = school.logo_url.split("/").pop();
         if (oldPath) {
@@ -95,21 +105,18 @@ const SchoolSettings = () => {
         }
       }
 
-      // Upload new logo
       const { error: uploadError } = await supabase.storage
         .from("school-logos")
         .upload(filePath, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
       const { data: urlData } = supabase.storage
         .from("school-logos")
         .getPublicUrl(filePath);
 
       const logoUrl = urlData.publicUrl;
 
-      // Update school record
       const { error: updateError } = await supabase
         .from("schools")
         .update({ logo_url: logoUrl })
@@ -120,7 +127,7 @@ const SchoolSettings = () => {
       setPreviewUrl(logoUrl);
       setSchool({ ...school, logo_url: logoUrl });
       toast.success("School logo updated successfully");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error uploading logo:", error);
       toast.error("Failed to upload logo");
     } finally {
@@ -142,7 +149,7 @@ const SchoolSettings = () => {
 
       setSchool({ ...school, school_name: schoolName });
       toast.success("School settings saved successfully");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error saving settings:", error);
       toast.error("Failed to save settings");
     } finally {
@@ -150,10 +157,43 @@ const SchoolSettings = () => {
     }
   };
 
+  const handleSaveBrandColors = async () => {
+    if (!school) return;
+
+    setSavingBrand(true);
+    try {
+      const { error } = await supabase
+        .from("schools")
+        .update({
+          theme_primary: brandColors.primary,
+          theme_secondary: brandColors.secondary,
+          theme_accent: brandColors.accent,
+        })
+        .eq("id", school.id);
+
+      if (error) throw error;
+
+      setSchool({
+        ...school,
+        theme_primary: brandColors.primary,
+        theme_secondary: brandColors.secondary,
+        theme_accent: brandColors.accent,
+      });
+      applyColors(brandColors);
+      await refreshSchoolTheme();
+      toast.success("Brand colors saved — all users at your school will see the new theme");
+    } catch (error: unknown) {
+      console.error("Error saving brand:", error);
+      toast.error("Failed to save brand colors");
+    } finally {
+      setSavingBrand(false);
+    }
+  };
+
   const getInitials = (name: string) => {
     return name
       .split(" ")
-      .map(word => word[0])
+      .map((word) => word[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
@@ -170,7 +210,7 @@ const SchoolSettings = () => {
   if (!role) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
       </div>
     );
   }
@@ -191,111 +231,137 @@ const SchoolSettings = () => {
   return (
     <DashboardLayout role={layoutRole}>
       <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">School Settings</h1>
-        <p className="text-muted-foreground">
-          Manage your school's information and branding
-        </p>
-      </div>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">School Settings</h1>
+          <p className="text-muted-foreground">
+            Manage your school profile, logo, and brand colors (green, black, white by default)
+          </p>
+        </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
+        <Card className="border-2 border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Image className="h-5 w-5" />
-              School Logo
+              <Palette className="h-5 w-5 text-primary" />
+              Brand Colors
             </CardTitle>
             <CardDescription>
-              Upload a custom logo or badge for your school
+              Customize three colors for your entire school portal. Defaults are green (primary),
+              black (secondary), and white (accent). Changes apply to all staff, parents, and
+              students at your school.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center gap-6">
-              <Avatar className="h-24 w-24 border-2 border-border">
-                <AvatarImage src={previewUrl || undefined} alt={school.school_name} />
-                <AvatarFallback className="text-2xl bg-gradient-to-br from-primary to-accent text-white">
-                  {getInitials(school.school_name)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="space-y-2">
-                <Label htmlFor="logo-upload" className="cursor-pointer">
-                  <div className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-muted transition-colors">
-                    {uploading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Upload className="h-4 w-4" />
-                    )}
-                    {uploading ? "Uploading..." : "Upload Logo"}
-                  </div>
-                  <Input
-                    id="logo-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleLogoUpload}
-                    disabled={uploading}
-                  />
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Recommended: Square image, max 2MB
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building className="h-5 w-5" />
-              School Information
-            </CardTitle>
-            <CardDescription>
-              Update your school's name and details
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="school-name">School Name</Label>
-              <Input
-                id="school-name"
-                value={schoolName}
-                onChange={(e) => setSchoolName(e.target.value)}
-                placeholder="Enter school name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="school-code">School Code</Label>
-              <Input
-                id="school-code"
-                value={school.school_code}
-                disabled
-                className="bg-muted"
-              />
-              <p className="text-xs text-muted-foreground">
-                School code cannot be changed
-              </p>
-            </div>
-            <Button 
-              onClick={handleSaveSettings} 
-              disabled={saving || schoolName === school.school_name}
-              className="w-full"
-            >
-              {saving ? (
+            <SchoolBrandColorPicker
+              colors={brandColors}
+              onChange={setBrandColors}
+              onPreview={applyColors}
+            />
+            <Button onClick={handleSaveBrandColors} disabled={savingBrand} className="w-full sm:w-auto">
+              {savingBrand ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
+                  Saving colors...
                 </>
               ) : (
                 <>
                   <Save className="h-4 w-4 mr-2" />
-                  Save Changes
+                  Save brand colors
                 </>
               )}
             </Button>
           </CardContent>
         </Card>
-      </div>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Image className="h-5 w-5" />
+                School Logo
+              </CardTitle>
+              <CardDescription>Upload a custom logo or badge for your school</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-6">
+                <Avatar className="h-24 w-24 border-2 border-border">
+                  <AvatarImage src={previewUrl || undefined} alt={school.school_name} />
+                  <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
+                    {getInitials(school.school_name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="space-y-2">
+                  <Label htmlFor="logo-upload" className="cursor-pointer">
+                    <div className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-muted transition-colors">
+                      {uploading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                      {uploading ? "Uploading..." : "Upload Logo"}
+                    </div>
+                    <Input
+                      id="logo-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleLogoUpload}
+                      disabled={uploading}
+                    />
+                  </Label>
+                  <p className="text-xs text-muted-foreground">Recommended: Square image, max 2MB</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building className="h-5 w-5" />
+                School Information
+              </CardTitle>
+              <CardDescription>Update your school&apos;s name and details</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="school-name">School Name</Label>
+                <Input
+                  id="school-name"
+                  value={schoolName}
+                  onChange={(e) => setSchoolName(e.target.value)}
+                  placeholder="Enter school name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="school-code">School Code</Label>
+                <Input
+                  id="school-code"
+                  value={school.school_code}
+                  disabled
+                  className="bg-muted"
+                />
+                <p className="text-xs text-muted-foreground">School code cannot be changed</p>
+              </div>
+              <Button
+                onClick={handleSaveSettings}
+                disabled={saving || schoolName === school.school_name}
+                className="w-full"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </DashboardLayout>
   );
