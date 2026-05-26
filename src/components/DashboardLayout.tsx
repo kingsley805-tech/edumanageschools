@@ -32,13 +32,19 @@ import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { Badge } from "@/components/ui/badge";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { useUserRole } from "@/hooks/useUserRole";
+import { usePermissions } from "@/hooks/usePermissions";
+import { PERMISSIONS } from "@/lib/permissions";
 import { SchoolSwitcher } from "./SchoolSwitcher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
+type MenuItemDef =
+  | { icon: typeof LayoutDashboard; label: string; path: string; permission?: string; showBadge?: boolean }
+  | { type: "group"; label: string; icon: typeof Users; items: { icon: typeof Users; label: string; path: string; permission?: string }[] };
+
 interface DashboardLayoutProps {
   children: ReactNode;
-  role: "admin" | "teacher" | "parent" | "student" | "super_admin";
+  role: "admin" | "teacher" | "parent" | "student" | "super_admin" | "accountant" | "auditor";
   hideSidebar?: boolean;
 }
 
@@ -51,7 +57,22 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
   const unreadMessages = useUnreadMessages();
   const { currentSchool } = useSchoolInfo();
   const { role: userRole } = useUserRole();
-  const isSuperAdmin = userRole === "super_admin";
+  const { hasPermission, isSuperAdmin: isSuperAdminPerm } = usePermissions();
+  const isSuperAdmin = userRole === "super_admin" || isSuperAdminPerm;
+
+  const canShow = (permission?: string) =>
+    !permission || isSuperAdmin || hasPermission(permission);
+
+  const filterMenu = (items: MenuItemDef[]): MenuItemDef[] =>
+    items
+      .map((item) => {
+        if (item.type === "group") {
+          const filtered = item.items.filter((sub) => canShow(sub.permission));
+          return filtered.length ? { ...item, items: filtered } : null;
+        }
+        return canShow(item.permission) ? item : null;
+      })
+      .filter(Boolean) as MenuItemDef[];
 
   // Initialize sidebar state based on screen size
   useEffect(() => {
@@ -115,10 +136,13 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           label: "Payments",
           icon: DollarSign,
           items: [
-            { icon: DollarSign, label: "Invoices", path: "/admin/fees" },
-            { icon: DollarSign, label: "Fee Structures", path: "/admin/fee-structures" },
+            { icon: DollarSign, label: "Invoices", path: "/admin/fees", permission: PERMISSIONS.invoices.view },
+            { icon: DollarSign, label: "Fee Structures", path: "/admin/fee-structures", permission: PERMISSIONS.billing.feeTemplates },
           ]
         },
+        { icon: Shield, label: "Roles & Permissions", path: "/admin/roles", permission: PERMISSIONS.admin.manageRoles },
+        { icon: FileText, label: "Approvals", path: "/admin/approvals", permission: PERMISSIONS.admin.approveRequests },
+        { icon: FileText, label: "Audit Logs", path: "/admin/audit-logs", permission: PERMISSIONS.admin.viewAudit },
         { icon: Calendar, label: "Attendance", path: "/admin/attendance" },
         { icon: Clock, label: "Timetable", path: "/admin/timetable" },
         { icon: FileText, label: "Reports", path: "/admin/reports" },
@@ -128,6 +152,26 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
         ...(isSuperAdmin ? [{ icon: Shield, label: "Super Admin", path: "/admin/super-admin-management" }] : []),
         { icon: Settings, label: "Settings", path: "/settings" },
       ]
+    },
+    accountant: {
+      title: "Accountant",
+      menuItems: [
+        { icon: LayoutDashboard, label: "Dashboard", path: "/accountant" },
+        { icon: DollarSign, label: "Invoices", path: "/admin/fees", permission: PERMISSIONS.invoices.view },
+        { icon: DollarSign, label: "Fee Structures", path: "/admin/fee-structures", permission: PERMISSIONS.billing.feeTemplates },
+        { icon: FileText, label: "Reports", path: "/admin/reports", permission: PERMISSIONS.reports.viewFinancial },
+        { icon: Settings, label: "Settings", path: "/settings" },
+      ],
+    },
+    auditor: {
+      title: "Auditor",
+      menuItems: [
+        { icon: LayoutDashboard, label: "Dashboard", path: "/auditor" },
+        { icon: DollarSign, label: "Invoices", path: "/admin/fees", permission: PERMISSIONS.invoices.view },
+        { icon: FileText, label: "Reports", path: "/admin/reports", permission: PERMISSIONS.reports.viewFinancial },
+        { icon: FileText, label: "Audit Logs", path: "/admin/audit-logs", permission: PERMISSIONS.admin.viewAudit },
+        { icon: Settings, label: "Settings", path: "/settings" },
+      ],
     },
     teacher: {
       title: "Teacher",
@@ -172,9 +216,12 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
     }
   };
 
-  // Map super_admin to admin config
+  // Map super_admin to admin config for shared admin shell
   const effectiveRole = role === "super_admin" ? "admin" : role;
-  const config = roleConfig[effectiveRole];
+  const baseConfig = roleConfig[effectiveRole] ?? roleConfig[role];
+  const config = baseConfig
+    ? { ...baseConfig, menuItems: filterMenu(baseConfig.menuItems as MenuItemDef[]) }
+    : undefined;
 
   const handleLogout = async () => {
     await signOut();

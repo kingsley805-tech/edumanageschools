@@ -60,6 +60,12 @@ import SchoolSettings from "./pages/admin/SchoolSettings";
 import PendingUsers from "./pages/admin/PendingUsers";
 import NumberGenerator from "./pages/admin/NumberGenerator";
 import ParentContacts from "./pages/admin/ParentContacts";
+import RoleManagement from "./pages/admin/RoleManagement";
+import AccountantDashboard from "./pages/admin/AccountantDashboard";
+import AuditorDashboard from "./pages/admin/AuditorDashboard";
+import AuditLogs from "./pages/admin/AuditLogs";
+import ApprovalRequests from "./pages/admin/ApprovalRequests";
+import { PERMISSIONS } from "./lib/permissions";
 
 function App() {
   const [queryClient] = useState(() => new QueryClient());
@@ -134,13 +140,44 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/admin/fees" element={
-                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                <ProtectedRoute
+                  allowedRoles={["admin", "super_admin", "accountant", "auditor"]}
+                  requiredAnyPermission={[PERMISSIONS.invoices.view, PERMISSIONS.invoices.create]}
+                >
                   <Fees />
                 </ProtectedRoute>
               } />
               <Route path="/admin/fee-structures" element={
-                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                <ProtectedRoute
+                  allowedRoles={["admin", "super_admin", "accountant"]}
+                  requiredPermission={PERMISSIONS.billing.feeTemplates}
+                >
                   <FeeStructures />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/roles" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin"]} requiredPermission={PERMISSIONS.admin.manageRoles}>
+                  <RoleManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/audit-logs" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin", "auditor"]} requiredPermission={PERMISSIONS.admin.viewAudit}>
+                  <AuditLogs />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/approvals" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin"]} requiredAnyPermission={[PERMISSIONS.admin.approveRequests, PERMISSIONS.admin.viewAudit]}>
+                  <ApprovalRequests />
+                </ProtectedRoute>
+              } />
+              <Route path="/accountant" element={
+                <ProtectedRoute allowedRoles={["accountant", "admin", "super_admin"]}>
+                  <AccountantDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/auditor" element={
+                <ProtectedRoute allowedRoles={["auditor", "admin", "super_admin"]}>
+                  <AuditorDashboard />
                 </ProtectedRoute>
               } />
               <Route path="/admin/attendance" element={

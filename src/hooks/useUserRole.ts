@@ -1,16 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+const ROLE_PRIORITY = [
+  "super_admin",
+  "admin",
+  "accountant",
+  "auditor",
+  "teacher",
+  "parent",
+  "student",
+] as const;
+
 export const useUserRole = () => {
   const { user } = useAuth();
-  const [role, setRole] = useState<string | null>(null);
+  const [roles, setRoles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchRole = async () => {
+    const fetchRoles = async () => {
       if (!user) {
-        setRole(null);
+        setRoles([]);
         setLoading(false);
         return;
       }
@@ -18,17 +28,28 @@ export const useUserRole = () => {
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", user.id)
-        .single();
+        .eq("user_id", user.id);
 
-      if (!error && data) {
-        setRole(data.role);
+      if (!error && data?.length) {
+        setRoles(data.map((r) => r.role as string));
+      } else {
+        setRoles([]);
       }
       setLoading(false);
     };
 
-    fetchRole();
+    fetchRoles();
   }, [user]);
 
-  return { role, loading };
+  const role = useMemo(() => {
+    if (!roles.length) return null;
+    for (const r of ROLE_PRIORITY) {
+      if (roles.includes(r)) return r;
+    }
+    return roles[0];
+  }, [roles]);
+
+  const hasPortalRole = (r: string) => roles.includes(r);
+
+  return { role, roles, loading, hasPortalRole };
 };

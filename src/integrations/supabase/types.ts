@@ -159,8 +159,14 @@ export type Database = {
           entity_id: string | null
           entity_type: string
           id: string
+          ip_address: string | null
+          module: string | null
+          new_values: Json | null
+          old_values: Json | null
           performed_by: string | null
+          record_id: string | null
           school_id: string | null
+          user_agent: string | null
         }
         Insert: {
           action_type: string
@@ -169,8 +175,14 @@ export type Database = {
           entity_id?: string | null
           entity_type: string
           id?: string
+          ip_address?: string | null
+          module?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
           performed_by?: string | null
+          record_id?: string | null
           school_id?: string | null
+          user_agent?: string | null
         }
         Update: {
           action_type?: string
@@ -179,8 +191,14 @@ export type Database = {
           entity_id?: string | null
           entity_type?: string
           id?: string
+          ip_address?: string | null
+          module?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
           performed_by?: string | null
+          record_id?: string | null
           school_id?: string | null
+          user_agent?: string | null
         }
         Relationships: [
           {
@@ -1767,6 +1785,195 @@ export type Database = {
           },
         ]
       }
+      approval_requests: {
+        Row: {
+          id: string
+          school_id: string
+          request_type: string
+          module: string
+          record_id: string | null
+          payload: Json
+          status: Database["public"]["Enums"]["approval_status"]
+          requested_by: string
+          reviewed_by: string | null
+          review_notes: string | null
+          created_at: string
+          reviewed_at: string | null
+        }
+        Insert: {
+          id?: string
+          school_id: string
+          request_type: string
+          module: string
+          record_id?: string | null
+          payload?: Json
+          status?: Database["public"]["Enums"]["approval_status"]
+          requested_by: string
+          reviewed_by?: string | null
+          review_notes?: string | null
+          created_at?: string
+          reviewed_at?: string | null
+        }
+        Update: {
+          id?: string
+          school_id?: string
+          request_type?: string
+          module?: string
+          record_id?: string | null
+          payload?: Json
+          status?: Database["public"]["Enums"]["approval_status"]
+          requested_by?: string
+          reviewed_by?: string | null
+          review_notes?: string | null
+          created_at?: string
+          reviewed_at?: string | null
+        }
+        Relationships: []
+      }
+      login_activity: {
+        Row: {
+          id: string
+          user_id: string | null
+          school_id: string | null
+          email: string | null
+          success: boolean
+          ip_address: string | null
+          user_agent: string | null
+          failure_reason: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          school_id?: string | null
+          email?: string | null
+          success?: boolean
+          ip_address?: string | null
+          user_agent?: string | null
+          failure_reason?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          school_id?: string | null
+          email?: string | null
+          success?: boolean
+          ip_address?: string | null
+          user_agent?: string | null
+          failure_reason?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      permissions: {
+        Row: {
+          id: string
+          module: string
+          action: string
+          code: string
+          description: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          module: string
+          action: string
+          code: string
+          description?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          module?: string
+          action?: string
+          code?: string
+          description?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      role_permissions: {
+        Row: {
+          id: string
+          role_id: string
+          permission_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          role_id: string
+          permission_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          role_id?: string
+          permission_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      roles: {
+        Row: {
+          id: string
+          school_id: string | null
+          slug: string
+          name: string
+          description: string | null
+          is_system: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          school_id?: string | null
+          slug: string
+          name: string
+          description?: string | null
+          is_system?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          school_id?: string | null
+          slug?: string
+          name?: string
+          description?: string | null
+          is_system?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_role_assignments: {
+        Row: {
+          id: string
+          user_id: string
+          role_id: string
+          school_id: string | null
+          assigned_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          role_id: string
+          school_id?: string | null
+          assigned_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          role_id?: string
+          school_id?: string | null
+          assigned_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -1827,7 +2034,31 @@ export type Database = {
         Args: { _teacher_user_id: string }
         Returns: string[]
       }
+      get_user_permissions: {
+        Args: { _user_id: string; _school_id?: string | null }
+        Returns: string[]
+      }
       get_user_school_id: { Args: { _user_id: string }; Returns: string }
+      has_permission: {
+        Args: {
+          _user_id: string
+          _permission_code: string
+          _school_id?: string | null
+        }
+        Returns: boolean
+      }
+      has_role_slug: {
+        Args: {
+          _user_id: string
+          _slug: string
+          _school_id?: string | null
+        }
+        Returns: boolean
+      }
+      user_can_access_school: {
+        Args: { _user_id: string; _school_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1849,7 +2080,15 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "teacher" | "parent" | "student" | "super_admin"
+      approval_status: "pending" | "approved" | "rejected" | "cancelled"
+      app_role:
+        | "admin"
+        | "teacher"
+        | "parent"
+        | "student"
+        | "super_admin"
+        | "accountant"
+        | "auditor"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1977,7 +2216,16 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "teacher", "parent", "student", "super_admin"],
+      approval_status: ["pending", "approved", "rejected", "cancelled"],
+      app_role: [
+        "admin",
+        "teacher",
+        "parent",
+        "student",
+        "super_admin",
+        "accountant",
+        "auditor",
+      ],
     },
   },
 } as const

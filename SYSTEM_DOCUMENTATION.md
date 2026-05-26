@@ -136,12 +136,15 @@ User profile information linked to Supabase Auth.
 ```
 
 #### `user_roles`
-Defines user roles (one user can have multiple roles in theory, but typically one).
+Portal access roles (login routing). See [`docs/RBAC_SYSTEM.md`](docs/RBAC_SYSTEM.md) for granular RBAC.
 ```sql
 - id (UUID, PK)
 - user_id (UUID, FK -> auth.users)
-- role (app_role ENUM: 'admin', 'teacher', 'parent', 'student')
+- role (app_role ENUM: 'admin', 'teacher', 'parent', 'student', 'super_admin', 'accountant', 'auditor')
 ```
+
+#### RBAC tables (`roles`, `permissions`, `role_permissions`, `user_role_assignments`)
+Database-driven permissions per school. Functions: `has_permission()`, `get_user_permissions()`.
 
 ### Role-Specific Tables
 
@@ -327,6 +330,8 @@ Links questions to exams.
 ```
 
 ### Financial Tables
+
+> **Planned:** Multi-child consolidated billing (family ledger, partial payment allocation, batch invoicing) is specified in [`docs/MULTI_CHILD_BILLING_ENGINE.md`](docs/MULTI_CHILD_BILLING_ENGINE.md). The tables below describe the **current** per-student invoice model.
 
 #### `fee_structures`
 ```sql

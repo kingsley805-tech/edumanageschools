@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
+import { logLoginActivity } from "@/lib/auditLog";
 import schoolPicture from "@/assets/School Picture.webp";
 
 const Auth = () => {
@@ -50,9 +51,11 @@ const Auth = () => {
       const roleRoutes: Record<string, string> = {
         admin: "/admin",
         super_admin: "/admin",
+        accountant: "/accountant",
+        auditor: "/auditor",
         teacher: "/teacher",
         parent: "/parent",
-        student: "/student"
+        student: "/student",
       };
       navigate(roleRoutes[role] || "/admin");
     }
@@ -82,10 +85,12 @@ const Auth = () => {
     
     const { error, data: signInData } = await signIn(loginEmail, loginPassword);
     if (error) {
+      await logLoginActivity(false, loginEmail, error.message);
       toast.error(error.message);
       setIsLoading(false);
       return;
     }
+    await logLoginActivity(true, loginEmail);
     
     if (signInData?.user) {
       const { data: profileData } = await supabase
