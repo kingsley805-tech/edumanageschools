@@ -34,7 +34,7 @@ const SUPABASE_SQL_EDITOR_URL =
 /** User-facing hint when report tables/columns have not been migrated yet. */
 export function getReportDatabaseSetupHint(error: SupabaseLikeError): string | null {
   if (!isMissingSchemaError(error)) return null;
-  return `Report database tables are not set up yet. Open Supabase SQL Editor, paste the contents of ${REPORT_SETUP_SQL_PATH}, run it, then refresh this page.`;
+  return `Report database tables are not set up yet. Run the SQL in ${REPORT_SETUP_SQL_PATH} (or open Supabase SQL Editor), execute it, then refresh this page.`;
 }
 
 export function getReportDatabaseSetupUrl(): string {
