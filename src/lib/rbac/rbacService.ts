@@ -37,20 +37,65 @@ export async function fetchRolePermissionCodes(roleId: string): Promise<Set<stri
   return new Set((perms ?? []).map((p) => p.code));
 }
 
+export type SaveRolePermissionsResult = {
+  inserted: number;
+  requested: number;
+  missingCodes: string[];
+};
+
 export async function saveRolePermissions(
   roleId: string,
   codes: Set<string>,
   permissionIdMap: Map<string, string>,
-): Promise<void> {
-  await supabase.from("role_permissions").delete().eq("role_id", roleId);
-  const inserts = [...codes]
-    .map((code) => permissionIdMap.get(code))
-    .filter((id): id is string => !!id)
-    .map((permission_id) => ({ role_id: roleId, permission_id }));
-  if (inserts.length) {
-    const { error } = await supabase.from("role_permissions").insert(inserts);
-    if (error) throw error;
+): Promise<SaveRolePermissionsResult> {
+  const codeList = [...codes];
+
+  const { data, error } = await supabase.rpc("save_role_permissions", {
+    p_role_id: roleId,
+    p_permission_codes: codeList,
+  });
+
+  if (!error && data && typeof data === "object") {
+    const payload = data as {
+      inserted?: number;
+      requested?: number;
+      missing_codes?: string[];
+    };
+    return {
+      inserted: payload.inserted ?? 0,
+      requested: payload.requested ?? codeList.length,
+      missingCodes: payload.missing_codes ?? [],
+    };
   }
+
+  // Fallback when RPC not deployed yet: direct table writes
+  if (error?.message?.includes("save_role_permissions") || error?.code === "PGRST202") {
+    const { error: deleteError } = await supabase
+      .from("role_permissions")
+      .delete()
+      .eq("role_id", roleId);
+    if (deleteError) throw deleteError;
+
+    const missingCodes = codeList.filter((code) => !permissionIdMap.has(code));
+    const inserts = codeList
+      .map((code) => permissionIdMap.get(code))
+      .filter((id): id is string => !!id)
+      .map((permission_id) => ({ role_id: roleId, permission_id }));
+
+    if (inserts.length) {
+      const { error: insertError } = await supabase.from("role_permissions").insert(inserts);
+      if (insertError) throw insertError;
+    }
+
+    return {
+      inserted: inserts.length,
+      requested: codeList.length,
+      missingCodes,
+    };
+  }
+
+  if (error) throw error;
+  throw new Error("Failed to save role permissions");
 }
 
 export async function logPermissionChange(params: {

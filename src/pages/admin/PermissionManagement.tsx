@@ -172,7 +172,8 @@ export default function PermissionManagement() {
         await loadStaff();
       } catch (e) {
         console.error(e);
-        toast({ title: "Failed to load permission data", variant: "destructive" });
+        const message = e instanceof Error ? e.message : "Failed to load permission data";
+        toast({ title: message, variant: "destructive" });
       } finally {
         setLoading(false);
       }
@@ -197,28 +198,45 @@ export default function PermissionManagement() {
     if (isSuperAdminRole) return;
     setSaving(true);
     try {
-      await saveRolePermissions(selectedRole.id, selectedCodes, permissionIdMap);
-      await logPermissionChange({
-        schoolId,
-        actorId: user.id,
-        actionType: "role_permissions_updated",
-        roleId: selectedRole.id,
-        details: { slug: selectedRole.slug, count: selectedCodes.size },
-      });
-      await writeAuditLog({
-        schoolId,
-        actionType: "update_role_permissions",
-        entityType: "role",
-        entityId: selectedRole.id,
-        details: { role: selectedRole.slug, permissionCount: selectedCodes.size },
-      });
+      const result = await saveRolePermissions(selectedRole.id, selectedCodes, permissionIdMap);
+      try {
+        await logPermissionChange({
+          schoolId,
+          actorId: user.id,
+          actionType: "role_permissions_updated",
+          roleId: selectedRole.id,
+          details: { slug: selectedRole.slug, count: selectedCodes.size },
+        });
+        await writeAuditLog({
+          schoolId,
+          actionType: "update_role_permissions",
+          entityType: "role",
+          entityId: selectedRole.id,
+          details: { role: selectedRole.slug, permissionCount: selectedCodes.size },
+        });
+      } catch (logErr) {
+        console.warn("Permission saved but audit log failed:", logErr);
+      }
       clearPermissionCache();
       invalidateCache();
       setDirty(false);
-      toast({ title: "Permissions saved" });
+      if (result.missingCodes.length > 0) {
+        toast({
+          title: "Permissions partially saved",
+          description: `${result.inserted} saved. Missing in database: ${result.missingCodes.slice(0, 3).join(", ")}${result.missingCodes.length > 3 ? "…" : ""}. Run portal RBAC SQL in Supabase.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: `Permissions saved (${result.inserted})` });
+      }
     } catch (e) {
       console.error(e);
-      toast({ title: "Save failed", variant: "destructive" });
+      const message =
+        e instanceof Error ? e.message : "Failed to save permission data";
+      toast({
+        title: message.includes("authorized") ? "Not authorized to save permissions" : message,
+        variant: "destructive",
+      });
     } finally {
       setSaving(false);
     }

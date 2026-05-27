@@ -1,0 +1,3 @@
+-- Run in Supabase SQL Editor if saving permissions fails with RLS / unauthorized errors.
+-- Requires: 20260527130000_students_not_staff.sql (is_portal_student function)
+-- Paste and run: supabase/migrations/20260527150000_fix_role_permissions_save.sql
