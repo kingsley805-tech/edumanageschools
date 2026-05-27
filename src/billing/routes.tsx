@@ -5,8 +5,10 @@ import BillingPayments from "@/billing/pages/admin/Payments";
 import BillingFeeStructure from "@/billing/pages/admin/FeeStructure";
 import BillingPaidStudents from "@/billing/pages/admin/PaidStudents";
 import BillingOutstandingStudents from "@/billing/pages/admin/OutstandingStudents";
+import ConsolidatedBilling from "@/billing/pages/admin/ConsolidatedBilling";
 
 export const BillingReportsPage = withBillingLayout("admin", BillingReports);
+export const BillingConsolidatedPage = withBillingLayout("admin", ConsolidatedBilling);
 export const BillingInvoicesPage = withBillingLayout("admin", BillingInvoices);
 export const BillingPaymentsPage = withBillingLayout("admin", BillingPayments);
 export const BillingFeesPage = withBillingLayout("admin", BillingFeeStructure);

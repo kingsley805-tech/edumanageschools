@@ -1,0 +1,9 @@
+-- =============================================================================
+-- Multi-Child Consolidated Billing Engine
+-- Run in Supabase SQL Editor: supabase/migrations/20260528000000_multi_child_consolidated_billing.sql
+-- =============================================================================
+-- After migration:
+-- 1. Admin → Billing → Family Billing → "Initial setup"
+-- 2. Add fee templates (global / grade / student)
+-- 3. "Generate consolidated invoices"
+-- 4. Record payments (auto waterfall: overdue → category priority → proportional)

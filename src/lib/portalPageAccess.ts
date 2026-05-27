@@ -158,6 +158,19 @@ export const PORTAL_PAGES: PortalPageDef[] = [
     },
   },
   {
+    key: "billing_family",
+    label: "Family Billing",
+    section: "Financial Management",
+    path: "/admin/billing/family",
+    assignableTo: ["accountant"],
+    permissions: {
+      view: "billing.family.view",
+      create: "billing.family.create",
+      edit: "billing.family.edit",
+      manage: "billing.family.manage",
+    },
+  },
+  {
     key: "billing_payments",
     label: "Payments",
     section: "Financial Management",

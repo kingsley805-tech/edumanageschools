@@ -2,7 +2,7 @@
 
 **Audience:** Database / backend engineer implementing billing for School Hub  
 **Stack:** Supabase (PostgreSQL 15+), Row Level Security, Deno Edge Functions, Stripe  
-**Status:** Specification + migration blueprint (not yet implemented in schema)
+**Status:** Implemented in migration `20260528000000_multi_child_consolidated_billing.sql` + admin UI `/admin/billing/family`
 
 ---
 

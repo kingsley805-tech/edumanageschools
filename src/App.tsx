@@ -83,6 +83,7 @@ import {
   BillingFeesPage,
   BillingPaidStudentsPage,
   BillingOutstandingStudentsPage,
+  BillingConsolidatedPage,
 } from "@/billing/routes";
 
 function App() {
@@ -186,6 +187,11 @@ function App() {
               <Route path="/admin/billing/reports" element={
                 <ProtectedRoute allowedRoles={["admin", "super_admin", "accountant", "auditor"]}>
                   <BillingReportsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/billing/family" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin", "accountant"]}>
+                  <BillingConsolidatedPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/fees" element={<Navigate to="/admin/billing/invoices" replace />} />

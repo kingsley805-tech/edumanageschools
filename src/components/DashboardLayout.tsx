@@ -154,6 +154,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
             { icon: Users, label: "Paid Students", path: "/admin/billing/paid-students" },
             { icon: Users, label: "Outstanding", path: "/admin/billing/outstanding" },
             { icon: BarChart3, label: "Reports", path: "/admin/billing/reports" },
+            { icon: Users, label: "Family Billing", path: "/admin/billing/family" },
           ],
         },
         {
@@ -209,6 +210,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
             { icon: Users, label: "Paid Students", path: "/admin/billing/paid-students", permission: PERMISSIONS.fees.viewStatus },
             { icon: Users, label: "Outstanding", path: "/admin/billing/outstanding", permission: PERMISSIONS.invoices.view },
             { icon: BarChart3, label: "Reports", path: "/admin/billing/reports", permission: PERMISSIONS.reports.viewFinancial },
+            { icon: Users, label: "Family Billing", path: "/admin/billing/family" },
           ],
         },
         {

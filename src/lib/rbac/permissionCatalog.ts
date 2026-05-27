@@ -85,6 +85,12 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
       { key: "billing_paid", label: "Paid Students", path: "/admin/billing/paid-students", actions: ["view", "export"] },
       { key: "billing_outstanding", label: "Outstanding", path: "/admin/billing/outstanding", actions: ["view", "export"] },
       { key: "billing_reports", label: "Reports", path: "/admin/billing/reports", actions: ["view", "export", "manage"] },
+      {
+        key: "billing_family",
+        label: "Family Billing",
+        path: "/admin/billing/family",
+        actions: ["view", "create", "edit", "manage", "export"],
+      },
     ],
   },
   {
