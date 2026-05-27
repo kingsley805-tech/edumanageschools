@@ -159,57 +159,39 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/admin/billing/invoices" element={
-                <ProtectedRoute
-                  allowedRoles={["admin", "super_admin", "accountant", "auditor"]}
-                  requiredAnyPermission={[PERMISSIONS.invoices.view, PERMISSIONS.invoices.create]}
-                >
+                <ProtectedRoute allowedRoles={["admin", "super_admin", "accountant", "auditor"]}>
                   <BillingInvoicesPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/billing/payments" element={
-                <ProtectedRoute
-                  allowedRoles={["admin", "super_admin", "accountant", "auditor"]}
-                  requiredPermission={PERMISSIONS.payments.view}
-                >
+                <ProtectedRoute allowedRoles={["admin", "super_admin", "accountant", "auditor"]}>
                   <BillingPaymentsPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/billing/fees" element={
-                <ProtectedRoute
-                  allowedRoles={["admin", "super_admin", "accountant"]}
-                  requiredPermission={PERMISSIONS.billing.feeTemplates}
-                >
+                <ProtectedRoute allowedRoles={["admin", "super_admin", "accountant"]}>
                   <BillingFeesPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/billing/paid-students" element={
-                <ProtectedRoute
-                  allowedRoles={["admin", "super_admin", "accountant", "auditor"]}
-                  requiredPermission={PERMISSIONS.fees.viewStatus}
-                >
+                <ProtectedRoute allowedRoles={["admin", "super_admin", "accountant", "auditor"]}>
                   <BillingPaidStudentsPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/billing/outstanding" element={
-                <ProtectedRoute
-                  allowedRoles={["admin", "super_admin", "accountant", "auditor"]}
-                  requiredPermission={PERMISSIONS.invoices.view}
-                >
+                <ProtectedRoute allowedRoles={["admin", "super_admin", "accountant", "auditor"]}>
                   <BillingOutstandingStudentsPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/billing/reports" element={
-                <ProtectedRoute
-                  allowedRoles={["admin", "super_admin", "accountant", "auditor"]}
-                  requiredPermission={PERMISSIONS.reports.viewFinancial}
-                >
+                <ProtectedRoute allowedRoles={["admin", "super_admin", "accountant", "auditor"]}>
                   <BillingReportsPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/fees" element={<Navigate to="/admin/billing/invoices" replace />} />
               <Route path="/admin/fee-structures" element={<Navigate to="/admin/billing/fees" replace />} />
               <Route path="/admin/roles" element={
-                <ProtectedRoute allowedRoles={["admin", "super_admin"]} requiredPermission={PERMISSIONS.admin.manageRoles}>
+                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
                   <RoleManagement />
                 </ProtectedRoute>
               } />

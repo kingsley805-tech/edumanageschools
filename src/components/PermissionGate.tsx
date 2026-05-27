@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useUserRole } from "@/hooks/useUserRole";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ShieldAlert } from "lucide-react";
 
@@ -20,8 +21,10 @@ export const PermissionGate = ({
   fallback = null,
   showDenied = false,
 }: PermissionGateProps) => {
-  const { hasPermission, hasAnyPermission, hasAllPermissions, loading, isSuperAdmin } =
+  const { hasPermission, hasAnyPermission, hasAllPermissions, loading, isSuperAdmin, isSchoolAdmin } =
     usePermissions();
+  const { role: portalRole } = useUserRole();
+  const isOwner = isSuperAdmin || isSchoolAdmin || portalRole === "admin";
 
   if (loading) {
     return (
@@ -31,7 +34,7 @@ export const PermissionGate = ({
     );
   }
 
-  let allowed = isSuperAdmin;
+  let allowed = isOwner;
   if (!allowed && permission) allowed = hasPermission(permission);
   if (!allowed && anyOf?.length) allowed = hasAnyPermission(anyOf);
   if (!allowed && allOf?.length) allowed = hasAllPermissions(allOf);

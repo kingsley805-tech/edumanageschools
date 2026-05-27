@@ -68,8 +68,10 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
   const { hasPermission, isSuperAdmin: isSuperAdminPerm } = usePermissions();
   const isSuperAdmin = userRole === "super_admin" || isSuperAdminPerm;
 
+  /** Portal school admins see the full menu; route guards still enforce RBAC. */
+  const isPortalSchoolAdmin = userRole === "admin";
   const canShow = (permission?: string) =>
-    !permission || isSuperAdmin || hasPermission(permission);
+    !permission || isSuperAdmin || isPortalSchoolAdmin || hasPermission(permission);
 
   const filterMenu = (items: MenuItemDef[]): MenuItemDef[] =>
     items
@@ -143,12 +145,12 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           label: "Financial Management",
           icon: DollarSign,
           items: [
-            { icon: Wallet, label: "Fees", path: "/admin/billing/fees", permission: PERMISSIONS.billing.feeTemplates },
-            { icon: DollarSign, label: "Invoices", path: "/admin/billing/invoices", permission: PERMISSIONS.invoices.view },
-            { icon: FileText, label: "Payments", path: "/admin/billing/payments", permission: PERMISSIONS.payments.view },
-            { icon: Users, label: "Paid Students", path: "/admin/billing/paid-students", permission: PERMISSIONS.fees.viewStatus },
-            { icon: Users, label: "Outstanding", path: "/admin/billing/outstanding", permission: PERMISSIONS.invoices.view },
-            { icon: BarChart3, label: "Reports", path: "/admin/billing/reports", permission: PERMISSIONS.reports.viewFinancial },
+            { icon: Wallet, label: "Fees", path: "/admin/billing/fees" },
+            { icon: DollarSign, label: "Invoices", path: "/admin/billing/invoices" },
+            { icon: FileText, label: "Payments", path: "/admin/billing/payments" },
+            { icon: Users, label: "Paid Students", path: "/admin/billing/paid-students" },
+            { icon: Users, label: "Outstanding", path: "/admin/billing/outstanding" },
+            { icon: BarChart3, label: "Reports", path: "/admin/billing/reports" },
           ],
         },
         {
@@ -175,7 +177,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           icon: UserCog,
           items: [
             { icon: Building, label: "School Settings", path: "/admin/school-settings" },
-            { icon: Shield, label: "Roles & Permissions", path: "/admin/roles", permission: PERMISSIONS.admin.manageRoles },
+            { icon: Shield, label: "Roles & Permissions", path: "/admin/roles" },
             { icon: FileText, label: "Approvals", path: "/admin/approvals", permission: PERMISSIONS.admin.approveRequests },
             { icon: FileText, label: "Audit Logs", path: "/admin/audit-logs", permission: PERMISSIONS.admin.viewAudit },
             ...(isSuperAdmin
@@ -387,11 +389,11 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
 
   /** Flat sidebar nav — no pill backgrounds */
   const navLinkBase =
-    "group flex items-center gap-3 border-l-2 border-transparent py-2.5 pl-3 pr-2 text-sm text-sidebar-foreground/55 transition-colors hover:text-sidebar-foreground";
+    "group flex items-center gap-3 border-l-2 border-transparent py-2.5 pl-3 pr-2 text-sm text-sidebar-foreground/85 transition-colors hover:text-sidebar-foreground";
   const navLinkActive =
     "border-[hsl(var(--sidebar-primary))] text-sidebar-foreground font-medium !bg-transparent";
   const navSubLinkBase =
-    "group flex items-center gap-2.5 border-l-2 border-transparent py-2 pl-8 pr-2 text-sm text-sidebar-foreground/50 transition-colors hover:text-sidebar-foreground";
+    "group flex items-center gap-2.5 border-l-2 border-transparent py-2 pl-8 pr-2 text-sm text-sidebar-foreground/85 transition-colors hover:text-sidebar-foreground";
   // Guard against invalid or missing role
   if (!config) {
     return (

@@ -55,7 +55,7 @@ interface StaffUser {
 
 const RoleManagement = () => {
   const { toast } = useToast();
-  const { schoolId, hasPermission, invalidateCache } = usePermissions();
+  const { schoolId, hasPermission, invalidateCache, isSchoolAdmin, isSuperAdmin } = usePermissions();
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [permissions, setPermissions] = useState<PermissionRow[]>([]);
   const [rolePermissionIds, setRolePermissionIds] = useState<Set<string>>(new Set());
@@ -65,6 +65,11 @@ const RoleManagement = () => {
   const [assignUserId, setAssignUserId] = useState("");
   const [assignRoleId, setAssignRoleId] = useState("");
   const [loading, setLoading] = useState(true);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [creatingRole, setCreatingRole] = useState(false);
+
+  const canManagePermissions = isSchoolAdmin || isSuperAdmin || hasPermission(PERMISSIONS.admin.managePermissions);
+  const editableRoleSlugs = new Set(["accountant", "auditor", "teacher"]);
 
   const selectedRole = roles.find((r) => r.id === selectedRoleId);
 
@@ -102,7 +107,7 @@ const RoleManagement = () => {
           .from("user_roles")
           .select("user_id, role")
           .in("user_id", ids)
-          .in("role", ["admin", "accountant", "auditor", "super_admin"]);
+          .in("role", ["admin", "accountant", "auditor", "teacher", "super_admin"]);
         const staffIds = new Set((adminRoles ?? []).map((r) => r.user_id));
         setStaff(
           profiles
@@ -136,8 +141,17 @@ const RoleManagement = () => {
 
   const togglePermission = async (permId: string, checked: boolean) => {
     if (!selectedRoleId || !schoolId) return;
-    if (!hasPermission(PERMISSIONS.admin.managePermissions)) {
+    if (!canManagePermissions) {
       toast({ title: "Denied", description: "You cannot modify permissions.", variant: "destructive" });
+      return;
+    }
+
+    if (selectedRole?.is_system && selectedRole.slug === "school_admin" && !isSuperAdmin) {
+      toast({
+        title: "Protected role",
+        description: "School Admin permissions are fixed. Edit Accountant, Auditor, or custom roles for staff.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -229,6 +243,7 @@ const RoleManagement = () => {
       school_admin: "admin",
       accountant: "accountant",
       auditor: "auditor",
+      teacher: "teacher",
     };
     const portalRole = role ? portalMap[role.slug] : null;
     if (portalRole) {
@@ -250,10 +265,42 @@ const RoleManagement = () => {
     clearPermissionCache();
   };
 
+  const createSchoolRole = async () => {
+    if (!schoolId || !newRoleName.trim()) return;
+    setCreatingRole(true);
+    const slug = newRoleName
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_|_$/g, "");
+    const { data: newRole, error } = await supabase
+      .from("roles")
+      .insert({
+        school_id: schoolId,
+        slug: `${slug}_${Date.now().toString(36).slice(-4)}`,
+        name: newRoleName.trim(),
+        description: "Custom staff role",
+        is_system: false,
+      })
+      .select()
+      .single();
+    setCreatingRole(false);
+    if (error || !newRole) {
+      toast({ title: "Could not create role", description: error?.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Role created", description: "Assign permissions below, then assign staff on the User Assignments tab." });
+    setNewRoleName("");
+    await fetchData();
+    setSelectedRoleId(newRole.id);
+  };
+
   const layoutRole = "admin";
+  const roleCanEditPermissions = (r: RoleRow) =>
+    !r.is_system || editableRoleSlugs.has(r.slug) || (r.slug === "school_admin" && isSuperAdmin);
 
   return (
-    <PermissionGate permission={PERMISSIONS.admin.manageRoles} showDenied>
+    <PermissionGate anyOf={[PERMISSIONS.admin.manageRoles]} showDenied>
       <DashboardLayout role={layoutRole}>
         <div className="space-y-6">
           <div className="flex items-center justify-between">
@@ -263,7 +310,7 @@ const RoleManagement = () => {
                 Roles & Permissions
               </h1>
               <p className="text-muted-foreground">
-                Manage access control for staff, billing, and academic modules
+                Give employees access: pick a role, toggle permissions, then assign the role on User Assignments.
               </p>
             </div>
           </div>
@@ -302,6 +349,23 @@ const RoleManagement = () => {
                         Clone role
                       </Button>
                     )}
+                    <div className="pt-3 space-y-2 border-t mt-3">
+                      <Label className="text-xs">New custom role</Label>
+                      <Input
+                        placeholder="e.g. Bursar"
+                        value={newRoleName}
+                        onChange={(e) => setNewRoleName(e.target.value)}
+                      />
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        size="sm"
+                        disabled={!newRoleName.trim() || creatingRole}
+                        onClick={createSchoolRole}
+                      >
+                        Create role
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -335,7 +399,11 @@ const RoleManagement = () => {
                                 <Checkbox
                                   checked={rolePermissionIds.has(p.id)}
                                   onCheckedChange={(c) => togglePermission(p.id, c === true)}
-                                  disabled={selectedRole?.is_system && selectedRole.slug === "super_admin"}
+                                  disabled={
+                                    !selectedRole ||
+                                    !roleCanEditPermissions(selectedRole) ||
+                                    !canManagePermissions
+                                  }
                                 />
                                 <div>
                                   <span className="text-sm font-medium">{p.action}</span>
@@ -384,7 +452,11 @@ const RoleManagement = () => {
                       </SelectTrigger>
                       <SelectContent>
                         {roles
-                          .filter((r) => ["school_admin", "accountant", "auditor"].includes(r.slug))
+                          .filter(
+                            (r) =>
+                              ["accountant", "auditor", "teacher"].includes(r.slug) ||
+                              (r.school_id === schoolId && !r.is_system),
+                          )
                           .map((r) => (
                             <SelectItem key={r.id} value={r.id}>
                               {r.name}

@@ -57,8 +57,10 @@ export const ProtectedRoute = ({
     return null;
   }
 
+  const isPortalSchoolAdmin = role === "admin";
   const permissionDenied =
     !isSuperAdmin &&
+    !isPortalSchoolAdmin &&
     ((requiredPermission && !hasPermission(requiredPermission)) ||
       (requiredAnyPermission?.length && !hasAnyPermission(requiredAnyPermission)));
 

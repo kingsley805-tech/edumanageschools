@@ -1,4 +1,4 @@
-import { useState, useEffect, type ComponentType } from "react";
+import { useState, type ComponentType } from "react";
 import { useLocation } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
@@ -30,44 +30,29 @@ export function SidebarMenuGroup({
   navLinkActive,
 }: SidebarMenuGroupProps) {
   const location = useLocation();
-  const [hovered, setHovered] = useState(false);
-  const [pinned, setPinned] = useState(false);
-  const [isTouch, setIsTouch] = useState(false);
-
   const hasActiveChild = items.some(
     (sub) =>
       location.pathname === sub.path ||
       location.pathname.startsWith(sub.path + "/")
   );
 
-  useEffect(() => {
-    const mq = window.matchMedia("(hover: none)");
-    const update = () => setIsTouch(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
-
-  const expanded = hovered || pinned || hasActiveChild;
+  // Keep section items visible (edubill-style); hover-only collapse hid menu labels.
+  const [expanded, setExpanded] = useState(true);
 
   const handleHeaderClick = () => {
-    if (isTouch) setPinned((p) => !p);
+    setExpanded((p) => !p);
   };
 
   return (
-    <div
-      className="pt-2 first:pt-0"
-      onMouseEnter={() => !isTouch && setHovered(true)}
-      onMouseLeave={() => !isTouch && setHovered(false)}
-    >
+    <div className="pt-2 first:pt-0">
       <button
         type="button"
         onClick={handleHeaderClick}
         className={cn(
           "flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm transition-colors",
           "text-sidebar-foreground/55 hover:text-sidebar-foreground",
-          expanded && "text-sidebar-foreground",
-          hasActiveChild && "text-sidebar-foreground font-medium"
+          (expanded || hasActiveChild) && "text-sidebar-foreground",
+          hasActiveChild && "font-medium"
         )}
         aria-expanded={expanded}
       >
@@ -95,7 +80,6 @@ export function SidebarMenuGroup({
                 to={subItem.path}
                 className={navSubLinkBase}
                 activeClassName={navLinkActive}
-                onClick={() => isTouch && setPinned(false)}
               >
                 <subItem.icon className="h-4 w-4 flex-shrink-0 opacity-70 group-hover:opacity-100" />
                 <span className="flex-1 truncate">{subItem.label}</span>
