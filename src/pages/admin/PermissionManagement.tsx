@@ -26,6 +26,7 @@ import {
   type RoleRow,
 } from "@/lib/rbac/rbacService";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchStaffPortalUsers } from "@/lib/staffUsers";
 import {
   Shield,
   Save,
@@ -120,31 +121,19 @@ export default function PermissionManagement() {
 
   const loadStaff = useCallback(async () => {
     if (!schoolId) return;
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, full_name, email")
-      .eq("school_id", schoolId);
+    const staffUsers = await fetchStaffPortalUsers(schoolId);
+    const staffIds = staffUsers.map((s) => s.id);
 
-    const ids = (profiles ?? []).map((p) => p.id);
-    if (!ids.length) {
+    if (!staffIds.length) {
       setStaff([]);
       return;
     }
-
-    const { data: portalRoles } = await supabase
-      .from("user_roles")
-      .select("user_id, role")
-      .in("user_id", ids)
-      .in("role", ["admin", "accountant", "auditor", "teacher"]);
-
-    const staffIds = new Set((portalRoles ?? []).map((r) => r.user_id));
-    const portalMap = new Map((portalRoles ?? []).map((r) => [r.user_id, r.role]));
 
     const { data: assignments } = await supabase
       .from("user_role_assignments")
       .select("user_id, role_id, roles(id, name, slug)")
       .eq("school_id", schoolId)
-      .in("user_id", [...staffIds]);
+      .in("user_id", staffIds);
 
     const rbacMap = new Map(
       (assignments ?? []).map((a) => [
@@ -154,16 +143,14 @@ export default function PermissionManagement() {
     );
 
     setStaff(
-      (profiles ?? [])
-        .filter((p) => staffIds.has(p.id))
-        .map((p) => ({
-          id: p.id,
-          full_name: p.full_name ?? "—",
-          email: p.email ?? "",
-          portal_role: portalMap.get(p.id) ?? "—",
-          rbac_role_id: rbacMap.get(p.id)?.id ?? null,
-          rbac_role_name: rbacMap.get(p.id)?.name ?? null,
-        })),
+      staffUsers.map((p) => ({
+        id: p.id,
+        full_name: p.full_name,
+        email: p.email,
+        portal_role: p.portal_role,
+        rbac_role_id: rbacMap.get(p.id)?.id ?? null,
+        rbac_role_name: rbacMap.get(p.id)?.name ?? null,
+      })),
     );
   }, [schoolId]);
 
@@ -315,7 +302,8 @@ export default function PermissionManagement() {
       toast({ title: "Role assigned to staff member" });
     } catch (e) {
       console.error(e);
-      toast({ title: "Assignment failed", variant: "destructive" });
+      const message = e instanceof Error ? e.message : "Assignment failed";
+      toast({ title: message, variant: "destructive" });
     }
   };
 

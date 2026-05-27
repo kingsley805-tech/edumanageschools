@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
+import { isPortalStudentUser } from "@/lib/portalIdentity";
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const permissionCache = new Map<string, { codes: Set<string>; expires: number }>();
 
 export const usePermissions = () => {
   const { user } = useAuth();
-  const { role: portalRole, loading: roleLoading } = useUserRole();
+  const { role: portalRole, loading: roleLoading, isStudent } = useUserRole();
   const [permissions, setPermissions] = useState<Set<string>>(new Set());
   const [schoolId, setSchoolId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,6 +31,13 @@ export const usePermissions = () => {
     const sid = profile?.school_id ?? null;
     setSchoolId(sid);
 
+    const studentAccount = isStudent || (await isPortalStudentUser(user.id));
+    if (studentAccount) {
+      setPermissions(new Set());
+      setLoading(false);
+      return;
+    }
+
     const cacheKey = `${user.id}:${sid ?? "global"}`;
     const cached = permissionCache.get(cacheKey);
     if (cached && cached.expires > Date.now()) {
@@ -38,7 +46,7 @@ export const usePermissions = () => {
       return;
     }
 
-    if (portalRole === "super_admin") {
+    if (portalRole === "super_admin" || portalRole === "admin") {
       const { data: allPerms } = await supabase.from("permissions").select("code");
       const codes = new Set((allPerms ?? []).map((p) => p.code));
       permissionCache.set(cacheKey, { codes, expires: Date.now() + CACHE_TTL_MS });
@@ -61,27 +69,33 @@ export const usePermissions = () => {
       setPermissions(codes);
     }
     setLoading(false);
-  }, [user, portalRole]);
+  }, [user, portalRole, isStudent]);
 
   useEffect(() => {
     if (!roleLoading) fetchPermissions();
   }, [fetchPermissions, roleLoading]);
 
+  const isSchoolAdmin = portalRole === "admin";
+
   const hasPermission = useCallback(
-    (code: string) => portalRole === "super_admin" || permissions.has(code),
-    [permissions, portalRole],
+    (code: string) =>
+      !isStudent &&
+      (portalRole === "super_admin" || isSchoolAdmin || permissions.has(code)),
+    [permissions, portalRole, isStudent, isSchoolAdmin],
   );
 
   const hasAnyPermission = useCallback(
     (codes: string[]) =>
-      portalRole === "super_admin" || codes.some((c) => permissions.has(c)),
-    [permissions, portalRole],
+      !isStudent &&
+      (portalRole === "super_admin" || isSchoolAdmin || codes.some((c) => permissions.has(c))),
+    [permissions, portalRole, isStudent, isSchoolAdmin],
   );
 
   const hasAllPermissions = useCallback(
     (codes: string[]) =>
-      portalRole === "super_admin" || codes.every((c) => permissions.has(c)),
-    [permissions, portalRole],
+      !isStudent &&
+      (portalRole === "super_admin" || isSchoolAdmin || codes.every((c) => permissions.has(c))),
+    [permissions, portalRole, isStudent, isSchoolAdmin],
   );
 
   const canAccessSchool = useCallback(
@@ -110,6 +124,7 @@ export const usePermissions = () => {
     canAccessSchool,
     invalidateCache,
     isSuperAdmin: portalRole === "super_admin",
+    isSchoolAdmin,
   };
 };
 

@@ -136,6 +136,13 @@ export async function assignRoleToUser(params: {
   assignedBy?: string;
   roleSlug: string;
 }): Promise<void> {
+  const [{ data: studentRow }, { data: studentRole }] = await Promise.all([
+    supabase.from("students").select("id").eq("user_id", params.userId).eq("school_id", params.schoolId).maybeSingle(),
+    supabase.from("user_roles").select("role").eq("user_id", params.userId).eq("role", "student").maybeSingle(),
+  ]);
+  if (studentRow || studentRole) {
+    throw new Error("Students cannot be assigned staff RBAC roles.");
+  }
   await supabase
     .from("user_role_assignments")
     .delete()

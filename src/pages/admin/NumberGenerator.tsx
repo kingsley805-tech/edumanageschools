@@ -199,7 +199,7 @@ const NumberGenerator = () => {
 
       toast({ 
         title: "Success", 
-        description: `Generated ${bulkCount} ${numberType === "student" ? "student" : "employee"} number(s)` 
+        description: `Generated ${bulkCount} ${numberType === "student" ? "student" : "staff"} number(s)` 
       });
       setShowBulkDialog(false);
       setBulkCount(1);
@@ -299,7 +299,7 @@ const NumberGenerator = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h2 className="text-3xl font-bold tracking-tight">Registration Numbers</h2>
-            <p className="text-muted-foreground">Generate and manage student/employee registration numbers</p>
+            <p className="text-muted-foreground">Generate student numbers and staff numbers (teachers &amp; admin staff only)</p>
           </div>
           <div className="flex gap-2">
             {/* Single Generate Dialog */}
@@ -334,7 +334,7 @@ const NumberGenerator = () => {
                         <SelectItem value="employee">
                           <div className="flex items-center gap-2">
                             <Briefcase className="h-4 w-4" />
-                            Employee (EMP-{currentYear}-NNN)
+                            Staff (EMP-{currentYear}-NNN)
                           </div>
                         </SelectItem>
                       </SelectContent>
@@ -407,7 +407,7 @@ const NumberGenerator = () => {
                         <SelectItem value="employee">
                           <div className="flex items-center gap-2">
                             <Briefcase className="h-4 w-4" />
-                            Employee (EMP-{currentYear}-NNN)
+                            Staff (EMP-{currentYear}-NNN)
                           </div>
                         </SelectItem>
                       </SelectContent>
@@ -487,7 +487,7 @@ const NumberGenerator = () => {
           
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Employee Numbers</CardDescription>
+              <CardDescription>Staff Numbers</CardDescription>
               <CardTitle className="text-2xl flex items-center gap-2">
                 <Briefcase className="h-5 w-5 text-accent" />
                 {stats.totalEmployee}
@@ -514,7 +514,7 @@ const NumberGenerator = () => {
           
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Available Employee</CardDescription>
+              <CardDescription>Available Staff</CardDescription>
               <CardTitle className="text-2xl text-accent">
                 {stats.totalEmployee - stats.usedEmployee}
               </CardTitle>

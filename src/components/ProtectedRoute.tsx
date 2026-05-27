@@ -27,8 +27,8 @@ export const ProtectedRoute = ({
   skipPathGuard = false,
 }: ProtectedRouteProps) => {
   const { user, loading: authLoading } = useAuth();
-  const { role, roles, loading: roleLoading } = useUserRole();
-  const { hasPermission, hasAnyPermission, loading: permLoading, isSuperAdmin } =
+  const { role, roles, loading: roleLoading, isStudent } = useUserRole();
+  const { hasPermission, hasAnyPermission, loading: permLoading, isSuperAdmin, isSchoolAdmin } =
     usePermissions();
   const navigate = useNavigate();
   const location = useLocation();
@@ -40,13 +40,23 @@ export const ProtectedRoute = ({
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
-    if (roleLoading || !role || !allowedRoles?.length) return;
+    if (roleLoading || !role) return;
+
+    if (
+      isStudent &&
+      PORTAL_RBAC_PREFIXES.some((p) => location.pathname.startsWith(p))
+    ) {
+      navigate(PORTAL_ROLE_ROUTES.student);
+      return;
+    }
+
+    if (!allowedRoles?.length) return;
 
     const allowed = allowedRoles.some((r) => roles.includes(r));
     if (!allowed) {
       navigate(PORTAL_ROLE_ROUTES[role] || "/");
     }
-  }, [role, roles, roleLoading, allowedRoles, navigate]);
+  }, [role, roles, roleLoading, allowedRoles, navigate, isStudent, location.pathname]);
 
   const loading = authLoading || roleLoading || permLoading;
 
@@ -74,6 +84,7 @@ export const ProtectedRoute = ({
 
   const permissionDenied =
     !isSuperAdmin &&
+    !isSchoolAdmin &&
     ((pathViewPermission && !hasPermission(pathViewPermission)) ||
       (requiredPermission && !hasPermission(requiredPermission)) ||
       (requiredAnyPermission?.length && !hasAnyPermission(requiredAnyPermission)));

@@ -1,0 +1,5 @@
+-- =============================================================================
+-- Students are not staff (run in Supabase Dashboard -> SQL Editor)
+-- 1. supabase/migrations/20260527130000_students_not_staff.sql
+-- 2. supabase/migrations/20260527140000_restore_portal_admin_access.sql  (required for school admins)
+-- =============================================================================
