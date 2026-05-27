@@ -191,7 +191,10 @@ function App() {
               <Route path="/admin/fees" element={<Navigate to="/admin/billing/invoices" replace />} />
               <Route path="/admin/fee-structures" element={<Navigate to="/admin/billing/fees" replace />} />
               <Route path="/admin/roles" element={
-                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                <ProtectedRoute
+                  allowedRoles={["admin", "super_admin"]}
+                  requiredAnyPermission={["portal.staff_access.view", "portal.staff_access.manage", "admin.manage_permissions"]}
+                >
                   <RoleManagement />
                 </ProtectedRoute>
               } />

@@ -36,32 +36,37 @@ export function SidebarMenuGroup({
       location.pathname.startsWith(sub.path + "/")
   );
 
-  // Keep section items visible (edubill-style); hover-only collapse hid menu labels.
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(hasActiveChild);
+  const [hovered, setHovered] = useState(false);
+  const showItems = expanded || hovered || hasActiveChild;
 
   const handleHeaderClick = () => {
     setExpanded((p) => !p);
   };
 
   return (
-    <div className="pt-2 first:pt-0">
+    <div
+      className="pt-2 first:pt-0"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <button
         type="button"
         onClick={handleHeaderClick}
         className={cn(
           "flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm transition-colors",
           "text-sidebar-foreground/55 hover:text-sidebar-foreground",
-          (expanded || hasActiveChild) && "text-sidebar-foreground",
+          showItems && "text-sidebar-foreground",
           hasActiveChild && "font-medium"
         )}
-        aria-expanded={expanded}
+        aria-expanded={showItems}
       >
         <Icon className="h-[18px] w-[18px] flex-shrink-0 opacity-70" />
         <span className="flex-1 text-left truncate">{label}</span>
         <ChevronRight
           className={cn(
             "h-4 w-4 flex-shrink-0 opacity-50 transition-transform duration-200",
-            expanded && "rotate-90"
+            showItems && "rotate-90"
           )}
         />
       </button>
@@ -69,7 +74,7 @@ export function SidebarMenuGroup({
       <div
         className={cn(
           "grid transition-[grid-template-rows,opacity] duration-200 ease-out",
-          expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+          showItems ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
         )}
       >
         <div className="overflow-hidden">

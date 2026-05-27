@@ -67,24 +67,21 @@ export const usePermissions = () => {
     if (!roleLoading) fetchPermissions();
   }, [fetchPermissions, roleLoading]);
 
-  const isSchoolAdmin = portalRole === "admin";
-
   const hasPermission = useCallback(
-    (code: string) =>
-      portalRole === "super_admin" || isSchoolAdmin || permissions.has(code),
-    [permissions, portalRole, isSchoolAdmin],
+    (code: string) => portalRole === "super_admin" || permissions.has(code),
+    [permissions, portalRole],
   );
 
   const hasAnyPermission = useCallback(
     (codes: string[]) =>
-      portalRole === "super_admin" || isSchoolAdmin || codes.some((c) => permissions.has(c)),
-    [permissions, portalRole, isSchoolAdmin],
+      portalRole === "super_admin" || codes.some((c) => permissions.has(c)),
+    [permissions, portalRole],
   );
 
   const hasAllPermissions = useCallback(
     (codes: string[]) =>
-      portalRole === "super_admin" || isSchoolAdmin || codes.every((c) => permissions.has(c)),
-    [permissions, portalRole, isSchoolAdmin],
+      portalRole === "super_admin" || codes.every((c) => permissions.has(c)),
+    [permissions, portalRole],
   );
 
   const canAccessSchool = useCallback(
@@ -113,7 +110,6 @@ export const usePermissions = () => {
     canAccessSchool,
     invalidateCache,
     isSuperAdmin: portalRole === "super_admin",
-    isSchoolAdmin,
   };
 };
 

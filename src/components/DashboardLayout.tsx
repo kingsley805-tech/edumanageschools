@@ -40,6 +40,9 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { SchoolSwitcher } from "./SchoolSwitcher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SidebarMenuGroup } from "@/components/SidebarMenuGroup";
+import { DynamicAdminSidebarNav } from "@/components/layout/DynamicAdminSidebarNav";
+import { usePortalAccess } from "@/hooks/usePortalAccess";
+import { ADMIN_SHELL_ROLES } from "@/lib/rbac/routeGuards";
 
 type MenuLinkDef = {
   icon: typeof LayoutDashboard;
@@ -67,11 +70,11 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
   const { role: userRole } = useUserRole();
   const { hasPermission, isSuperAdmin: isSuperAdminPerm } = usePermissions();
   const isSuperAdmin = userRole === "super_admin" || isSuperAdminPerm;
+  const { navItems: dynamicNavItems, loading: dynamicNavLoading } = usePortalAccess();
+  const usesDynamicAdminNav = (ADMIN_SHELL_ROLES as readonly string[]).includes(role);
 
-  /** Portal school admins see the full menu; route guards still enforce RBAC. */
-  const isPortalSchoolAdmin = userRole === "admin";
   const canShow = (permission?: string) =>
-    !permission || isSuperAdmin || isPortalSchoolAdmin || hasPermission(permission);
+    !permission || isSuperAdmin || hasPermission(permission);
 
   const filterMenu = (items: MenuItemDef[]): MenuItemDef[] =>
     items
@@ -177,7 +180,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           icon: UserCog,
           items: [
             { icon: Building, label: "School Settings", path: "/admin/school-settings" },
-            { icon: Shield, label: "Roles & Permissions", path: "/admin/roles" },
+            { icon: Shield, label: "Permission Management", path: "/admin/roles", permission: "portal.staff_access.view" },
             { icon: FileText, label: "Approvals", path: "/admin/approvals", permission: PERMISSIONS.admin.approveRequests },
             { icon: FileText, label: "Audit Logs", path: "/admin/audit-logs", permission: PERMISSIONS.admin.viewAudit },
             ...(isSuperAdmin
@@ -376,12 +379,21 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
     },
   };
 
+  const shellTitles: Record<string, string> = {
+    admin: "Admin",
+    super_admin: "Admin",
+    accountant: "Accountant",
+    auditor: "Auditor",
+  };
+
   // Map super_admin to admin config for shared admin shell
   const effectiveRole = role === "super_admin" ? "admin" : role;
   const baseConfig = roleConfig[effectiveRole] ?? roleConfig[role];
-  const config = baseConfig
-    ? { ...baseConfig, menuItems: filterMenu(baseConfig.menuItems as MenuItemDef[]) }
-    : undefined;
+  const config = usesDynamicAdminNav
+    ? { title: shellTitles[role] ?? "Portal", menuItems: [] as MenuItemDef[] }
+    : baseConfig
+      ? { ...baseConfig, menuItems: filterMenu(baseConfig.menuItems as MenuItemDef[]) }
+      : undefined;
 
   const handleLogout = async () => {
     await signOut();
@@ -446,42 +458,58 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
 
           {/* Menu Items */}
           <nav className="flex-1 space-y-0.5 px-2 py-3 overflow-y-auto overflow-x-hidden custom-scrollbar">
-            {config.menuItems.map((item: MenuItemDef, index: number) => {
-              if (item.type === "group") {
+            {usesDynamicAdminNav ? (
+              dynamicNavLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                </div>
+              ) : (
+                <DynamicAdminSidebarNav
+                  items={dynamicNavItems}
+                  unreadMessages={unreadMessages}
+                  navLinkBase={navLinkBase}
+                  navLinkActive={navLinkActive}
+                  navSubLinkBase={navSubLinkBase}
+                />
+              )
+            ) : (
+              config.menuItems.map((item: MenuItemDef, index: number) => {
+                if (item.type === "group") {
+                  return (
+                    <SidebarMenuGroup
+                      key={`group-${index}-${item.label}`}
+                      label={item.label}
+                      icon={item.icon}
+                      items={item.items}
+                      unreadMessages={unreadMessages}
+                      navSubLinkBase={navSubLinkBase}
+                      navLinkActive={navLinkActive}
+                    />
+                  );
+                }
+
                 return (
-                  <SidebarMenuGroup
-                    key={`group-${index}-${item.label}`}
-                    label={item.label}
-                    icon={item.icon}
-                    items={item.items}
-                    unreadMessages={unreadMessages}
-                    navSubLinkBase={navSubLinkBase}
-                    navLinkActive={navLinkActive}
-                  />
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    end={item.path === `/${role}`}
+                    className={navLinkBase}
+                    activeClassName={navLinkActive}
+                  >
+                    <item.icon className="h-[18px] w-[18px] flex-shrink-0 opacity-70 group-hover:opacity-100" />
+                    <span className="flex-1 truncate">{item.label}</span>
+                    {item.showBadge && unreadMessages > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="h-5 min-w-5 px-1 flex items-center justify-center text-[10px] flex-shrink-0"
+                      >
+                        {unreadMessages > 9 ? "9+" : unreadMessages}
+                      </Badge>
+                    )}
+                  </NavLink>
                 );
-              }
-              
-              return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  end={item.path === `/${role}`}
-                  className={navLinkBase}
-                  activeClassName={navLinkActive}
-                >
-                  <item.icon className="h-[18px] w-[18px] flex-shrink-0 opacity-70 group-hover:opacity-100" />
-                  <span className="flex-1 truncate">{item.label}</span>
-                  {item.showBadge && unreadMessages > 0 && (
-                    <Badge
-                      variant="destructive"
-                      className="h-5 min-w-5 px-1 flex items-center justify-center text-[10px] flex-shrink-0"
-                    >
-                      {unreadMessages > 9 ? "9+" : unreadMessages}
-                    </Badge>
-                  )}
-                </NavLink>
-              );
-            })}
+              })
+            )}
           </nav>
 
           {/* User Section */}
