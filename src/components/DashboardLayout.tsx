@@ -143,19 +143,12 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           label: "Financial Management",
           icon: DollarSign,
           items: [
-            { icon: DollarSign, label: "Invoices", path: "/admin/fees", permission: PERMISSIONS.invoices.view },
-            {
-              icon: Wallet,
-              label: "Fee Structures",
-              path: "/admin/fee-structures",
-              permission: PERMISSIONS.billing.feeTemplates,
-            },
-            {
-              icon: BarChart3,
-              label: "Billing Reports",
-              path: "/admin/billing/reports",
-              permission: PERMISSIONS.reports.viewFinancial,
-            },
+            { icon: Wallet, label: "Fees", path: "/admin/billing/fees", permission: PERMISSIONS.billing.feeTemplates },
+            { icon: DollarSign, label: "Invoices", path: "/admin/billing/invoices", permission: PERMISSIONS.invoices.view },
+            { icon: FileText, label: "Payments", path: "/admin/billing/payments", permission: PERMISSIONS.payments.view },
+            { icon: Users, label: "Paid Students", path: "/admin/billing/paid-students", permission: PERMISSIONS.fees.viewStatus },
+            { icon: Users, label: "Outstanding", path: "/admin/billing/outstanding", permission: PERMISSIONS.invoices.view },
+            { icon: BarChart3, label: "Reports", path: "/admin/billing/reports", permission: PERMISSIONS.reports.viewFinancial },
           ],
         },
         {
@@ -205,19 +198,12 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           label: "Billing",
           icon: DollarSign,
           items: [
-            { icon: DollarSign, label: "Invoices", path: "/admin/fees", permission: PERMISSIONS.invoices.view },
-            {
-              icon: Wallet,
-              label: "Fee Structures",
-              path: "/admin/fee-structures",
-              permission: PERMISSIONS.billing.feeTemplates,
-            },
-            {
-              icon: BarChart3,
-              label: "Billing Reports",
-              path: "/admin/billing/reports",
-              permission: PERMISSIONS.reports.viewFinancial,
-            },
+            { icon: Wallet, label: "Fees", path: "/admin/billing/fees", permission: PERMISSIONS.billing.feeTemplates },
+            { icon: DollarSign, label: "Invoices", path: "/admin/billing/invoices", permission: PERMISSIONS.invoices.view },
+            { icon: FileText, label: "Payments", path: "/admin/billing/payments", permission: PERMISSIONS.payments.view },
+            { icon: Users, label: "Paid Students", path: "/admin/billing/paid-students", permission: PERMISSIONS.fees.viewStatus },
+            { icon: Users, label: "Outstanding", path: "/admin/billing/outstanding", permission: PERMISSIONS.invoices.view },
+            { icon: BarChart3, label: "Reports", path: "/admin/billing/reports", permission: PERMISSIONS.reports.viewFinancial },
           ],
         },
         {
@@ -250,12 +236,13 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           label: "Finance",
           icon: DollarSign,
           items: [
-            { icon: DollarSign, label: "Invoices", path: "/admin/fees", permission: PERMISSIONS.invoices.view },
+            { icon: DollarSign, label: "Invoices", path: "/admin/billing/invoices", permission: PERMISSIONS.invoices.view },
+            { icon: BarChart3, label: "Billing Reports", path: "/admin/billing/reports", permission: PERMISSIONS.reports.viewFinancial },
             {
               icon: BarChart3,
-              label: "Financial Reports",
+              label: "Academic Reports",
               path: "/admin/reports",
-              permission: PERMISSIONS.reports.viewFinancial,
+              permission: PERMISSIONS.reports.viewAcademic,
             },
             {
               icon: FileText,

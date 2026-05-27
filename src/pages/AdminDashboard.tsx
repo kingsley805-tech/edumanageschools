@@ -271,7 +271,7 @@ const AdminDashboard = () => {
                 <GraduationCap className="h-4 w-4 md:h-5 md:w-5 text-accent flex-shrink-0" />
                 <span className="font-medium text-sm md:text-base">Add New Teacher</span>
               </button>
-              <button onClick={() => navigate("/admin/fees")} className="flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-lg border hover:bg-muted transition-colors text-left sm:col-span-2 md:col-span-1">
+              <button onClick={() => navigate("/admin/billing/invoices")} className="flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-lg border hover:bg-muted transition-colors text-left sm:col-span-2 md:col-span-1">
                 <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-success flex-shrink-0" />
                 <span className="font-medium text-sm md:text-base">Generate Invoice</span>
               </button>

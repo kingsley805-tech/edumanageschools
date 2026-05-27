@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { SchoolThemeProvider } from "./contexts/SchoolThemeContext";
@@ -22,8 +22,6 @@ import Students from "./pages/admin/Students";
 import Settings from "./pages/Settings";
 import Teachers from "./pages/admin/Teachers";
 import Classes from "./pages/admin/Classes";
-import Fees from "./pages/admin/Fees";
-import FeeStructures from "./pages/admin/FeeStructures";
 import AdminAttendance from "./pages/admin/Attendance";
 import AdminTimetable from "./pages/admin/Timetable";
 import Reports from "@/report/pages/admin/AnalyticsReports";
@@ -78,7 +76,14 @@ import AuditorDashboard from "./pages/admin/AuditorDashboard";
 import AuditLogs from "./pages/admin/AuditLogs";
 import ApprovalRequests from "./pages/admin/ApprovalRequests";
 import { PERMISSIONS } from "./lib/permissions";
-import BillingReports from "@/billing/pages/admin/BillingReports";
+import {
+  BillingReportsPage,
+  BillingInvoicesPage,
+  BillingPaymentsPage,
+  BillingFeesPage,
+  BillingPaidStudentsPage,
+  BillingOutstandingStudentsPage,
+} from "@/billing/routes";
 
 function App() {
   const [queryClient] = useState(() => new QueryClient());
@@ -153,20 +158,44 @@ function App() {
                   <Classes />
                 </ProtectedRoute>
               } />
-              <Route path="/admin/fees" element={
+              <Route path="/admin/billing/invoices" element={
                 <ProtectedRoute
                   allowedRoles={["admin", "super_admin", "accountant", "auditor"]}
                   requiredAnyPermission={[PERMISSIONS.invoices.view, PERMISSIONS.invoices.create]}
                 >
-                  <Fees />
+                  <BillingInvoicesPage />
                 </ProtectedRoute>
               } />
-              <Route path="/admin/fee-structures" element={
+              <Route path="/admin/billing/payments" element={
+                <ProtectedRoute
+                  allowedRoles={["admin", "super_admin", "accountant", "auditor"]}
+                  requiredPermission={PERMISSIONS.payments.view}
+                >
+                  <BillingPaymentsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/billing/fees" element={
                 <ProtectedRoute
                   allowedRoles={["admin", "super_admin", "accountant"]}
                   requiredPermission={PERMISSIONS.billing.feeTemplates}
                 >
-                  <FeeStructures />
+                  <BillingFeesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/billing/paid-students" element={
+                <ProtectedRoute
+                  allowedRoles={["admin", "super_admin", "accountant", "auditor"]}
+                  requiredPermission={PERMISSIONS.fees.viewStatus}
+                >
+                  <BillingPaidStudentsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/billing/outstanding" element={
+                <ProtectedRoute
+                  allowedRoles={["admin", "super_admin", "accountant", "auditor"]}
+                  requiredPermission={PERMISSIONS.invoices.view}
+                >
+                  <BillingOutstandingStudentsPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/billing/reports" element={
@@ -174,9 +203,11 @@ function App() {
                   allowedRoles={["admin", "super_admin", "accountant", "auditor"]}
                   requiredPermission={PERMISSIONS.reports.viewFinancial}
                 >
-                  <BillingReports />
+                  <BillingReportsPage />
                 </ProtectedRoute>
               } />
+              <Route path="/admin/fees" element={<Navigate to="/admin/billing/invoices" replace />} />
+              <Route path="/admin/fee-structures" element={<Navigate to="/admin/billing/fees" replace />} />
               <Route path="/admin/roles" element={
                 <ProtectedRoute allowedRoles={["admin", "super_admin"]} requiredPermission={PERMISSIONS.admin.manageRoles}>
                   <RoleManagement />

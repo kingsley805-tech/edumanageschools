@@ -64,7 +64,7 @@ const AuditorDashboard = () => {
           </div>
           <div className="flex flex-wrap gap-2">
             {hasPermission(PERMISSIONS.invoices.view) && (
-              <Button variant="outline" onClick={() => navigate("/admin/fees")}>
+              <Button variant="outline" onClick={() => navigate("/admin/billing/invoices")}>
                 <FileText className="h-4 w-4 mr-2" />
                 View invoices
               </Button>
