@@ -150,6 +150,12 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
               path: "/admin/fee-structures",
               permission: PERMISSIONS.billing.feeTemplates,
             },
+            {
+              icon: BarChart3,
+              label: "Billing Reports",
+              path: "/admin/billing/reports",
+              permission: PERMISSIONS.reports.viewFinancial,
+            },
           ],
         },
         {
@@ -205,6 +211,12 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
               label: "Fee Structures",
               path: "/admin/fee-structures",
               permission: PERMISSIONS.billing.feeTemplates,
+            },
+            {
+              icon: BarChart3,
+              label: "Billing Reports",
+              path: "/admin/billing/reports",
+              permission: PERMISSIONS.reports.viewFinancial,
             },
           ],
         },

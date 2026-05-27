@@ -78,6 +78,7 @@ import AuditorDashboard from "./pages/admin/AuditorDashboard";
 import AuditLogs from "./pages/admin/AuditLogs";
 import ApprovalRequests from "./pages/admin/ApprovalRequests";
 import { PERMISSIONS } from "./lib/permissions";
+import BillingReports from "@/billing/pages/admin/BillingReports";
 
 function App() {
   const [queryClient] = useState(() => new QueryClient());
@@ -166,6 +167,14 @@ function App() {
                   requiredPermission={PERMISSIONS.billing.feeTemplates}
                 >
                   <FeeStructures />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/billing/reports" element={
+                <ProtectedRoute
+                  allowedRoles={["admin", "super_admin", "accountant", "auditor"]}
+                  requiredPermission={PERMISSIONS.reports.viewFinancial}
+                >
+                  <BillingReports />
                 </ProtectedRoute>
               } />
               <Route path="/admin/roles" element={
