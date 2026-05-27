@@ -24,7 +24,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
+import {
+  getReportDatabaseSetupHint,
+  getReportDatabaseSetupUrl,
+} from "@/report/lib/supabase-errors";
 import { Plus, Star, Trash2, Pencil } from "lucide-react";
 import {
   Dialog,
@@ -188,12 +193,28 @@ export function TermsManager() {
           ) : isLoading ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
           ) : isError ? (
-            <p className="text-sm text-destructive">
-              Could not load terms: {(error as Error).message}
-              <Button variant="link" className="h-auto p-0 ml-2" onClick={() => refetch()}>
+            <div className="space-y-3">
+              {getReportDatabaseSetupHint(error as { code?: string; message?: string }) ? (
+                <Alert variant="destructive">
+                  <AlertTitle>Database setup required</AlertTitle>
+                  <AlertDescription className="space-y-2">
+                    <p>{getReportDatabaseSetupHint(error as { code?: string; message?: string })}</p>
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={getReportDatabaseSetupUrl()} target="_blank" rel="noreferrer">
+                        Open Supabase SQL Editor
+                      </a>
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <p className="text-sm text-destructive">
+                  Could not load terms: {(error as Error).message}
+                </p>
+              )}
+              <Button variant="link" className="h-auto p-0" onClick={() => refetch()}>
                 Retry
               </Button>
-            </p>
+            </div>
           ) : !terms?.length ? (
             <p className="text-sm text-muted-foreground">
               No terms yet. Create Term 1, Term 2, Term 3, or a full academic year.
