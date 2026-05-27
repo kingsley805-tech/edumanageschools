@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,6 @@ import {
   modulePermissionCodes,
   type MatrixColumnKey,
 } from "@/lib/rbac/matrixColumns";
-import { cn } from "@/lib/utils";
 
 type Props = {
   selected: Set<string>;
@@ -20,7 +19,14 @@ type Props = {
   readOnly?: boolean;
   onFullAccess?: () => void;
   onRevokeFullAccess?: () => void;
+  /** Role dropdown — rendered inline after "Role" label */
+  roleControl: ReactNode;
+  /** Optional save / status row below title (outside this card) */
 };
+
+const checkboxClass =
+  "h-4 w-4 rounded-[3px] border-2 border-muted-foreground/50 bg-background shadow-none " +
+  "data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white";
 
 export function PermissionMatrix({
   selected,
@@ -30,6 +36,7 @@ export function PermissionMatrix({
   readOnly = false,
   onFullAccess,
   onRevokeFullAccess,
+  roleControl,
 }: Props) {
   const q = search.trim().toLowerCase();
 
@@ -42,11 +49,6 @@ export function PermissionMatrix({
         m.key.toLowerCase().includes(q),
     );
   }, [q]);
-
-  const allVisibleCodes = useMemo(
-    () => modules.flatMap((m) => modulePermissionCodes(m)),
-    [modules],
-  );
 
   const toggle = (code: string | null, checked: boolean) => {
     if (readOnly || !code) return;
@@ -72,15 +74,18 @@ export function PermissionMatrix({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="rounded-xl border border-border/80 bg-card/95 shadow-sm overflow-hidden">
+      {/* Toolbar — Role + Full Access + Revoke + Search (exact reference layout) */}
+      <div className="flex flex-col gap-3 border-b border-border/80 bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-medium text-foreground shrink-0">Role</span>
+          {roleControl}
           {onFullAccess && (
             <Button
               type="button"
               size="sm"
               disabled={readOnly || !modules.length}
-              className="bg-emerald-600 text-white hover:bg-emerald-700"
+              className="h-8 rounded-md bg-emerald-600 px-3 text-white hover:bg-emerald-700 border-0 shadow-none"
               onClick={onFullAccess}
             >
               Full Access
@@ -90,8 +95,8 @@ export function PermissionMatrix({
             <Button
               type="button"
               size="sm"
-              variant="destructive"
               disabled={readOnly || !modules.length}
+              className="h-8 rounded-md bg-red-600 px-3 text-white hover:bg-red-700 border-0 shadow-none"
               onClick={onRevokeFullAccess}
             >
               Revoke Full Access
@@ -99,90 +104,86 @@ export function PermissionMatrix({
           )}
         </div>
         <Input
-          placeholder="Search modules…"
+          placeholder="Search modules..."
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="max-w-xs bg-background"
+          className="h-9 w-full sm:w-56 shrink-0 bg-background/80 border-border/80"
         />
       </div>
 
-      <div className="rounded-lg border bg-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[960px] border-collapse text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="sticky left-0 z-10 min-w-[180px] border-r bg-muted/50 px-4 py-3 text-left font-semibold">
-                  Module
+      {/* Matrix table */}
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1020px] border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-border/80 bg-muted/30">
+              <th className="sticky left-0 z-10 min-w-[160px] border-r border-border/80 bg-muted/30 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Module
+              </th>
+              {MATRIX_COLUMNS.map((col) => (
+                <th
+                  key={col.key}
+                  className="min-w-[76px] px-1 py-2.5 text-center text-xs font-medium text-muted-foreground whitespace-nowrap"
+                >
+                  {col.label}
                 </th>
-                {MATRIX_COLUMNS.map((col) => (
-                  <th
-                    key={col.key}
-                    className="min-w-[72px] px-2 py-3 text-center font-medium text-muted-foreground whitespace-nowrap"
-                  >
-                    {col.label}
-                  </th>
-                ))}
-                <th className="min-w-[140px] px-3 py-3 text-center font-medium text-muted-foreground">
-                  Bulk
-                </th>
+              ))}
+              <th className="min-w-[148px] px-2 py-2.5 text-center text-xs font-medium text-muted-foreground">
+                Bulk
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {modules.map((mod) => (
+              <tr
+                key={mod.key}
+                className="border-b border-border/60 last:border-b-0 hover:bg-muted/10"
+              >
+                <td className="sticky left-0 z-10 border-r border-border/60 bg-card/95 px-4 py-2 text-sm font-medium text-foreground">
+                  {mod.label}
+                </td>
+                {MATRIX_COLUMNS.map((col) => {
+                  const code = matrixColumnPermissionCode(mod, col.key);
+                  const checked = isChecked(mod, col.key);
+                  const disabled = readOnly || !code;
+                  return (
+                    <td key={col.key} className="px-1 py-2 text-center align-middle">
+                      <Checkbox
+                        checked={code ? checked : false}
+                        disabled={disabled}
+                        className={checkboxClass}
+                        onCheckedChange={(v) => toggle(code, v === true)}
+                      />
+                    </td>
+                  );
+                })}
+                <td className="px-2 py-1.5 text-center align-middle">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 rounded-md border-border/80 bg-background/50 px-2.5 text-xs font-normal"
+                      disabled={readOnly || !modulePermissionCodes(mod).length}
+                      onClick={() => setModuleCodes(mod, true)}
+                    >
+                      Select All
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 rounded-md border-border/80 bg-background/50 px-2.5 text-xs font-normal"
+                      disabled={readOnly || !modulePermissionCodes(mod).length}
+                      onClick={() => setModuleCodes(mod, false)}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {modules.map((mod) => {
-                return (
-                  <tr key={mod.key} className="border-b last:border-b-0 hover:bg-muted/20">
-                    <td className="sticky left-0 z-10 border-r bg-card px-4 py-2.5 font-medium">
-                      {mod.label}
-                    </td>
-                    {MATRIX_COLUMNS.map((col) => {
-                      const code = matrixColumnPermissionCode(mod, col.key);
-                      const checked = isChecked(mod, col.key);
-                      const na = !code;
-                      return (
-                        <td key={col.key} className="px-2 py-2.5 text-center">
-                          {na ? (
-                            <span className="text-muted-foreground/30">—</span>
-                          ) : (
-                            <Checkbox
-                              checked={checked}
-                              disabled={readOnly}
-                              className="mx-auto data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                              onCheckedChange={(v) => toggle(code, v === true)}
-                            />
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td className="px-2 py-2 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          disabled={readOnly || !modulePermissionCodes(mod).length}
-                          onClick={() => setModuleCodes(mod, true)}
-                        >
-                          Select All
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          disabled={readOnly || !modulePermissionCodes(mod).length}
-                          onClick={() => setModuleCodes(mod, false)}
-                        >
-                          Clear
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
 
         {modules.length === 0 && (
           <p className="py-12 text-center text-sm text-muted-foreground">
@@ -190,11 +191,6 @@ export function PermissionMatrix({
           </p>
         )}
       </div>
-
-      <p className={cn("text-xs text-muted-foreground", allVisibleCodes.length === 0 && "hidden")}>
-        {selected.size} permission{selected.size === 1 ? "" : "s"} selected
-        {q ? ` · showing ${modules.length} module${modules.length === 1 ? "" : "s"}` : ""}
-      </p>
     </div>
   );
 }

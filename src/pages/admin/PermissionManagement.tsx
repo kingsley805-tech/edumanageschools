@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { PermissionMatrix } from "@/components/admin/PermissionMatrix";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,7 +24,7 @@ import {
 } from "@/lib/rbac/rbacService";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchStaffPortalUsers } from "@/lib/staffUsers";
-import { Save, Loader2, Plus, Trash2, Users, ChevronDown, ChevronUp } from "lucide-react";
+import { Save, Loader2, Plus, Users, ChevronDown, ChevronUp, MoreHorizontal } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -51,10 +49,18 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { PermissionGate } from "@/components/PermissionGate";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface StaffUser {
   id: string;
@@ -86,6 +92,7 @@ export default function PermissionManagement() {
   const [assignUserId, setAssignUserId] = useState("");
   const [assignRoleId, setAssignRoleId] = useState("");
   const [staffOpen, setStaffOpen] = useState(false);
+  const [deleteRoleOpen, setDeleteRoleOpen] = useState(false);
 
   const selectedRole = roles.find((r) => r.id === selectedRoleId);
   const isProtectedRole = selectedRole ? PROTECTED_SLUGS.has(selectedRole.slug) : false;
@@ -223,7 +230,7 @@ export default function PermissionManagement() {
       if (result.missingCodes.length > 0) {
         toast({
           title: "Permissions partially saved",
-          description: `${result.inserted} saved. Missing in database: ${result.missingCodes.slice(0, 3).join(", ")}${result.missingCodes.length > 3 ? "…" : ""}. Run portal RBAC SQL in Supabase.`,
+          description: `${result.inserted} saved. Run portal RBAC SQL in Supabase for missing codes.`,
           variant: "destructive",
         });
       } else {
@@ -312,7 +319,7 @@ export default function PermissionManagement() {
 
   const handleFullAccess = () => {
     if (matrixReadOnly) return;
-    const next = new Set(selected);
+    const next = new Set(selectedCodes);
     for (const code of filteredModuleCodes) next.add(code);
     setSelectedCodes(next);
     setDirty(true);
@@ -320,7 +327,7 @@ export default function PermissionManagement() {
 
   const handleRevokeFullAccess = () => {
     if (matrixReadOnly) return;
-    const next = new Set(selected);
+    const next = new Set(selectedCodes);
     for (const code of filteredModuleCodes) next.delete(code);
     setSelectedCodes(next);
     setDirty(true);
@@ -339,6 +346,21 @@ export default function PermissionManagement() {
     }
   };
 
+  const roleSelect = (
+    <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
+      <SelectTrigger className="h-8 w-[140px] border-border/80 bg-background/80 text-sm font-medium">
+        <SelectValue placeholder="Select role" />
+      </SelectTrigger>
+      <SelectContent>
+        {assignableRoles.map((r) => (
+          <SelectItem key={r.id} value={r.id}>
+            {r.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
   if (loading) {
     return (
       <DashboardLayout role="admin">
@@ -356,156 +378,154 @@ export default function PermissionManagement() {
         anyOf={["portal.staff_access.manage", "admin.manage_permissions"]}
         showDenied
       >
-        <div className="mx-auto max-w-[1400px] space-y-6">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="mx-auto max-w-[1400px] space-y-5">
+          {/* Page header — matches reference */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">Roles &amp; Permissions</h1>
-              <p className="text-muted-foreground text-sm mt-1 max-w-2xl">
-                Configure module-level access with a dynamic permission matrix, select-all controls,
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                Roles &amp; Permissions
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+                Configure module-level access with dynamic permission matrix, select-all controls,
                 and audit logging.
               </p>
             </div>
-            {!canManage && (
-              <Badge variant="outline">View only — contact an administrator to make changes</Badge>
-            )}
-          </div>
-
-          <Card>
-            <CardContent className="pt-6 space-y-4">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-4">
-                  <div className="space-y-2 min-w-[200px]">
-                    <Label>Role</Label>
-                    <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
-                      <SelectTrigger className="w-[220px]">
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {assignableRoles.map((r) => (
-                          <SelectItem key={r.id} value={r.id}>
-                            {r.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {selectedRole && (
-                    <div className="flex items-center gap-2 pb-0.5">
-                      {selectedRole.is_system && (
-                        <Badge variant="secondary">System</Badge>
-                      )}
-                      {isSuperAdminRole && (
-                        <span className="text-xs text-muted-foreground">
-                          Unrestricted access
-                        </span>
-                      )}
-                    </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {!canManage && (
+                <Badge variant="outline" className="text-xs">
+                  View only
+                </Badge>
+              )}
+              {canManage && !isSuperAdminRole && selectedRole && dirty && (
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={saving}
+                  onClick={handleSavePermissions}
+                  className="h-8"
+                >
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-1" />
+                      Save changes
+                    </>
                   )}
-                </div>
-
-                {canManage && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Input
-                      placeholder="New role name"
-                      value={newRoleName}
-                      onChange={(e) => setNewRoleName(e.target.value)}
-                      className="max-w-[160px]"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={!newRoleName.trim()}
-                      onClick={handleCreateRole}
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add role
+                </Button>
+              )}
+              {canManage && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon" className="h-8 w-8">
+                      <MoreHorizontal className="h-4 w-4" />
                     </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      disabled={!selectedRole || isSuperAdminRole}
+                      onClick={() => void handleResetDefaults()}
+                    >
+                      Reset to defaults
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <div className="px-2 py-1.5 flex gap-2">
+                      <Input
+                        placeholder="New role"
+                        value={newRoleName}
+                        onChange={(e) => setNewRoleName(e.target.value)}
+                        className="h-8 text-xs"
+                        onKeyDown={(e) => e.key === "Enter" && void handleCreateRole()}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-8 shrink-0"
+                        disabled={!newRoleName.trim()}
+                        onClick={() => void handleCreateRole()}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
                     {selectedRole && !selectedRole.is_system && !isProtectedRole && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button type="button" variant="destructive" size="sm">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete {selectedRole.name}?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Staff assigned to this role will lose these permissions.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDeleteRole}>Delete</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
-                    {canManage && !isSuperAdminRole && selectedRole && (
                       <>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={handleResetDefaults}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => setDeleteRoleOpen(true)}
                         >
-                          Reset defaults
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          disabled={!dirty || saving}
-                          onClick={handleSavePermissions}
-                        >
-                          {saving ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <>
-                              <Save className="h-4 w-4 mr-1" />
-                              Save
-                            </>
-                          )}
-                        </Button>
+                          Delete role
+                        </DropdownMenuItem>
                       </>
                     )}
-                  </div>
-                )}
-              </div>
-
-              {selectedRole ? (
-                <PermissionMatrix
-                  selected={selectedCodes}
-                  onChange={(next) => {
-                    setSelectedCodes(next);
-                    setDirty(true);
-                  }}
-                  search={moduleSearch}
-                  onSearchChange={setModuleSearch}
-                  readOnly={matrixReadOnly}
-                  onFullAccess={matrixReadOnly ? undefined : handleFullAccess}
-                  onRevokeFullAccess={matrixReadOnly ? undefined : handleRevokeFullAccess}
-                />
-              ) : (
-                <p className="py-12 text-center text-muted-foreground text-sm">
-                  Select a role to configure permissions.
-                </p>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
-            </CardContent>
-          </Card>
+              <AlertDialog open={deleteRoleOpen} onOpenChange={setDeleteRoleOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Delete {selectedRole?.name ?? "role"}?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Staff assigned to this role will lose these permissions.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => {
+                        void handleDeleteRole();
+                        setDeleteRoleOpen(false);
+                      }}
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
+
+          {isSuperAdminRole && selectedRole && (
+            <p className="text-sm text-muted-foreground -mt-2">
+              {selectedRole.name} has unrestricted access to all modules.
+            </p>
+          )}
+
+          {/* Single matrix card — exact reference structure */}
+          {selectedRole ? (
+            <PermissionMatrix
+              selected={selectedCodes}
+              onChange={(next) => {
+                setSelectedCodes(next);
+                setDirty(true);
+              }}
+              search={moduleSearch}
+              onSearchChange={setModuleSearch}
+              readOnly={matrixReadOnly}
+              roleControl={roleSelect}
+              onFullAccess={matrixReadOnly ? undefined : handleFullAccess}
+              onRevokeFullAccess={matrixReadOnly ? undefined : handleRevokeFullAccess}
+            />
+          ) : (
+            <div className="rounded-xl border border-border/80 bg-card/95 py-16 text-center text-sm text-muted-foreground">
+              Select a role to configure permissions.
+            </div>
+          )}
 
           <Collapsible open={staffOpen} onOpenChange={setStaffOpen}>
-            <Card>
+            <Card className="border-border/80">
               <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors">
+                <CardHeader className="cursor-pointer hover:bg-muted/20 transition-colors py-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="flex items-center gap-2 text-base">
+                      <CardTitle className="flex items-center gap-2 text-base font-semibold">
                         <Users className="h-5 w-5" />
                         Assign roles to staff
                       </CardTitle>
-                      <CardDescription>
-                        Link RBAC roles to portal accounts (teacher, accountant, auditor).
+                      <CardDescription className="text-xs mt-1">
+                        Link matrix roles to teacher, accountant, and auditor accounts.
                       </CardDescription>
                     </div>
                     {staffOpen ? (
@@ -553,7 +573,7 @@ export default function PermissionManagement() {
                   {canManage && (
                     <Button
                       type="button"
-                      onClick={handleAssignStaff}
+                      onClick={() => void handleAssignStaff()}
                       disabled={!assignUserId || !assignRoleId}
                     >
                       Assign role
