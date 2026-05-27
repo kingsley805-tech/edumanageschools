@@ -26,9 +26,20 @@ import Fees from "./pages/admin/Fees";
 import FeeStructures from "./pages/admin/FeeStructures";
 import AdminAttendance from "./pages/admin/Attendance";
 import AdminTimetable from "./pages/admin/Timetable";
-import Reports from "./pages/admin/Reports";
+import Reports from "@/report/pages/admin/AnalyticsReports";
+import AdminReportCardsIndex from "@/report/pages/admin/ReportCardsIndex";
+import AdminReportCardsView from "@/report/pages/admin/ReportCardsView";
+import AdminReportCardsArchive from "@/report/pages/admin/ReportCardsArchive";
+import AdminReportCardsVersions from "@/report/pages/admin/ReportCardsVersions";
+import ReportSettings from "@/report/pages/admin/ReportSettings";
+import TeacherReportCardsIndex from "@/report/pages/teacher/ReportCardsIndex";
+import TeacherReportCardsView from "@/report/pages/teacher/ReportCardsView";
+import TeacherReportCardsHistory from "@/report/pages/teacher/ReportCardsHistory";
+import TeacherSignatures from "@/report/pages/teacher/Signatures";
+import ParentReports from "@/report/pages/parent/Reports";
+import StudentReportCard from "@/report/pages/student/ReportCard";
+import SuperAdminReports from "@/report/pages/super-admin/Reports";
 import AdminAnnouncements from "./pages/admin/Announcements";
-import AdminReportCards from "./pages/admin/ReportCards";
 import Payments from "./pages/parent/Payments";
 import Children from "./pages/parent/Children";
 import ParentAttendance from "./pages/parent/Attendance";
@@ -193,7 +204,7 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/admin/reports" element={
-                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                <ProtectedRoute allowedRoles={["admin", "super_admin", "accountant", "auditor"]}>
                   <Reports />
                 </ProtectedRoute>
               } />
@@ -204,7 +215,32 @@ function App() {
               } />
               <Route path="/admin/report-cards" element={
                 <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
-                  <AdminReportCards />
+                  <AdminReportCardsIndex />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/report-cards/view" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                  <AdminReportCardsView />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/report-cards/archive" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                  <AdminReportCardsArchive />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/report-cards/versions" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                  <AdminReportCardsVersions />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/report-settings" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                  <ReportSettings />
+                </ProtectedRoute>
+              } />
+              <Route path="/super-admin/reports" element={
+                <ProtectedRoute allowedRoles={["super_admin"]}>
+                  <SuperAdminReports />
                 </ProtectedRoute>
               } />
               <Route path="/admin/parent-student-link" element={
@@ -282,6 +318,26 @@ function App() {
                   <ClassDetails />
                 </ProtectedRoute>
               } />
+              <Route path="/teacher/report-cards" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <TeacherReportCardsIndex />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher/report-cards/view" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <TeacherReportCardsView />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher/report-cards/history" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <TeacherReportCardsHistory />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher/signatures" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <TeacherSignatures />
+                </ProtectedRoute>
+              } />
               <Route path="/parent" element={
                 <ProtectedRoute allowedRoles={["parent"]}>
                   <ParentDashboard />
@@ -305,6 +361,11 @@ function App() {
               <Route path="/parent/grades" element={
                 <ProtectedRoute allowedRoles={["parent"]}>
                   <ParentGrades />
+                </ProtectedRoute>
+              } />
+              <Route path="/parent/reports" element={
+                <ProtectedRoute allowedRoles={["parent"]}>
+                  <ParentReports />
                 </ProtectedRoute>
               } />
               <Route path="/teacher/exams" element={
@@ -340,6 +401,11 @@ function App() {
               <Route path="/student/grades" element={
                 <ProtectedRoute allowedRoles={["student"]}>
                   <StudentGrades />
+                </ProtectedRoute>
+              } />
+              <Route path="/student/report-card" element={
+                <ProtectedRoute allowedRoles={["student"]}>
+                  <StudentReportCard />
                 </ProtectedRoute>
               } />
               <Route path="/student/timetable" element={

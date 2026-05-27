@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Shepherd's Heart School">
+  <circle cx="60" cy="60" r="56" fill="none" stroke="#1b3a1b" stroke-width="3"/>
+  <circle cx="60" cy="60" r="48" fill="none" stroke="#c9a84c" stroke-width="1.5"/>
+  <path d="M60 28c-8 12-18 18-18 32 0 10 8 18 18 18s18-8 18-18c0-14-10-20-18-32z" fill="none" stroke="#1b3a1b" stroke-width="2.5"/>
+  <text x="60" y="18" text-anchor="middle" font-size="7" font-family="Georgia,serif" fill="#1b3a1b" font-weight="bold">SHEPHERD'S HEART</text>
+</svg>

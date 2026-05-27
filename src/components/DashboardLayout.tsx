@@ -1,14 +1,13 @@
 import { ReactNode, useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { 
-  GraduationCap, 
-  LayoutDashboard, 
-  Users, 
-  BookOpen, 
-  Calendar, 
-  DollarSign, 
+import {
+  GraduationCap,
+  LayoutDashboard,
+  Users,
+  BookOpen,
+  Calendar,
+  DollarSign,
   LogOut,
   Menu,
   UserCircle,
@@ -21,10 +20,14 @@ import {
   MessageSquare,
   Shield,
   Building,
-  ChevronDown,
   Hash,
   UserCheck,
-  Link as LinkIcon
+  Link as LinkIcon,
+  ClipboardList,
+  BarChart3,
+  Wallet,
+  UserCog,
+  PenLine,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { NotificationCenter } from "./NotificationCenter";
@@ -36,11 +39,19 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/permissions";
 import { SchoolSwitcher } from "./SchoolSwitcher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { SidebarMenuGroup } from "@/components/SidebarMenuGroup";
+
+type MenuLinkDef = {
+  icon: typeof LayoutDashboard;
+  label: string;
+  path: string;
+  permission?: string;
+  showBadge?: boolean;
+};
 
 type MenuItemDef =
-  | { icon: typeof LayoutDashboard; label: string; path: string; permission?: string; showBadge?: boolean }
-  | { type: "group"; label: string; icon: typeof Users; items: { icon: typeof Users; label: string; path: string; permission?: string }[] };
+  | MenuLinkDef
+  | { type: "group"; label: string; icon: typeof Users; items: MenuLinkDef[] };
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -49,11 +60,8 @@ interface DashboardLayoutProps {
 }
 
 const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayoutProps) => {
-  const navigate = useNavigate();
-  const location = useLocation();
   const { signOut, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false); // Start closed on mobile
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const unreadMessages = useUnreadMessages();
   const { currentSchool } = useSchoolInfo();
   const { role: userRole } = useUserRole();
@@ -100,120 +108,271 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
       title: "Admin",
       menuItems: [
         { icon: LayoutDashboard, label: "Dashboard", path: "/admin" },
-        { 
+        {
           type: "group",
-          label: "Personnel",
-          icon: Users,
+          label: "Academics",
+          icon: BookOpen,
           items: [
             { icon: Users, label: "Students", path: "/admin/students" },
             { icon: GraduationCap, label: "Teachers", path: "/admin/teachers" },
-          ]
-        },
-        { icon: BookOpen, label: "Classes", path: "/admin/classes" },
-        { icon: BookOpen, label: "Subjects", path: "/admin/subjects" },
-        { 
-          type: "group",
-          label: "Registration",
-          icon: Hash,
-          items: [
-            { icon: Hash, label: "Number Generator", path: "/admin/number-generator" },
-            { icon: UserCheck, label: "Pending Approvals", path: "/admin/pending-users" },
-          ]
+            { icon: BookOpen, label: "Classes", path: "/admin/classes" },
+            { icon: ClipboardList, label: "Subjects", path: "/admin/subjects" },
+            { icon: Clock, label: "Timetable", path: "/admin/timetable" },
+            { icon: Award, label: "Grade Scales", path: "/admin/grade-scales" },
+          ],
         },
         {
           type: "group",
-          label: "Linking",
-          icon: LinkIcon,
+          label: "Examinations & Results",
+          icon: FileText,
           items: [
-            { icon: Users, label: "Parent-Student Link", path: "/admin/parent-student-link" },
-            { icon: BookOpen, label: "Teacher-Class Link", path: "/admin/teacher-class-link" },
-            { icon: Users, label: "Parent Contacts", path: "/admin/parent-contacts" },
-          ]
+            { icon: FileText, label: "Report Cards", path: "/admin/report-cards" },
+            { icon: FileText, label: "Report Archive", path: "/admin/report-cards/archive" },
+            { icon: BarChart3, label: "Reports", path: "/admin/reports" },
+            { icon: Settings, label: "Report Settings", path: "/admin/report-settings" },
+          ],
         },
-        { icon: Award, label: "Grade Scales", path: "/admin/grade-scales" },
-        { 
+        {
           type: "group",
-          label: "Payments",
+          label: "Attendance",
+          icon: Calendar,
+          items: [{ icon: Calendar, label: "Student Attendance", path: "/admin/attendance" }],
+        },
+        {
+          type: "group",
+          label: "Financial Management",
           icon: DollarSign,
           items: [
             { icon: DollarSign, label: "Invoices", path: "/admin/fees", permission: PERMISSIONS.invoices.view },
-            { icon: DollarSign, label: "Fee Structures", path: "/admin/fee-structures", permission: PERMISSIONS.billing.feeTemplates },
-          ]
+            {
+              icon: Wallet,
+              label: "Fee Structures",
+              path: "/admin/fee-structures",
+              permission: PERMISSIONS.billing.feeTemplates,
+            },
+          ],
         },
-        { icon: Shield, label: "Roles & Permissions", path: "/admin/roles", permission: PERMISSIONS.admin.manageRoles },
-        { icon: FileText, label: "Approvals", path: "/admin/approvals", permission: PERMISSIONS.admin.approveRequests },
-        { icon: FileText, label: "Audit Logs", path: "/admin/audit-logs", permission: PERMISSIONS.admin.viewAudit },
-        { icon: Calendar, label: "Attendance", path: "/admin/attendance" },
-        { icon: Clock, label: "Timetable", path: "/admin/timetable" },
-        { icon: FileText, label: "Reports", path: "/admin/reports" },
-        { icon: Megaphone, label: "Announcements", path: "/admin/announcements" },
-        { icon: FileText, label: "Report Cards", path: "/admin/report-cards" },
-        { icon: Building, label: "School Settings", path: "/admin/school-settings" },
-        ...(isSuperAdmin ? [{ icon: Shield, label: "Super Admin", path: "/admin/super-admin-management" }] : []),
-        { icon: Settings, label: "Settings", path: "/settings" },
-      ]
+        {
+          type: "group",
+          label: "Registration & Linking",
+          icon: LinkIcon,
+          items: [
+            { icon: Hash, label: "Number Generator", path: "/admin/number-generator" },
+            { icon: UserCheck, label: "Pending Approvals", path: "/admin/pending-users" },
+            { icon: Users, label: "Parent–Student Link", path: "/admin/parent-student-link" },
+            { icon: BookOpen, label: "Teacher–Class Link", path: "/admin/teacher-class-link" },
+            { icon: UserCircle, label: "Parent Contacts", path: "/admin/parent-contacts" },
+          ],
+        },
+        {
+          type: "group",
+          label: "Communication",
+          icon: Megaphone,
+          items: [{ icon: Megaphone, label: "Announcements", path: "/admin/announcements" }],
+        },
+        {
+          type: "group",
+          label: "Administration",
+          icon: UserCog,
+          items: [
+            { icon: Building, label: "School Settings", path: "/admin/school-settings" },
+            { icon: Shield, label: "Roles & Permissions", path: "/admin/roles", permission: PERMISSIONS.admin.manageRoles },
+            { icon: FileText, label: "Approvals", path: "/admin/approvals", permission: PERMISSIONS.admin.approveRequests },
+            { icon: FileText, label: "Audit Logs", path: "/admin/audit-logs", permission: PERMISSIONS.admin.viewAudit },
+            ...(isSuperAdmin
+              ? [
+                  { icon: Shield, label: "Super Admin", path: "/admin/super-admin-management" },
+                  { icon: BarChart3, label: "Report Monitor", path: "/super-admin/reports" },
+                ]
+              : []),
+            { icon: Settings, label: "Account Settings", path: "/settings" },
+          ],
+        },
+      ] as MenuItemDef[],
     },
     accountant: {
       title: "Accountant",
       menuItems: [
         { icon: LayoutDashboard, label: "Dashboard", path: "/accountant" },
-        { icon: DollarSign, label: "Invoices", path: "/admin/fees", permission: PERMISSIONS.invoices.view },
-        { icon: DollarSign, label: "Fee Structures", path: "/admin/fee-structures", permission: PERMISSIONS.billing.feeTemplates },
-        { icon: FileText, label: "Reports", path: "/admin/reports", permission: PERMISSIONS.reports.viewFinancial },
-        { icon: Settings, label: "Settings", path: "/settings" },
-      ],
+        {
+          type: "group",
+          label: "Billing",
+          icon: DollarSign,
+          items: [
+            { icon: DollarSign, label: "Invoices", path: "/admin/fees", permission: PERMISSIONS.invoices.view },
+            {
+              icon: Wallet,
+              label: "Fee Structures",
+              path: "/admin/fee-structures",
+              permission: PERMISSIONS.billing.feeTemplates,
+            },
+          ],
+        },
+        {
+          type: "group",
+          label: "Reports",
+          icon: BarChart3,
+          items: [
+            {
+              icon: BarChart3,
+              label: "Financial Reports",
+              path: "/admin/reports",
+              permission: PERMISSIONS.reports.viewFinancial,
+            },
+          ],
+        },
+        {
+          type: "group",
+          label: "Account",
+          icon: Settings,
+          items: [{ icon: Settings, label: "Settings", path: "/settings" }],
+        },
+      ] as MenuItemDef[],
     },
     auditor: {
       title: "Auditor",
       menuItems: [
         { icon: LayoutDashboard, label: "Dashboard", path: "/auditor" },
-        { icon: DollarSign, label: "Invoices", path: "/admin/fees", permission: PERMISSIONS.invoices.view },
-        { icon: FileText, label: "Reports", path: "/admin/reports", permission: PERMISSIONS.reports.viewFinancial },
-        { icon: FileText, label: "Audit Logs", path: "/admin/audit-logs", permission: PERMISSIONS.admin.viewAudit },
-        { icon: Settings, label: "Settings", path: "/settings" },
-      ],
+        {
+          type: "group",
+          label: "Finance",
+          icon: DollarSign,
+          items: [
+            { icon: DollarSign, label: "Invoices", path: "/admin/fees", permission: PERMISSIONS.invoices.view },
+            {
+              icon: BarChart3,
+              label: "Financial Reports",
+              path: "/admin/reports",
+              permission: PERMISSIONS.reports.viewFinancial,
+            },
+            {
+              icon: FileText,
+              label: "Audit Logs",
+              path: "/admin/audit-logs",
+              permission: PERMISSIONS.admin.viewAudit,
+            },
+          ],
+        },
+        {
+          type: "group",
+          label: "Account",
+          icon: Settings,
+          items: [{ icon: Settings, label: "Settings", path: "/settings" }],
+        },
+      ] as MenuItemDef[],
     },
     teacher: {
       title: "Teacher",
       menuItems: [
         { icon: LayoutDashboard, label: "Dashboard", path: "/teacher" },
-        { icon: BookOpen, label: "My Classes", path: "/teacher/classes" },
-        { icon: Clock, label: "Timetable", path: "/teacher/timetable" },
-        { icon: Calendar, label: "Attendance", path: "/teacher/attendance" },
-        { icon: FileText, label: "Assignments", path: "/teacher/assignments" },
-        { icon: Award, label: "Grades", path: "/teacher/grades" },
-        { icon: FileText, label: "Exams", path: "/teacher/exams" },
-        { icon: FileText, label: "Question Bank", path: "/teacher/question-bank" },
-        { icon: MonitorPlay, label: "Online Exams", path: "/teacher/online-exams" },
-        { icon: BookOpen, label: "Resources", path: "/teacher/resources" },
-        { icon: MessageSquare, label: "Messages", path: "/messages", showBadge: true },
-        { icon: Settings, label: "Settings", path: "/settings" },
-      ]
+        {
+          type: "group",
+          label: "Academics",
+          icon: BookOpen,
+          items: [
+            { icon: BookOpen, label: "My Classes", path: "/teacher/classes" },
+            { icon: Clock, label: "Timetable", path: "/teacher/timetable" },
+            { icon: Calendar, label: "Attendance", path: "/teacher/attendance" },
+            { icon: FileText, label: "Assignments", path: "/teacher/assignments" },
+            { icon: Award, label: "Grades", path: "/teacher/grades" },
+            { icon: FileText, label: "Report Cards", path: "/teacher/report-cards" },
+            { icon: PenLine, label: "Signatures", path: "/teacher/signatures" },
+            { icon: BookOpen, label: "Resources", path: "/teacher/resources" },
+          ],
+        },
+        {
+          type: "group",
+          label: "Examinations",
+          icon: MonitorPlay,
+          items: [
+            { icon: FileText, label: "Exams", path: "/teacher/exams" },
+            { icon: ClipboardList, label: "Question Bank", path: "/teacher/question-bank" },
+            { icon: MonitorPlay, label: "Online Exams", path: "/teacher/online-exams" },
+          ],
+        },
+        {
+          type: "group",
+          label: "Communication",
+          icon: MessageSquare,
+          items: [
+            { icon: MessageSquare, label: "Messages", path: "/messages", showBadge: true },
+          ],
+        },
+        {
+          type: "group",
+          label: "Account",
+          icon: Settings,
+          items: [{ icon: Settings, label: "Settings", path: "/settings" }],
+        },
+      ] as MenuItemDef[],
     },
     parent: {
       title: "Parent",
       menuItems: [
         { icon: LayoutDashboard, label: "Dashboard", path: "/parent" },
-        { icon: UserCircle, label: "My Children", path: "/parent/children" },
-        { icon: Calendar, label: "Attendance", path: "/parent/attendance" },
-        { icon: Award, label: "Grades", path: "/parent/grades" },
-        { icon: DollarSign, label: "Payments", path: "/parent/payments" },
-        { icon: MessageSquare, label: "Messages", path: "/messages", showBadge: true },
-        { icon: Settings, label: "Settings", path: "/settings" },
-      ]
+        {
+          type: "group",
+          label: "Academics",
+          icon: BookOpen,
+          items: [
+            { icon: UserCircle, label: "My Children", path: "/parent/children" },
+            { icon: Calendar, label: "Attendance", path: "/parent/attendance" },
+            { icon: Award, label: "Grades", path: "/parent/grades" },
+            { icon: FileText, label: "Report Cards", path: "/parent/reports" },
+          ],
+        },
+        {
+          type: "group",
+          label: "Finance",
+          icon: DollarSign,
+          items: [{ icon: DollarSign, label: "Payments", path: "/parent/payments" }],
+        },
+        {
+          type: "group",
+          label: "Communication",
+          icon: MessageSquare,
+          items: [
+            { icon: MessageSquare, label: "Messages", path: "/messages", showBadge: true },
+          ],
+        },
+        {
+          type: "group",
+          label: "Account",
+          icon: Settings,
+          items: [{ icon: Settings, label: "Settings", path: "/settings" }],
+        },
+      ] as MenuItemDef[],
     },
     student: {
       title: "Student",
       menuItems: [
         { icon: LayoutDashboard, label: "Dashboard", path: "/student" },
-        { icon: Clock, label: "Timetable", path: "/student/timetable" },
-        { icon: FileText, label: "Assignments", path: "/student/assignments" },
-        { icon: Award, label: "Grades", path: "/student/grades" },
-        { icon: MonitorPlay, label: "Online Exams", path: "/student/online-exams" },
-        { icon: BookOpen, label: "Resources", path: "/student/resources" },
-        { icon: Settings, label: "Settings", path: "/settings" },
-      ]
-    }
+        {
+          type: "group",
+          label: "Academics",
+          icon: BookOpen,
+          items: [
+            { icon: Clock, label: "Timetable", path: "/student/timetable" },
+            { icon: FileText, label: "Assignments", path: "/student/assignments" },
+            { icon: Award, label: "Grades", path: "/student/grades" },
+            { icon: FileText, label: "Report Card", path: "/student/report-card" },
+            { icon: BookOpen, label: "Resources", path: "/student/resources" },
+          ],
+        },
+        {
+          type: "group",
+          label: "Examinations",
+          icon: MonitorPlay,
+          items: [{ icon: MonitorPlay, label: "Online Exams", path: "/student/online-exams" }],
+        },
+        {
+          type: "group",
+          label: "Account",
+          icon: Settings,
+          items: [{ icon: Settings, label: "Settings", path: "/settings" }],
+        },
+      ] as MenuItemDef[],
+    },
   };
 
   // Map super_admin to admin config for shared admin shell
@@ -227,6 +386,13 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
     await signOut();
   };
 
+  /** Flat sidebar nav — no pill backgrounds */
+  const navLinkBase =
+    "group flex items-center gap-3 border-l-2 border-transparent py-2.5 pl-3 pr-2 text-sm text-sidebar-foreground/55 transition-colors hover:text-sidebar-foreground";
+  const navLinkActive =
+    "border-[hsl(var(--sidebar-primary))] text-sidebar-foreground font-medium !bg-transparent";
+  const navSubLinkBase =
+    "group flex items-center gap-2.5 border-l-2 border-transparent py-2 pl-8 pr-2 text-sm text-sidebar-foreground/50 transition-colors hover:text-sidebar-foreground";
   // Guard against invalid or missing role
   if (!config) {
     return (
@@ -270,48 +436,27 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
         >
         <div className="flex h-full flex-col">
           {/* Logo */}
-          <div className="flex h-16 items-center gap-2 border-b px-6">
-            <GraduationCap className="h-7 w-7 text-[hsl(var(--sidebar-primary))]" />
-            <span className="text-lg font-bold text-sidebar-foreground">
+          <div className="flex h-14 items-center gap-2.5 border-b border-sidebar-border px-5">
+            <GraduationCap className="h-6 w-6 text-[hsl(var(--sidebar-primary))]" />
+            <span className="text-base font-semibold tracking-tight text-sidebar-foreground">
               EduManage
             </span>
           </div>
 
           {/* Menu Items */}
-          <nav className="flex-1 space-y-1 p-4 overflow-y-auto overflow-x-hidden custom-scrollbar">
-            {config.menuItems.map((item: any, index: number) => {
+          <nav className="flex-1 space-y-0.5 px-2 py-3 overflow-y-auto overflow-x-hidden custom-scrollbar">
+            {config.menuItems.map((item: MenuItemDef, index: number) => {
               if (item.type === "group") {
-                const groupKey = `group-${index}`;
-                const hasActiveChild = item.items.some((subItem: any) => 
-                  location.pathname === subItem.path || location.pathname.startsWith(subItem.path + "/")
-                );
-                const isOpen = openGroups[groupKey] ?? hasActiveChild;
-                
                 return (
-                  <Collapsible
-                    key={groupKey}
-                    open={isOpen}
-                    onOpenChange={(open) => setOpenGroups(prev => ({ ...prev, [groupKey]: open }))}
-                  >
-                    <CollapsibleTrigger className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:bg-primary/10 hover:text-foreground overflow-hidden">
-                      <item.icon className="h-5 w-5 flex-shrink-0" />
-                      <span className="flex-1 text-left truncate">{item.label}</span>
-                      <ChevronDown className={`h-4 w-4 flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="space-y-1 mt-1 ml-4 pl-4 border-l-2 border-primary/20 overflow-hidden">
-                      {item.items.map((subItem: any) => (
-                        <NavLink
-                          key={subItem.path}
-                          to={subItem.path}
-                          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm md:text-base text-muted-foreground transition-all hover:bg-primary/10 hover:text-foreground overflow-hidden"
-                          activeClassName="bg-primary/20 text-primary font-semibold"
-                        >
-                          <subItem.icon className="h-4 w-4 md:h-5 md:w-5 flex-shrink-0" />
-                          <span className="flex-1 truncate">{subItem.label}</span>
-                        </NavLink>
-                      ))}
-                    </CollapsibleContent>
-                  </Collapsible>
+                  <SidebarMenuGroup
+                    key={`group-${index}-${item.label}`}
+                    label={item.label}
+                    icon={item.icon}
+                    items={item.items}
+                    unreadMessages={unreadMessages}
+                    navSubLinkBase={navSubLinkBase}
+                    navLinkActive={navLinkActive}
+                  />
                 );
               }
               
@@ -320,13 +465,16 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
                   key={item.path}
                   to={item.path}
                   end={item.path === `/${role}`}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm md:text-base text-muted-foreground transition-all hover:bg-primary/10 hover:text-foreground overflow-hidden"
-                  activeClassName="bg-primary/20 text-primary font-semibold"
+                  className={navLinkBase}
+                  activeClassName={navLinkActive}
                 >
-                  <item.icon className="h-5 w-5 md:h-6 md:w-6 flex-shrink-0" />
+                  <item.icon className="h-[18px] w-[18px] flex-shrink-0 opacity-70 group-hover:opacity-100" />
                   <span className="flex-1 truncate">{item.label}</span>
                   {item.showBadge && unreadMessages > 0 && (
-                    <Badge variant="destructive" className="h-5 w-5 flex items-center justify-center p-0 text-xs flex-shrink-0">
+                    <Badge
+                      variant="destructive"
+                      className="h-5 min-w-5 px-1 flex items-center justify-center text-[10px] flex-shrink-0"
+                    >
                       {unreadMessages > 9 ? "9+" : unreadMessages}
                     </Badge>
                   )}
@@ -336,15 +484,15 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           </nav>
 
           {/* User Section */}
-          <div className="border-t p-4">
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-2"
+          <div className="border-t border-sidebar-border px-2 py-3">
+            <button
+              type="button"
               onClick={handleLogout}
+              className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground/55 transition-colors hover:text-sidebar-foreground"
             >
-              <LogOut className="h-5 w-5" />
+              <LogOut className="h-[18px] w-[18px]" />
               Logout
-            </Button>
+            </button>
           </div>
         </div>
       </aside>
