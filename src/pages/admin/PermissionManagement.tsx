@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
-import { PermissionMatrix } from "@/components/admin/PermissionMatrix";
+import { RolesPermissionsPanel } from "@/components/admin/RolesPermissionsPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions, clearPermissionCache } from "@/hooks/usePermissions";
@@ -24,7 +24,7 @@ import {
 } from "@/lib/rbac/rbacService";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchStaffPortalUsers } from "@/lib/staffUsers";
-import { Save, Loader2, Plus, Users, ChevronDown, ChevronUp, MoreHorizontal } from "lucide-react";
+import { Loader2, Plus, Users } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -51,23 +51,20 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { PermissionGate } from "@/components/PermissionGate";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface StaffUser {
   id: string;
   full_name: string;
   email: string;
   portal_role: string;
-  rbac_role_id: string | null;
   rbac_role_name: string | null;
 }
 
@@ -91,7 +88,6 @@ export default function PermissionManagement() {
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [assignUserId, setAssignUserId] = useState("");
   const [assignRoleId, setAssignRoleId] = useState("");
-  const [staffOpen, setStaffOpen] = useState(false);
   const [deleteRoleOpen, setDeleteRoleOpen] = useState(false);
 
   const selectedRole = roles.find((r) => r.id === selectedRoleId);
@@ -120,36 +116,28 @@ export default function PermissionManagement() {
     if (!schoolId) return;
     const staffUsers = await fetchStaffPortalUsers(schoolId);
     const staffIds = staffUsers.map((s) => s.id);
-
     if (!staffIds.length) {
       setStaff([]);
       return;
     }
-
     const { data: assignments } = await supabase
       .from("user_role_assignments")
-      .select("user_id, role_id, roles(id, name, slug)")
+      .select("user_id, role_id, roles(id, name)")
       .eq("school_id", schoolId)
       .in("user_id", staffIds);
-
     const rbacMap = new Map(
       (assignments ?? []).map((a) => [
         a.user_id,
-        {
-          id: (a.roles as { id: string; name: string; slug: string })?.id,
-          name: (a.roles as { name: string })?.name,
-        },
+        (a.roles as { name: string } | null)?.name ?? null,
       ]),
     );
-
     setStaff(
       staffUsers.map((p) => ({
         id: p.id,
         full_name: p.full_name,
         email: p.email,
         portal_role: p.portal_role,
-        rbac_role_id: rbacMap.get(p.id)?.id ?? null,
-        rbac_role_name: rbacMap.get(p.id)?.name ?? null,
+        rbac_role_name: rbacMap.get(p.id) ?? null,
       })),
     );
   }, [schoolId]);
@@ -178,7 +166,6 @@ export default function PermissionManagement() {
         }
         await loadStaff();
       } catch (e) {
-        console.error(e);
         const message = e instanceof Error ? e.message : "Failed to load permission data";
         toast({ title: message, variant: "destructive" });
       } finally {
@@ -201,8 +188,7 @@ export default function PermissionManagement() {
   }, [selectedRoleId, toast]);
 
   const handleSavePermissions = async () => {
-    if (!selectedRole || !schoolId || !user || !canManage) return;
-    if (isSuperAdminRole) return;
+    if (!selectedRole || !schoolId || !user || !canManage || isSuperAdminRole) return;
     setSaving(true);
     try {
       const result = await saveRolePermissions(selectedRole.id, selectedCodes, permissionIdMap);
@@ -221,29 +207,20 @@ export default function PermissionManagement() {
           entityId: selectedRole.id,
           details: { role: selectedRole.slug, permissionCount: selectedCodes.size },
         });
-      } catch (logErr) {
-        console.warn("Permission saved but audit log failed:", logErr);
+      } catch {
+        /* audit optional */
       }
       clearPermissionCache();
       invalidateCache();
       setDirty(false);
-      if (result.missingCodes.length > 0) {
-        toast({
-          title: "Permissions partially saved",
-          description: `${result.inserted} saved. Run portal RBAC SQL in Supabase for missing codes.`,
-          variant: "destructive",
-        });
-      } else {
-        toast({ title: `Permissions saved (${result.inserted})` });
-      }
-    } catch (e) {
-      console.error(e);
-      const message =
-        e instanceof Error ? e.message : "Failed to save permission data";
       toast({
-        title: message.includes("authorized") ? "Not authorized to save permissions" : message,
-        variant: "destructive",
+        title: result.missingCodes.length
+          ? `Saved ${result.inserted} (some codes missing in DB)`
+          : `Permissions saved (${result.inserted})`,
       });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Failed to save permission data";
+      toast({ title: message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -275,7 +252,7 @@ export default function PermissionManagement() {
       await loadRoles();
       toast({ title: "Role deleted" });
     } catch {
-      toast({ title: "Cannot delete role (may be in use)", variant: "destructive" });
+      toast({ title: "Cannot delete role", variant: "destructive" });
     }
   };
 
@@ -291,29 +268,15 @@ export default function PermissionManagement() {
         assignedBy: user.id,
         roleSlug: role.slug,
       });
-      await logPermissionChange({
-        schoolId,
-        actorId: user.id,
-        actionType: "user_role_assigned",
-        roleId: assignRoleId,
-        targetUserId: assignUserId,
-        details: { slug: role.slug },
-      });
-      await writeAuditLog({
-        schoolId,
-        actionType: "assign_user_role",
-        entityType: "user",
-        entityId: assignUserId,
-        details: { role: role.slug },
-      });
       clearPermissionCache();
       invalidateCache();
       await loadStaff();
       toast({ title: "Role assigned to staff member" });
     } catch (e) {
-      console.error(e);
-      const message = e instanceof Error ? e.message : "Assignment failed";
-      toast({ title: message, variant: "destructive" });
+      toast({
+        title: e instanceof Error ? e.message : "Assignment failed",
+        variant: "destructive",
+      });
     }
   };
 
@@ -333,27 +296,14 @@ export default function PermissionManagement() {
     setDirty(true);
   };
 
-  const handleResetDefaults = async () => {
-    if (!selectedRole || !canManage || isSuperAdminRole) return;
-    try {
-      await applyDefaultPermissionsForRole(selectedRole.id, selectedRole.slug, permissionIdMap);
-      const codes = await fetchRolePermissionCodes(selectedRole.id);
-      setSelectedCodes(codes);
-      setDirty(false);
-      toast({ title: "Default permissions applied" });
-    } catch {
-      toast({ title: "Reset failed", variant: "destructive" });
-    }
-  };
-
   const roleSelect = (
     <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
-      <SelectTrigger className="h-8 w-[140px] border-border/80 bg-background/80 text-sm font-medium">
+      <SelectTrigger className="rp-select-trigger h-8 min-w-[140px] border-[#2a2a2a] bg-[#1c1c1c] text-[#fafafa] shadow-none focus:ring-0 focus:ring-offset-0 rounded-md text-sm font-medium">
         <SelectValue placeholder="Select role" />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="bg-[#1c1c1c] border-[#2a2a2a] text-[#fafafa]">
         {assignableRoles.map((r) => (
-          <SelectItem key={r.id} value={r.id}>
+          <SelectItem key={r.id} value={r.id} className="focus:bg-[#262626] focus:text-white">
             {r.name}
           </SelectItem>
         ))}
@@ -364,8 +314,8 @@ export default function PermissionManagement() {
   if (loading) {
     return (
       <DashboardLayout role="admin">
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex min-h-[50vh] items-center justify-center bg-[#0a0a0a]">
+          <Loader2 className="h-8 w-8 animate-spin text-white" />
         </div>
       </DashboardLayout>
     );
@@ -378,242 +328,164 @@ export default function PermissionManagement() {
         anyOf={["portal.staff_access.manage", "admin.manage_permissions"]}
         showDenied
       >
-        <div className="mx-auto max-w-[1400px] space-y-5">
-          {/* Page header — matches reference */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                Roles &amp; Permissions
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-                Configure module-level access with dynamic permission matrix, select-all controls,
-                and audit logging.
+        {/* Full-bleed dark canvas like reference screenshot */}
+        <div className="-m-3 md:-m-6 min-h-[calc(100vh-4rem)] bg-[#0a0a0a] p-4 md:p-8">
+          <div className="mx-auto max-w-[1200px]">
+            {selectedRole ? (
+              <RolesPermissionsPanel
+                selected={selectedCodes}
+                onChange={(next) => {
+                  setSelectedCodes(next);
+                  setDirty(true);
+                }}
+                search={moduleSearch}
+                onSearchChange={setModuleSearch}
+                readOnly={matrixReadOnly}
+                roleControl={roleSelect}
+                dirty={dirty}
+                saving={saving}
+                onSave={canManage && !isSuperAdminRole ? handleSavePermissions : undefined}
+                onFullAccess={matrixReadOnly ? undefined : handleFullAccess}
+                onRevokeFullAccess={matrixReadOnly ? undefined : handleRevokeFullAccess}
+              />
+            ) : (
+              <div className="rp-page">
+                <h1 className="rp-title">Roles &amp; Permissions</h1>
+                <p className="rp-subtitle">No roles available. Create a role to continue.</p>
+              </div>
+            )}
+
+            {isSuperAdminRole && selectedRole && (
+              <p className="mt-3 text-sm text-[#a3a3a3]">
+                {selectedRole.name} has unrestricted access to all modules.
               </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {!canManage && (
-                <Badge variant="outline" className="text-xs">
-                  View only
-                </Badge>
-              )}
-              {canManage && !isSuperAdminRole && selectedRole && dirty && (
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={saving}
-                  onClick={handleSavePermissions}
-                  className="h-8"
-                >
-                  {saving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-1" />
-                      Save changes
-                    </>
-                  )}
-                </Button>
-              )}
-              {canManage && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="icon" className="h-8 w-8">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      disabled={!selectedRole || isSuperAdminRole}
-                      onClick={() => void handleResetDefaults()}
-                    >
-                      Reset to defaults
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <div className="px-2 py-1.5 flex gap-2">
-                      <Input
-                        placeholder="New role"
-                        value={newRoleName}
-                        onChange={(e) => setNewRoleName(e.target.value)}
-                        className="h-8 text-xs"
-                        onKeyDown={(e) => e.key === "Enter" && void handleCreateRole()}
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="h-8 shrink-0"
-                        disabled={!newRoleName.trim()}
-                        onClick={() => void handleCreateRole()}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    {selectedRole && !selectedRole.is_system && !isProtectedRole && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => setDeleteRoleOpen(true)}
-                        >
-                          Delete role
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-              <AlertDialog open={deleteRoleOpen} onOpenChange={setDeleteRoleOpen}>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Delete {selectedRole?.name ?? "role"}?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Staff assigned to this role will lose these permissions.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => {
-                        void handleDeleteRole();
-                        setDeleteRoleOpen(false);
-                      }}
-                    >
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </div>
+            )}
 
-          {isSuperAdminRole && selectedRole && (
-            <p className="text-sm text-muted-foreground -mt-2">
-              {selectedRole.name} has unrestricted access to all modules.
-            </p>
-          )}
-
-          {/* Single matrix card — exact reference structure */}
-          {selectedRole ? (
-            <PermissionMatrix
-              selected={selectedCodes}
-              onChange={(next) => {
-                setSelectedCodes(next);
-                setDirty(true);
-              }}
-              search={moduleSearch}
-              onSearchChange={setModuleSearch}
-              readOnly={matrixReadOnly}
-              roleControl={roleSelect}
-              onFullAccess={matrixReadOnly ? undefined : handleFullAccess}
-              onRevokeFullAccess={matrixReadOnly ? undefined : handleRevokeFullAccess}
-            />
-          ) : (
-            <div className="rounded-xl border border-border/80 bg-card/95 py-16 text-center text-sm text-muted-foreground">
-              Select a role to configure permissions.
-            </div>
-          )}
-
-          <Collapsible open={staffOpen} onOpenChange={setStaffOpen}>
-            <Card className="border-border/80">
-              <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-muted/20 transition-colors py-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                        <Users className="h-5 w-5" />
-                        Assign roles to staff
-                      </CardTitle>
-                      <CardDescription className="text-xs mt-1">
-                        Link matrix roles to teacher, accountant, and auditor accounts.
-                      </CardDescription>
-                    </div>
-                    {staffOpen ? (
-                      <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                    )}
-                  </div>
-                </CardHeader>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <CardContent className="space-y-4 pt-0">
-                  <div className="grid gap-4 sm:grid-cols-2 max-w-2xl">
-                    <div className="space-y-2">
-                      <Label>Staff member</Label>
-                      <Select value={assignUserId} onValueChange={setAssignUserId}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select staff" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {staff.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>
-                              {s.full_name} ({s.portal_role})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>RBAC role</Label>
-                      <Select value={assignRoleId} onValueChange={setAssignRoleId}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {assignableRoles.map((r) => (
-                            <SelectItem key={r.id} value={r.id}>
-                              {r.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  {canManage && (
+            {/* Secondary actions — not in reference UI */}
+            {canManage && (
+              <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-[#262626] pt-4">
+                <Sheet>
+                  <SheetTrigger asChild>
                     <Button
                       type="button"
-                      onClick={() => void handleAssignStaff()}
-                      disabled={!assignUserId || !assignRoleId}
+                      variant="outline"
+                      size="sm"
+                      className="border-[#2a2a2a] bg-transparent text-[#fafafa] hover:bg-[#1c1c1c]"
                     >
-                      Assign role
+                      <Users className="mr-2 h-4 w-4" />
+                      Assign to staff
                     </Button>
-                  )}
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Portal role</TableHead>
-                        <TableHead>RBAC role</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {staff.map((s) => (
-                        <TableRow key={s.id}>
-                          <TableCell>
-                            <div>{s.full_name}</div>
-                            <div className="text-xs text-muted-foreground">{s.email}</div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{s.portal_role}</Badge>
-                          </TableCell>
-                          <TableCell>{s.rbac_role_name ?? "—"}</TableCell>
-                        </TableRow>
-                      ))}
-                      {staff.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={3} className="text-center text-muted-foreground">
-                            No staff portal users found for this school.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </CollapsibleContent>
-            </Card>
-          </Collapsible>
+                  </SheetTrigger>
+                  <SheetContent className="bg-[#141414] border-[#2a2a2a] text-[#fafafa]">
+                    <SheetHeader>
+                      <SheetTitle className="text-white">Assign role to staff</SheetTitle>
+                      <SheetDescription className="text-[#a3a3a3]">
+                        Link this matrix role to teacher, accountant, or auditor accounts.
+                      </SheetDescription>
+                    </SheetHeader>
+                    <div className="mt-6 space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-[#fafafa]">Staff member</Label>
+                        <Select value={assignUserId} onValueChange={setAssignUserId}>
+                          <SelectTrigger className="bg-[#1c1c1c] border-[#2a2a2a]">
+                            <SelectValue placeholder="Select staff" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {staff.map((s) => (
+                              <SelectItem key={s.id} value={s.id}>
+                                {s.full_name} ({s.portal_role})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[#fafafa]">RBAC role</Label>
+                        <Select value={assignRoleId} onValueChange={setAssignRoleId}>
+                          <SelectTrigger className="bg-[#1c1c1c] border-[#2a2a2a]">
+                            <SelectValue placeholder="Select role" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {assignableRoles.map((r) => (
+                              <SelectItem key={r.id} value={r.id}>
+                                {r.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button type="button" onClick={() => void handleAssignStaff()}>
+                        Assign role
+                      </Button>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>RBAC role</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {staff.map((s) => (
+                            <TableRow key={s.id}>
+                              <TableCell>{s.full_name}</TableCell>
+                              <TableCell>{s.rbac_role_name ?? "—"}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </SheetContent>
+                </Sheet>
+
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="New role name"
+                    value={newRoleName}
+                    onChange={(e) => setNewRoleName(e.target.value)}
+                    className="h-8 w-36 bg-[#1c1c1c] border-[#2a2a2a] text-[#fafafa]"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="border-[#2a2a2a] bg-transparent text-[#fafafa]"
+                    disabled={!newRoleName.trim()}
+                    onClick={() => void handleCreateRole()}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {selectedRole && !selectedRole.is_system && !isProtectedRole && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="text-[#dc2626] hover:text-[#fca5a5] hover:bg-transparent"
+                    onClick={() => setDeleteRoleOpen(true)}
+                  >
+                    Delete role
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
+
+        <AlertDialog open={deleteRoleOpen} onOpenChange={setDeleteRoleOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete {selectedRole?.name}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Staff assigned to this role will lose these permissions.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => void handleDeleteRole()}>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </PermissionGate>
     </DashboardLayout>
   );
