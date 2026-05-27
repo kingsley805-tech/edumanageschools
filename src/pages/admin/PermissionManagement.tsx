@@ -5,13 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions, clearPermissionCache } from "@/hooks/usePermissions";
 import { writeAuditLog } from "@/lib/auditLog";
-import { PORTAL_CATEGORIES } from "@/lib/rbac/permissionCatalog";
+import { ALL_PORTAL_MODULES } from "@/lib/rbac/permissionCatalog";
+import { modulePermissionCodes } from "@/lib/rbac/matrixColumns";
 import {
   applyDefaultPermissionsForRole,
   assignRoleToUser,
@@ -22,21 +22,11 @@ import {
   fetchRoles,
   logPermissionChange,
   saveRolePermissions,
-  updateRole,
   type RoleRow,
 } from "@/lib/rbac/rbacService";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchStaffPortalUsers } from "@/lib/staffUsers";
-import {
-  Shield,
-  Save,
-  Loader2,
-  Plus,
-  Trash2,
-  Search,
-  Users,
-  KeyRound,
-} from "lucide-react";
+import { Save, Loader2, Plus, Trash2, Users, ChevronDown, ChevronUp } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -64,6 +54,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { PermissionGate } from "@/components/PermissionGate";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface StaffUser {
   id: string;
@@ -89,35 +80,34 @@ export default function PermissionManagement() {
   const [dirty, setDirty] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [roleSearch, setRoleSearch] = useState("");
-  const [permSearch, setPermSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [moduleSearch, setModuleSearch] = useState("");
   const [newRoleName, setNewRoleName] = useState("");
-  const [editName, setEditName] = useState("");
-  const [editDescription, setEditDescription] = useState("");
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [assignUserId, setAssignUserId] = useState("");
   const [assignRoleId, setAssignRoleId] = useState("");
+  const [staffOpen, setStaffOpen] = useState(false);
 
   const selectedRole = roles.find((r) => r.id === selectedRoleId);
   const isProtectedRole = selectedRole ? PROTECTED_SLUGS.has(selectedRole.slug) : false;
   const isSuperAdminRole = selectedRole?.slug === "super_admin";
-
-  const filteredRoles = useMemo(() => {
-    const q = roleSearch.trim().toLowerCase();
-    if (!q) return roles;
-    return roles.filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) ||
-        r.slug.toLowerCase().includes(q) ||
-        (r.description ?? "").toLowerCase().includes(q),
-    );
-  }, [roles, roleSearch]);
+  const matrixReadOnly = !canManage || isSuperAdminRole || !selectedRole;
 
   const assignableRoles = useMemo(
     () => roles.filter((r) => r.slug !== "super_admin"),
     [roles],
   );
+
+  const filteredModuleCodes = useMemo(() => {
+    const q = moduleSearch.trim().toLowerCase();
+    const mods = !q
+      ? ALL_PORTAL_MODULES
+      : ALL_PORTAL_MODULES.filter(
+          (m) =>
+            m.label.toLowerCase().includes(q) ||
+            m.categoryLabel.toLowerCase().includes(q),
+        );
+    return mods.flatMap((m) => modulePermissionCodes(m));
+  }, [moduleSearch]);
 
   const loadStaff = useCallback(async () => {
     if (!schoolId) return;
@@ -138,7 +128,10 @@ export default function PermissionManagement() {
     const rbacMap = new Map(
       (assignments ?? []).map((a) => [
         a.user_id,
-        { id: (a.roles as { id: string; name: string; slug: string })?.id, name: (a.roles as { name: string })?.name },
+        {
+          id: (a.roles as { id: string; name: string; slug: string })?.id,
+          name: (a.roles as { name: string })?.name,
+        },
       ]),
     );
 
@@ -158,13 +151,24 @@ export default function PermissionManagement() {
     const [roleRows, idMap] = await Promise.all([fetchRoles(schoolId), fetchPermissionIdMap()]);
     setRoles(roleRows);
     setPermissionIdMap(idMap);
+    return roleRows;
   }, [schoolId]);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        await loadRoles();
+        const roleRows = await loadRoles();
+        if (roleRows.length) {
+          setSelectedRoleId((current) => {
+            if (current && roleRows.some((r) => r.id === current)) return current;
+            const preferred =
+              roleRows.find((r) => r.slug === "accountant") ??
+              roleRows.find((r) => r.slug === "teacher") ??
+              roleRows[0];
+            return preferred.id;
+          });
+        }
         await loadStaff();
       } catch (e) {
         console.error(e);
@@ -182,16 +186,11 @@ export default function PermissionManagement() {
         const codes = await fetchRolePermissionCodes(selectedRoleId);
         setSelectedCodes(codes);
         setDirty(false);
-        const role = roles.find((r) => r.id === selectedRoleId);
-        if (role) {
-          setEditName(role.name);
-          setEditDescription(role.description ?? "");
-        }
       } catch {
         toast({ title: "Could not load role permissions", variant: "destructive" });
       }
     })();
-  }, [selectedRoleId, roles, toast]);
+  }, [selectedRoleId, toast]);
 
   const handleSavePermissions = async () => {
     if (!selectedRole || !schoolId || !user || !canManage) return;
@@ -238,22 +237,8 @@ export default function PermissionManagement() {
       setSelectedRoleId(row.id);
       setNewRoleName("");
       toast({ title: "Role created" });
-    } catch (e) {
-      toast({ title: "Could not create role", variant: "destructive" });
-    }
-  };
-
-  const handleUpdateRoleMeta = async () => {
-    if (!selectedRole || isProtectedRole || !canManage) return;
-    try {
-      await updateRole(selectedRole.id, {
-        name: editName.trim(),
-        description: editDescription.trim() || undefined,
-      });
-      await loadRoles();
-      toast({ title: "Role updated" });
     } catch {
-      toast({ title: "Update failed", variant: "destructive" });
+      toast({ title: "Could not create role", variant: "destructive" });
     }
   };
 
@@ -307,6 +292,22 @@ export default function PermissionManagement() {
     }
   };
 
+  const handleFullAccess = () => {
+    if (matrixReadOnly) return;
+    const next = new Set(selected);
+    for (const code of filteredModuleCodes) next.add(code);
+    setSelectedCodes(next);
+    setDirty(true);
+  };
+
+  const handleRevokeFullAccess = () => {
+    if (matrixReadOnly) return;
+    const next = new Set(selected);
+    for (const code of filteredModuleCodes) next.delete(code);
+    setSelectedCodes(next);
+    setDirty(true);
+  };
+
   const handleResetDefaults = async () => {
     if (!selectedRole || !canManage || isSuperAdminRole) return;
     try {
@@ -337,15 +338,13 @@ export default function PermissionManagement() {
         anyOf={["portal.staff_access.manage", "admin.manage_permissions"]}
         showDenied
       >
-        <div className="mx-auto max-w-6xl space-y-6">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto max-w-[1400px] space-y-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                <Shield className="h-7 w-7 text-primary" />
-                Permission Management
-              </h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Control roles, module access, and staff assignments for the admin portal.
+              <h1 className="text-2xl font-bold tracking-tight">Roles &amp; Permissions</h1>
+              <p className="text-muted-foreground text-sm mt-1 max-w-2xl">
+                Configure module-level access with a dynamic permission matrix, select-all controls,
+                and audit logging.
               </p>
             </div>
             {!canManage && (
@@ -353,225 +352,154 @@ export default function PermissionManagement() {
             )}
           </div>
 
-          <Tabs defaultValue="roles" className="space-y-4">
-            <TabsList className="grid w-full max-w-lg grid-cols-3">
-              <TabsTrigger value="roles">Roles</TabsTrigger>
-              <TabsTrigger value="permissions">Permissions</TabsTrigger>
-              <TabsTrigger value="staff">Staff</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="roles" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Roles</CardTitle>
-                  <CardDescription>
-                    System roles are predefined. Custom roles can be created per school.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="relative max-w-sm">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      className="pl-9"
-                      placeholder="Search roles…"
-                      value={roleSearch}
-                      onChange={(e) => setRoleSearch(e.target.value)}
-                    />
+          <Card>
+            <CardContent className="pt-6 space-y-4">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-4">
+                  <div className="space-y-2 min-w-[200px]">
+                    <Label>Role</Label>
+                    <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
+                      <SelectTrigger className="w-[220px]">
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {assignableRoles.map((r) => (
+                          <SelectItem key={r.id} value={r.id}>
+                            {r.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {filteredRoles.map((r) => (
-                      <button
-                        key={r.id}
-                        type="button"
-                        onClick={() => setSelectedRoleId(r.id)}
-                        className={`rounded-lg border p-4 text-left transition-colors hover:bg-muted/50 ${
-                          selectedRoleId === r.id ? "border-primary ring-1 ring-primary/30" : ""
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-medium">{r.name}</span>
-                          {r.is_system && <Badge variant="secondary">System</Badge>}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">{r.slug}</p>
-                        {r.description && (
-                          <p className="text-xs mt-2 line-clamp-2">{r.description}</p>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                  {canManage && (
-                    <div className="flex flex-wrap gap-2 pt-2 border-t">
-                      <Input
-                        placeholder="New custom role name"
-                        value={newRoleName}
-                        onChange={(e) => setNewRoleName(e.target.value)}
-                        className="max-w-xs"
-                      />
-                      <Button type="button" onClick={handleCreateRole} disabled={!newRoleName.trim()}>
-                        <Plus className="h-4 w-4 mr-1" />
-                        Create role
-                      </Button>
+                  {selectedRole && (
+                    <div className="flex items-center gap-2 pb-0.5">
+                      {selectedRole.is_system && (
+                        <Badge variant="secondary">System</Badge>
+                      )}
+                      {isSuperAdminRole && (
+                        <span className="text-xs text-muted-foreground">
+                          Unrestricted access
+                        </span>
+                      )}
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </div>
 
-              {selectedRole && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Edit role</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Name</Label>
-                        <Input
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          disabled={isProtectedRole || !canManage}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Description</Label>
-                        <Input
-                          value={editDescription}
-                          onChange={(e) => setEditDescription(e.target.value)}
-                          disabled={isProtectedRole || !canManage}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {canManage && !isProtectedRole && (
-                        <Button type="button" variant="outline" onClick={handleUpdateRoleMeta}>
-                          Save details
+                {canManage && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input
+                      placeholder="New role name"
+                      value={newRoleName}
+                      onChange={(e) => setNewRoleName(e.target.value)}
+                      className="max-w-[160px]"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={!newRoleName.trim()}
+                      onClick={handleCreateRole}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add role
+                    </Button>
+                    {selectedRole && !selectedRole.is_system && !isProtectedRole && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button type="button" variant="destructive" size="sm">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete {selectedRole.name}?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Staff assigned to this role will lose these permissions.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteRole}>Delete</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                    {canManage && !isSuperAdminRole && selectedRole && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleResetDefaults}
+                        >
+                          Reset defaults
                         </Button>
-                      )}
-                      {canManage && !selectedRole.is_system && !isProtectedRole && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button type="button" variant="destructive">
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Delete role
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete this role?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Staff assigned to this role will lose these permissions.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={handleDeleteRole}>Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={!dirty || saving}
+                          onClick={handleSavePermissions}
+                        >
+                          {saving ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Save className="h-4 w-4 mr-1" />
+                              Save
+                            </>
+                          )}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
 
-            <TabsContent value="permissions" className="space-y-4">
-              {!selectedRole ? (
-                <Card>
-                  <CardContent className="py-12 text-center text-muted-foreground">
-                    Select a role from the Roles tab to configure permissions.
-                  </CardContent>
-                </Card>
+              {selectedRole ? (
+                <PermissionMatrix
+                  selected={selectedCodes}
+                  onChange={(next) => {
+                    setSelectedCodes(next);
+                    setDirty(true);
+                  }}
+                  search={moduleSearch}
+                  onSearchChange={setModuleSearch}
+                  readOnly={matrixReadOnly}
+                  onFullAccess={matrixReadOnly ? undefined : handleFullAccess}
+                  onRevokeFullAccess={matrixReadOnly ? undefined : handleRevokeFullAccess}
+                />
               ) : (
-                <>
-                  <Card>
-                    <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4">
-                      <div>
-                        <CardTitle className="flex items-center gap-2">
-                          <KeyRound className="h-5 w-5" />
-                          {selectedRole.name}
-                        </CardTitle>
-                        <CardDescription>
-                          {isSuperAdminRole
-                            ? "Super Admin always has unrestricted access to all modules."
-                            : "Toggle module actions. Sidebar and routes respect View permission."}
-                        </CardDescription>
-                      </div>
-                      {canManage && !isSuperAdminRole && (
-                        <div className="flex flex-wrap gap-2">
-                          <Button type="button" variant="outline" size="sm" onClick={handleResetDefaults}>
-                            Reset to defaults
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            disabled={!dirty || saving}
-                            onClick={handleSavePermissions}
-                          >
-                            {saving ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <Save className="h-4 w-4 mr-1" />
-                                Save permissions
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      )}
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                        <div className="relative flex-1 max-w-sm">
-                          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                          <Input
-                            className="pl-9"
-                            placeholder="Search permissions…"
-                            value={permSearch}
-                            onChange={(e) => setPermSearch(e.target.value)}
-                          />
-                        </div>
-                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                          <SelectTrigger className="w-[200px]">
-                            <SelectValue placeholder="Category" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All categories</SelectItem>
-                            {PORTAL_CATEGORIES.map((c) => (
-                              <SelectItem key={c.key} value={c.key}>
-                                {c.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <PermissionMatrix
-                        selected={selectedCodes}
-                        onChange={(next) => {
-                          setSelectedCodes(next);
-                          setDirty(true);
-                        }}
-                        search={permSearch}
-                        categoryFilter={categoryFilter}
-                        readOnly={!canManage || isSuperAdminRole}
-                      />
-                    </CardContent>
-                  </Card>
-                </>
+                <p className="py-12 text-center text-muted-foreground text-sm">
+                  Select a role to configure permissions.
+                </p>
               )}
-            </TabsContent>
+            </CardContent>
+          </Card>
 
-            <TabsContent value="staff" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    Assign role to staff
-                  </CardTitle>
-                  <CardDescription>
-                    Links RBAC role to portal accounts (admin, accountant, auditor, teacher).
-                  </CardDescription>
+          <Collapsible open={staffOpen} onOpenChange={setStaffOpen}>
+            <Card>
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Users className="h-5 w-5" />
+                        Assign roles to staff
+                      </CardTitle>
+                      <CardDescription>
+                        Link RBAC roles to portal accounts (teacher, accountant, auditor).
+                      </CardDescription>
+                    </div>
+                    {staffOpen ? (
+                      <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="space-y-4 pt-0">
                   <div className="grid gap-4 sm:grid-cols-2 max-w-2xl">
                     <div className="space-y-2">
                       <Label>Staff member</Label>
@@ -605,18 +533,14 @@ export default function PermissionManagement() {
                     </div>
                   </div>
                   {canManage && (
-                    <Button type="button" onClick={handleAssignStaff} disabled={!assignUserId || !assignRoleId}>
+                    <Button
+                      type="button"
+                      onClick={handleAssignStaff}
+                      disabled={!assignUserId || !assignRoleId}
+                    >
                       Assign role
                     </Button>
                   )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Staff assignments</CardTitle>
-                </CardHeader>
-                <CardContent>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -648,9 +572,9 @@ export default function PermissionManagement() {
                     </TableBody>
                   </Table>
                 </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
         </div>
       </PermissionGate>
     </DashboardLayout>
