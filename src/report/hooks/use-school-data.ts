@@ -3,55 +3,65 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./use-auth";
 import { gradingFormatFromSettings, type GradingFormat } from "@/report/lib/grading";
 import { fetchCurrentTerm } from "@/report/lib/terms";
+import { fetchSchoolById, resolveUserSchoolId } from "@/lib/schoolFetch";
+import { isMissingSchemaColumnError } from "@/report/lib/supabase-errors";
 
 export type { GradingFormat };
 
 export function useSchool(schoolIdOverride?: string | null) {
-  const { profile } = useAuth();
-  const schoolId = schoolIdOverride ?? profile?.school_id;
+  const { profile, user } = useAuth();
   return useQuery({
-    queryKey: ["school", schoolId],
-    enabled: !!schoolId,
+    queryKey: ["school", schoolIdOverride ?? profile?.school_id, user?.id],
+    enabled: !!(schoolIdOverride ?? user?.id),
     queryFn: async () => {
-      const { data, error } = await supabase.from("schools").select("*").eq("id", schoolId!).single();
-      if (error) throw error;
-      const row = data as Record<string, unknown>;
+      const schoolId = schoolIdOverride ?? (user ? await resolveUserSchoolId(user.id) : null);
+      if (!schoolId) return null;
+      const row = await fetchSchoolById(schoolId);
+      if (!row) return null;
       return {
         ...row,
-        name: (row.name as string | undefined) ?? (row.school_name as string | undefined) ?? "",
-        phone: (row.phone as string | undefined) ?? "",
-        email: (row.email as string | undefined) ?? "",
-        address: (row.address as string | undefined) ?? "",
-        motto: (row.motto as string | undefined) ?? "",
-        stamp_url: (row.stamp_url as string | undefined) ?? "",
-        principal_name: (row.principal_name as string | undefined) ?? "",
-        logo_url: (row.logo_url as string | undefined) ?? "",
+        name: row.name ?? row.school_name ?? "",
+        phone: row.phone ?? "",
+        email: row.email ?? "",
+        address: row.address ?? "",
+        motto: row.motto ?? "",
+        stamp_url: row.stamp_url ?? "",
+        principal_name: row.principal_name ?? "",
+        logo_url: row.logo_url ?? "",
       };
     },
   });
 }
 
 export function useCurrentTerm() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   return useQuery({
-    queryKey: ["current-term", profile?.school_id],
-    enabled: !!profile?.school_id,
-    queryFn: () => fetchCurrentTerm(profile!.school_id!),
+    queryKey: ["current-term", profile?.school_id, user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const schoolId = profile?.school_id ?? (user ? await resolveUserSchoolId(user.id) : null);
+      if (!schoolId) return null;
+      return fetchCurrentTerm(schoolId);
+    },
   });
 }
 
 export function useSchoolSettings() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
+  const schoolId = profile?.school_id;
   return useQuery({
-    queryKey: ["school-settings", profile?.school_id],
-    enabled: !!profile?.school_id,
+    queryKey: ["school-settings", schoolId, user?.id],
+    enabled: !!(schoolId || user?.id),
     queryFn: async () => {
+      const sid = schoolId ?? (user ? await resolveUserSchoolId(user.id) : null);
+      if (!sid) return null;
       const { data, error } = await supabase
         .from("school_settings")
         .select("*")
-        .eq("school_id", profile!.school_id!)
+        .eq("school_id", sid)
         .maybeSingle();
-      if (error) throw error;
+      if (error && !isMissingSchemaColumnError(error)) throw error;
+      if (error && isMissingSchemaColumnError(error)) return null;
       return data;
     },
   });

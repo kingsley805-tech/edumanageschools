@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/report/hooks/use-auth";
-import { useSchool } from "@/report/hooks/use-school-data";
+import { useSchool, useSchoolSettings } from "@/report/hooks/use-school-data";
+import { resolveUserSchoolId } from "@/lib/schoolFetch";
 import { PageHeader } from "@/report/portal/page-header";
 import { TermsManager } from "@/report/components/terms-manager";
 import { SignatureManager } from "@/report/portal/signature-manager";
@@ -25,8 +26,9 @@ import { Loader2, Upload } from "lucide-react";
 import { withReportLayout } from "@/report/withReportLayout";
 
 function ReportSettingsPage() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const { data: school, refetch: refetchSchool } = useSchool();
+  const { data: settings } = useSchoolSettings();
   const qc = useQueryClient();
 
   const [branding, setBranding] = useState({
@@ -65,19 +67,6 @@ function ReportSettingsPage() {
     }
   }, [school]);
 
-  const { data: settings } = useQuery({
-    queryKey: ["school-settings", profile?.school_id],
-    enabled: !!profile?.school_id,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("school_settings")
-        .select("*")
-        .eq("school_id", profile!.school_id!)
-        .maybeSingle();
-      return data;
-    },
-  });
-
   useEffect(() => {
     if (settings) {
       setGrading({
@@ -94,6 +83,8 @@ function ReportSettingsPage() {
 
   const saveBranding = useMutation({
     mutationFn: async () => {
+      const schoolId = school?.id ?? profile?.school_id ?? (user ? await resolveUserSchoolId(user.id) : null);
+      if (!schoolId) throw new Error("No school linked to your account");
       const { error } = await supabase
         .from("schools")
         .update({
@@ -107,7 +98,7 @@ function ReportSettingsPage() {
           logo_url: branding.logo_url || null,
           stamp_url: branding.stamp_url || null,
         } as never)
-        .eq("id", profile!.school_id!);
+        .eq("id", schoolId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -119,8 +110,10 @@ function ReportSettingsPage() {
 
   const saveGrading = useMutation({
     mutationFn: async () => {
+      const schoolId = school?.id ?? profile?.school_id ?? (user ? await resolveUserSchoolId(user.id) : null);
+      if (!schoolId) throw new Error("No school linked to your account");
       const payload = {
-        school_id: profile!.school_id!,
+        school_id: schoolId,
         ca_weight: grading.ca_weight,
         exam_weight: grading.exam_weight,
         pass_mark: grading.pass_mark,
@@ -144,15 +137,16 @@ function ReportSettingsPage() {
   });
 
   const handleImageUpload = async (kind: "logo" | "stamp", file: File) => {
-    if (!file || !profile?.school_id) return;
+    const schoolId = school?.id ?? profile?.school_id ?? (user ? await resolveUserSchoolId(user.id) : null);
+    if (!file || !schoolId) return;
     setUploading(kind);
     try {
       const ext = file.name.split(".").pop() || "png";
-      const path = `${profile.school_id}/${kind}-${Date.now()}.${ext}`;
+      const path = `${schoolId}/${kind}-${Date.now()}.${ext}`;
       const bucket = "school-assets";
       let { error: upErr } = await supabase.storage.from(bucket).upload(path, file, { upsert: true });
       if (upErr?.message?.includes("Bucket not found")) {
-        const fallbackPath = `${profile.school_id}-${kind}-${Date.now()}.${ext}`;
+        const fallbackPath = `${schoolId}-${kind}-${Date.now()}.${ext}`;
         ({ error: upErr } = await supabase.storage
           .from("school-logos")
           .upload(fallbackPath, file, { upsert: true }));

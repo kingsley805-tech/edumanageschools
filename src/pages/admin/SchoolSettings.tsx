@@ -11,6 +11,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useSchoolTheme } from "@/contexts/SchoolThemeContext";
 import { SchoolBrandColorPicker } from "@/components/SchoolBrandColorPicker";
 import { BRAND_DEFAULTS, parseSchoolBrand, type BrandColors } from "@/lib/themeColors";
+import { fetchSchoolForUser, resolveUserSchoolId } from "@/lib/schoolFetch";
 import { Upload, Building, Image, Save, Loader2, Palette } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -44,35 +45,36 @@ const SchoolSettings = () => {
 
     setLoading(true);
     try {
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("school_id")
-        .eq("id", user.id)
-        .single();
+      const schoolData = await fetchSchoolForUser(user.id);
 
-      if (profileError) throw profileError;
-
-      if (profile?.school_id) {
-        const { data: schoolData, error: schoolError } = await supabase
-          .from("schools")
-          .select(
-            "id, school_name, school_code, logo_url, theme_primary, theme_secondary, theme_accent"
-          )
-          .eq("id", profile.school_id)
-          .single();
-
-        if (schoolError) throw schoolError;
-
-        setSchool(schoolData);
-        setSchoolName(schoolData.school_name);
-        setPreviewUrl(schoolData.logo_url);
-        const colors = parseSchoolBrand(schoolData);
-        setBrandColors(colors);
-        applyColors(colors);
+      if (!schoolData) {
+        const schoolId = await resolveUserSchoolId(user.id);
+        if (!schoolId) {
+          setSchool(null);
+          return;
+        }
+        throw new Error("Could not load school record. Check that your account is linked to a valid school.");
       }
+
+      setSchool({
+        id: schoolData.id,
+        school_name: schoolData.school_name,
+        school_code: schoolData.school_code,
+        logo_url: schoolData.logo_url,
+        theme_primary: schoolData.theme_primary ?? null,
+        theme_secondary: schoolData.theme_secondary ?? null,
+        theme_accent: schoolData.theme_accent ?? null,
+      });
+      setSchoolName(schoolData.school_name);
+      setPreviewUrl(schoolData.logo_url);
+      const colors = parseSchoolBrand(schoolData);
+      setBrandColors(colors);
+      applyColors(colors);
     } catch (error: unknown) {
       console.error("Error fetching school:", error);
-      toast.error("Failed to load school settings");
+      const message =
+        error instanceof Error ? error.message : "Failed to load school settings";
+      toast.error(message.includes("load") ? message : `Failed to load school settings: ${message}`);
     } finally {
       setLoading(false);
     }
