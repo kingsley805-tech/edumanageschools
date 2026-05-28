@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { isAcademicCalendarAvailable } from "@/lib/billing/availability";
+import { AcademicCalendarSchemaAlert } from "@/components/billing/AcademicCalendarSchemaAlert";
 import { Plus, Star, Trash2, CalendarRange, Layers } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -41,18 +43,45 @@ export function AcademicCalendarPanel({ schoolId, permission }: Props) {
   const qc = useQueryClient();
   const canCreate = permission.create || permission.manage;
   const canDelete = permission.delete || permission.manage;
+  const [schemaOk, setSchemaOk] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void isAcademicCalendarAvailable().then((ok) => {
+      if (!cancelled) setSchemaOk(ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const recheckSchema = () => {
+    void isAcademicCalendarAvailable().then(setSchemaOk);
+  };
 
   const { data: years = [], isLoading: yearsLoading } = useQuery({
     queryKey: ["academic-years", schoolId],
     queryFn: () => fetchAcademicYears(schoolId),
-    enabled: !!schoolId,
+    enabled: !!schoolId && schemaOk === true,
   });
 
   const { data: terms = [], isLoading: termsLoading } = useQuery({
     queryKey: ["finance-terms", schoolId],
     queryFn: () => fetchFinanceTerms(schoolId),
-    enabled: !!schoolId,
+    enabled: !!schoolId && schemaOk === true,
   });
+
+  if (schemaOk === false) {
+    return <AcademicCalendarSchemaAlert onRecheck={recheckSchema} />;
+  }
+
+  if (schemaOk === null) {
+    return (
+      <div className="mb-6 flex justify-center py-8">
+        <div className="fee-spinner" />
+      </div>
+    );
+  }
 
   const invalidate = async () => {
     await qc.invalidateQueries({ queryKey: ["academic-years", schoolId] });
