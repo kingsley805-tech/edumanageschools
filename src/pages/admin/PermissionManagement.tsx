@@ -59,6 +59,8 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { PermissionGate } from "@/components/PermissionGate";
+import { isRbacAvailable, resetRbacAvailabilityProbe } from "@/lib/rbac/availability";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface StaffUser {
   id: string;
@@ -89,6 +91,7 @@ export default function PermissionManagement() {
   const [assignUserId, setAssignUserId] = useState("");
   const [assignRoleId, setAssignRoleId] = useState("");
   const [deleteRoleOpen, setDeleteRoleOpen] = useState(false);
+  const [rbacReady, setRbacReady] = useState<boolean | null>(null);
 
   const selectedRole = roles.find((r) => r.id === selectedRoleId);
   const isProtectedRole = selectedRole ? PROTECTED_SLUGS.has(selectedRole.slug) : false;
@@ -120,17 +123,20 @@ export default function PermissionManagement() {
       setStaff([]);
       return;
     }
-    const { data: assignments } = await supabase
-      .from("user_role_assignments")
-      .select("user_id, role_id, roles(id, name)")
-      .eq("school_id", schoolId)
-      .in("user_id", staffIds);
-    const rbacMap = new Map(
-      (assignments ?? []).map((a) => [
-        a.user_id,
-        (a.roles as { name: string } | null)?.name ?? null,
-      ]),
-    );
+    let rbacMap = new Map<string, string | null>();
+    if (await isRbacAvailable()) {
+      const { data: assignments } = await supabase
+        .from("user_role_assignments")
+        .select("user_id, role_id, roles(id, name)")
+        .eq("school_id", schoolId)
+        .in("user_id", staffIds);
+      rbacMap = new Map(
+        (assignments ?? []).map((a) => [
+          a.user_id,
+          (a.roles as { name: string } | null)?.name ?? null,
+        ]),
+      );
+    }
     setStaff(
       staffUsers.map((p) => ({
         id: p.id,
@@ -148,6 +154,20 @@ export default function PermissionManagement() {
     setPermissionIdMap(idMap);
     return roleRows;
   }, [schoolId]);
+
+  useEffect(() => {
+    void isRbacAvailable().then(setRbacReady);
+  }, []);
+
+  const handleRecheckRbac = useCallback(async () => {
+    resetRbacAvailabilityProbe();
+    const ok = await isRbacAvailable();
+    setRbacReady(ok);
+    if (ok) {
+      await loadRoles();
+      await loadStaff();
+    }
+  }, [loadRoles, loadStaff]);
 
   useEffect(() => {
     (async () => {
@@ -331,6 +351,24 @@ export default function PermissionManagement() {
         {/* Full-bleed dark canvas like reference screenshot */}
         <div className="-m-3 md:-m-6 min-h-[calc(100vh-4rem)] bg-[#0a0a0a] p-4 md:p-8">
           <div className="mx-auto max-w-[1200px]">
+            {rbacReady === false && (
+              <Alert className="mb-6 border-amber-500/40 bg-amber-500/10 text-amber-50">
+                <AlertTitle>RBAC database not installed</AlertTitle>
+                <AlertDescription>
+                  Run{" "}
+                  <code className="rounded bg-black/30 px-1 py-0.5 text-xs">
+                    supabase/scripts/apply-rbac-full.sql
+                  </code>{" "}
+                  in the Supabase SQL Editor, then reload the API schema (Settings → API). Until
+                  then, portal admins keep full access; the permission matrix stays empty.
+                </AlertDescription>
+                <div className="mt-3">
+                  <Button size="sm" variant="outline" onClick={() => void handleRecheckRbac()}>
+                    Recheck RBAC now
+                  </Button>
+                </div>
+              </Alert>
+            )}
             {selectedRole ? (
               <RolesPermissionsPanel
                 selected={selectedCodes}

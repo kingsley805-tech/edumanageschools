@@ -4,7 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { isPortalStudentUser } from "@/lib/portalIdentity";
 import { defaultCodesForRole } from "@/lib/rbac/permissionCatalog";
-import { isRbacSchemaMissing, portalRoleToRbacSlug } from "@/lib/rbac/schema";
+import { isRbacAvailable } from "@/lib/rbac/availability";
+import { portalRoleToRbacSlug } from "@/lib/rbac/schema";
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const permissionCache = new Map<string, { codes: Set<string>; expires: number }>();
@@ -48,9 +49,22 @@ export const usePermissions = () => {
       return;
     }
 
+    const rbacOk = await isRbacAvailable();
+    if (!rbacOk) {
+      const fallback =
+        portalRole === "super_admin" || portalRole === "admin"
+          ? new Set<string>()
+          : new Set(defaultCodesForRole(portalRoleToRbacSlug(portalRole)));
+      permissionCache.set(cacheKey, { codes: fallback, expires: Date.now() + CACHE_TTL_MS });
+      setPermissions(fallback);
+      setLoading(false);
+      return;
+    }
+
     if (portalRole === "super_admin" || portalRole === "admin") {
       const { data: allPerms, error: permsError } = await supabase.from("permissions").select("code");
-      if (permsError && isRbacSchemaMissing(permsError)) {
+      if (permsError) {
+        console.error("Failed to load permissions:", permsError);
         setPermissions(new Set());
         setLoading(false);
         return;
@@ -68,14 +82,8 @@ export const usePermissions = () => {
     });
 
     if (error) {
-      if (isRbacSchemaMissing(error)) {
-        const fallback = new Set(defaultCodesForRole(portalRoleToRbacSlug(portalRole)));
-        permissionCache.set(cacheKey, { codes: fallback, expires: Date.now() + CACHE_TTL_MS });
-        setPermissions(fallback);
-      } else {
-        console.error("Failed to load permissions:", error);
-        setPermissions(new Set());
-      }
+      console.error("Failed to load permissions:", error);
+      setPermissions(new Set());
     } else {
       const codes = new Set((data as string[]) ?? []);
       permissionCache.set(cacheKey, { codes, expires: Date.now() + CACHE_TTL_MS });

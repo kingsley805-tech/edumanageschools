@@ -28,19 +28,15 @@ export async function fetchStaffPortalUsers(schoolId: string): Promise<StaffPort
   const ids = (profiles ?? []).map((p) => p.id);
   if (!ids.length) return [];
 
-  const [{ data: portalRoles }, { data: studentRows }, { data: nonStaffRoles }] = await Promise.all([
-    supabase
-      .from("user_roles")
-      .select("user_id, role")
-      .in("user_id", ids)
-      .in("role", [...STAFF_PORTAL_ROLES]),
+  const [{ data: allPortalRoles }, { data: studentRows }] = await Promise.all([
+    supabase.from("user_roles").select("user_id, role").in("user_id", ids),
     supabase.from("students").select("user_id").eq("school_id", schoolId).not("user_id", "is", null),
-    supabase
-      .from("user_roles")
-      .select("user_id")
-      .in("user_id", ids)
-      .in("role", ["student", "parent"]),
   ]);
+
+  const portalRoles = (allPortalRoles ?? []).filter((r) =>
+    STAFF_PORTAL_ROLES.includes(r.role as StaffPortalRole),
+  );
+  const nonStaffRoles = (allPortalRoles ?? []).filter((r) => r.role === "student" || r.role === "parent");
 
   const excludeIds = new Set<string>([
     ...(studentRows ?? []).map((s) => s.user_id).filter((id): id is string => !!id),

@@ -12,6 +12,7 @@ export function isRbacSchemaMissing(
     blob.includes("pgrst204") ||
     blob.includes("42p01") ||
     blob.includes("schema cache") ||
+    blob.includes("not found") ||
     (blob.includes("does not exist") &&
       (blob.includes("permissions") ||
         blob.includes("roles") ||

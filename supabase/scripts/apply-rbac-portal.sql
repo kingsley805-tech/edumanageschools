@@ -1,13 +1,7 @@
 -- =============================================================================
--- Portal RBAC setup (run in Supabase Dashboard -> SQL Editor)
--- Project: https://supabase.com/dashboard/project/xbhhpjtwawfawifhpxbe/sql/new
--- Run this file AFTER core RBAC migration (20260526120000) is applied.
+-- Portal RBAC backfill (run AFTER apply-rbac-full.sql)
 -- =============================================================================
--- Step 1: Paste and run: supabase/migrations/20260527100000_rbac_portal_catalog.sql
--- Step 2: Paste and run: supabase/migrations/20260527110000_rbac_default_role_grants.sql
--- Step 3: Paste and run: supabase/migrations/20260527120000_rbac_strict_permission_checks.sql
---
--- Ensures portal admins keep school_admin RBAC (from 20260527050000 backfill):
+
 INSERT INTO public.user_role_assignments (user_id, role_id, school_id)
 SELECT p.id, r.id, p.school_id
 FROM public.profiles p

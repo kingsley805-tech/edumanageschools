@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { defaultCodesForRole } from "@/lib/rbac/permissionCatalog";
+import { isRbacAvailable } from "@/lib/rbac/availability";
 import { isRbacSchemaMissing } from "@/lib/rbac/schema";
 
 export type RoleRow = {
@@ -12,6 +13,7 @@ export type RoleRow = {
 };
 
 export async function fetchRoles(schoolId: string | null): Promise<RoleRow[]> {
+  if (!(await isRbacAvailable())) return [];
   const q = schoolId
     ? supabase.from("roles").select("*").or(`school_id.is.null,school_id.eq.${schoolId}`)
     : supabase.from("roles").select("*").is("school_id", null);
@@ -24,6 +26,7 @@ export async function fetchRoles(schoolId: string | null): Promise<RoleRow[]> {
 }
 
 export async function fetchPermissionIdMap(): Promise<Map<string, string>> {
+  if (!(await isRbacAvailable())) return new Map();
   const { data, error } = await supabase.from("permissions").select("id, code");
   if (error) {
     if (isRbacSchemaMissing(error)) return new Map();
