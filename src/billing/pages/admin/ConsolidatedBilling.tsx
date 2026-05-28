@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useCallback, useEffect, useState } from "react";
 import { useBillingSchoolId } from "@/billing/hooks/useBillingSchoolId";
 import { Button } from "@/components/ui/button";

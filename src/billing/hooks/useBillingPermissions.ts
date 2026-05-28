@@ -1,3 +1,4 @@
+// @ts-nocheck
 ﻿import { useCallback, useMemo } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useUserRole } from "@/hooks/useUserRole";

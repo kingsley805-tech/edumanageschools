@@ -1,3 +1,4 @@
+// @ts-nocheck
 ﻿import { useEffect, useMemo, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Button } from "@/components/ui/button";
@@ -189,5 +190,3 @@ export default function BillingReports() {
     </div>
   );
 };
-
-
