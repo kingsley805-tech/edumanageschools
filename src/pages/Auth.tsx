@@ -108,6 +108,7 @@ const Auth = () => {
     return {
       valid: true as const,
       schoolId: result.schoolId!,
+      registrationNumber: result.registrationNumber,
       data: { school_id: result.schoolId, registration_number: result.registrationNumber },
     };
   };
@@ -218,11 +219,23 @@ const Auth = () => {
         return;
       }
       schoolId = validation.schoolId ?? null;
+      regNumber =
+        validation.registrationNumber ?? normalizeAdmissionNumber(regNumber);
       if (signupRole === "student" && !gender) {
         toast.error("Please select your gender");
         setIsLoading(false);
         return;
       }
+    }
+
+    let schoolCodeForMeta = signupRole === "admin" ? schoolCode.toUpperCase() : "";
+    if (schoolId && signupRole !== "admin") {
+      const { data: schoolRow } = await supabase
+        .from("schools")
+        .select("school_code")
+        .eq("id", schoolId)
+        .maybeSingle();
+      schoolCodeForMeta = schoolRow?.school_code?.toUpperCase() ?? "";
     }
 
     let emailForAuth = signupEmail.trim();
@@ -244,7 +257,7 @@ const Auth = () => {
       password: signupPassword,
       fullName: signupFullName,
       role: signupRole,
-      schoolCode: signupRole === "admin" ? schoolCode.toUpperCase() : "",
+      schoolCode: schoolCodeForMeta,
       schoolId: schoolId ?? undefined,
       adminKey,
       schoolName,
@@ -258,7 +271,12 @@ const Auth = () => {
     });
 
     if (error) {
-      const msg = (error as { message?: string }).message ?? "Failed to create account";
+      const err = error as { message?: string; code?: string };
+      let msg = err.message ?? "Failed to create account";
+      if (msg.toLowerCase().includes("database error")) {
+        msg =
+          "Account setup failed on the server. Ask your admin to run fix-student-signup-500.sql in Supabase, then try again.";
+      }
       toast.error(msg);
       setIsLoading(false);
       return;

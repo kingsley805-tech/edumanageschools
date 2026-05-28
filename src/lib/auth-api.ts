@@ -6,7 +6,7 @@ export function buildStudentAuthEmail(admissionNumber: string, schoolId: string)
   const slug = normalizeAdmissionNumber(admissionNumber)
     .toLowerCase()
     .replace(/[^a-z0-9-]/g, "");
-  return `${schoolId}.${slug}@student.portal`;
+  return `${schoolId}.${slug}@students.app`;
 }
 
 export type StudentAdmissionPreview = {
