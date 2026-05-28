@@ -1,7 +1,5 @@
--- Run in Supabase Dashboard → SQL Editor
--- Fixes: Could not find the table 'public.fee_categories' in the schema cache
-
--- (Contents match supabase/migrations/20260528130000_fee_categories_billing_tables.sql)
+-- Superseded by supabase/scripts/apply-all-missing-tables.sql (includes fee_categories + all portal gaps).
+-- Run apply-all-missing-tables.sql in SQL Editor, or: supabase db push
 
 CREATE TABLE IF NOT EXISTS public.fee_categories (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

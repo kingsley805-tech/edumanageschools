@@ -78,4 +78,4 @@ export function resetBillingAvailabilityProbe(): void {
   }
 }
 
-export const BILLING_SETUP_SQL_PATH = "supabase/scripts/apply-fee-categories.sql";
+export const BILLING_SETUP_SQL_PATH = "supabase/scripts/apply-all-missing-tables.sql";

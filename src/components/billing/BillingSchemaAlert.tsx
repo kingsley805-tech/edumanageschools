@@ -17,7 +17,8 @@ export function BillingSchemaAlert({ onRecheck }: Props) {
         <code className="rounded bg-black/30 px-1 py-0.5 text-xs">
           supabase/migrations/20260528130000_fee_categories_billing_tables.sql
         </code>{" "}
-        in the SQL Editor, then reload the API schema (Settings → API).
+        in the SQL Editor (or run <code className="rounded bg-black/30 px-1 py-0.5 text-xs">supabase db push</code>),
+        then reload the API schema (Settings → API).
       </AlertDescription>
       <div className="mt-3">
         <Button
