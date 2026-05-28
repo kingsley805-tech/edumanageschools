@@ -2,7 +2,9 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, RefreshCw, Hash } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { generateRegistrationNumber } from "@/lib/registration-numbers";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -38,11 +40,17 @@ const Teachers = () => {
   const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [deleting, setDeleting] = useState(false);
+  const [schoolId, setSchoolId] = useState<string | null>(null);
+  const [unusedEmployeeNumbers, setUnusedEmployeeNumbers] = useState<string[]>([]);
+  const [loadingEmployeeNo, setLoadingEmployeeNo] = useState(false);
+  const [generatingEmployeeNo, setGeneratingEmployeeNo] = useState(false);
   const { toast } = useToast();
   
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<TeacherFormData>({
+  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<TeacherFormData>({
     resolver: zodResolver(teacherSchema),
   });
+
+  const employeeNoValue = watch("employee_no");
 
   const { 
     register: registerEdit, 
@@ -55,7 +63,95 @@ const Teachers = () => {
 
   useEffect(() => {
     fetchTeachers();
+    void resolveSchoolId();
   }, []);
+
+  const resolveSchoolId = async (): Promise<string | null> => {
+    if (schoolId) return schoolId;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", user.id)
+      .single();
+    const sid = profileData?.school_id ?? null;
+    if (sid) setSchoolId(sid);
+    return sid;
+  };
+
+  const loadUnusedEmployeeNumbers = async (selectNumber?: string) => {
+    const sid = await resolveSchoolId();
+    if (!sid) return;
+
+    setLoadingEmployeeNo(true);
+    try {
+      const { data, error } = await supabase
+        .from("registration_numbers")
+        .select("registration_number")
+        .eq("school_id", sid)
+        .eq("number_type", "employee")
+        .eq("status", "unused")
+        .order("registration_number", { ascending: true })
+        .limit(100);
+
+      if (error) throw error;
+
+      const numbers = (data ?? []).map((r) => r.registration_number);
+      setUnusedEmployeeNumbers(numbers);
+      if (selectNumber && numbers.includes(selectNumber)) {
+        setValue("employee_no", selectNumber, { shouldValidate: true });
+      } else if (numbers.length > 0) {
+        setValue("employee_no", numbers[0], { shouldValidate: true });
+      } else {
+        setValue("employee_no", "");
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to load employee numbers";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setLoadingEmployeeNo(false);
+    }
+  };
+
+  const handleGenerateEmployeeNumber = async () => {
+    setGeneratingEmployeeNo(true);
+    try {
+      const sid = await resolveSchoolId();
+      if (!sid) throw new Error("School not found");
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const registrationNumber = await generateRegistrationNumber({
+        schoolId: sid,
+        userId: user.id,
+        type: "employee",
+        auditAction: "modal_generate",
+      });
+
+      await loadUnusedEmployeeNumbers(registrationNumber);
+      toast({
+        title: "Number generated",
+        description: `${registrationNumber} is ready to use`,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to generate employee number";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setGeneratingEmployeeNo(false);
+    }
+  };
+
+  const handleAddDialogChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      reset();
+      setUnusedEmployeeNumbers([]);
+      return;
+    }
+    void loadUnusedEmployeeNumbers();
+  };
 
   const fetchTeachers = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -100,6 +196,18 @@ const Teachers = () => {
 
       if (!profileData?.school_id) throw new Error("School not found");
       const schoolCode = (profileData.schools as any)?.school_code;
+
+      const { data: regCheck } = await supabase
+        .from("registration_numbers")
+        .select("status")
+        .eq("school_id", profileData.school_id)
+        .eq("registration_number", data.employee_no)
+        .eq("number_type", "employee")
+        .maybeSingle();
+
+      if (regCheck?.status === "used") {
+        throw new Error("This employee number is already in use. Generate or pick another.");
+      }
 
       const { data: result, error } = await supabase.functions.invoke('create-user-account', {
         body: {
@@ -229,7 +337,7 @@ const Teachers = () => {
             <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Teachers</h2>
             <p className="text-sm md:text-base text-muted-foreground">Manage teaching staff</p>
           </div>
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog open={open} onOpenChange={handleAddDialogChange}>
             <DialogTrigger asChild>
               <Button className="gap-2 w-full sm:w-auto">
                 <Plus className="h-4 w-4" />
@@ -244,8 +352,70 @@ const Teachers = () => {
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="employee_no">Employee Number</Label>
-                    <Input id="employee_no" {...register("employee_no")} />
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="employee_no">Employee Number</Label>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 gap-1 px-2 text-xs"
+                          onClick={() => void handleGenerateEmployeeNumber()}
+                          disabled={loadingEmployeeNo || generatingEmployeeNo}
+                        >
+                          <Hash className={`h-3.5 w-3.5 ${generatingEmployeeNo ? "animate-pulse" : ""}`} />
+                          Generate
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1 px-2 text-xs"
+                          onClick={() => void loadUnusedEmployeeNumbers()}
+                          disabled={loadingEmployeeNo || generatingEmployeeNo}
+                        >
+                          <RefreshCw className={`h-3.5 w-3.5 ${loadingEmployeeNo ? "animate-spin" : ""}`} />
+                          Refresh
+                        </Button>
+                      </div>
+                    </div>
+                    {unusedEmployeeNumbers.length > 1 ? (
+                      <Select
+                        value={employeeNoValue || undefined}
+                        onValueChange={(value) => setValue("employee_no", value, { shouldValidate: true })}
+                        disabled={loadingEmployeeNo || generatingEmployeeNo}
+                      >
+                        <SelectTrigger id="employee_no">
+                          <SelectValue placeholder="Select employee number" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {unusedEmployeeNumbers.map((num) => (
+                            <SelectItem key={num} value={num}>
+                              {num}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        id="employee_no"
+                        {...register("employee_no")}
+                        placeholder={loadingEmployeeNo ? "Loading next number…" : "EMP-YYYY-001"}
+                        disabled={loadingEmployeeNo || generatingEmployeeNo}
+                        readOnly={unusedEmployeeNumbers.length === 1}
+                        className={unusedEmployeeNumbers.length === 1 ? "bg-muted font-mono" : "font-mono"}
+                      />
+                    )}
+                    {!loadingEmployeeNo && !generatingEmployeeNo && unusedEmployeeNumbers.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        No employee numbers yet. Click <span className="font-medium">Generate</span> to create one.
+                      </p>
+                    )}
+                    {!loadingEmployeeNo && !generatingEmployeeNo && unusedEmployeeNumbers.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {unusedEmployeeNumbers.length} unused number{unusedEmployeeNumbers.length === 1 ? "" : "s"} available
+                      </p>
+                    )}
                     {errors.employee_no && <p className="text-sm text-destructive">{errors.employee_no.message}</p>}
                   </div>
                   <div className="space-y-2">

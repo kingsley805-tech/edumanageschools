@@ -2,8 +2,8 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Filter, Pencil, Trash2, RefreshCw } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Plus, Search, Filter, Pencil, Trash2, RefreshCw, Hash } from "lucide-react";
+import { generateRegistrationNumber } from "@/lib/registration-numbers";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -49,6 +49,7 @@ const Students = () => {
   const [deleting, setDeleting] = useState(false);
   const [unusedAdmissionNumbers, setUnusedAdmissionNumbers] = useState<string[]>([]);
   const [loadingAdmissionNo, setLoadingAdmissionNo] = useState(false);
+  const [generatingAdmissionNo, setGeneratingAdmissionNo] = useState(false);
   const { toast } = useToast();
   
   const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<StudentFormData>({
@@ -93,19 +94,22 @@ const Students = () => {
     if (data) setClasses(data);
   };
 
-  const loadUnusedAdmissionNumbers = async () => {
-    let sid = schoolId;
-    if (!sid) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("school_id")
-        .eq("id", user.id)
-        .single();
-      sid = profileData?.school_id ?? null;
-      if (sid) setSchoolId(sid);
-    }
+  const resolveSchoolId = async (): Promise<string | null> => {
+    if (schoolId) return schoolId;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("school_id")
+      .eq("id", user.id)
+      .single();
+    const sid = profileData?.school_id ?? null;
+    if (sid) setSchoolId(sid);
+    return sid;
+  };
+
+  const loadUnusedAdmissionNumbers = async (selectNumber?: string) => {
+    const sid = await resolveSchoolId();
     if (!sid) return;
 
     setLoadingAdmissionNo(true);
@@ -123,7 +127,9 @@ const Students = () => {
 
       const numbers = (data ?? []).map((r) => r.registration_number);
       setUnusedAdmissionNumbers(numbers);
-      if (numbers.length > 0) {
+      if (selectNumber && numbers.includes(selectNumber)) {
+        setValue("admission_no", selectNumber, { shouldValidate: true });
+      } else if (numbers.length > 0) {
         setValue("admission_no", numbers[0], { shouldValidate: true });
       } else {
         setValue("admission_no", "");
@@ -133,6 +139,35 @@ const Students = () => {
       toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setLoadingAdmissionNo(false);
+    }
+  };
+
+  const handleGenerateAdmissionNumber = async () => {
+    setGeneratingAdmissionNo(true);
+    try {
+      const sid = await resolveSchoolId();
+      if (!sid) throw new Error("School not found");
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const registrationNumber = await generateRegistrationNumber({
+        schoolId: sid,
+        userId: user.id,
+        type: "student",
+        auditAction: "modal_generate",
+      });
+
+      await loadUnusedAdmissionNumbers(registrationNumber);
+      toast({
+        title: "Number generated",
+        description: `${registrationNumber} is ready to use`,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to generate admission number";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setGeneratingAdmissionNo(false);
     }
   };
 
@@ -355,23 +390,36 @@ const Students = () => {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <Label htmlFor="admission_no">Admission Number</Label>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 gap-1 px-2 text-xs"
-                        onClick={() => void loadUnusedAdmissionNumbers()}
-                        disabled={loadingAdmissionNo}
-                      >
-                        <RefreshCw className={`h-3.5 w-3.5 ${loadingAdmissionNo ? "animate-spin" : ""}`} />
-                        Refresh
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 gap-1 px-2 text-xs"
+                          onClick={() => void handleGenerateAdmissionNumber()}
+                          disabled={loadingAdmissionNo || generatingAdmissionNo}
+                        >
+                          <Hash className={`h-3.5 w-3.5 ${generatingAdmissionNo ? "animate-pulse" : ""}`} />
+                          Generate
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1 px-2 text-xs"
+                          onClick={() => void loadUnusedAdmissionNumbers()}
+                          disabled={loadingAdmissionNo || generatingAdmissionNo}
+                        >
+                          <RefreshCw className={`h-3.5 w-3.5 ${loadingAdmissionNo ? "animate-spin" : ""}`} />
+                          Refresh
+                        </Button>
+                      </div>
                     </div>
                     {unusedAdmissionNumbers.length > 1 ? (
                       <Select
                         value={admissionNoValue || undefined}
                         onValueChange={(value) => setValue("admission_no", value, { shouldValidate: true })}
-                        disabled={loadingAdmissionNo}
+                        disabled={loadingAdmissionNo || generatingAdmissionNo}
                       >
                         <SelectTrigger id="admission_no">
                           <SelectValue placeholder="Select admission number" />
@@ -389,22 +437,19 @@ const Students = () => {
                         id="admission_no"
                         {...register("admission_no")}
                         placeholder={loadingAdmissionNo ? "Loading next number…" : "ADM-YYYY-001"}
-                        disabled={loadingAdmissionNo}
+                        disabled={loadingAdmissionNo || generatingAdmissionNo}
                         readOnly={unusedAdmissionNumbers.length === 1}
                         className={unusedAdmissionNumbers.length === 1 ? "bg-muted font-mono" : "font-mono"}
                       />
                     )}
-                    {!loadingAdmissionNo && unusedAdmissionNumbers.length === 0 && (
+                    {!loadingAdmissionNo && !generatingAdmissionNo && unusedAdmissionNumbers.length === 0 && (
                       <p className="text-xs text-muted-foreground">
-                        No unused numbers.{" "}
-                        <Link to="/admin/number-generator" className="text-primary underline-offset-4 hover:underline">
-                          Generate admission numbers
-                        </Link>
+                        No admission numbers yet. Click <span className="font-medium">Generate</span> to create one.
                       </p>
                     )}
-                    {!loadingAdmissionNo && unusedAdmissionNumbers.length > 0 && (
+                    {!loadingAdmissionNo && !generatingAdmissionNo && unusedAdmissionNumbers.length > 0 && (
                       <p className="text-xs text-muted-foreground">
-                        Auto-filled from admin-generated numbers ({unusedAdmissionNumbers.length} available)
+                        {unusedAdmissionNumbers.length} unused number{unusedAdmissionNumbers.length === 1 ? "" : "s"} available
                       </p>
                     )}
                     {errors.admission_no && <p className="text-sm text-destructive">{errors.admission_no.message}</p>}
