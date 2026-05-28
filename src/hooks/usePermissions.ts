@@ -96,6 +96,42 @@ export const usePermissions = () => {
     if (!roleLoading) fetchPermissions();
   }, [fetchPermissions, roleLoading]);
 
+  useEffect(() => {
+    if (!user || !schoolId) return;
+    const channel = supabase
+      .channel(`permission-sync:${user.id}:${schoolId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "user_role_assignments",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          permissionCache.delete(`${user.id}:${schoolId}`);
+          fetchPermissions();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "role_permissions",
+        },
+        () => {
+          permissionCache.delete(`${user.id}:${schoolId}`);
+          fetchPermissions();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user, schoolId, fetchPermissions]);
+
   const isSchoolAdmin = portalRole === "admin";
 
   const hasPermission = useCallback(

@@ -9,7 +9,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 export type TeacherOption = {
@@ -17,6 +17,7 @@ export type TeacherOption = {
   full_name: string;
   email: string;
   employee_no: string | null;
+  avatar_url?: string | null;
 };
 
 interface Props {
@@ -53,6 +54,7 @@ export function TeacherCombobox({ teachers, value, onChange, placeholder = "Sele
           {selected ? (
             <div className="flex min-w-0 items-center gap-2">
               <Avatar className="h-7 w-7 shrink-0">
+                <AvatarImage src={selected.avatar_url ?? undefined} alt={selected.full_name} />
                 <AvatarFallback className="bg-primary/20 text-[11px] text-primary">
                   {initials(selected.full_name)}
                 </AvatarFallback>
@@ -101,6 +103,7 @@ export function TeacherCombobox({ teachers, value, onChange, placeholder = "Sele
                     className="flex items-center gap-3 px-3 py-2 text-[#fafafa] aria-selected:bg-[#222]"
                   >
                     <Avatar className="h-8 w-8">
+                      <AvatarImage src={t.avatar_url ?? undefined} alt={t.full_name} />
                       <AvatarFallback className="bg-primary/20 text-xs text-primary">
                         {initials(t.full_name)}
                       </AvatarFallback>

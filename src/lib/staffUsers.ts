@@ -14,6 +14,7 @@ export type StaffPortalUser = {
   email: string;
   portal_role: StaffPortalRole | string;
   employee_no: string | null;
+  avatar_url: string | null;
 };
 
 /**
@@ -23,7 +24,7 @@ export type StaffPortalUser = {
 export async function fetchStaffPortalUsers(schoolId: string): Promise<StaffPortalUser[]> {
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, full_name, email")
+    .select("id, full_name, email, avatar_url")
     .eq("school_id", schoolId);
 
   const ids = (profiles ?? []).map((p) => p.id);
@@ -57,19 +58,26 @@ export async function fetchStaffPortalUsers(schoolId: string): Promise<StaffPort
   }
 
   const employeeNoByUser = new Map<string, string>();
+  const teacherUserIds = new Set<string>();
   for (const row of teacherRows ?? []) {
     if (!row.user_id || !row.employee_no) continue;
     employeeNoByUser.set(row.user_id, row.employee_no);
+    teacherUserIds.add(row.user_id);
+  }
+  for (const row of teacherRows ?? []) {
+    if (!row.user_id) continue;
+    teacherUserIds.add(row.user_id);
   }
 
   return (profiles ?? [])
-    .filter((p) => staffByUser.has(p.id))
+    .filter((p) => staffByUser.get(p.id) === "teacher" || teacherUserIds.has(p.id))
     .map((p) => ({
       id: p.id,
       full_name: p.full_name ?? "—",
       email: p.email ?? "",
-      portal_role: staffByUser.get(p.id)!,
+      portal_role: "teacher",
       employee_no: employeeNoByUser.get(p.id) ?? null,
+      avatar_url: p.avatar_url ?? null,
     }));
 }
 

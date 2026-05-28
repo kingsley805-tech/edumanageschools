@@ -69,6 +69,7 @@ interface StaffUser {
   email: string;
   portal_role: string;
   employee_no: string | null;
+  avatar_url: string | null;
   rbac_role_name: string | null;
 }
 
@@ -105,7 +106,10 @@ export default function PermissionManagement() {
     [roles],
   );
   const teacherStaff = useMemo(
-    () => staff.filter((s) => s.portal_role === "teacher"),
+    () =>
+      staff
+        .filter((s) => s.portal_role === "teacher")
+        .sort((a, b) => a.full_name.localeCompare(b.full_name)),
     [staff],
   );
 
@@ -150,6 +154,7 @@ export default function PermissionManagement() {
         email: p.email,
         portal_role: p.portal_role,
         employee_no: p.employee_no,
+        avatar_url: p.avatar_url,
         rbac_role_name: rbacMap.get(p.id) ?? null,
       })),
     );
@@ -436,6 +441,10 @@ export default function PermissionManagement() {
                           value={assignUserId}
                           onChange={setAssignUserId}
                         />
+                        <p className="text-xs text-[#a3a3a3]">
+                          {teacherStaff.length} teacher{teacherStaff.length === 1 ? "" : "s"} in this
+                          school
+                        </p>
                         {teacherStaff.length === 0 && (
                           <p className="text-xs text-[#a3a3a3]">
                             No teacher accounts found in this school yet.
