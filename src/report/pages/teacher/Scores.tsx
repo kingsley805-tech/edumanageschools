@@ -18,6 +18,7 @@ import { clearClassRankingsCache, rankSubjectScores } from "@/report/lib/ranking
 import { useClientPagination } from "@/report/hooks/use-client-pagination";
 import { TablePagination } from "@/report/portal/table-pagination";
 import { withReportLayout } from "@/report/withReportLayout";
+import { fetchTeacherRecordId } from "@/report/lib/teacher-assignments";
 
 function TeacherScores() {
   const { user } = useAuth();
@@ -32,10 +33,13 @@ function TeacherScores() {
     queryKey: ["teacher-assignments", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
-      const { data } = await supabase
+      const teacherRecordId = await fetchTeacherRecordId(user!.id);
+      if (!teacherRecordId) return [];
+      const { data, error } = await supabase
         .from("class_subjects")
         .select("id, class_id, subject_id, classes(name), subjects(name)")
-        .eq("teacher_id", user!.id);
+        .eq("teacher_id", teacherRecordId);
+      if (error) throw error;
       return data ?? [];
     },
   });

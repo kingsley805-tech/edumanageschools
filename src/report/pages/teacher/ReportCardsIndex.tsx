@@ -41,6 +41,7 @@ import { GeneratePositionsCard } from "@/report/portal/generate-positions-card";
 import { FileText, History, Pencil, Send } from "lucide-react";
 import { useReportSignatures } from "@/report/hooks/use-report-signatures";
 import { TeacherBulkReportActions } from "@/report/components/teacher-bulk-report-actions";
+import { fetchTeacherAssignedClasses } from "@/report/lib/teacher-assignments";
 
 function TeacherReportCards() {
   const { user, profile } = useAuth();
@@ -62,22 +63,16 @@ function TeacherReportCards() {
     setPositionsRevealed(false);
   }, [studentId]);
 
-  const { data: classes } = useQuery({
+  const { data: classes, isLoading: classesLoading } = useQuery({
     queryKey: ["teacher-classes-report", user?.id],
     enabled: !!user?.id,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("class_subjects")
-        .select("class_id, classes(id, name)")
-        .eq("teacher_id", user!.id);
-      const map = new Map<string, { id: string; name: string }>();
-      for (const row of data ?? []) {
-        const c = row.classes as { id: string; name: string };
-        if (c) map.set(c.id, c);
-      }
-      return [...map.values()];
-    },
+    queryFn: () => fetchTeacherAssignedClasses(user!.id),
   });
+
+  useEffect(() => {
+    if (!classes?.length || classId) return;
+    setClassId(classes[0].id);
+  }, [classes, classId]);
 
   const { data: students } = useQuery({
     queryKey: ["class-students-report", classId],
@@ -179,6 +174,11 @@ function TeacherReportCards() {
                   ))}
                 </SelectContent>
               </Select>
+              {!classesLoading && classes && classes.length === 0 && (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  No classes assigned yet. Ask your admin to link you under Teacher–Class assignments.
+                </p>
+              )}
             </div>
             <div>
               <Label>Student name</Label>

@@ -17,6 +17,7 @@ import { useClientPagination } from "@/report/hooks/use-client-pagination";
 import { TablePagination } from "@/report/portal/table-pagination";
 import { fetchSchoolTerms, formatTermLabel } from "@/report/lib/terms";
 import { TERM_REPORT_HISTORY_LIST_SELECT } from "@/report/lib/term-report";
+import { fetchTeacherAssignedClassIds } from "@/report/lib/teacher-assignments";
 import { useMemo, useState } from "react";
 
 function TeacherReportHistory() {
@@ -37,17 +38,12 @@ function TeacherReportHistory() {
     queryKey: ["term-reports-history", user?.id, schoolId],
     enabled: !!user?.id && !!schoolId,
     queryFn: async () => {
-      const { data: assignments } = await supabase
-        .from("class_subjects")
-        .select("class_id, classes(name)")
-        .eq("teacher_id", user!.id);
-      const classIds = [...new Set((assignments ?? []).map((a) => a.class_id).filter(Boolean))];
+      const classIds = await fetchTeacherAssignedClassIds(user!.id);
       if (!classIds.length) return [];
 
       const { data, error } = await supabase
         .from("term_report_cards")
         .select(`${TERM_REPORT_HISTORY_LIST_SELECT}, students(admission_number)`)
-        .eq("teacher_id", user!.id)
         .in("class_id", classIds)
         .neq("status", "draft")
         .order("academic_year", { ascending: false })
