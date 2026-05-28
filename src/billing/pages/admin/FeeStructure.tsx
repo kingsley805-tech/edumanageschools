@@ -16,6 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { DollarSign, Layers, Link2, Plus, Tag, Trash2, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { fetchStudentsWithLinkedProfiles, formatStudentDisplayName } from "@/billing/lib/studentDisplayName";
+import { AcademicCalendarPanel } from "@/billing/components/AcademicCalendarPanel";
 import type { StaffPagePermission } from "@/lib/staffPermissions";
 import { isBillingFeeCategoriesAvailable } from "@/lib/billing/availability";
 import { BillingSchemaAlert } from "@/components/billing/BillingSchemaAlert";
@@ -316,117 +317,6 @@ function CategoriesManager({ schoolId, permission }: { schoolId: string; permiss
                   description={`This will permanently delete ${cat.name}.`}
                   confirmLabel="Delete"
                   onConfirm={() => remove.mutate(cat.id)}
-                  trigger={<button className="fee-btn-del"><Trash2 size={14} /></button>}
-                />
-              ) : null}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ═══════════════════════ TermsManager ══════════════════════════ */
-function TermsManager({ schoolId, permission }: { schoolId: string; permission: StaffPagePermission }) {
-  const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState(""); const [yearId, setYearId] = useState("");
-  const [startDate, setStartDate] = useState(""); const [endDate, setEndDate] = useState(""); const [dueDate, setDueDate] = useState("");
-
-  const { data: years = [] } = useQuery({
-    queryKey: ["academic-years", schoolId],
-    queryFn: async () => { const { data, error } = await supabase.from("academic_years").select("*").eq("school_id", schoolId).order("start_date", { ascending: false }); if (error) throw error; return (data ?? []) as AcademicYearRow[]; },
-  });
-  const { data: terms = [], isLoading } = useQuery({
-    queryKey: ["terms", schoolId],
-    queryFn: async () => { const { data, error } = await supabase.from("terms").select("*, academic_years(name)").eq("school_id", schoolId).order("start_date", { ascending: false }); if (error) throw error; return (data ?? []) as TermRow[]; },
-  });
-  const canCreate = permission.create || permission.manage;
-  const canDelete = permission.delete || permission.manage;
-  const create = useMutation({
-    mutationFn: async () => {
-      if (!canCreate) throw new Error("You do not have permission to create terms.");
-      const { error } = await supabase.from("terms").insert({ school_id: schoolId, academic_year_id: yearId, name, start_date: startDate, end_date: endDate, fees_due_date: dueDate }); if (error) throw error;
-    },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["terms"] }); setOpen(false); setName(""); setYearId(""); setStartDate(""); setEndDate(""); setDueDate(""); toast.success("Term created"); },
-    onError: (e) => toast.error(e.message),
-  });
-  const remove = useMutation({
-    mutationFn: async (id: string) => {
-      if (!canDelete) throw new Error("You do not have permission to delete terms.");
-      const { error } = await supabase.from("terms").delete().eq("id", id); if (error) throw error;
-    },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["terms"] }); toast.success("Term deleted"); },
-    onError: (e) => toast.error(e.message),
-  });
-
-  return (
-    <div className="fee-card p-6 animate-slide-up stagger-2">
-      <div className="section-title">
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span className="section-icon"><Layers size={15} color="hsl(var(--primary))" /></span>
-          Terms
-        </span>
-        <Dialog open={open} onOpenChange={setOpen}>
-          {canCreate ? (
-            <DialogTrigger asChild>
-              <button className="fee-btn-sm"><Plus size={13} />Add Term</button>
-            </DialogTrigger>
-          ) : null}
-          <DialogContent>
-            <DialogHeader><DialogTitle>New Term</DialogTitle></DialogHeader>
-            <div style={{ display: "flex", flexDirection: "column", gap: 16, paddingTop: 6 }}>
-              <div>
-                <label className="fee-label">Academic Year</label>
-                <Select value={yearId} onValueChange={setYearId}>
-                  <SelectTrigger className="fee-input"><SelectValue placeholder="Select academic year..." /></SelectTrigger>
-                  <SelectContent>{years.map((y) => <SelectItem key={y.id} value={y.id}>{y.name}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="fee-label">Term Name</label>
-                <Input className="fee-input" placeholder="e.g. Term 1" value={name} onChange={(e) => setName(e.target.value)} />
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div><label className="fee-label">Start Date</label><Input className="fee-input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></div>
-                <div><label className="fee-label">End Date</label><Input className="fee-input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></div>
-              </div>
-              <div>
-                <label className="fee-label">Fees Due Date</label>
-                <Input className="fee-input" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-              </div>
-              <button className="fee-btn-primary" onClick={() => create.mutate()} disabled={!name || !yearId || !startDate || !endDate || !dueDate || create.isPending} style={{ width: "100%", padding: "13px" }}>
-                {create.isPending ? "Creating..." : "Create Term"}
-              </button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {years.length === 0 ? (
-        <div className="fee-empty">Create an academic year first.<br /><span style={{ fontSize: 12 }}>Go to Academic Structure → Academic Years.</span></div>
-      ) : isLoading ? (
-        <div style={{ display: "flex", justifyContent: "center", padding: "30px 0" }}><div className="fee-spinner" /></div>
-      ) : terms.length === 0 ? (
-        <div className="fee-empty">No terms yet.<br /><span style={{ fontSize: 12 }}>Click "Add Term" to get started.</span></div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {terms.map((term, i) => (
-            <div key={term.id} className="fee-row" style={{ animationDelay: `${i * 0.05}s` }}>
-              <div>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: "hsl(var(--card-foreground))", display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-                  {term.name}
-                  <span style={{ fontSize: 11, fontWeight: 600, color: "hsl(var(--primary))", background: "hsl(var(--primary) / 0.1)", borderRadius: 5, padding: "1px 7px" }}>{term.academic_years?.name}</span>
-                </div>
-                <div className="fee-subtext">{term.start_date} → {term.end_date} · Due {term.fees_due_date}</div>
-              </div>
-              {canDelete ? (
-                <ConfirmActionButton
-                  title="Delete term?"
-                  description={`This will permanently delete ${term.name}.`}
-                  confirmLabel="Delete"
-                  onConfirm={() => remove.mutate(term.id)}
                   trigger={<button className="fee-btn-del"><Trash2 size={14} /></button>}
                 />
               ) : null}
@@ -802,14 +692,15 @@ export default function BillingFeeStructure() {
               <h1 style={{ fontSize: 28, fontWeight: 800, color: "hsl(var(--foreground))", letterSpacing: "-.04em", margin: 0 }}>Fees</h1>
             </div>
             <p style={{ fontSize: 13.5, color: "hsl(var(--muted-foreground))", marginLeft: 16, marginTop: 2 }}>
-              Create fees with category, term &amp; amount — then assign to a class or student.
+              Set up academic years and the current term, then create fees and assign them to classes or students.
             </p>
           </div>
 
-          {/* top row: categories + terms */}
-          <div className="fee-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+          <AcademicCalendarPanel schoolId={schoolId} permission={permission} />
+
+          {/* top row: categories */}
+          <div className="fee-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20, marginBottom: 20, maxWidth: 640 }}>
             <CategoriesManager schoolId={schoolId} permission={permission} />
-            <TermsManager schoolId={schoolId} permission={permission} />
           </div>
 
           {/* bottom row: creation + assignment */}
