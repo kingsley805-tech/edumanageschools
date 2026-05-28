@@ -24,7 +24,18 @@ import {
 } from "@/lib/rbac/rbacService";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchStaffPortalUsers } from "@/lib/staffUsers";
-import { Loader2, Plus, Users } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, Plus, Users } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
