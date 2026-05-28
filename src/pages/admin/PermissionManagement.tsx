@@ -441,19 +441,11 @@ export default function PermissionManagement() {
                     <div className="mt-6 space-y-4">
                       <div className="space-y-2">
                         <Label className="text-[#fafafa]">Teacher</Label>
-                        <Select value={assignUserId} onValueChange={setAssignUserId}>
-                          <SelectTrigger className="bg-[#1c1c1c] border-[#2a2a2a]">
-                            <SelectValue placeholder="Select teacher" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {teacherStaff.map((s) => (
-                              <SelectItem key={s.id} value={s.id}>
-                                {s.full_name}
-                                {s.employee_no ? ` (${s.employee_no})` : ""}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <TeacherCombobox
+                          teachers={teacherStaff}
+                          value={assignUserId}
+                          onChange={setAssignUserId}
+                        />
                         {teacherStaff.length === 0 && (
                           <p className="text-xs text-[#a3a3a3]">
                             No teacher accounts found in this school yet.
