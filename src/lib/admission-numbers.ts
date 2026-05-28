@@ -22,8 +22,36 @@ export const POOL_TO_ROLE: Record<RegistrationPoolType, AdmissionRoleCode> = {
   employee: "Tea",
 };
 
+function canonicalRoleCode(segment: string): AdmissionRoleCode {
+  switch (segment.toLowerCase()) {
+    case "tea":
+      return "Tea";
+    case "par":
+      return "Par";
+    case "adm":
+      return "Adm";
+    default:
+      return "Stu";
+  }
+}
+
+/** Canonical form stored in DB (e.g. MIN-Stu-2026-004). Accepts any casing on input. */
 export function normalizeAdmissionNumber(value: string): string {
-  return value.trim().toUpperCase();
+  const trimmed = value.trim();
+  const parsed = parseAdmissionNumber(trimmed);
+  if (!parsed) return trimmed.toUpperCase();
+
+  if (parsed.legacy && parsed.year != null && parsed.sequence != null) {
+    const seq = parsed.sequence.toString().padStart(3, "0");
+    if (parsed.role === "Tea") return `EMP-${parsed.year}-${seq}`;
+    return `ADM-${parsed.year}-${seq}`;
+  }
+
+  if (parsed.schoolPrefix && parsed.role && parsed.year != null && parsed.sequence != null) {
+    return buildAdmissionNumber(parsed.schoolPrefix, parsed.role, parsed.year, parsed.sequence);
+  }
+
+  return trimmed.toUpperCase();
 }
 
 export function buildAdmissionNumber(
@@ -44,12 +72,12 @@ export function parseAdmissionNumber(value: string): {
   sequence: number | null;
   legacy: boolean;
 } | null {
-  const v = normalizeAdmissionNumber(value);
+  const v = value.trim();
   const modern = /^([A-Z0-9]+)-(Stu|Tea|Par|Adm)-(\d{4})-(\d{3})$/i.exec(v);
   if (modern) {
     return {
       schoolPrefix: modern[1].toUpperCase(),
-      role: modern[2] as AdmissionRoleCode,
+      role: canonicalRoleCode(modern[2]),
       year: parseInt(modern[3], 10),
       sequence: parseInt(modern[4], 10),
       legacy: false,

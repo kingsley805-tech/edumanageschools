@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { normalizeAdmissionNumber } from "@/lib/admission-numbers";
+import { normalizeAdmissionNumber, type RegistrationPoolType } from "@/lib/admission-numbers";
 
 /** Internal Supabase auth email — students sign in with admission number, not this address. */
 export function buildStudentAuthEmail(admissionNumber: string, schoolId: string): string {
@@ -27,6 +27,93 @@ export type LoginResolveResult = {
   email?: string;
   role?: string;
 };
+
+export type RegistrationNumberValidation = {
+  valid: boolean;
+  error?: string;
+  schoolId?: string;
+  registrationNumber?: string;
+};
+
+/** Verify an unused registration number exists (signup) — lookup by number only, not prefix guess. */
+export async function validateUnusedRegistrationNumber(
+  registrationNumber: string,
+  poolType: RegistrationPoolType
+): Promise<RegistrationNumberValidation> {
+  const num = normalizeAdmissionNumber(registrationNumber);
+  if (!num) {
+    return { valid: false, error: "Admission number is required." };
+  }
+
+  const { data: rpcData, error: rpcError } = await supabase.rpc(
+    "validate_registration_number_for_signup",
+    {
+      p_registration_number: num,
+      p_number_type: poolType,
+    }
+  );
+
+  if (!rpcError && rpcData) {
+    const result = rpcData as {
+      valid?: boolean;
+      error?: string;
+      school_id?: string;
+      registration_number?: string;
+    };
+    if (result.valid && result.school_id) {
+      return {
+        valid: true,
+        schoolId: result.school_id,
+        registrationNumber: result.registration_number,
+      };
+    }
+    if (result.error) return { valid: false, error: result.error };
+  }
+
+  const { data: rows, error } = await supabase
+    .from("registration_numbers")
+    .select("school_id, registration_number, status")
+    .ilike("registration_number", num)
+    .eq("number_type", poolType)
+    .eq("status", "unused")
+    .limit(1);
+
+  if (error) {
+    return {
+      valid: false,
+      error: error.message || "Could not verify admission number.",
+    };
+  }
+
+  const row = rows?.[0];
+  if (!row) {
+    const { data: usedRow } = await supabase
+      .from("registration_numbers")
+      .select("status")
+      .ilike("registration_number", num)
+      .eq("number_type", poolType)
+      .maybeSingle();
+
+    if (usedRow?.status === "used") {
+      return {
+        valid: false,
+        error: "This admission number has already been used. Ask your school for a new number.",
+      };
+    }
+
+    return {
+      valid: false,
+      error:
+        "Admission number not found. Check the number from Number Generator or contact your school administrator.",
+    };
+  }
+
+  return {
+    valid: true,
+    schoolId: row.school_id as string,
+    registrationNumber: row.registration_number as string,
+  };
+}
 
 export async function resolveStudentByAdmissionNumber(
   admissionNumber: string

@@ -10,16 +10,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { logLoginActivity } from "@/lib/auditLog";
-import {
-  normalizeAdmissionNumber,
-  resolveSchoolIdFromAdmissionNumber,
-  derivePrefixFromSchoolName,
-} from "@/lib/admission-numbers";
+import { normalizeAdmissionNumber, derivePrefixFromSchoolName } from "@/lib/admission-numbers";
 import {
   buildStudentAuthEmail,
   linkParentToStudents,
   resolveLoginIdentifier,
   resolveStudentByAdmissionNumber,
+  validateUnusedRegistrationNumber,
   type StudentAdmissionPreview,
 } from "@/lib/auth-api";
 import schoolPicture from "@/assets/School Picture.webp";
@@ -104,33 +101,15 @@ const Auth = () => {
   };
 
   const validateRegistrationNumber = async (number: string, type: "student" | "employee") => {
-    const num = normalizeAdmissionNumber(number);
-
-    let schoolId: string | null = null;
-    const fromPrefix = await resolveSchoolIdFromAdmissionNumber(num);
-    if (fromPrefix) schoolId = fromPrefix.schoolId;
-
-    let query = supabase
-      .from("registration_numbers")
-      .select("*")
-      .eq("registration_number", num)
-      .eq("number_type", type)
-      .eq("status", "unused");
-
-    if (schoolId) {
-      query = query.eq("school_id", schoolId);
+    const result = await validateUnusedRegistrationNumber(number, type);
+    if (!result.valid) {
+      return { valid: false as const, error: result.error };
     }
-
-    const { data, error } = await query.maybeSingle();
-
-    if (error || !data) {
-      return {
-        valid: false,
-        error: "Admission number not found or already used. Contact your school administrator.",
-      };
-    }
-
-    return { valid: true, data, schoolId: data.school_id as string };
+    return {
+      valid: true as const,
+      schoolId: result.schoolId!,
+      data: { school_id: result.schoolId, registration_number: result.registrationNumber },
+    };
   };
 
   const lookupChildAdmission = async (admissionNumber: string) => {
