@@ -1,5 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import { fetchSchoolPrefixById as fetchSchoolPrefixFromDb, isSchemaColumnError } from "@/lib/schoolFetch";
+import { getSchoolPrefix, normalizeSchoolPrefix } from "@/lib/school-prefix";
+
+export { derivePrefixFromSchoolName, getSchoolPrefix, normalizeSchoolPrefix } from "@/lib/school-prefix";
 
 /** Role segment in admission numbers (MINGO-Stu-2026-001) */
 export type AdmissionRoleCode = "Stu" | "Tea" | "Par" | "Adm";
@@ -21,15 +24,6 @@ export const POOL_TO_ROLE: Record<RegistrationPoolType, AdmissionRoleCode> = {
 
 export function normalizeAdmissionNumber(value: string): string {
   return value.trim().toUpperCase();
-}
-
-export function getSchoolPrefix(school: {
-  admission_prefix?: string | null;
-  school_code?: string | null;
-}): string {
-  const prefix = school.admission_prefix?.trim() || school.school_code?.trim();
-  if (!prefix) throw new Error("School admission prefix is not configured");
-  return prefix.toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
 export function buildAdmissionNumber(
@@ -195,6 +189,33 @@ export async function resolveSchoolIdFromAdmissionNumber(
       schoolId: codeQuery.data.id,
       schoolPrefix: getSchoolPrefix(codeQuery.data),
     };
+  }
+
+  const { data: activeSchools, error: listError } = await supabase
+    .from("schools")
+    .select("id, school_name, school_code, admission_prefix")
+    .eq("is_active", true);
+
+  if (!listError && activeSchools?.length) {
+    const match = activeSchools.find(
+      (s) => getSchoolPrefix(s) === parsed.schoolPrefix.toUpperCase()
+    );
+    if (match) {
+      return { schoolId: match.id, schoolPrefix: getSchoolPrefix(match) };
+    }
+  }
+
+  if (isSchemaColumnError(listError)) {
+    const { data: basicSchools } = await supabase
+      .from("schools")
+      .select("id, school_name, school_code")
+      .eq("is_active", true);
+    const match = basicSchools?.find(
+      (s) => getSchoolPrefix(s) === parsed.schoolPrefix.toUpperCase()
+    );
+    if (match) {
+      return { schoolId: match.id, schoolPrefix: getSchoolPrefix(match) };
+    }
   }
 
   return null;

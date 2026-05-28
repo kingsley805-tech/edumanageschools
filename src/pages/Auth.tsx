@@ -10,7 +10,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { logLoginActivity } from "@/lib/auditLog";
-import { normalizeAdmissionNumber, resolveSchoolIdFromAdmissionNumber } from "@/lib/admission-numbers";
+import {
+  normalizeAdmissionNumber,
+  resolveSchoolIdFromAdmissionNumber,
+  derivePrefixFromSchoolName,
+} from "@/lib/admission-numbers";
 import {
   linkParentToStudents,
   resolveLoginIdentifier,
@@ -40,6 +44,7 @@ const Auth = () => {
   const [signupRole, setSignupRole] = useState("");
   const [schoolCode, setSchoolCode] = useState("");
   const [admissionPrefix, setAdmissionPrefix] = useState("");
+  const [admissionPrefixManual, setAdmissionPrefixManual] = useState(false);
   const [schoolName, setSchoolName] = useState("");
   const [adminKey, setAdminKey] = useState("");
   
@@ -249,7 +254,10 @@ const Auth = () => {
       schoolId: schoolId ?? undefined,
       adminKey,
       schoolName,
-      admissionPrefix: admissionPrefix.toUpperCase() || schoolCode.toUpperCase(),
+      admissionPrefix:
+        admissionPrefix.toUpperCase() ||
+        derivePrefixFromSchoolName(schoolName) ||
+        schoolCode.toUpperCase(),
       registrationNumber: regNumber,
       gender,
       phone: signupPhone,
@@ -714,7 +722,13 @@ const Auth = () => {
                         placeholder="Enter your school name"
                         className="pl-10 h-12 border-2 focus:border-primary"
                         value={schoolName}
-                        onChange={e => setSchoolName(e.target.value)}
+                        onChange={(e) => {
+                          const name = e.target.value;
+                          setSchoolName(name);
+                          if (!admissionPrefixManual) {
+                            setAdmissionPrefix(derivePrefixFromSchoolName(name));
+                          }
+                        }}
                         required
                       />
                     </div>
@@ -731,11 +745,7 @@ const Auth = () => {
                         placeholder="Create a unique school code"
                         className="pl-10 h-12 border-2 focus:border-primary uppercase"
                         value={schoolCode}
-                        onChange={(e) => {
-                          const v = e.target.value.toUpperCase();
-                          setSchoolCode(v);
-                          if (!admissionPrefix) setAdmissionPrefix(v);
-                        }}
+                        onChange={(e) => setSchoolCode(e.target.value.toUpperCase())}
                         required
                       />
                     </div>
@@ -752,12 +762,18 @@ const Auth = () => {
                         placeholder="MINGO"
                         className="pl-10 h-12 border-2 focus:border-primary uppercase"
                         value={admissionPrefix}
-                        onChange={(e) => setAdmissionPrefix(e.target.value.toUpperCase())}
+                        onChange={(e) => {
+                          setAdmissionPrefixManual(true);
+                          setAdmissionPrefix(
+                            e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12)
+                          );
+                        }}
                         required
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Used in IDs like {admissionPrefix || "MINGO"}-Stu-2026-001
+                      Auto-filled from school name (first 3 letters), not school code. Example:{" "}
+                      {admissionPrefix || derivePrefixFromSchoolName(schoolName) || "MIN"}-Stu-2026-001
                     </p>
                   </div>
                 </div>

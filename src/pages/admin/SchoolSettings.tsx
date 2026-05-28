@@ -17,6 +17,7 @@ import {
   isSchemaColumnError,
 } from "@/lib/schoolFetch";
 import { formatExample } from "@/lib/admission-numbers";
+import { derivePrefixFromSchoolName } from "@/lib/school-prefix";
 import { Upload, Building, Image, Save, Loader2, Palette } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -67,14 +68,17 @@ const SchoolSettings = () => {
         id: schoolData.id,
         school_name: schoolData.school_name,
         school_code: schoolData.school_code,
-        admission_prefix: schoolData.admission_prefix ?? schoolData.school_code,
+        admission_prefix:
+          schoolData.admission_prefix ?? derivePrefixFromSchoolName(schoolData.school_name),
         logo_url: schoolData.logo_url,
         theme_primary: schoolData.theme_primary ?? null,
         theme_secondary: schoolData.theme_secondary ?? null,
         theme_accent: schoolData.theme_accent ?? null,
       });
       setSchoolName(schoolData.school_name);
-      setAdmissionPrefix(schoolData.admission_prefix ?? schoolData.school_code ?? "");
+      setAdmissionPrefix(
+        schoolData.admission_prefix ?? derivePrefixFromSchoolName(schoolData.school_name)
+      );
       setPreviewUrl(schoolData.logo_url);
       const colors = parseSchoolBrand(schoolData);
       setBrandColors(colors);
@@ -363,7 +367,15 @@ const SchoolSettings = () => {
                 <Input
                   id="school-name"
                   value={schoolName}
-                  onChange={(e) => setSchoolName(e.target.value)}
+                  onChange={(e) => {
+                    const name = e.target.value;
+                    setSchoolName(name);
+                    const auto = derivePrefixFromSchoolName(name);
+                    const prevAuto = derivePrefixFromSchoolName(school.school_name);
+                    if (!admissionPrefix || admissionPrefix === prevAuto) {
+                      setAdmissionPrefix(auto);
+                    }
+                  }}
                   placeholder="Enter school name"
                 />
               </div>
@@ -385,20 +397,34 @@ const SchoolSettings = () => {
                   onChange={(e) =>
                     setAdmissionPrefix(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))
                   }
-                  placeholder="MINGO"
+                  placeholder={derivePrefixFromSchoolName(schoolName || "School")}
                   maxLength={12}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Used for student, teacher, and staff IDs. Example:{" "}
-                  {formatExample(admissionPrefix || school.school_code || "SCHOOL", "Stu")}
+                  Defaults to the first 3 letters of your school name (not the login school code).
+                  Example:{" "}
+                  {formatExample(
+                    admissionPrefix || derivePrefixFromSchoolName(schoolName),
+                    "Stu"
+                  )}
                 </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                  onClick={() => setAdmissionPrefix(derivePrefixFromSchoolName(schoolName))}
+                >
+                  Reset to name initials
+                </Button>
               </div>
               <Button
                 onClick={handleSaveSettings}
                 disabled={
                   saving ||
                   (schoolName === school.school_name &&
-                    admissionPrefix === (school.admission_prefix ?? school.school_code))
+                    admissionPrefix ===
+                      (school.admission_prefix ?? derivePrefixFromSchoolName(school.school_name)))
                 }
                 className="w-full"
               >

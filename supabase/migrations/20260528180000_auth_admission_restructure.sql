@@ -5,7 +5,17 @@ ALTER TABLE public.schools
   ADD COLUMN IF NOT EXISTS admission_prefix TEXT;
 
 UPDATE public.schools
-SET admission_prefix = COALESCE(NULLIF(trim(admission_prefix), ''), school_code)
+SET admission_prefix = upper(
+  CASE
+    WHEN length(regexp_replace(coalesce(school_name, ''), '[^a-zA-Z]', '', 'g')) >= 3 THEN
+      substring(regexp_replace(coalesce(school_name, ''), '[^a-zA-Z]', '', 'g') from 1 for 3)
+    WHEN length(regexp_replace(coalesce(school_name, ''), '[^a-zA-Z0-9]', '', 'g')) >= 3 THEN
+      substring(regexp_replace(coalesce(school_name, ''), '[^a-zA-Z0-9]', '', 'g') from 1 for 3)
+    WHEN length(regexp_replace(coalesce(school_name, ''), '[^a-zA-Z0-9]', '', 'g')) > 0 THEN
+      rpad(regexp_replace(coalesce(school_name, ''), '[^a-zA-Z0-9]', '', 'g'), 3, 'X')
+    ELSE upper(left(coalesce(school_code, 'SCH'), 3))
+  END
+)
 WHERE admission_prefix IS NULL OR trim(admission_prefix) = '';
 
 -- Parent contact on signup
@@ -240,7 +250,16 @@ BEGIN
       upper(v_school_code),
       v_school_name,
       true,
-      upper(coalesce(v_admission_prefix, v_school_code))
+      upper(coalesce(
+        v_admission_prefix,
+        CASE
+          WHEN length(regexp_replace(coalesce(v_school_name, ''), '[^a-zA-Z]', '', 'g')) >= 3 THEN
+            substring(regexp_replace(coalesce(v_school_name, ''), '[^a-zA-Z]', '', 'g') from 1 for 3)
+          WHEN length(regexp_replace(coalesce(v_school_name, ''), '[^a-zA-Z0-9]', '', 'g')) >= 3 THEN
+            substring(regexp_replace(coalesce(v_school_name, ''), '[^a-zA-Z0-9]', '', 'g') from 1 for 3)
+          ELSE upper(left(coalesce(v_school_code, 'SCH'), 3))
+        END
+      ))
     )
     RETURNING id INTO v_school_id;
   ELSE

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { derivePrefixFromSchoolName, getSchoolPrefix } from "@/lib/school-prefix";
 
 export type SchoolRow = {
   id: string;
@@ -87,32 +88,32 @@ export async function fetchSchoolById(schoolId: string): Promise<SchoolRow | nul
 
   if (result.error) throw result.error;
   const row = result.data as SchoolRow | null;
-  if (row && !row.admission_prefix && row.school_code) {
-    row.admission_prefix = row.school_code;
+  if (row && !row.admission_prefix && row.school_name) {
+    row.admission_prefix = derivePrefixFromSchoolName(row.school_name);
   }
   return row;
 }
 
-/** School prefix for admission numbers — falls back to school_code if column not migrated. */
+/** School prefix for admission numbers (name-based default, not school code). */
 export async function fetchSchoolPrefixById(schoolId: string): Promise<string> {
   let result = await supabase
     .from("schools")
-    .select("admission_prefix, school_code")
+    .select("admission_prefix, school_name, school_code")
     .eq("id", schoolId)
     .maybeSingle();
 
   if (isSchemaColumnError(result.error)) {
-    result = await supabase.from("schools").select("school_code").eq("id", schoolId).maybeSingle();
+    result = await supabase
+      .from("schools")
+      .select("school_name, school_code")
+      .eq("id", schoolId)
+      .maybeSingle();
   }
 
   if (result.error) throw result.error;
-  if (!result.data?.school_code) throw new Error("School not found");
+  if (!result.data) throw new Error("School not found");
 
-  const prefix =
-    ("admission_prefix" in result.data && result.data.admission_prefix?.trim()) ||
-    result.data.school_code?.trim();
-  if (!prefix) throw new Error("School admission prefix is not configured");
-  return prefix.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return getSchoolPrefix(result.data);
 }
 
 export async function fetchSchoolForUser(userId: string): Promise<SchoolRow | null> {
