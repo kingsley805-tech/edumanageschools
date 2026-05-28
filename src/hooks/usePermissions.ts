@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { isPortalStudentUser } from "@/lib/portalIdentity";
+import { defaultCodesForRole } from "@/lib/rbac/permissionCatalog";
+import { isRbacSchemaMissing, portalRoleToRbacSlug } from "@/lib/rbac/schema";
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const permissionCache = new Map<string, { codes: Set<string>; expires: number }>();
@@ -47,7 +49,12 @@ export const usePermissions = () => {
     }
 
     if (portalRole === "super_admin" || portalRole === "admin") {
-      const { data: allPerms } = await supabase.from("permissions").select("code");
+      const { data: allPerms, error: permsError } = await supabase.from("permissions").select("code");
+      if (permsError && isRbacSchemaMissing(permsError)) {
+        setPermissions(new Set());
+        setLoading(false);
+        return;
+      }
       const codes = new Set((allPerms ?? []).map((p) => p.code));
       permissionCache.set(cacheKey, { codes, expires: Date.now() + CACHE_TTL_MS });
       setPermissions(codes);
@@ -61,8 +68,14 @@ export const usePermissions = () => {
     });
 
     if (error) {
-      console.error("Failed to load permissions:", error);
-      setPermissions(new Set());
+      if (isRbacSchemaMissing(error)) {
+        const fallback = new Set(defaultCodesForRole(portalRoleToRbacSlug(portalRole)));
+        permissionCache.set(cacheKey, { codes: fallback, expires: Date.now() + CACHE_TTL_MS });
+        setPermissions(fallback);
+      } else {
+        console.error("Failed to load permissions:", error);
+        setPermissions(new Set());
+      }
     } else {
       const codes = new Set((data as string[]) ?? []);
       permissionCache.set(cacheKey, { codes, expires: Date.now() + CACHE_TTL_MS });
