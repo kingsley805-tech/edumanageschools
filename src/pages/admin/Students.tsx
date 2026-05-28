@@ -2,7 +2,8 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Filter, Pencil, Trash2, RefreshCw, Hash } from "lucide-react";
+import { Plus, Search, Filter, Pencil, Trash2, RefreshCw, Hash, Phone, Mail, UserRound } from "lucide-react";
+import { Link } from "react-router-dom";
 import { generateRegistrationNumber } from "@/lib/registration-numbers";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +39,111 @@ const editStudentSchema = z.object({
 type StudentFormData = z.infer<typeof studentSchema>;
 type EditStudentFormData = z.infer<typeof editStudentSchema>;
 
+type ParentProfile = {
+  full_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+};
+
+type ParentRecord = {
+  id: string;
+  phone?: string | null;
+  address?: string | null;
+  emergency_contact?: string | null;
+  profiles?: ParentProfile | null;
+  relationship?: string | null;
+};
+
+type StudentRecord = {
+  id: string;
+  admission_no?: string | null;
+  admission_number?: string | null;
+  full_name?: string | null;
+  gender?: string | null;
+  date_of_birth?: string | null;
+  class_id?: string | null;
+  user_id?: string | null;
+  profiles?: { full_name?: string | null; email?: string | null } | null;
+  classes?: { name?: string | null; level?: string | null } | null;
+  guardian?: ParentRecord | null;
+  parent_student_links?: Array<{
+    relationship?: string | null;
+    parent?: ParentRecord | null;
+  }> | null;
+};
+
+const STUDENT_LIST_SELECT = `
+  *,
+  classes(name, level),
+  profiles:profiles!students_user_id_fkey(full_name, email),
+  guardian:parents!students_guardian_id_fkey(
+    id,
+    phone,
+    address,
+    emergency_contact,
+    profiles:profiles!parents_user_id_fkey(full_name, email, phone)
+  ),
+  parent_student_links(
+    relationship,
+    parent:parents!parent_student_links_parent_id_fkey(
+      id,
+      phone,
+      address,
+      emergency_contact,
+      profiles:profiles!parents_user_id_fkey(full_name, email, phone)
+    )
+  )
+`;
+
+function getStudentName(student: StudentRecord): string {
+  return student.profiles?.full_name?.trim() || student.full_name?.trim() || "Unknown";
+}
+
+function getStudentEmail(student: StudentRecord): string {
+  return student.profiles?.email?.trim() || "—";
+}
+
+function getStudentAdmissionNo(student: StudentRecord): string | null {
+  return student.admission_no?.trim() || student.admission_number?.trim() || null;
+}
+
+function getStudentClassLabel(student: StudentRecord): string {
+  const name = student.classes?.name?.trim();
+  const level = student.classes?.level?.trim();
+  if (!name) return "Not assigned";
+  return level ? `${name} (${level})` : name;
+}
+
+function getParentName(parent: ParentRecord): string {
+  return parent.profiles?.full_name?.trim() || "Unknown";
+}
+
+function getParentPhone(parent: ParentRecord): string {
+  return parent.phone?.trim() || parent.profiles?.phone?.trim() || "—";
+}
+
+function getLinkedParents(student: StudentRecord): ParentRecord[] {
+  const byId = new Map<string, ParentRecord>();
+
+  if (student.guardian?.id) {
+    byId.set(student.guardian.id, {
+      ...student.guardian,
+      relationship: "Guardian",
+    });
+  }
+
+  for (const link of student.parent_student_links ?? []) {
+    const parent = link.parent;
+    if (!parent?.id || byId.has(parent.id)) continue;
+    byId.set(parent.id, {
+      ...parent,
+      relationship: link.relationship?.trim() || "Parent",
+    });
+  }
+
+  return Array.from(byId.values());
+}
+
 const Students = () => {
   const [open, setOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -50,6 +156,8 @@ const Students = () => {
   const [unusedAdmissionNumbers, setUnusedAdmissionNumbers] = useState<string[]>([]);
   const [loadingAdmissionNo, setLoadingAdmissionNo] = useState(false);
   const [generatingAdmissionNo, setGeneratingAdmissionNo] = useState(false);
+  const [assignClassId, setAssignClassId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
   
   const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<StudentFormData>({
@@ -89,7 +197,8 @@ const Students = () => {
     const { data } = await supabase
       .from("classes")
       .select("id, name, level")
-      .eq("school_id", profileData.school_id);
+      .eq("school_id", profileData.school_id)
+      .order("name");
     
     if (data) setClasses(data);
   };
@@ -176,9 +285,11 @@ const Students = () => {
     if (!nextOpen) {
       reset();
       setUnusedAdmissionNumbers([]);
+      setAssignClassId("");
       return;
     }
     void loadUnusedAdmissionNumbers();
+    void fetchClasses();
   };
 
   const fetchStudents = async () => {
@@ -198,21 +309,24 @@ const Students = () => {
 
     const { data, error } = await supabase
       .from("students")
-      .select(`
-        *,
-        classes(name),
-        profiles(full_name, email)
-      `)
-      .eq("school_id", profileData.school_id);
+      .select(STUDENT_LIST_SELECT)
+      .eq("school_id", profileData.school_id)
+      .order("created_at", { ascending: false });
     
     if (!error && data) {
-      setStudents(data);
+      setStudents(data as StudentRecord[]);
     } else if (error) {
       console.error("Error fetching students:", error);
+      toast({
+        title: "Could not load students",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
   const onSubmit = async (data: StudentFormData) => {
+    setSubmitting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
@@ -253,14 +367,43 @@ const Students = () => {
       });
 
       if (error) throw error;
+      if (result?.error) throw new Error(result.error);
+
+      const userId = result?.user?.id as string | undefined;
+      if (!userId) throw new Error("Student account created but user id was not returned");
+
+      const studentPatch: { full_name: string; class_id?: string } = {
+        full_name: data.full_name,
+      };
+      if (assignClassId) studentPatch.class_id = assignClassId;
+
+      const { error: studentPatchError } = await supabase
+        .from("students")
+        .update(studentPatch)
+        .eq("user_id", userId);
+
+      if (studentPatchError) {
+        throw new Error(
+          assignClassId
+            ? "Student created but class assignment failed"
+            : "Student created but profile details could not be saved"
+        );
+      }
+
+      let classNote = "";
+      if (assignClassId) {
+        const className = classes.find((c) => c.id === assignClassId)?.name;
+        classNote = className ? ` Enrolled in ${className}.` : " Class assigned.";
+      }
 
       toast({
         title: "Success",
-        description: "Student added successfully",
+        description: `Student added successfully.${classNote}`,
       });
 
       setOpen(false);
       reset();
+      setAssignClassId("");
       fetchStudents();
     } catch (error: any) {
       toast({
@@ -268,14 +411,16 @@ const Students = () => {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const openEditDialog = (student: any) => {
+  const openEditDialog = (student: StudentRecord) => {
     setSelectedStudent(student);
     resetEdit({
-      admission_no: student.admission_no || "",
-      full_name: student.profiles?.full_name || "",
+      admission_no: getStudentAdmissionNo(student) || "",
+      full_name: getStudentName(student) === "Unknown" ? "" : getStudentName(student),
       date_of_birth: student.date_of_birth || "",
       gender: student.gender || undefined,
       class_id: student.class_id || "",
@@ -292,6 +437,7 @@ const Students = () => {
         .from("students")
         .update({
           admission_no: data.admission_no,
+          full_name: data.full_name,
           date_of_birth: data.date_of_birth || null,
           gender: data.gender || null,
           class_id: data.class_id || null,
@@ -342,7 +488,7 @@ const Students = () => {
         body: {
           user_id: student.user_id,
           user_role: 'student',
-          user_name: student.profiles?.full_name,
+          user_name: getStudentName(student),
         },
       });
 
@@ -493,10 +639,43 @@ const Students = () => {
                     <Input id="guardian_email" type="email" {...register("guardian_email")} placeholder="Link to parent account" />
                     {errors.guardian_email && <p className="text-sm text-destructive">{errors.guardian_email.message}</p>}
                   </div>
+
+                  <div className="col-span-2 space-y-2 rounded-lg border border-border/60 bg-muted/20 p-4">
+                    <div>
+                      <p className="text-sm font-semibold">Class assignment</p>
+                      <p className="text-xs text-muted-foreground">Optional — enroll the student in a class now</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Class</Label>
+                      <Select
+                        value={assignClassId || undefined}
+                        onValueChange={setAssignClassId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select class" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {classes.map((cls) => (
+                            <SelectItem key={cls.id} value={cls.id}>
+                              {cls.name}
+                              {cls.level ? ` (${cls.level})` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {classes.length === 0 && (
+                        <p className="text-xs text-muted-foreground">No classes found. Create classes first.</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                  <Button type="submit">Add Student</Button>
+                  <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={submitting}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={submitting}>
+                    {submitting ? "Adding…" : "Add Student"}
+                  </Button>
                 </div>
               </form>
             </DialogContent>
@@ -545,10 +724,12 @@ const Students = () => {
                     students.map((student) => (
                       <TableRow key={student.id}>
                         <TableCell className="font-medium">
-                          {student.admission_no || <Badge variant="outline" className="text-xs">Not assigned</Badge>}
+                          {getStudentAdmissionNo(student) || (
+                            <Badge variant="outline" className="text-xs">Not assigned</Badge>
+                          )}
                         </TableCell>
-                        <TableCell className="font-medium">{student.profiles?.full_name}</TableCell>
-                        <TableCell className="hidden sm:table-cell">{student.classes?.name || "N/A"}</TableCell>
+                        <TableCell className="font-medium">{getStudentName(student)}</TableCell>
+                        <TableCell className="hidden sm:table-cell">{getStudentClassLabel(student)}</TableCell>
                         <TableCell className="hidden md:table-cell capitalize">{student.gender || "N/A"}</TableCell>
                         <TableCell>
                           <Badge className="bg-success text-xs">Active</Badge>
@@ -589,7 +770,7 @@ const Students = () => {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Delete Student</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Are you sure you want to delete {student.profiles?.full_name}? 
+                                    Are you sure you want to delete {getStudentName(student)}? 
                                     This action cannot be undone. The registration number will remain 
                                     locked and cannot be reused.
                                   </AlertDialogDescription>
@@ -690,23 +871,23 @@ const Students = () => {
               <DialogDescription>View complete student information</DialogDescription>
             </DialogHeader>
             {selectedStudent && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4 min-w-0">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">Admission Number</Label>
-                    <p className="font-medium">{selectedStudent.admission_no || "Not assigned"}</p>
+                    <p className="font-medium">{getStudentAdmissionNo(selectedStudent) || "Not assigned"}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Full Name</Label>
-                    <p className="font-medium">{selectedStudent.profiles?.full_name}</p>
+                    <p className="font-medium">{getStudentName(selectedStudent)}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Email</Label>
-                    <p className="font-medium">{selectedStudent.profiles?.email}</p>
+                    <p className="font-medium">{getStudentEmail(selectedStudent)}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Class</Label>
-                    <p className="font-medium">{selectedStudent.classes?.name || "Not assigned"}</p>
+                    <p className="font-medium">{getStudentClassLabel(selectedStudent)}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Gender</Label>
@@ -724,6 +905,70 @@ const Students = () => {
                     <Label className="text-muted-foreground">Status</Label>
                     <Badge className="bg-success">Active</Badge>
                   </div>
+                </div>
+
+                <div className="border-t pt-4">
+                  <p className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <UserRound className="h-4 w-4 text-primary" />
+                    Linked parent & contact
+                  </p>
+                  {getLinkedParents(selectedStudent).length === 0 ? (
+                    <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                      <p>No parent linked to this student.</p>
+                      <p className="mt-1">
+                        Link a parent from{" "}
+                        <Link
+                          to="/admin/parent-student-link"
+                          className="text-primary underline-offset-4 hover:underline"
+                        >
+                          Parent–Student Link
+                        </Link>{" "}
+                        or use guardian email when adding a student.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {getLinkedParents(selectedStudent).map((parent) => (
+                        <div
+                          key={parent.id}
+                          className="rounded-lg border bg-muted/20 p-4 grid grid-cols-1 sm:grid-cols-2 gap-3"
+                        >
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Parent name</Label>
+                            <p className="font-medium">{getParentName(parent)}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Relationship</Label>
+                            <p className="font-medium capitalize">{parent.relationship || "Parent"}</p>
+                          </div>
+                          <div className="flex items-start gap-2 sm:col-span-2">
+                            <Mail className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                            <div className="min-w-0">
+                              <Label className="text-xs text-muted-foreground">Email</Label>
+                              <p className="font-medium break-all">
+                                {parent.profiles?.email?.trim() || "—"}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <Phone className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Phone</Label>
+                              <p className="font-medium">{getParentPhone(parent)}</p>
+                            </div>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Emergency contact</Label>
+                            <p className="font-medium">{parent.emergency_contact?.trim() || "—"}</p>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <Label className="text-xs text-muted-foreground">Address</Label>
+                            <p className="font-medium">{parent.address?.trim() || "—"}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

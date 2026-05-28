@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -33,6 +34,79 @@ const editTeacherSchema = z.object({
 type TeacherFormData = z.infer<typeof teacherSchema>;
 type EditTeacherFormData = z.infer<typeof editTeacherSchema>;
 
+type ClassOption = { id: string; name: string; level: string | null };
+type SubjectOption = { id: string; name: string; code: string | null };
+
+type TeacherRow = {
+  id: string;
+  employee_no: string | null;
+  subject_specialty: string | null;
+  profiles?: { full_name?: string; email?: string } | null;
+  class_subjects?: Array<{
+    subjects?: { name?: string; code?: string } | null;
+    classes?: { name?: string; level?: string } | null;
+  }> | null;
+};
+
+function formatTeacherClasses(teacher: TeacherRow): string {
+  const fromAssignments = [
+    ...new Set(
+      (teacher.class_subjects ?? [])
+        .map((cs) => {
+          const name = cs.classes?.name?.trim();
+          const level = cs.classes?.level?.trim();
+          if (!name) return null;
+          return level ? `${name} (${level})` : name;
+        })
+        .filter((label): label is string => Boolean(label))
+    ),
+  ];
+  if (fromAssignments.length > 0) return fromAssignments.join(", ");
+  return "N/A";
+}
+
+function formatTeacherSubjects(teacher: TeacherRow): string {
+  const fromAssignments = [
+    ...new Set(
+      (teacher.class_subjects ?? [])
+        .map((cs) => cs.subjects?.name?.trim())
+        .filter((name): name is string => Boolean(name))
+    ),
+  ];
+  if (fromAssignments.length > 0) return fromAssignments.join(", ");
+  const specialty = teacher.subject_specialty?.trim();
+  if (specialty) return specialty;
+  return "N/A";
+}
+
+async function assignTeacherClassSubjects(
+  teacherId: string,
+  classId: string,
+  subjectIds: string[]
+): Promise<number> {
+  let assigned = 0;
+  for (const subjectId of subjectIds) {
+    const { data: existing } = await supabase
+      .from("class_subjects")
+      .select("id")
+      .eq("teacher_id", teacherId)
+      .eq("class_id", classId)
+      .eq("subject_id", subjectId)
+      .maybeSingle();
+
+    if (existing) continue;
+
+    const { error } = await supabase.from("class_subjects").insert({
+      teacher_id: teacherId,
+      class_id: classId,
+      subject_id: subjectId,
+    });
+
+    if (!error) assigned += 1;
+  }
+  return assigned;
+}
+
 const Teachers = () => {
   const [open, setOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -44,6 +118,11 @@ const Teachers = () => {
   const [unusedEmployeeNumbers, setUnusedEmployeeNumbers] = useState<string[]>([]);
   const [loadingEmployeeNo, setLoadingEmployeeNo] = useState(false);
   const [generatingEmployeeNo, setGeneratingEmployeeNo] = useState(false);
+  const [classes, setClasses] = useState<ClassOption[]>([]);
+  const [subjects, setSubjects] = useState<SubjectOption[]>([]);
+  const [assignClassId, setAssignClassId] = useState("");
+  const [assignSubjectIds, setAssignSubjectIds] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
   
   const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<TeacherFormData>({
@@ -143,14 +222,65 @@ const Teachers = () => {
     }
   };
 
+  const fetchClassesAndSubjects = async () => {
+    const sid = await resolveSchoolId();
+    if (!sid) return;
+
+    const [classesRes, subjectsRes] = await Promise.all([
+      supabase.from("classes").select("id, name, level").eq("school_id", sid).order("name"),
+      supabase.from("subjects").select("id, name, code").eq("school_id", sid).order("name"),
+    ]);
+
+    if (classesRes.error) {
+      toast({ title: "Error loading classes", description: classesRes.error.message, variant: "destructive" });
+    } else {
+      setClasses((classesRes.data ?? []) as ClassOption[]);
+    }
+
+    if (subjectsRes.error) {
+      toast({ title: "Error loading subjects", description: subjectsRes.error.message, variant: "destructive" });
+    } else {
+      setSubjects((subjectsRes.data ?? []) as SubjectOption[]);
+    }
+  };
+
+  const toggleAssignSubject = (subjectId: string, checked: boolean) => {
+    setAssignSubjectIds((prev) =>
+      checked ? [...prev, subjectId] : prev.filter((id) => id !== subjectId)
+    );
+  };
+
+  const handleAssignAllSubjects = () => {
+    if (!assignClassId) {
+      toast({
+        title: "Select a class first",
+        description: "Choose a class before assigning subjects.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (subjects.length === 0) {
+      toast({
+        title: "No subjects available",
+        description: "Add subjects for your school before assigning.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setAssignSubjectIds(subjects.map((s) => s.id));
+  };
+
   const handleAddDialogChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
     if (!nextOpen) {
       reset();
       setUnusedEmployeeNumbers([]);
+      setAssignClassId("");
+      setAssignSubjectIds([]);
       return;
     }
     void loadUnusedEmployeeNumbers();
+    void fetchClassesAndSubjects();
   };
 
   const fetchTeachers = async () => {
@@ -172,18 +302,23 @@ const Teachers = () => {
       .from("teachers")
       .select(`
         *,
-        profiles(full_name, email)
+        profiles(full_name, email),
+        class_subjects(
+          subjects(name, code),
+          classes(name, level)
+        )
       `)
       .eq("school_id", profileData.school_id);
     
     if (!error && data) {
-      setTeachers(data);
+      setTeachers(data as TeacherRow[]);
     } else if (error) {
       console.error("Error fetching teachers:", error);
     }
   };
 
   const onSubmit = async (data: TeacherFormData) => {
+    setSubmitting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
@@ -221,14 +356,43 @@ const Teachers = () => {
       });
 
       if (error) throw error;
+      if (result?.error) throw new Error(result.error);
+
+      const userId = result?.user?.id as string | undefined;
+      if (!userId) throw new Error("Teacher account created but user id was not returned");
+
+      let assignmentNote = "";
+      if (assignClassId && assignSubjectIds.length > 0) {
+        const { data: teacherRow, error: teacherLookupError } = await supabase
+          .from("teachers")
+          .select("id")
+          .eq("user_id", userId)
+          .single();
+
+        if (teacherLookupError || !teacherRow) {
+          throw new Error("Teacher created but class assignments could not be saved");
+        }
+
+        const assignedCount = await assignTeacherClassSubjects(
+          teacherRow.id,
+          assignClassId,
+          assignSubjectIds
+        );
+        assignmentNote =
+          assignedCount > 0
+            ? ` Assigned to ${assignedCount} subject${assignedCount === 1 ? "" : "s"}.`
+            : "";
+      }
 
       toast({
         title: "Success",
-        description: "Teacher added successfully",
+        description: `Teacher added successfully.${assignmentNote}`,
       });
 
       setOpen(false);
       reset();
+      setAssignClassId("");
+      setAssignSubjectIds([]);
       fetchTeachers();
     } catch (error: any) {
       toast({
@@ -236,6 +400,8 @@ const Teachers = () => {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -344,7 +510,7 @@ const Teachers = () => {
                 Add Teacher
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add New Teacher</DialogTitle>
                 <DialogDescription>Enter teacher information to create a new account</DialogDescription>
@@ -433,10 +599,93 @@ const Teachers = () => {
                     <Input id="password" type="password" {...register("password")} />
                     {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
                   </div>
+
+                  <div className="col-span-2 space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold">Class & subject assignment</p>
+                        <p className="text-xs text-muted-foreground">Optional — assign now or later via Teacher–Class Link</p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={handleAssignAllSubjects}
+                        disabled={!assignClassId || subjects.length === 0}
+                      >
+                        Assign all subjects
+                      </Button>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Class</Label>
+                      <Select
+                        value={assignClassId || undefined}
+                        onValueChange={(value) => {
+                          setAssignClassId(value);
+                          setAssignSubjectIds([]);
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select class" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {classes.map((cls) => (
+                            <SelectItem key={cls.id} value={cls.id}>
+                              {cls.name}
+                              {cls.level ? ` (${cls.level})` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {classes.length === 0 && (
+                        <p className="text-xs text-muted-foreground">No classes found. Create classes first.</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>
+                        Subjects
+                        {assignSubjectIds.length > 0 ? ` (${assignSubjectIds.length} selected)` : ""}
+                      </Label>
+                      <div className="max-h-44 overflow-y-auto rounded-md border bg-background p-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {subjects.length === 0 ? (
+                          <p className="text-xs text-muted-foreground col-span-full">No subjects available.</p>
+                        ) : (
+                          subjects.map((subject) => (
+                            <label
+                              key={subject.id}
+                              className={`flex items-center gap-2 text-sm cursor-pointer ${!assignClassId ? "opacity-50 pointer-events-none" : ""}`}
+                            >
+                              <Checkbox
+                                checked={assignSubjectIds.includes(subject.id)}
+                                onCheckedChange={(checked) =>
+                                  toggleAssignSubject(subject.id, checked === true)
+                                }
+                                disabled={!assignClassId}
+                              />
+                              <span className="truncate">
+                                {subject.name}
+                                {subject.code ? ` (${subject.code})` : ""}
+                              </span>
+                            </label>
+                          ))
+                        )}
+                      </div>
+                      {!assignClassId && (
+                        <p className="text-xs text-muted-foreground">Select a class to choose subjects.</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                  <Button type="submit">Add Teacher</Button>
+                  <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={submitting}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={submitting}>
+                    {submitting ? "Adding…" : "Add Teacher"}
+                  </Button>
                 </div>
               </form>
             </DialogContent>
@@ -463,6 +712,7 @@ const Teachers = () => {
                   <TableRow>
                     <TableHead className="min-w-[120px]">Employee No.</TableHead>
                     <TableHead className="min-w-[150px]">Name</TableHead>
+                    <TableHead className="hidden md:table-cell">Assigned Class</TableHead>
                     <TableHead className="hidden md:table-cell">Subject</TableHead>
                     <TableHead className="hidden lg:table-cell">Email</TableHead>
                     <TableHead className="min-w-[80px]">Status</TableHead>
@@ -472,7 +722,7 @@ const Teachers = () => {
                 <TableBody>
                   {teachers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                         No teachers found. Add your first teacher to get started.
                       </TableCell>
                     </TableRow>
@@ -483,7 +733,8 @@ const Teachers = () => {
                           {teacher.employee_no || <Badge variant="outline" className="text-xs">Not assigned</Badge>}
                         </TableCell>
                         <TableCell className="font-medium">{teacher.profiles?.full_name}</TableCell>
-                        <TableCell className="hidden md:table-cell">{teacher.subject_specialty || "N/A"}</TableCell>
+                        <TableCell className="hidden md:table-cell">{formatTeacherClasses(teacher)}</TableCell>
+                        <TableCell className="hidden md:table-cell">{formatTeacherSubjects(teacher)}</TableCell>
                         <TableCell className="hidden lg:table-cell text-sm">{teacher.profiles?.email}</TableCell>
                         <TableCell>
                           <Badge className="bg-success text-xs">Active</Badge>
@@ -606,8 +857,12 @@ const Teachers = () => {
                     <p className="font-medium">{selectedTeacher.profiles?.email}</p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">Subject Specialty</Label>
-                    <p className="font-medium">{selectedTeacher.subject_specialty || "Not specified"}</p>
+                    <Label className="text-muted-foreground">Assigned Class</Label>
+                    <p className="font-medium">{formatTeacherClasses(selectedTeacher)}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Assigned Subject</Label>
+                    <p className="font-medium">{formatTeacherSubjects(selectedTeacher)}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Status</Label>
