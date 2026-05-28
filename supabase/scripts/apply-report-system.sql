@@ -509,3 +509,6 @@ CREATE POLICY "school members delete own assets"
 ALTER TABLE public.school_settings
   ADD COLUMN IF NOT EXISTS allow_multiple_parents_per_student boolean DEFAULT true;
 
+ALTER TABLE public.school_settings
+  ADD COLUMN IF NOT EXISTS report_theme_primary text DEFAULT '#000000';
+

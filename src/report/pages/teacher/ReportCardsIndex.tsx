@@ -311,6 +311,7 @@ function TeacherReportCards() {
               onChange={editor.setForm}
               onSave={() => void editor.saveDraft()}
               saving={editor.saving}
+              autosavePending={editor.autosavePending}
               status={editor.status}
               lastSaved={editor.lastSaved}
               toolbarTitle={`Report — ${editor.form.studentName}`}

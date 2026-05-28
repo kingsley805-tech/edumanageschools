@@ -55,6 +55,7 @@ export function useTermReportCard(opts: UseTermReportCardOpts) {
   const [version, setVersion] = useState(1);
   const [loading, setLoading] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [autosaveScheduled, setAutosaveScheduled] = useState(false);
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const formRef = useRef<ReportFormData | null>(null);
   formRef.current = form;
@@ -255,10 +256,17 @@ export function useTermReportCard(opts: UseTermReportCardOpts) {
 
   const scheduleAutosave = useCallback(() => {
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    setAutosaveScheduled(true);
     autosaveTimer.current = setTimeout(() => {
+      autosaveTimer.current = null;
       const keepStatus = status === "draft" && !reportId ? "draft" : status;
-      persist.mutate({ nextStatus: keepStatus, note: "Auto-saved", skipVersion: true });
-    }, 2000);
+      persist.mutate(
+        { nextStatus: keepStatus, note: "Auto-saved", skipVersion: true },
+        {
+          onSettled: () => setAutosaveScheduled(false),
+        },
+      );
+    }, 800);
   }, [reportId, status, persist]);
 
   const onFormChange = useCallback(
@@ -303,6 +311,7 @@ export function useTermReportCard(opts: UseTermReportCardOpts) {
     loading,
     lastSaved,
     saving: persist.isPending,
+    autosavePending: persist.isPending || autosaveScheduled,
     load,
     saveDraft,
     submitForReview,

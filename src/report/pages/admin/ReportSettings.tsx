@@ -24,6 +24,14 @@ import { toast } from "sonner";
 import type { GradingFormat } from "@/report/lib/grading";
 import { Loader2, Upload } from "lucide-react";
 import { withReportLayout } from "@/report/withReportLayout";
+import { ReportThemeColorPicker } from "@/report/components/report-theme-color-picker";
+import {
+  DEFAULT_REPORT_THEME,
+  isValidHexColor,
+  reportThemeFromSettings,
+} from "@/report/lib/report-brand-colors";
+import { validateReportImageFile } from "@/report/lib/validate-report-upload";
+import { Textarea } from "@/components/ui/textarea";
 
 function ReportSettingsPage() {
   const { profile, user } = useAuth();
@@ -50,6 +58,8 @@ function ReportSettingsPage() {
     alert_drop_threshold: 15,
     auto_remarks: true,
     grading_system: "letter" as GradingFormat,
+    report_theme_primary: DEFAULT_REPORT_THEME,
+    report_card_footer: "",
   });
 
   useEffect(() => {
@@ -77,6 +87,10 @@ function ReportSettingsPage() {
         auto_remarks: settings.auto_remarks ?? true,
         grading_system:
           (settings as { grading_system?: string }).grading_system === "numeric" ? "numeric" : "letter",
+        report_theme_primary: reportThemeFromSettings(
+          (settings as { report_theme_primary?: string }).report_theme_primary,
+        ),
+        report_card_footer: (settings as { report_card_footer?: string }).report_card_footer ?? "",
       });
     }
   }, [settings]);
@@ -120,6 +134,10 @@ function ReportSettingsPage() {
         alert_drop_threshold: grading.alert_drop_threshold,
         auto_remarks: grading.auto_remarks,
         grading_system: grading.grading_system,
+        report_theme_primary: isValidHexColor(grading.report_theme_primary)
+          ? grading.report_theme_primary
+          : DEFAULT_REPORT_THEME,
+        report_card_footer: grading.report_card_footer.trim() || null,
       };
       if (settings?.id) {
         const { error } = await supabase.from("school_settings").update(payload).eq("id", settings.id);
@@ -131,7 +149,8 @@ function ReportSettingsPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["school-settings"] });
-      toast.success("Grading settings saved");
+      qc.invalidateQueries({ queryKey: ["report-theme"] });
+      toast.success("Grading & report theme saved");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -139,6 +158,11 @@ function ReportSettingsPage() {
   const handleImageUpload = async (kind: "logo" | "stamp", file: File) => {
     const schoolId = school?.id ?? profile?.school_id ?? (user ? await resolveUserSchoolId(user.id) : null);
     if (!file || !schoolId) return;
+    const validationError = validateReportImageFile(file);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
     setUploading(kind);
     try {
       const ext = file.name.split(".").pop() || "png";
@@ -158,7 +182,8 @@ function ReportSettingsPage() {
         const { data: pub } = supabase.storage.from(bucket).getPublicUrl(path);
         setBranding((b) => ({ ...b, [`${kind}_url`]: pub.publicUrl }));
       }
-      toast.success(`${kind === "logo" ? "Logo" : "Stamp"} uploaded — save branding to apply`);
+      toast.success(`${kind === "logo" ? "Logo" : "Stamp"} uploaded`);
+      saveBranding.mutate();
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -221,7 +246,7 @@ function ReportSettingsPage() {
                     <img
                       src={branding[`${kind}_url`]}
                       alt={kind}
-                      className="h-16 max-w-[140px] rounded border bg-white object-contain"
+                      className="h-20 max-w-[160px] rounded border bg-white object-contain p-1"
                     />
                   )}
                   <Button variant="outline" size="sm" disabled={!!uploading} asChild>
@@ -250,6 +275,37 @@ function ReportSettingsPage() {
 
             <Button onClick={() => saveBranding.mutate()} disabled={saveBranding.isPending}>
               {saveBranding.isPending ? "Saving…" : "Save branding"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-display">Report card theme</CardTitle>
+            <CardDescription>
+              Primary color for headers, tables, borders, and highlights on all report cards (print &amp; PDF).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <ReportThemeColorPicker
+              value={grading.report_theme_primary}
+              onChange={(hex) => setGrading({ ...grading, report_theme_primary: hex })}
+              disabled={saveGrading.isPending}
+            />
+            <div className="space-y-2">
+              <Label>Report footer note (optional)</Label>
+              <Textarea
+                rows={2}
+                placeholder="Confidential — for the named learner and their guardian."
+                value={grading.report_card_footer}
+                onChange={(e) => setGrading({ ...grading, report_card_footer: e.target.value })}
+              />
+            </div>
+            <Button
+              onClick={() => saveGrading.mutate()}
+              disabled={saveGrading.isPending || !isValidHexColor(grading.report_theme_primary)}
+            >
+              {saveGrading.isPending ? "Saving…" : "Save theme"}
             </Button>
           </CardContent>
         </Card>

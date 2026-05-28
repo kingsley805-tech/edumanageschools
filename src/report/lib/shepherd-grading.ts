@@ -4,8 +4,15 @@ import {
   LETTER_GRADE_BANDS,
   type GradingFormat,
 } from "./grading";
+import {
+  BRAND_COLORS as DEFAULT_BRAND,
+  buildReportBrandColors,
+  gradeStyleFromBrand,
+  type ReportBrandColors,
+} from "./report-brand-colors";
 
 export type { GradingFormat } from "./grading";
+export type { ReportBrandColors } from "./report-brand-colors";
 
 export interface SubjectRow {
   name: string;
@@ -30,26 +37,23 @@ export function computeShepherdGrade(
 ): { grade: string; remark: string } {
   return computeGrade(total, format);
 }
-/** Report card palette: black & white (school branding via logo/stamp). */
+
+/** Default static palette (black theme). Prefer `useReportTheme()` for live school color. */
 export const BRAND_COLORS = {
-  /** Borders, labels, accents */
-  green: "#171717",
-  /** Header, table head, footer, stat blocks */
-  greenDark: "#000000",
-  /** Secondary accent */
-  greenLight: "#404040",
-  white: "#ffffff",
-  black: "#171717",
-  mutedBg: "#f5f5f5",
-  border: "rgba(0, 0, 0, 0.22)",
-  shadow: "rgba(0, 0, 0, 0.12)",
-  /** @deprecated use greenDark */
-  navy: "#000000",
+  green: DEFAULT_BRAND.primary,
+  greenDark: DEFAULT_BRAND.primaryDark,
+  greenLight: DEFAULT_BRAND.primaryLight,
+  white: DEFAULT_BRAND.white,
+  black: DEFAULT_BRAND.black,
+  mutedBg: DEFAULT_BRAND.mutedBg,
+  border: DEFAULT_BRAND.border,
+  shadow: DEFAULT_BRAND.shadow,
+  navy: DEFAULT_BRAND.primaryDark,
 } as const;
 
-/** Report card grade styling — black & white. */
-export function gradeStyle(_g?: string) {
-  return { bg: BRAND_COLORS.greenDark, text: BRAND_COLORS.white, bar: BRAND_COLORS.black };
+/** Report card grade badge colors */
+export function gradeStyle(_g?: string, brand?: ReportBrandColors) {
+  return gradeStyleFromBrand(brand ?? buildReportBrandColors("#000000"), _g);
 }
 
 export function recalcSubject(row: SubjectRow, format: GradingFormat = "letter"): SubjectRow {

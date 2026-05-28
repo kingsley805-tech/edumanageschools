@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { PenLine, Star, Trash2, Upload } from "lucide-react";
+import { validateReportImageFile } from "@/report/lib/validate-report-upload";
 
 type Props = {
   roleKind: SignatureRoleKind;
@@ -45,6 +46,11 @@ export function SignatureManager({ roleKind, title, description }: Props) {
   const onUpload = async (file: File) => {
     if (!userId || !schoolId) {
       toast.error("Your account must be linked to a school before uploading a signature.");
+      return;
+    }
+    const validationError = validateReportImageFile(file);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
     setUploading(true);

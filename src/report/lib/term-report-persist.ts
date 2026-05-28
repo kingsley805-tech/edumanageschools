@@ -31,7 +31,22 @@ export type PersistTermReportResult = {
   status: ReportCardStatus;
 };
 
-/** Save or update a term report card (shared by editor hook and offline sync). */
+const DB_FIX_HINT =
+  "Open Supabase → SQL Editor → run the full file: supabase/scripts/FIX_REPORT_RLS.sql then try again.";
+
+function isRpcMissing(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const msg = (error.message ?? "").toLowerCase();
+  return (
+    error.code === "PGRST202" ||
+    error.code === "42883" ||
+    msg.includes("could not find the function") ||
+    msg.includes("schema cache") ||
+    msg.includes("upsert_term_report_card")
+  );
+}
+
+/** Save or update a term report card (uses DB RPC to avoid RLS failures). */
 export async function persistTermReportCard(
   input: PersistTermReportInput,
 ): Promise<PersistTermReportResult> {
@@ -49,9 +64,21 @@ export async function persistTermReportCard(
     .eq("id", input.studentId)
     .maybeSingle();
 
-  let effectiveClassId = input.classId || existingRow?.class_id || studentRow?.class_id || null;
+  const effectiveClassId = input.classId || existingRow?.class_id || studentRow?.class_id || null;
   const effectiveSchoolId =
     studentRow?.school_id ?? existingRow?.school_id ?? input.schoolId;
+
+  if (!effectiveSchoolId) {
+    throw new Error(
+      "Cannot save report: student school is missing. Ask your admin to link the student to your school.",
+    );
+  }
+
+  if (!effectiveClassId) {
+    throw new Error(
+      "Cannot save report: student has no class. Assign the student to a class first.",
+    );
+  }
 
   const payload = {
     ...formToPayload(toSave, {
@@ -65,27 +92,30 @@ export async function persistTermReportCard(
       rejectionReason: input.rejectionReason,
     }),
     saved_at: new Date().toISOString(),
+    version: existingRow?.id ? (existingRow.version ?? input.version) + 1 : 1,
   };
 
-  let id = existingRow?.id ?? input.reportId;
-  let nextVersion = (existingRow?.version ?? input.version) + 1;
+  const { data: rpcData, error: rpcError } = await supabase.rpc("upsert_term_report_card", {
+    p_row: payload as never,
+  });
 
-  if (id) {
-    const { error } = await supabase
-      .from("term_report_cards")
-      .update({ ...payload, version: nextVersion } as never)
-      .eq("id", id);
-    if (error) throw error;
-  } else {
-    const { data, error } = await supabase
-      .from("term_report_cards")
-      .insert({ ...payload, version: 1 } as never)
-      .select("id")
-      .single();
-    if (error) throw error;
-    id = (data as { id: string }).id;
-    nextVersion = 1;
+  if (rpcError) {
+    if (isRpcMissing(rpcError)) {
+      throw new Error(`Report save is not configured on the database yet. ${DB_FIX_HINT}`);
+    }
+    if ((rpcError.message ?? "").includes("row-level security")) {
+      throw new Error(`Report save blocked by database security. ${DB_FIX_HINT}`);
+    }
+    throw new Error(rpcError.message);
   }
+
+  if (!rpcData || typeof rpcData !== "object") {
+    throw new Error(`Report save failed. ${DB_FIX_HINT}`);
+  }
+
+  const row = rpcData as { id: string; version: number; status: ReportCardStatus };
+  const id = row.id;
+  const nextVersion = row.version;
 
   if (!input.skipVersion && id) {
     try {
@@ -102,5 +132,5 @@ export async function persistTermReportCard(
     }
   }
 
-  return { id: id!, version: nextVersion, status: input.nextStatus };
+  return { id, version: nextVersion, status: input.nextStatus };
 }
