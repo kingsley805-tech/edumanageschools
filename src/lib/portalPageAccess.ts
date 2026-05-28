@@ -87,6 +87,19 @@ export const PORTAL_PAGES: PortalPageDef[] = [
     permissions: { view: PERMISSIONS.school.grading, manage: PERMISSIONS.school.grading },
   },
   {
+    key: "result_scores",
+    label: "Enter Scores",
+    section: "Examinations & Results",
+    path: "/teacher/scores",
+    assignableTo: ["teacher"],
+    permissions: {
+      view: PERMISSIONS.reports.viewAcademic,
+      create: PERMISSIONS.reports.create,
+      edit: PERMISSIONS.reports.edit,
+      manage: PERMISSIONS.reports.edit,
+    },
+  },
+  {
     key: "report_cards",
     label: "Report Cards",
     section: "Examinations & Results",

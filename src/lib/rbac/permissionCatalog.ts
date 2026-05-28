@@ -62,6 +62,7 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
     key: "examinations",
     label: "Examinations & Results",
     modules: [
+      { key: "result_scores", label: "Enter Scores", path: "/teacher/scores", actions: ["view", "create", "edit", "manage"] },
       { key: "report_cards", label: "Report Cards", path: "/admin/report-cards", actions: ["view", "create", "edit", "delete", "approve", "export", "manage"] },
       { key: "report_archive", label: "Report Archive", path: "/admin/report-cards/archive", actions: ["view", "export", "manage"] },
       { key: "academic_reports", label: "Reports", path: "/admin/reports", actions: ["view", "export", "manage"] },

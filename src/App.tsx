@@ -34,8 +34,10 @@ import TeacherReportCardsIndex from "@/report/pages/teacher/ReportCardsIndex";
 import TeacherReportCardsView from "@/report/pages/teacher/ReportCardsView";
 import TeacherReportCardsHistory from "@/report/pages/teacher/ReportCardsHistory";
 import TeacherSignatures from "@/report/pages/teacher/Signatures";
+import TeacherScores from "@/report/pages/teacher/Scores";
 import ParentReports from "@/report/pages/parent/Reports";
 import StudentReportCard from "@/report/pages/student/ReportCard";
+import StudentPerformance from "@/report/pages/student/Performance";
 import SuperAdminReports from "@/report/pages/super-admin/Reports";
 import AdminAnnouncements from "./pages/admin/Announcements";
 import Payments from "./pages/parent/Payments";
@@ -320,6 +322,11 @@ function App() {
                   <ClassDetails />
                 </ProtectedRoute>
               } />
+              <Route path="/teacher/scores" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <TeacherScores />
+                </ProtectedRoute>
+              } />
               <Route path="/teacher/report-cards" element={
                 <ProtectedRoute allowedRoles={["teacher"]}>
                   <TeacherReportCardsIndex />
@@ -408,6 +415,11 @@ function App() {
               <Route path="/student/report-card" element={
                 <ProtectedRoute allowedRoles={["student"]}>
                   <StudentReportCard />
+                </ProtectedRoute>
+              } />
+              <Route path="/student/performance" element={
+                <ProtectedRoute allowedRoles={["student"]}>
+                  <StudentPerformance />
                 </ProtectedRoute>
               } />
               <Route path="/student/timetable" element={

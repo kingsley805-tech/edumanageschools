@@ -362,7 +362,8 @@ BEGIN
 END;
 $$;
 
--- Ranking RPC (simplified â€” full ranking from ascend)
+-- Ranking RPC (simplified — superseded by migrations/20260528000000_report_ranking_full.sql)
+-- Run that migration for full competition ranks, build_report_subjects_json, and report sync.
 CREATE OR REPLACE FUNCTION public.result_ranking_score(p_ca numeric, p_exam numeric)
 RETURNS numeric LANGUAGE sql IMMUTABLE PARALLEL SAFE SET search_path TO 'public' AS $$
   SELECT ROUND((COALESCE(p_ca, 0) + COALESCE(p_exam, 0))::numeric, 4);
