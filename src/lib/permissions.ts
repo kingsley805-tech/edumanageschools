@@ -63,6 +63,10 @@ export const PERMISSIONS = {
     analytics: "school.view_analytics",
   },
   fees: { viewStatus: "fees.view_status" },
+  payroll: {
+    view: "payroll.view",
+    manage: "payroll.manage",
+  },
 } as const;
 
 export type PermissionCode = string;

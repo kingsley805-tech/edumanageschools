@@ -1,0 +1,3 @@
+# Required so browser CORS preflight (OPTIONS) is not rejected by the API gateway
+# (OPTIONS requests do not include a JWT). Auth is still enforced inside handlers.
+verify_jwt = false

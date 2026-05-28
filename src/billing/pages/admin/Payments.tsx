@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Search, Download, FileText, Upload, RefreshCcw, RotateCw, Eye } from "lucide-react";
 import RecordPaymentDialog from "@/billing/components/payments/RecordPaymentDialog";
+import PaySalaryDialog from "@/billing/components/payments/PaySalaryDialog";
 import { PaymentDetailsDialog, type PaymentDetailsPayload } from "@/billing/components/payments/PaymentDetailsDialog";
 import TablePagination from "@/billing/components/TablePagination";
 import { usePagination } from "@/billing/hooks/usePagination";
@@ -623,6 +624,7 @@ export default function BillingPayments() {
             </>
           ) : null}
           {canCreatePayments ? <RecordPaymentDialog onSuccess={fetchPayments} /> : null}
+          {canCreatePayments ? <PaySalaryDialog /> : null}
         </div>
       </div>
 

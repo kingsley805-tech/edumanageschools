@@ -4,7 +4,14 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useUserRole } from "@/hooks/useUserRole";
 import { PERMISSIONS } from "@/lib/permissions";
 
-export type BillingPageKey = "invoices" | "payments" | "fees" | "reports" | "paid_students" | "outstanding";
+export type BillingPageKey =
+  | "invoices"
+  | "payments"
+  | "fees"
+  | "reports"
+  | "paid_students"
+  | "outstanding"
+  | "payroll";
 
 export type BillingPagePermission = {
   view: boolean;
@@ -47,6 +54,13 @@ const PAGE_PERM_MAP: Record<
   },
   paid_students: { view: PERMISSIONS.fees.viewStatus },
   outstanding: { view: PERMISSIONS.invoices.view },
+  payroll: {
+    view: "payroll.view",
+    create: "payroll.manage",
+    edit: "payroll.manage",
+    delete: "payroll.manage",
+    manage: "payroll.manage",
+  },
 };
 
 /** edubill-compatible permission API backed by school-hub RBAC. */

@@ -148,6 +148,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           label: "Financial Management",
           icon: DollarSign,
           items: [
+            { icon: LayoutDashboard, label: "Billing overview", path: "/admin/billing" },
             { icon: Wallet, label: "Fees", path: "/admin/billing/fees" },
             { icon: DollarSign, label: "Invoices", path: "/admin/billing/invoices" },
             { icon: FileText, label: "Payments", path: "/admin/billing/payments" },
@@ -155,6 +156,8 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
             { icon: Users, label: "Outstanding", path: "/admin/billing/outstanding" },
             { icon: BarChart3, label: "Reports", path: "/admin/billing/reports" },
             { icon: Users, label: "Family Billing", path: "/admin/billing/family" },
+            { icon: Wallet, label: "Payroll", path: "/admin/billing/payroll" },
+            { icon: Settings, label: "Billing settings", path: "/admin/billing/settings" },
           ],
         },
         {
@@ -204,6 +207,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           label: "Billing",
           icon: DollarSign,
           items: [
+            { icon: LayoutDashboard, label: "Billing overview", path: "/admin/billing", permission: PERMISSIONS.invoices.view },
             { icon: Wallet, label: "Fees", path: "/admin/billing/fees", permission: PERMISSIONS.billing.feeTemplates },
             { icon: DollarSign, label: "Invoices", path: "/admin/billing/invoices", permission: PERMISSIONS.invoices.view },
             { icon: FileText, label: "Payments", path: "/admin/billing/payments", permission: PERMISSIONS.payments.view },
@@ -211,6 +215,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
             { icon: Users, label: "Outstanding", path: "/admin/billing/outstanding", permission: PERMISSIONS.invoices.view },
             { icon: BarChart3, label: "Reports", path: "/admin/billing/reports", permission: PERMISSIONS.reports.viewFinancial },
             { icon: Users, label: "Family Billing", path: "/admin/billing/family" },
+            { icon: Wallet, label: "Payroll", path: "/admin/billing/payroll", permission: PERMISSIONS.payroll.view },
           ],
         },
         {
@@ -221,7 +226,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
             {
               icon: BarChart3,
               label: "Financial Reports",
-              path: "/admin/reports",
+              path: "/admin/billing/reports",
               permission: PERMISSIONS.reports.viewFinancial,
             },
           ],
@@ -372,6 +377,12 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           label: "Examinations",
           icon: MonitorPlay,
           items: [{ icon: MonitorPlay, label: "Online Exams", path: "/student/online-exams" }],
+        },
+        {
+          type: "group",
+          label: "Finance",
+          icon: DollarSign,
+          items: [{ icon: DollarSign, label: "My fees", path: "/student/billing" }],
         },
         {
           type: "group",

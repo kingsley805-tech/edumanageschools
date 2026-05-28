@@ -1,4 +1,9 @@
 import { withBillingLayout } from "@/billing/withBillingLayout";
+import BillingDashboard from "@/billing/pages/admin/Dashboard";
+import Payroll from "@/billing/pages/admin/Payroll";
+import PayrollHistory from "@/billing/pages/admin/PayrollHistory";
+import BillingSettings from "@/billing/pages/admin/BillingSettings";
+import PaymentGatewaySettings from "@/billing/pages/admin/PaymentGatewaySettings";
 import BillingReports from "@/billing/pages/admin/Reports";
 import BillingInvoices from "@/billing/pages/admin/Invoices";
 import BillingPayments from "@/billing/pages/admin/Payments";
@@ -7,6 +12,11 @@ import BillingPaidStudents from "@/billing/pages/admin/PaidStudents";
 import BillingOutstandingStudents from "@/billing/pages/admin/OutstandingStudents";
 import ConsolidatedBilling from "@/billing/pages/admin/ConsolidatedBilling";
 
+export const BillingDashboardPage = withBillingLayout("admin", BillingDashboard);
+export const BillingPayrollPage = withBillingLayout("admin", Payroll);
+export const BillingPayrollHistoryPage = withBillingLayout("admin", PayrollHistory);
+export const BillingSettingsPage = withBillingLayout("admin", BillingSettings);
+export const BillingPaymentGatewayPage = withBillingLayout("admin", PaymentGatewaySettings);
 export const BillingReportsPage = withBillingLayout("admin", BillingReports);
 export const BillingConsolidatedPage = withBillingLayout("admin", ConsolidatedBilling);
 export const BillingInvoicesPage = withBillingLayout("admin", BillingInvoices);

@@ -92,6 +92,18 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
         path: "/admin/billing/family",
         actions: ["view", "create", "edit", "manage", "export"],
       },
+      {
+        key: "billing_payroll",
+        label: "Payroll",
+        path: "/admin/billing/payroll",
+        actions: ["view", "create", "edit", "manage", "export"],
+      },
+      {
+        key: "billing_overview",
+        label: "Billing Overview",
+        path: "/admin/billing",
+        actions: ["view", "export"],
+      },
     ],
   },
   {

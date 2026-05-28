@@ -40,7 +40,7 @@ import StudentReportCard from "@/report/pages/student/ReportCard";
 import StudentPerformance from "@/report/pages/student/Performance";
 import SuperAdminReports from "@/report/pages/super-admin/Reports";
 import AdminAnnouncements from "./pages/admin/Announcements";
-import Payments from "./pages/parent/Payments";
+import ParentBillingPayments from "./pages/parent/BillingPayments";
 import Children from "./pages/parent/Children";
 import ParentAttendance from "./pages/parent/Attendance";
 import ParentGrades from "./pages/parent/Grades";
@@ -67,6 +67,7 @@ import GradeScales from "./pages/admin/GradeScales";
 import QuestionBank from "./pages/teacher/QuestionBank";
 import TeacherOnlineExams from "./pages/teacher/OnlineExams";
 import StudentOnlineExams from "./pages/student/OnlineExams";
+import StudentBilling from "./pages/student/Billing";
 import SuperAdminManagement from "./pages/admin/SuperAdminManagement";
 import SchoolSettings from "./pages/admin/SchoolSettings";
 import PendingUsers from "./pages/admin/PendingUsers";
@@ -79,6 +80,11 @@ import AuditLogs from "./pages/admin/AuditLogs";
 import ApprovalRequests from "./pages/admin/ApprovalRequests";
 import { PERMISSIONS } from "./lib/permissions";
 import {
+  BillingDashboardPage,
+  BillingPayrollPage,
+  BillingPayrollHistoryPage,
+  BillingSettingsPage,
+  BillingPaymentGatewayPage,
   BillingReportsPage,
   BillingInvoicesPage,
   BillingPaymentsPage,
@@ -130,6 +136,31 @@ function App() {
               <Route path="/admin/classes" element={
                 <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
                   <Classes />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/billing" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin", "accountant", "auditor"]}>
+                  <BillingDashboardPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/billing/settings" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                  <BillingSettingsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/billing/settings/payments" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                  <BillingPaymentGatewayPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/billing/payroll" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin", "accountant"]}>
+                  <BillingPayrollPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/billing/payroll/history" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin", "accountant"]}>
+                  <BillingPayrollHistoryPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/billing/invoices" element={
@@ -354,7 +385,7 @@ function App() {
               } />
               <Route path="/parent/payments" element={
                 <ProtectedRoute allowedRoles={["parent"]}>
-                  <Payments />
+                  <ParentBillingPayments />
                 </ProtectedRoute>
               } />
               <Route path="/parent/children" element={
@@ -440,6 +471,11 @@ function App() {
               <Route path="/student/online-exams" element={
                 <ProtectedRoute allowedRoles={["student"]}>
                   <StudentOnlineExams />
+                </ProtectedRoute>
+              } />
+              <Route path="/student/billing" element={
+                <ProtectedRoute allowedRoles={["student"]}>
+                  <StudentBilling />
                 </ProtectedRoute>
               } />
               

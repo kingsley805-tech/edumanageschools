@@ -9,6 +9,12 @@ export type OrgLetterhead = {
   website: string | null;
 };
 
+import { supabase } from "@/integrations/supabase/client";
+
+export async function fetchSchoolLetterhead(schoolId: string): Promise<OrgLetterhead | null> {
+  return fetchOrgLetterhead(supabase, schoolId);
+}
+
 export async function fetchOrgLetterhead(
   supabase: SupabaseClient,
   schoolId: string,
