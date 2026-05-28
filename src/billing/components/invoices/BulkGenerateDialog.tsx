@@ -397,7 +397,7 @@ export default function BulkGenerateDialog({ onSuccess }: Props) {
             description: item.fee_categories?.name || "Fee",
             quantity: 1,
             unit_price: Number(item.amount),
-            total: Number(item.amount),
+            amount: Number(item.amount),
           });
           if (lineItemError) {
             lineItemFailed = true;

@@ -11,6 +11,15 @@ import { Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchStudentsWithLinkedProfiles, formatStudentDisplayName } from "@/billing/lib/studentDisplayName";
+import {
+  fetchInvoiceAssignableFees,
+  type InvoiceAssignableFee,
+} from "@/billing/lib/fee-assignments";
+import {
+  createBillingInvoiceWithRetry,
+  formatSupabaseError,
+  insertBillingInvoiceLineItems,
+} from "@/billing/lib/invoices";
 
 interface NewInvoiceDialogProps {
   onSuccess?: () => void;
@@ -29,15 +38,10 @@ interface TermOption {
   id: string;
   name: string;
   end_date: string | null;
+  is_current?: boolean | null;
 }
 
-interface SavedFeeOption {
-  id: string;
-  term_id: string;
-  amount: number;
-  currency: string | null;
-  fee_categories: { name: string } | null;
-}
+type SavedFeeOption = InvoiceAssignableFee;
 
 const buildInvoiceNumber = (prefix = "INV") => {
   const now = new Date();
@@ -58,6 +62,8 @@ export default function NewInvoiceDialog({ onSuccess }: NewInvoiceDialogProps) {
   const [terms, setTerms] = useState<TermOption[]>([]);
   const [savedFees, setSavedFees] = useState<SavedFeeOption[]>([]);
   const [selectedSavedFeeIds, setSelectedSavedFeeIds] = useState<string[]>([]);
+  const [loadingAssignedFees, setLoadingAssignedFees] = useState(false);
+  const [assignedFeesHint, setAssignedFeesHint] = useState<string | null>(null);
 
   const [studentId, setStudentId] = useState("");
   const [termId, setTermId] = useState("none");
@@ -87,7 +93,7 @@ export default function NewInvoiceDialog({ onSuccess }: NewInvoiceDialogProps) {
         supabase.from("schools").select("school_name, name").eq("id", profile.school_id).maybeSingle(),
         supabase
           .from("terms")
-          .select("id, name, end_date")
+          .select("id, name, end_date, is_current")
           .eq("school_id", profile.school_id)
           .order("start_date", { ascending: false }),
         fetchStudentsWithLinkedProfiles(profile.school_id),
@@ -106,7 +112,11 @@ export default function NewInvoiceDialog({ onSuccess }: NewInvoiceDialogProps) {
             linkedProfile: student.linkedProfile ?? null,
           })),
       );
-      setTerms((termsRes.data ?? []) as TermOption[]);
+      const termRows = (termsRes.data ?? []) as TermOption[];
+      setTerms(termRows);
+
+      const current = termRows.find((t) => t.is_current);
+      if (current) setTermId(current.id);
     };
 
     void fetchData();
@@ -130,59 +140,73 @@ export default function NewInvoiceDialog({ onSuccess }: NewInvoiceDialogProps) {
   }, [selectedTerm]);
 
   useEffect(() => {
-    if (!open || !schoolId || !selectedStudent || termId === "none") {
+    if (!open || !schoolId || !selectedStudent) {
       setSavedFees([]);
       setSelectedSavedFeeIds([]);
+      setAssignedFeesHint(null);
       return;
     }
 
+    let cancelled = false;
+
     const loadAssignedFees = async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const studentFeesPromise = (supabase.from as any)("fee_assignments")
-        .select("fee_item_id, fee_items(id, term_id, amount, currency, fee_categories(name))")
-        .eq("school_id", schoolId)
-        .eq("student_id", selectedStudent.id);
+      setLoadingAssignedFees(true);
+      setAssignedFeesHint(null);
+      try {
+        let classId = selectedStudent.class_id;
+        if (!classId) {
+          const { data: row } = await supabase
+            .from("students")
+            .select("class_id")
+            .eq("id", selectedStudent.id)
+            .maybeSingle();
+          classId = (row?.class_id as string | null) ?? null;
+        }
 
-      const classFeesPromise = selectedStudent.class_id
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ? (supabase.from as any)("fee_assignments")
-            .select("fee_item_id, fee_items(id, term_id, amount, currency, fee_categories(name))")
-            .eq("school_id", schoolId)
-            .eq("class_id", selectedStudent.class_id)
-            .is("student_id", null)
-        : Promise.resolve({ data: [], error: null });
-
-      const [studentFeesRes, classFeesRes] = await Promise.all([studentFeesPromise, classFeesPromise]);
-
-      if (studentFeesRes.error) {
-        toast.error(studentFeesRes.error.message);
-        return;
-      }
-
-      if (classFeesRes.error) {
-        toast.error(classFeesRes.error.message);
-        return;
-      }
-
-      const uniqueFees = new Map<string, SavedFeeOption>();
-      for (const row of [...(studentFeesRes.data ?? []), ...(classFeesRes.data ?? [])]) {
-        const fee = row.fee_items;
-        if (!fee?.id || fee.term_id !== termId || uniqueFees.has(fee.id)) continue;
-        uniqueFees.set(fee.id, {
-          id: fee.id,
-          term_id: fee.term_id,
-          amount: Number(fee.amount),
-          currency: fee.currency ?? currency,
-          fee_categories: fee.fee_categories ?? null,
+        const fees = await fetchInvoiceAssignableFees(schoolId, {
+          studentId: selectedStudent.id,
+          classId,
+          termId: termId === "none" ? null : termId,
         });
-      }
 
-      setSavedFees(Array.from(uniqueFees.values()));
-      setSelectedSavedFeeIds([]);
+        if (cancelled) return;
+
+        const termFiltered =
+          termId !== "none" && fees.some((f) => f.term_id === termId) && fees.some((f) => f.term_id !== termId);
+
+        setSavedFees(fees);
+        setSelectedSavedFeeIds(
+          termId === "none" ? [] : fees.filter((f) => f.term_id === termId).map((f) => f.id)
+        );
+
+        if (fees.length === 0) {
+          setAssignedFeesHint(
+            classId
+              ? "No fees are assigned to this student or their class yet. Assign fees under Billing → Fee Structure."
+              : "No fees are assigned to this student. Assign a class fee in Fee Structure or set the student's class.",
+          );
+        } else if (termId !== "none" && !fees.some((f) => f.term_id === termId)) {
+          setAssignedFeesHint(
+            `No fees assigned for ${selectedTerm?.name ?? "this term"}. Showing all assigned fees — pick one or change term.`,
+          );
+        } else if (termFiltered) {
+          setAssignedFeesHint("Fees for other terms are also listed below.");
+        }
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(formatSupabaseError(error));
+          setSavedFees([]);
+        }
+      } finally {
+        if (!cancelled) setLoadingAssignedFees(false);
+      }
     };
 
     void loadAssignedFees();
-  }, [open, schoolId, selectedStudent, termId, currency]);
+    return () => {
+      cancelled = true;
+    };
+  }, [open, schoolId, selectedStudent, termId, currency, selectedTerm?.name]);
 
   const resetForm = () => {
     setStudentId("");
@@ -193,6 +217,7 @@ export default function NewInvoiceDialog({ onSuccess }: NewInvoiceDialogProps) {
     setStatus("sent");
     setSavedFees([]);
     setSelectedSavedFeeIds([]);
+    setAssignedFeesHint(null);
   };
 
   const handleCreate = async () => {
@@ -205,90 +230,42 @@ export default function NewInvoiceDialog({ onSuccess }: NewInvoiceDialogProps) {
     }
 
     setLoading(true);
+    let invoiceId: string | null = null;
     try {
-      let { data: defaultClient } = await supabase
-        .from("clients")
-        .select("id")
-        .eq("school_id", schoolId)
-        .eq("client_type", "school")
-        .maybeSingle();
+      invoiceId = await createBillingInvoiceWithRetry({
+        schoolId,
+        studentId,
+        termId: termId === "none" ? null : termId,
+        invoiceNumber: buildInvoiceNumber(),
+        status,
+        currency,
+        total,
+        dueDate,
+        issuedBy: user.id,
+      });
 
-      if (!defaultClient) {
-        const { data: createdClient, error: createClientError } = await supabase
-          .from("clients")
-          .insert({ school_id: schoolId, name: "School Fees", client_type: "school" })
-          .select("id")
-          .single();
-
-        if (createClientError) throw createClientError;
-        defaultClient = createdClient;
+      try {
+        await insertBillingInvoiceLineItems(
+          invoiceId,
+          usingSavedFees
+            ? selectedSavedFees.map((fee) => ({
+                description: fee.fee_categories?.name || "Fee",
+                amount: Number(fee.amount),
+                feeItemId: fee.id,
+              }))
+            : [{ description: description.trim(), amount: total }],
+        );
+      } catch (lineError) {
+        await supabase.from("billing_invoices").delete().eq("id", invoiceId);
+        throw lineError;
       }
-
-      if (!defaultClient) throw new Error("Could not create invoice client");
-
-      let invoiceId = "";
-      let lastError: Error | null = null;
-
-      for (let i = 0; i < 4; i++) {
-        const invoiceNumber = buildInvoiceNumber();
-        const { data: createdInvoice, error: invoiceError } = await supabase
-          .from("billing_invoices")
-          .insert({
-            school_id: schoolId,
-            client_id: defaultClient.id,
-            student_id: studentId,
-            term_id: termId === "none" ? null : termId,
-            invoice_number: invoiceNumber,
-            status,
-            currency,
-            subtotal: total,
-            total_amount: total,
-            amount_paid: 0,
-            balance_due: total,
-            due_date: dueDate,
-            issued_by: user.id,
-          })
-          .select("id")
-          .single();
-
-        if (invoiceError) {
-          lastError = new Error(invoiceError.message);
-          continue;
-        }
-
-        invoiceId = createdInvoice.id;
-        break;
-      }
-
-      if (!invoiceId) {
-        throw lastError || new Error("Failed to create invoice");
-      }
-
-      const lineItems = usingSavedFees
-        ? selectedSavedFees.map((fee) => ({
-            invoice_id: invoiceId,
-            description: fee.fee_categories?.name || "Fee",
-            quantity: 1,
-            unit_price: Number(fee.amount),
-            total: Number(fee.amount),
-          }))
-        : [{
-            invoice_id: invoiceId,
-            description: description.trim(),
-            quantity: 1,
-            unit_price: total,
-            total,
-          }];
-
-      const { error: lineError } = await supabase.from("billing_invoice_line_items").insert(lineItems);
-      if (lineError) throw lineError;
 
       toast.success("Invoice created successfully");
       setOpen(false);
       resetForm();
       onSuccess?.();
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : "Failed to create invoice");
+      toast.error(formatSupabaseError(error));
     } finally {
       setLoading(false);
     }
@@ -354,18 +331,25 @@ export default function NewInvoiceDialog({ onSuccess }: NewInvoiceDialogProps) {
             </div>
           </div>
 
-          {termId !== "none" ? (
+          {studentId ? (
             <div className="space-y-3 rounded-xl border border-border/80 bg-card/60 p-3">
               <div>
                 <Label className="text-sm">Assigned Fees</Label>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Select saved fees for this student or the student's class. Leave empty to enter a manual amount below.
+                  Select created fees assigned to this student or their class. Leave empty to enter a manual amount below.
                 </p>
               </div>
-              {savedFees.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No assigned fees found for this student and term.</p>
+              {loadingAssignedFees ? (
+                <p className="text-sm text-muted-foreground">Loading assigned fees…</p>
+              ) : savedFees.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {assignedFeesHint ?? "No assigned fees found for this student."}
+                </p>
               ) : (
                 <>
+                  {assignedFeesHint ? (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">{assignedFeesHint}</p>
+                  ) : null}
                   <div className="space-y-2">
                     {savedFees.map((fee) => {
                       const checked = selectedSavedFeeIds.includes(fee.id);
@@ -383,7 +367,11 @@ export default function NewInvoiceDialog({ onSuccess }: NewInvoiceDialogProps) {
                             />
                             <div>
                               <p className="text-sm font-medium">{fee.fee_categories?.name || "Fee"}</p>
-                              <p className="text-xs text-muted-foreground">Assigned from saved fees</p>
+                              <p className="text-xs text-muted-foreground">
+                                {fee.terms?.name ?? "Term"}
+                                {" · "}
+                                {fee.assignmentSource === "class" ? "Class assignment" : "Student assignment"}
+                              </p>
                             </div>
                           </div>
                           <span className="text-sm font-semibold">{fee.currency || currency} {Number(fee.amount).toLocaleString()}</span>

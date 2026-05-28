@@ -17,6 +17,11 @@ import { DollarSign, Layers, Link2, Plus, Tag, Trash2, ChevronRight } from "luci
 import { toast } from "sonner";
 import { fetchStudentsWithLinkedProfiles, formatStudentDisplayName } from "@/billing/lib/studentDisplayName";
 import { AcademicCalendarPanel } from "@/billing/components/AcademicCalendarPanel";
+import {
+  fetchFeeAssignments,
+  formatAssignmentStudentLabel,
+  formatSupabaseError,
+} from "@/billing/lib/fee-assignments";
 import type { StaffPagePermission } from "@/lib/staffPermissions";
 import { isBillingFeeCategoriesAvailable } from "@/lib/billing/availability";
 import { BillingSchemaAlert } from "@/components/billing/BillingSchemaAlert";
@@ -30,12 +35,6 @@ type CreatedFeeRow = {
 type StudentOption = {
   id: string; first_name: string; last_name: string; student_id: string; class_id: string | null;
   linkedProfile: { first_name: string; last_name: string } | null;
-};
-type FeeAssignmentRow = {
-  id: string; fee_item_id: string; class_id: string | null; student_id: string | null;
-  fee_items: { amount: number; currency: string; fee_categories: { name: string } | null; terms: { name: string; fees_due_date: string } | null } | null;
-  school_classes: { name: string; stream: string | null } | null;
-  students: { first_name: string; last_name: string; student_id: string } | null;
 };
 type FeeCategoryRow = { id: string; name: string; is_optional: boolean | null };
 type AcademicYearRow = { id: string; name: string };
@@ -490,13 +489,15 @@ function FeeAssignmentSection({ schoolId, permission }: { schoolId: string; perm
     },
   });
 
-  const { data: assignments = [], isLoading } = useQuery({
+  const {
+    data: assignments = [],
+    isLoading,
+    isError,
+    error: assignmentsError,
+  } = useQuery({
     queryKey: ["fee-assignments", schoolId],
-    queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase.from as any)("fee_assignments").select("id, fee_item_id, class_id, student_id, fee_items(amount, currency, fee_categories(name), terms(name, fees_due_date)), school_classes(name, stream), students(first_name, last_name, student_id)").eq("school_id", schoolId).order("created_at", { ascending: false });
-      if (error) throw error; return (data ?? []) as FeeAssignmentRow[];
-    },
+    queryFn: () => fetchFeeAssignments(schoolId),
+    enabled: !!schoolId,
   });
 
   const assignFee = useMutation({
@@ -603,6 +604,12 @@ function FeeAssignmentSection({ schoolId, permission }: { schoolId: string; perm
         <div style={{ fontSize: 15, fontWeight: 700, color: "hsl(var(--foreground))", marginBottom: 14, paddingBottom: 14, borderBottom: "1.5px solid hsl(var(--border))" }}>Assigned Fees</div>
         {isLoading ? (
           <div style={{ display: "flex", justifyContent: "center", padding: "30px 0" }}><div className="fee-spinner" /></div>
+        ) : isError ? (
+          <div className="fee-empty" style={{ color: "hsl(var(--destructive))" }}>
+            Could not load assigned fees.
+            <br />
+            <span style={{ fontSize: 12 }}>{formatSupabaseError(assignmentsError)}</span>
+          </div>
         ) : assignments.length === 0 ? (
           <div className="fee-empty">No fee assignments yet.</div>
         ) : (
@@ -617,8 +624,8 @@ function FeeAssignmentSection({ schoolId, permission }: { schoolId: string; perm
                   </div>
                   <div className="fee-subtext">
                     {a.class_id
-                      ? `Class: ${a.school_classes?.name ?? "Class"}${a.school_classes?.stream ? ` ${a.school_classes.stream}` : ""}`
-                      : `Student: ${a.students?.first_name ?? ""} ${a.students?.last_name ?? ""} (${a.students?.student_id ?? ""})`}
+                      ? `Class: ${a.classes?.name ?? "Class"}${a.classes?.stream ? ` ${a.classes.stream}` : ""}`
+                      : `Student: ${formatAssignmentStudentLabel(a.students)}`}
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
