@@ -16,6 +16,7 @@ import {
   derivePrefixFromSchoolName,
 } from "@/lib/admission-numbers";
 import {
+  buildStudentAuthEmail,
   linkParentToStudents,
   resolveLoginIdentifier,
   resolveStudentByAdmissionNumber,
@@ -245,8 +246,22 @@ const Auth = () => {
       }
     }
 
+    let emailForAuth = signupEmail.trim();
+    if (signupRole === "student") {
+      if (!schoolId || !regNumber) {
+        toast.error("Valid admission number is required");
+        setIsLoading(false);
+        return;
+      }
+      emailForAuth = buildStudentAuthEmail(regNumber, schoolId);
+    } else if (!emailForAuth) {
+      toast.error("Email address is required");
+      setIsLoading(false);
+      return;
+    }
+
     const { error } = await signUp({
-      email: signupEmail,
+      email: emailForAuth,
       password: signupPassword,
       fullName: signupFullName,
       role: signupRole,
@@ -301,18 +316,29 @@ const Auth = () => {
   const handleForgotPassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-      redirectTo: `${window.location.origin}/auth?tab=reset-password`
+
+    const resolved = await resolveLoginIdentifier(resetEmail);
+    if (!resolved.ok || !resolved.email) {
+      toast.error(resolved.error ?? "Could not find an account with that admission number or email.");
+      setIsLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(resolved.email, {
+      redirectTo: `${window.location.origin}/auth?tab=reset-password`,
     });
-    
+
     if (error) {
       toast.error(error.message);
+    } else if (resolved.email.includes("@student.portal")) {
+      toast.success(
+        "If your school enabled email recovery, check your inbox. Otherwise ask your administrator to reset your password."
+      );
     } else {
       toast.success("Password reset link sent to your email!");
-      setResetEmail("");
-      setActiveTab("login");
     }
+    setResetEmail("");
+    setActiveTab("login");
     setIsLoading(false);
   };
 
@@ -472,14 +498,14 @@ const Auth = () => {
             <form onSubmit={handleLogin} className="space-y-4 animate-fade-in">
               <div className="space-y-2">
                 <Label htmlFor="login-identifier" className="text-sm font-medium text-foreground">
-                  Email or admission number
+                  Admission number or email
                 </Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input
                     id="login-identifier"
                     type="text"
-                    placeholder="you@school.edu or MINGO-Stu-2026-001"
+                    placeholder="MINGO-Stu-2026-001"
                     className="pl-10 h-12 border-2 focus:border-primary"
                     value={loginIdentifier}
                     onChange={(e) => setLoginIdentifier(e.target.value)}
@@ -487,7 +513,7 @@ const Auth = () => {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  No school code needed — we detect your school automatically.
+                  Students: use your admission number and password. Staff and parents may use email.
                 </p>
               </div>
 
@@ -554,20 +580,20 @@ const Auth = () => {
             <form onSubmit={handleForgotPassword} className="space-y-4 animate-fade-in">
               <div className="text-center mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Enter your email address and we'll send you a link to reset your password.
+                  Enter your admission number or email. Students should use their admission number.
                 </p>
               </div>
               
               <div className="space-y-2">
                 <Label htmlFor="reset-email" className="text-sm font-medium text-foreground">
-                  Email Address
+                  Admission number or email
                 </Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input
                     id="reset-email"
-                    type="email"
-                    placeholder="you@school.edu"
+                    type="text"
+                    placeholder="MINGO-Stu-2026-001"
                     className="pl-10 h-12 border-2 focus:border-primary"
                     value={resetEmail}
                     onChange={e => setResetEmail(e.target.value)}
@@ -625,23 +651,25 @@ const Auth = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="signup-email" className="text-sm font-medium text-foreground">
-                  Email Address
-                </Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    placeholder="you@school.edu"
-                    className="pl-10 h-12 border-2 focus:border-primary"
-                    value={signupEmail}
-                    onChange={e => setSignupEmail(e.target.value)}
-                    required
-                  />
+              {signupRole !== "student" && (
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email" className="text-sm font-medium text-foreground">
+                    Email Address
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      placeholder="you@school.edu"
+                      className="pl-10 h-12 border-2 focus:border-primary"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      required={signupRole !== "" && signupRole !== "student"}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="signup-password" className="text-sm font-medium text-foreground">
@@ -799,7 +827,9 @@ const Auth = () => {
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Format: SCHOOL-Stu-2026-001 — school is detected from your number
+                      {signupRole === "student"
+                        ? "This is your login ID. You will sign in with this number and your password — no personal email."
+                        : "Format: SCHOOL-Stu-2026-001 — school is detected from your number"}
                     </p>
                   </div>
                   

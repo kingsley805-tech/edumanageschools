@@ -27,12 +27,13 @@ const Settings = () => {
   const [uploading, setUploading] = useState(false);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [admissionNumber, setAdmissionNumber] = useState("");
 
   useEffect(() => {
-    if (user) {
-      fetchProfile();
+    if (user && role) {
+      void fetchProfile();
     }
-  }, [user]);
+  }, [user, role]);
 
   const fetchProfile = async () => {
     if (!user) return;
@@ -49,6 +50,19 @@ const Settings = () => {
         setProfile(data);
         setFullName(data.full_name || "");
         setPhone(data.phone || "");
+      }
+
+      if (role === "student") {
+        const { data: studentRow } = await supabase
+          .from("students")
+          .select("admission_no, admission_number")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (studentRow) {
+          setAdmissionNumber(
+            studentRow.admission_no ?? studentRow.admission_number ?? ""
+          );
+        }
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
@@ -151,7 +165,7 @@ const Settings = () => {
                 <Avatar className="h-20 w-20 md:h-24 md:w-24 flex-shrink-0">
                   <AvatarImage src={profile?.avatar_url} />
                   <AvatarFallback className="text-xl md:text-2xl">
-                    {fullName?.charAt(0) || user?.email?.charAt(0)}
+                    {fullName?.charAt(0) || admissionNumber?.charAt(0) || "S"}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 w-full sm:w-auto text-center sm:text-left">
@@ -198,18 +212,36 @@ const Settings = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm md:text-base">Email Address</Label>
-                <Input
-                  id="email"
-                  value={user?.email || ""}
-                  disabled
-                  className="bg-muted text-base py-5 md:py-6"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Contact admin to change your email
-                </p>
-              </div>
+              {role === "student" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="admission-number" className="text-sm md:text-base">
+                    Admission number (login ID)
+                  </Label>
+                  <Input
+                    id="admission-number"
+                    value={admissionNumber}
+                    disabled
+                    className="bg-muted text-base py-5 md:py-6 font-mono uppercase"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Use this number with your password to sign in. Contact your school admin if it
+                    is incorrect.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm md:text-base">Email Address</Label>
+                  <Input
+                    id="email"
+                    value={user?.email || ""}
+                    disabled
+                    className="bg-muted text-base py-5 md:py-6"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Contact admin to change your email
+                  </p>
+                </div>
+              )}
 
               <Button onClick={handleUpdateProfile} className="w-full sm:w-auto">
                 Update Profile
@@ -278,21 +310,25 @@ const Settings = () => {
                   />
                 </div>
               </div>
-              <div className="flex items-center justify-between gap-4">
-                <div className="space-y-0.5 flex-1 min-w-0">
-                  <Label htmlFor="email" className="text-sm md:text-base">Email Alerts</Label>
-                  <p className="text-xs md:text-sm text-muted-foreground">
-                    Receive email notifications
-                  </p>
+              {role !== "student" && (
+                <div className="flex items-center justify-between gap-4">
+                  <div className="space-y-0.5 flex-1 min-w-0">
+                    <Label htmlFor="email-alerts" className="text-sm md:text-base">
+                      Email Alerts
+                    </Label>
+                    <p className="text-xs md:text-sm text-muted-foreground">
+                      Receive email notifications
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <Switch
+                      id="email-alerts"
+                      checked={emailAlerts}
+                      onCheckedChange={setEmailAlerts}
+                    />
+                  </div>
                 </div>
-                <div className="flex-shrink-0">
-                  <Switch
-                    id="email"
-                    checked={emailAlerts}
-                    onCheckedChange={setEmailAlerts}
-                  />
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 

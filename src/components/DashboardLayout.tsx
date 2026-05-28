@@ -566,7 +566,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
                   <PanelLeft className="h-[18px] w-[18px] text-foreground/80" />
                 )}
               </Button>
-              {currentSchool?.school_code && (
+              {currentSchool?.school_code && role !== "student" && (
                 <div className="flex items-center gap-0.5 rounded-lg border border-border/60 bg-muted/30 pl-2.5 pr-0.5 h-9">
                   <span className="text-xs font-medium text-muted-foreground hidden sm:inline">
                     Code

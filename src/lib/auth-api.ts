@@ -1,6 +1,14 @@
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeAdmissionNumber } from "@/lib/admission-numbers";
 
+/** Internal Supabase auth email — students sign in with admission number, not this address. */
+export function buildStudentAuthEmail(admissionNumber: string, schoolId: string): string {
+  const slug = normalizeAdmissionNumber(admissionNumber)
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "");
+  return `${schoolId}.${slug}@student.portal`;
+}
+
 export type StudentAdmissionPreview = {
   valid: boolean;
   error?: string;

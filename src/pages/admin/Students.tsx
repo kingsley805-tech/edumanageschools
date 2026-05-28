@@ -6,6 +6,7 @@ import { Plus, Search, Filter, Pencil, Trash2, RefreshCw, Hash, Phone, Mail, Use
 import { Link } from "react-router-dom";
 import { generateRegistrationNumber } from "@/lib/registration-numbers";
 import { formatExample, fetchSchoolPrefixById } from "@/lib/admission-numbers";
+import { buildStudentAuthEmail } from "@/lib/auth-api";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -21,7 +22,6 @@ import { useState, useEffect } from "react";
 
 const studentSchema = z.object({
   admission_no: z.string().min(1, "Admission number is required"),
-  email: z.string().email("Invalid email address"),
   full_name: z.string().min(1, "Full name is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   date_of_birth: z.string().min(1, "Date of birth is required"),
@@ -100,12 +100,12 @@ function getStudentName(student: StudentRecord): string {
   return student.profiles?.full_name?.trim() || student.full_name?.trim() || "Unknown";
 }
 
-function getStudentEmail(student: StudentRecord): string {
-  return student.profiles?.email?.trim() || "—";
-}
-
-function getStudentAdmissionNo(student: StudentRecord): string | null {
-  return student.admission_no?.trim() || student.admission_number?.trim() || null;
+function getStudentAdmissionNo(student: StudentRecord): string {
+  return (
+    student.admission_no?.trim() ||
+    student.admission_number?.trim() ||
+    "—"
+  );
 }
 
 function getStudentClassLabel(student: StudentRecord): string {
@@ -361,9 +361,11 @@ const Students = () => {
         throw new Error("This admission number is already in use. Pick another from Number Generator.");
       }
 
+      const authEmail = buildStudentAuthEmail(data.admission_no, profileData.school_id);
+
       const { data: result, error } = await supabase.functions.invoke('create-user-account', {
         body: {
-          email: data.email,
+          email: authEmail,
           password: data.password,
           full_name: data.full_name,
           role: 'student',
@@ -615,9 +617,10 @@ const Students = () => {
                     {errors.full_name && <p className="text-sm text-destructive">{errors.full_name.message}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" {...register("email")} />
-                    {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+                    <p className="text-xs text-muted-foreground rounded-md border bg-muted/40 px-3 py-2">
+                      Students sign in with their admission number and password — no personal email
+                      is required.
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
@@ -891,8 +894,8 @@ const Students = () => {
                     <p className="font-medium">{getStudentName(selectedStudent)}</p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">Email</Label>
-                    <p className="font-medium">{getStudentEmail(selectedStudent)}</p>
+                    <Label className="text-muted-foreground">Admission number (login)</Label>
+                    <p className="font-medium font-mono">{getStudentAdmissionNo(selectedStudent)}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Class</Label>
