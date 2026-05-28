@@ -276,6 +276,22 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Portal shell: never use school logo (or any image) as page background */
+  [data-portal-layout] {
+    background-color: hsl(var(--background));
+    background-image: none !important;
+  }
+
+  [data-portal-layout] main,
+  [data-portal-layout] > div > div {
+    background-image: none !important;
+  }
+
+  [data-portal-layout] .portal-logo-watermark,
+  [data-portal-layout] > .pointer-events-none[class*="fixed"][class*="inset-0"] {
+    display: none !important;
+  }
 }
 
 /* Responsive utilities for mobile and desktop */

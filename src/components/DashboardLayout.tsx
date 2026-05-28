@@ -449,7 +449,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
   }
 
   return (
-    <div className="min-h-screen bg-background relative">
+    <div className="min-h-screen bg-background relative" data-portal-layout>
       {/* Mobile overlay */}
       {sidebarOpen && !hideSidebar && (
         <div 
@@ -546,7 +546,9 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
       )}
 
       {/* Main Content */}
-      <div className={`transition-all ${!hideSidebar && sidebarOpen ? "lg:ml-64" : "lg:ml-0"} relative z-10`}>
+      <div
+        className={`transition-all bg-background ${!hideSidebar && sidebarOpen ? "lg:ml-64" : "lg:ml-0"} relative z-10`}
+      >
         {/* Top Bar */}
         <header className={`sticky top-0 z-30 flex h-14 md:h-16 items-center gap-2 md:gap-4 border-b bg-background/95 backdrop-blur px-3 md:px-6 ${hideSidebar ? "justify-end" : ""}`}>
           {!hideSidebar && (
@@ -637,7 +639,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
         </header>
 
         {/* Page Content */}
-        <main className="p-3 md:p-6 relative z-10">
+        <main className="p-3 md:p-6 relative z-10 bg-background min-h-[calc(100vh-4rem)]">
           {children}
         </main>
       </div>

@@ -11,6 +11,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Hash, Plus, Users, Briefcase, RefreshCw, Search, Copy, Check, Layers } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import {
+  generateRegistrationNumber,
+  formatExample,
+  fetchSchoolPrefixById,
+  type RegistrationPoolType,
+} from "@/lib/admission-numbers";
 import { format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -45,9 +51,12 @@ const NumberGenerator = () => {
   const [filterStatus, setFilterStatus] = useState<"all" | "unused" | "used">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [schoolPrefix, setSchoolPrefix] = useState("SCHOOL");
   const { toast } = useToast();
 
   const currentYear = new Date().getFullYear();
+  const studentFormatLabel = formatExample(schoolPrefix, "Stu", currentYear);
+  const staffFormatLabel = formatExample(schoolPrefix, "Tea", currentYear);
 
   const copyToClipboard = async (text: string, id: string) => {
     try {
@@ -77,6 +86,13 @@ const NumberGenerator = () => {
 
     if (!profile?.school_id) return;
 
+    try {
+      const prefix = await fetchSchoolPrefixById(profile.school_id);
+      setSchoolPrefix(prefix);
+    } catch {
+      /* keep default label */
+    }
+
     const { data, error } = await supabase
       .from("registration_numbers")
       .select(`
@@ -94,35 +110,6 @@ const NumberGenerator = () => {
       setNumbers((data || []) as RegistrationNumber[]);
     }
     setLoading(false);
-  };
-
-  const getPrefix = (type: "student" | "employee") => {
-    return type === "student" ? `ADM-${currentYear}-` : `EMP-${currentYear}-`;
-  };
-
-  const getNextSequenceNumber = async (schoolId: string, type: "student" | "employee"): Promise<number> => {
-    const prefix = getPrefix(type);
-    
-    // Get the latest number for this school, type, and year
-    const { data, error } = await supabase
-      .from("registration_numbers")
-      .select("registration_number")
-      .eq("school_id", schoolId)
-      .eq("number_type", type)
-      .like("registration_number", `${prefix}%`)
-      .order("registration_number", { ascending: false })
-      .limit(1);
-
-    if (error || !data || data.length === 0) {
-      return 1; // Start from 001 if no existing numbers
-    }
-
-    // Extract the numeric suffix from the last number
-    const lastNumber = data[0].registration_number;
-    const suffix = lastNumber.replace(prefix, "");
-    const lastSequence = parseInt(suffix, 10);
-
-    return isNaN(lastSequence) ? 1 : lastSequence + 1;
   };
 
   const generateBulkNumbers = async () => {
@@ -150,56 +137,35 @@ const NumberGenerator = () => {
       return;
     }
 
-    const prefix = getPrefix(numberType);
-    const startSequence = await getNextSequenceNumber(profile.school_id, numberType);
+    const poolType: RegistrationPoolType = numberType;
+    let generated = 0;
+    let lastError: string | null = null;
 
-    const numbersToInsert = [];
     for (let i = 0; i < bulkCount; i++) {
-      const sequence = startSequence + i;
-      const paddedNum = sequence.toString().padStart(3, '0');
-      const registrationNumber = `${prefix}${paddedNum}`;
-      
-      numbersToInsert.push({
-        school_id: profile.school_id,
-        number_type: numberType,
-        registration_number: registrationNumber,
-        status: "unused",
-        generated_by: user.id,
-      });
+      try {
+        await generateRegistrationNumber({
+          schoolId: profile.school_id,
+          userId: user.id,
+          poolType,
+          auditAction: "bulk_generate",
+        });
+        generated += 1;
+      } catch (err: unknown) {
+        lastError = err instanceof Error ? err.message : "Generation failed";
+        break;
+      }
     }
 
-    const { error } = await supabase
-      .from("registration_numbers")
-      .insert(numbersToInsert);
-
-    if (error) {
-      if (error.code === "23505") {
-        toast({ 
-          title: "Duplicate number detected", 
-          description: "Some numbers already exist. Please try again.",
-          variant: "destructive" 
-        });
-      } else {
-        toast({ title: "Error generating numbers", description: error.message, variant: "destructive" });
-      }
-    } else {
-      // Log the action
-      await supabase.from("audit_logs").insert({
-        school_id: profile.school_id,
-        action_type: "bulk_generate",
-        entity_type: "registration_number",
-        performed_by: user.id,
-        details: {
-          number_type: numberType,
-          count: bulkCount,
-          format: numberType === "student" ? `ADM-${currentYear}-NNN` : `EMP-${currentYear}-NNN`,
-          start_sequence: startSequence,
-        },
+    if (generated === 0) {
+      toast({
+        title: "Error generating numbers",
+        description: lastError ?? "Could not generate numbers",
+        variant: "destructive",
       });
-
-      toast({ 
-        title: "Success", 
-        description: `Generated ${bulkCount} ${numberType === "student" ? "student" : "staff"} number(s)` 
+    } else {
+      toast({
+        title: "Success",
+        description: `Generated ${generated} ${numberType === "student" ? "student" : "staff"} number(s)`,
       });
       setShowBulkDialog(false);
       setBulkCount(1);
@@ -229,52 +195,23 @@ const NumberGenerator = () => {
       return;
     }
 
-    const prefix = getPrefix(numberType);
-    const sequence = await getNextSequenceNumber(profile.school_id, numberType);
-    const paddedNum = sequence.toString().padStart(3, '0');
-    const registrationNumber = `${prefix}${paddedNum}`;
-
-    const { error } = await supabase
-      .from("registration_numbers")
-      .insert({
-        school_id: profile.school_id,
-        number_type: numberType,
-        registration_number: registrationNumber,
-        status: "unused",
-        generated_by: user.id,
+    try {
+      const registrationNumber = await generateRegistrationNumber({
+        schoolId: profile.school_id,
+        userId: user.id,
+        poolType: numberType,
+        auditAction: "single_generate",
       });
-
-    if (error) {
-      if (error.code === "23505") {
-        toast({ 
-          title: "Duplicate number detected", 
-          description: "This number already exists. Please try again.",
-          variant: "destructive" 
-        });
-      } else {
-        toast({ title: "Error generating number", description: error.message, variant: "destructive" });
-      }
-    } else {
-      // Log the action
-      await supabase.from("audit_logs").insert({
-        school_id: profile.school_id,
-        action_type: "single_generate",
-        entity_type: "registration_number",
-        performed_by: user.id,
-        details: {
-          number_type: numberType,
-          registration_number: registrationNumber,
-          format: numberType === "student" ? `ADM-${currentYear}-NNN` : `EMP-${currentYear}-NNN`,
-        },
-      });
-
-      toast({ 
-        title: "Success", 
-        description: `Generated ${registrationNumber}` 
+      toast({
+        title: "Success",
+        description: `Generated ${registrationNumber}`,
       });
       setShowSingleDialog(false);
       setNumberType("student");
       fetchNumbers();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Generation failed";
+      toast({ title: "Error generating number", description: message, variant: "destructive" });
     }
     setGenerating(false);
   };
@@ -328,13 +265,13 @@ const NumberGenerator = () => {
                         <SelectItem value="student">
                           <div className="flex items-center gap-2">
                             <Users className="h-4 w-4" />
-                            Student (ADM-{currentYear}-NNN)
+                            Student ({studentFormatLabel})
                           </div>
                         </SelectItem>
                         <SelectItem value="employee">
                           <div className="flex items-center gap-2">
                             <Briefcase className="h-4 w-4" />
-                            Staff (EMP-{currentYear}-NNN)
+                            Staff ({staffFormatLabel})
                           </div>
                         </SelectItem>
                       </SelectContent>
@@ -344,7 +281,7 @@ const NumberGenerator = () => {
                   <div className="p-3 bg-muted rounded-lg">
                     <p className="text-sm font-medium">Format:</p>
                     <p className="text-sm text-muted-foreground font-mono">
-                      {numberType === "student" ? `ADM-${currentYear}-NNN` : `EMP-${currentYear}-NNN`}
+                      {numberType === "student" ? studentFormatLabel : staffFormatLabel}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       The next sequential number will be automatically assigned
@@ -401,13 +338,13 @@ const NumberGenerator = () => {
                         <SelectItem value="student">
                           <div className="flex items-center gap-2">
                             <Users className="h-4 w-4" />
-                            Student (ADM-{currentYear}-NNN)
+                            Student ({studentFormatLabel})
                           </div>
                         </SelectItem>
                         <SelectItem value="employee">
                           <div className="flex items-center gap-2">
                             <Briefcase className="h-4 w-4" />
-                            Staff (EMP-{currentYear}-NNN)
+                            Staff ({staffFormatLabel})
                           </div>
                         </SelectItem>
                       </SelectContent>
@@ -435,7 +372,7 @@ const NumberGenerator = () => {
                   <div className="p-3 bg-muted rounded-lg">
                     <p className="text-sm font-medium">Format:</p>
                     <p className="text-sm text-muted-foreground font-mono">
-                      {numberType === "student" ? `ADM-${currentYear}-NNN` : `EMP-${currentYear}-NNN`}
+                      {numberType === "student" ? studentFormatLabel : staffFormatLabel}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {bulkCount} sequential number(s) will be generated starting from the next available sequence

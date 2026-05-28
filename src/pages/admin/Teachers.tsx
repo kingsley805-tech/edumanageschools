@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, Search, Pencil, Trash2, RefreshCw, Hash } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { generateRegistrationNumber } from "@/lib/registration-numbers";
+import { formatExample, fetchSchoolPrefixById } from "@/lib/admission-numbers";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -123,6 +124,7 @@ const Teachers = () => {
   const [assignClassId, setAssignClassId] = useState("");
   const [assignSubjectIds, setAssignSubjectIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [employeePlaceholder, setEmployeePlaceholder] = useState("MINGO-Tea-2026-001");
   const { toast } = useToast();
   
   const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<TeacherFormData>({
@@ -155,7 +157,15 @@ const Teachers = () => {
       .eq("id", user.id)
       .single();
     const sid = profileData?.school_id ?? null;
-    if (sid) setSchoolId(sid);
+    if (sid) {
+      setSchoolId(sid);
+      try {
+        const prefix = await fetchSchoolPrefixById(sid);
+        setEmployeePlaceholder(formatExample(prefix, "Tea"));
+      } catch {
+        /* keep default */
+      }
+    }
     return sid;
   };
 
@@ -205,7 +215,7 @@ const Teachers = () => {
       const registrationNumber = await generateRegistrationNumber({
         schoolId: sid,
         userId: user.id,
-        type: "employee",
+        poolType: "employee",
         auditAction: "modal_generate",
       });
 
@@ -566,7 +576,7 @@ const Teachers = () => {
                       <Input
                         id="employee_no"
                         {...register("employee_no")}
-                        placeholder={loadingEmployeeNo ? "Loading next number…" : "EMP-YYYY-001"}
+                        placeholder={loadingEmployeeNo ? "Loading next number…" : employeePlaceholder}
                         disabled={loadingEmployeeNo || generatingEmployeeNo}
                         readOnly={unusedEmployeeNumbers.length === 1}
                         className={unusedEmployeeNumbers.length === 1 ? "bg-muted font-mono" : "font-mono"}

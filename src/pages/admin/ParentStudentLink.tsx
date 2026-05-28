@@ -71,16 +71,39 @@ const ParentStudentLink = () => {
   };
 
   const fetchLinkedStudents = async () => {
+    const { data: links } = await supabase
+      .from("parent_student_links")
+      .select(`
+        student:students(
+          id,
+          admission_no,
+          admission_number,
+          profiles(full_name, email),
+          classes(name)
+        )
+      `)
+      .eq("parent_id", selectedParent);
+
+    const fromLinks = (links ?? [])
+      .map((row) => row.student)
+      .filter(Boolean);
+
+    if (fromLinks.length > 0) {
+      setLinkedStudents(fromLinks);
+      return;
+    }
+
     const { data } = await supabase
       .from("students")
       .select(`
         id,
         admission_no,
+        admission_number,
         profiles(full_name, email),
         classes(name)
       `)
       .eq("guardian_id", selectedParent);
-    
+
     if (data) setLinkedStudents(data);
   };
 
@@ -88,6 +111,16 @@ const ParentStudentLink = () => {
     if (!selectedParent || !selectedStudent) return;
 
     try {
+      const { error: linkError } = await supabase.from("parent_student_links").upsert(
+        {
+          parent_id: selectedParent,
+          student_id: selectedStudent,
+          relationship: "parent",
+        },
+        { onConflict: "parent_id,student_id" }
+      );
+      if (linkError) throw linkError;
+
       const { error } = await supabase
         .from("students")
         .update({ guardian_id: selectedParent })
@@ -113,10 +146,17 @@ const ParentStudentLink = () => {
 
   const handleUnlinkStudent = async (studentId: string) => {
     try {
+      await supabase
+        .from("parent_student_links")
+        .delete()
+        .eq("parent_id", selectedParent)
+        .eq("student_id", studentId);
+
       const { error } = await supabase
         .from("students")
         .update({ guardian_id: null })
-        .eq("id", studentId);
+        .eq("id", studentId)
+        .eq("guardian_id", selectedParent);
 
       if (error) throw error;
 

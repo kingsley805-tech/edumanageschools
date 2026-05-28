@@ -220,7 +220,7 @@ const PendingUsers = () => {
     try {
       if (selectedUser.role === "student") {
         // Get next available number if not already set
-        let admissionNo = approvalData.class_id ? await getNextRegistrationNumber("student") : approvalData.admission_no;
+        let admissionNo = approvalData.admission_no?.trim();
         if (!admissionNo) {
           admissionNo = await getNextRegistrationNumber("student");
         }
@@ -234,6 +234,7 @@ const PendingUsers = () => {
           .from("students")
           .update({
             admission_no: admissionNo,
+            admission_number: admissionNo,
             class_id: approvalData.class_id || null,
           })
           .eq("id", selectedUser.id);

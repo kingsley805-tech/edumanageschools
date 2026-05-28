@@ -10,6 +10,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { logLoginActivity } from "@/lib/auditLog";
+import { normalizeAdmissionNumber, resolveSchoolIdFromAdmissionNumber } from "@/lib/admission-numbers";
+import {
+  linkParentToStudents,
+  resolveLoginIdentifier,
+  resolveStudentByAdmissionNumber,
+  type StudentAdmissionPreview,
+} from "@/lib/auth-api";
 import schoolPicture from "@/assets/School Picture.webp";
 
 const Auth = () => {
@@ -21,16 +28,18 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   
   // Login fields
-  const [loginEmail, setLoginEmail] = useState("");
+  const [loginIdentifier, setLoginIdentifier] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
-  const [loginSchoolCode, setLoginSchoolCode] = useState("");
   
   // Signup fields
   const [signupFullName, setSignupFullName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
+  const [signupPhone, setSignupPhone] = useState("");
   const [signupRole, setSignupRole] = useState("");
   const [schoolCode, setSchoolCode] = useState("");
+  const [admissionPrefix, setAdmissionPrefix] = useState("");
   const [schoolName, setSchoolName] = useState("");
   const [adminKey, setAdminKey] = useState("");
   
@@ -42,6 +51,9 @@ const Auth = () => {
   
   // Parent child linking
   const [childStudentNumbers, setChildStudentNumbers] = useState<string[]>([""]);
+  const [childPreview, setChildPreview] = useState<StudentAdmissionPreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [parentSchoolId, setParentSchoolId] = useState<string | null>(null);
   
   // Reset password
   const [resetEmail, setResetEmail] = useState("");
@@ -64,136 +76,99 @@ const Auth = () => {
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    if (!loginSchoolCode.trim()) {
-      toast.error("Please enter your school code");
+
+    const resolved = await resolveLoginIdentifier(loginIdentifier);
+    if (!resolved.ok || !resolved.email) {
+      toast.error(resolved.error ?? "Could not sign in with those credentials.");
       setIsLoading(false);
       return;
     }
 
-    const { data: schoolData, error: schoolError } = await supabase
-      .from("schools")
-      .select("id")
-      .eq("school_code", loginSchoolCode.toUpperCase())
-      .maybeSingle();
-      
-    if (schoolError || !schoolData) {
-      toast.error("Invalid school code. Please check and try again.");
-      setIsLoading(false);
-      return;
-    }
-    
-    const { error, data: signInData } = await signIn(loginEmail, loginPassword);
+    const { error } = await signIn(resolved.email, loginPassword);
     if (error) {
-      await logLoginActivity(false, loginEmail, error.message);
+      await logLoginActivity(false, loginIdentifier, error.message);
       toast.error(error.message);
       setIsLoading(false);
       return;
     }
-    await logLoginActivity(true, loginEmail);
-    
-    if (signInData?.user) {
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("school_id")
-        .eq("id", signInData.user.id)
-        .single();
-      
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", signInData.user.id)
-        .single();
-      
-      if (roleData?.role !== "super_admin" && profileData?.school_id !== schoolData.id) {
-        await supabase.auth.signOut();
-        toast.error("School code doesn't match your account. Please use the correct school code.");
-        setIsLoading(false);
-        return;
-      }
-    }
-    
+
+    await logLoginActivity(true, resolved.email);
     toast.success("Welcome back!");
     setIsLoading(false);
   };
 
-  const validateRegistrationNumber = async (number: string, type: "student" | "employee", schoolId: string) => {
-    const { data, error } = await supabase
+  const validateRegistrationNumber = async (number: string, type: "student" | "employee") => {
+    const num = normalizeAdmissionNumber(number);
+
+    let schoolId: string | null = null;
+    const fromPrefix = await resolveSchoolIdFromAdmissionNumber(num);
+    if (fromPrefix) schoolId = fromPrefix.schoolId;
+
+    let query = supabase
       .from("registration_numbers")
       .select("*")
-      .eq("registration_number", number.toUpperCase())
-      .eq("school_id", schoolId)
+      .eq("registration_number", num)
       .eq("number_type", type)
-      .maybeSingle();
+      .eq("status", "unused");
+
+    if (schoolId) {
+      query = query.eq("school_id", schoolId);
+    }
+
+    const { data, error } = await query.maybeSingle();
 
     if (error || !data) {
-      return { valid: false, error: "Registration number not found. Please contact your administrator." };
+      return {
+        valid: false,
+        error: "Admission number not found or already used. Contact your school administrator.",
+      };
     }
 
-    if (data.status === "used") {
-      return { valid: false, error: "This registration number has already been used." };
-    }
-
-    return { valid: true, data };
+    return { valid: true, data, schoolId: data.school_id as string };
   };
 
-  const validateChildStudentNumbers = async (numbers: string[], schoolId: string) => {
-    const validNumbers: string[] = [];
-    
-    for (const num of numbers) {
-      if (!num.trim()) continue;
-      
-      const { data: student, error } = await supabase
-        .from("students")
-        .select("id, school_id, user_id, profiles:user_id(full_name)")
-        .eq("admission_no", num.toUpperCase())
-        .maybeSingle();
-
-      if (error || !student) {
-        return { valid: false, error: `Student with number ${num} not found.` };
-      }
-
-      if (student.school_id !== schoolId) {
-        return { valid: false, error: `Student ${num} belongs to a different school.` };
-      }
-
-      validNumbers.push(student.id);
+  const lookupChildAdmission = async (admissionNumber: string) => {
+    const num = normalizeAdmissionNumber(admissionNumber);
+    if (!num) {
+      setChildPreview(null);
+      setParentSchoolId(null);
+      return;
     }
-
-    if (validNumbers.length === 0) {
-      return { valid: false, error: "Please enter at least one valid student number." };
-    }
-
-    return { valid: true, studentIds: validNumbers };
+    setPreviewLoading(true);
+    const preview = await resolveStudentByAdmissionNumber(num);
+    setChildPreview(preview);
+    setParentSchoolId(preview.valid && preview.school_id ? preview.school_id : null);
+    setPreviewLoading(false);
   };
 
   const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     if (!signupRole) {
       toast.error("Please select your role");
       setIsLoading(false);
       return;
     }
 
+    if (signupPassword !== signupConfirmPassword) {
+      toast.error("Passwords do not match");
+      setIsLoading(false);
+      return;
+    }
+
     let schoolId: string | null = null;
+    let regNumber = registrationNumber ? normalizeAdmissionNumber(registrationNumber) : "";
 
     if (signupRole === "super_admin") {
       if (!adminKey) {
-        toast.error("Super Admin key is required for super administrator accounts");
+        toast.error("Super Admin key is required");
         setIsLoading(false);
         return;
       }
-    } 
-    else if (signupRole === "admin") {
-      if (!adminKey) {
-        toast.error("Admin key is required for administrator accounts");
-        setIsLoading(false);
-        return;
-      }
-      if (!schoolName || !schoolCode) {
-        toast.error("Please enter both school name and code");
+    } else if (signupRole === "admin") {
+      if (!adminKey || !schoolName || !schoolCode) {
+        toast.error("Please complete all school administrator fields");
         setIsLoading(false);
         return;
       }
@@ -202,106 +177,93 @@ const Auth = () => {
         .select("id")
         .eq("school_code", schoolCode.toUpperCase())
         .maybeSingle();
-      
       if (existingSchool) {
-        toast.error("This school code already exists. Please choose a different unique code for your school.");
+        toast.error("This school code already exists.");
         setIsLoading(false);
         return;
       }
-    } 
-    else {
-      if (!schoolCode) {
-        toast.error("Please enter your school code");
+    } else if (signupRole === "parent") {
+      if (!signupPhone.trim()) {
+        toast.error("Phone number is required");
         setIsLoading(false);
         return;
       }
-
-      const { data: schoolExists } = await supabase
-        .from("schools")
-        .select("id")
-        .eq("school_code", schoolCode.toUpperCase())
-        .eq("is_active", true)
-        .maybeSingle();
-      
-      if (!schoolExists) {
-        toast.error("Invalid school code. Please check with your school administrator for the correct code.");
+      const numbers = childStudentNumbers.filter((n) => n.trim());
+      if (numbers.length === 0) {
+        toast.error("Enter at least one child's admission number");
         setIsLoading(false);
         return;
       }
-      
-      schoolId = schoolExists.id;
-
-      if (signupRole === "student" || signupRole === "teacher") {
-        if (!registrationNumber.trim()) {
-          toast.error(`Please enter your ${signupRole === "student" ? "Student" : "Employee"} registration number`);
+      const firstPreview = await resolveStudentByAdmissionNumber(numbers[0]);
+      if (!firstPreview.valid || !firstPreview.school_id) {
+        toast.error(firstPreview.error ?? "Invalid student admission number");
+        setIsLoading(false);
+        return;
+      }
+      if (firstPreview.has_guardian) {
+        toast.error("This student already has a linked parent account. Contact your school if you need access.");
+        setIsLoading(false);
+        return;
+      }
+      schoolId = firstPreview.school_id;
+      for (let i = 1; i < numbers.length; i++) {
+        const p = await resolveStudentByAdmissionNumber(numbers[i]);
+        if (!p.valid) {
+          toast.error(p.error ?? `Invalid admission number: ${numbers[i]}`);
           setIsLoading(false);
           return;
         }
-
-        const numberType = signupRole === "student" ? "student" : "employee";
-        const validation = await validateRegistrationNumber(registrationNumber, numberType, schoolId);
-        
-        if (!validation.valid) {
-          toast.error(validation.error);
-          setIsLoading(false);
-          return;
-        }
-
-        if (signupRole === "student" && !gender) {
-          toast.error("Please select your gender");
+        if (p.school_id !== schoolId) {
+          toast.error("All children must belong to the same school");
           setIsLoading(false);
           return;
         }
       }
-
-      if (signupRole === "parent") {
-        const nonEmptyNumbers = childStudentNumbers.filter(n => n.trim());
-        if (nonEmptyNumbers.length === 0) {
-          toast.error("Please enter at least one child's student number");
-          setIsLoading(false);
-          return;
-        }
-
-        const validation = await validateChildStudentNumbers(nonEmptyNumbers, schoolId);
-        if (!validation.valid) {
-          toast.error(validation.error);
-          setIsLoading(false);
-          return;
-        }
+    } else if (signupRole === "student" || signupRole === "teacher") {
+      if (!regNumber) {
+        toast.error("Admission number is required");
+        setIsLoading(false);
+        return;
+      }
+      const poolType = signupRole === "student" ? "student" : "employee";
+      const validation = await validateRegistrationNumber(regNumber, poolType);
+      if (!validation.valid) {
+        toast.error(validation.error);
+        setIsLoading(false);
+        return;
+      }
+      schoolId = validation.schoolId ?? null;
+      if (signupRole === "student" && !gender) {
+        toast.error("Please select your gender");
+        setIsLoading(false);
+        return;
       }
     }
 
-    const { error, data } = await signUp(
-      signupEmail, 
-      signupPassword, 
-      signupFullName, 
-      signupRole, 
-      schoolCode.toUpperCase(), 
-      adminKey, 
+    const { error } = await signUp({
+      email: signupEmail,
+      password: signupPassword,
+      fullName: signupFullName,
+      role: signupRole,
+      schoolCode: signupRole === "admin" ? schoolCode.toUpperCase() : "",
+      schoolId: schoolId ?? undefined,
+      adminKey,
       schoolName,
-      registrationNumber.toUpperCase(),
-      gender
-    );
-    
+      admissionPrefix: admissionPrefix.toUpperCase() || schoolCode.toUpperCase(),
+      registrationNumber: regNumber,
+      gender,
+      phone: signupPhone,
+    });
+
     if (error) {
-      if (error.message?.includes("School code already exists")) {
-        toast.error("This school code is already taken. Please choose a different unique code.");
-      } else if (error.message?.includes("Invalid school code")) {
-        toast.error("The school code you entered doesn't exist. Please check with your administrator.");
-      } else if (error.message?.includes("Invalid admin key")) {
-        toast.error("The admin key you entered is incorrect. Please check and try again.");
-      } else if (error.message?.includes("Invalid super admin key")) {
-        toast.error("The super admin key you entered is incorrect.");
-      } else {
-        toast.error(error.message || "Failed to create account. Please try again.");
-      }
+      const msg = (error as { message?: string }).message ?? "Failed to create account";
+      toast.error(msg);
       setIsLoading(false);
       return;
     }
-    
-    if (schoolId && signupRole === "parent") {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
+    if (signupRole === "parent" && schoolId) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
       const { data: { user: newUser } } = await supabase.auth.getUser();
       if (newUser) {
         const { data: parentRecord } = await supabase
@@ -309,35 +271,21 @@ const Auth = () => {
           .select("id")
           .eq("user_id", newUser.id)
           .single();
-
         if (parentRecord) {
-          for (const childNum of childStudentNumbers) {
-            if (!childNum.trim()) continue;
-
-            const { data: student } = await supabase
-              .from("students")
-              .select("id")
-              .eq("admission_no", childNum.toUpperCase())
-              .eq("school_id", schoolId)
-              .single();
-
-            if (student) {
-              await supabase.from("parent_student_links").insert({
-                parent_id: parentRecord.id,
-                student_id: student.id,
-              });
-
-              await supabase
-                .from("students")
-                .update({ guardian_id: parentRecord.id })
-                .eq("id", student.id)
-                .is("guardian_id", null);
-            }
+          const linkResult = await linkParentToStudents(
+            parentRecord.id,
+            schoolId,
+            childStudentNumbers.filter((n) => n.trim())
+          );
+          if (!linkResult.ok) {
+            toast.error(linkResult.error ?? "Account created but child linking failed");
+            setIsLoading(false);
+            return;
           }
         }
       }
     }
-    
+
     toast.success("Account created successfully!");
     setIsLoading(false);
   };
@@ -374,8 +322,11 @@ const Auth = () => {
 
   const updateChildNumber = (index: number, value: string) => {
     const updated = [...childStudentNumbers];
-    updated[index] = value.toUpperCase();
+    updated[index] = normalizeAdmissionNumber(value);
     setChildStudentNumbers(updated);
+    if (index === 0) {
+      void lookupChildAdmission(updated[0]);
+    }
   };
 
   const roleConfig = {
@@ -455,7 +406,7 @@ const Auth = () => {
                 SCHOOLS
               </span>
               <span className="text-sm lg:text-base font-semibold text-white">
-                Join with your school code
+                Smart admission-based access
               </span>
             </div>
           </div>
@@ -512,21 +463,24 @@ const Auth = () => {
           {activeTab === "login" && (
             <form onSubmit={handleLogin} className="space-y-4 animate-fade-in">
               <div className="space-y-2">
-                <Label htmlFor="login-email" className="text-sm font-medium text-foreground">
-                  Email Address
+                <Label htmlFor="login-identifier" className="text-sm font-medium text-foreground">
+                  Email or admission number
                 </Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input
-                    id="login-email"
-                    type="email"
-                    placeholder="you@school.edu"
+                    id="login-identifier"
+                    type="text"
+                    placeholder="you@school.edu or MINGO-Stu-2026-001"
                     className="pl-10 h-12 border-2 focus:border-primary"
-                    value={loginEmail}
-                    onChange={e => setLoginEmail(e.target.value)}
+                    value={loginIdentifier}
+                    onChange={(e) => setLoginIdentifier(e.target.value)}
                     required
                   />
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  No school code needed — we detect your school automatically.
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -551,24 +505,6 @@ const Auth = () => {
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="login-school-code" className="text-sm font-medium text-foreground">
-                  School Code
-                </Label>
-                <div className="relative">
-                  <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input
-                    id="login-school-code"
-                    type="text"
-                    placeholder="ENTER YOUR SCHOOL CODE"
-                    className="pl-10 h-12 border-2 focus:border-primary uppercase"
-                    value={loginSchoolCode}
-                    onChange={e => setLoginSchoolCode(e.target.value.toUpperCase())}
-                    required
-                  />
                 </div>
               </div>
 
@@ -785,7 +721,7 @@ const Auth = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="school-code" className="text-sm font-medium text-foreground">
-                      School Code
+                      School Code (login)
                     </Label>
                     <div className="relative">
                       <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -795,43 +731,44 @@ const Auth = () => {
                         placeholder="Create a unique school code"
                         className="pl-10 h-12 border-2 focus:border-primary uppercase"
                         value={schoolCode}
-                        onChange={e => setSchoolCode(e.target.value.toUpperCase())}
+                        onChange={(e) => {
+                          const v = e.target.value.toUpperCase();
+                          setSchoolCode(v);
+                          if (!admissionPrefix) setAdmissionPrefix(v);
+                        }}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="admission-prefix" className="text-sm font-medium text-foreground">
+                      Admission number prefix
+                    </Label>
+                    <div className="relative">
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        id="admission-prefix"
+                        type="text"
+                        placeholder="MINGO"
+                        className="pl-10 h-12 border-2 focus:border-primary uppercase"
+                        value={admissionPrefix}
+                        onChange={(e) => setAdmissionPrefix(e.target.value.toUpperCase())}
                         required
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Create a unique code for your school (e.g., SCHOOL2025)
+                      Used in IDs like {admissionPrefix || "MINGO"}-Stu-2026-001
                     </p>
                   </div>
                 </div>
               )}
 
-              {/* Teacher/Student - School Code + Registration Number */}
+              {/* Teacher/Student — admission number only (school auto-detected) */}
               {(signupRole === "teacher" || signupRole === "student") && (
                 <div className="space-y-4 animate-fade-in">
                   <div className="space-y-2">
-                    <Label htmlFor="school-code" className="text-sm font-medium text-foreground">
-                      School Code
-                    </Label>
-                    <div className="relative">
-                      <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                      <Input
-                        id="school-code"
-                        type="text"
-                        placeholder="Enter your school code"
-                        className="pl-10 h-12 border-2 focus:border-primary uppercase"
-                        value={schoolCode}
-                        onChange={e => setSchoolCode(e.target.value.toUpperCase())}
-                        required
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Get this code from your school administrator
-                    </p>
-                  </div>
-                  <div className="space-y-2">
                     <Label htmlFor="reg-number" className="text-sm font-medium text-foreground">
-                      {signupRole === "student" ? "Student Number" : "Employee Number"}
+                      {signupRole === "student" ? "Admission Number" : "Employee Number"}
                     </Label>
                     <div className="relative">
                       <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -846,7 +783,7 @@ const Auth = () => {
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      This number is provided by your school administrator
+                      Format: SCHOOL-Stu-2026-001 — school is detected from your number
                     </p>
                   </div>
                   
@@ -869,34 +806,66 @@ const Auth = () => {
                 </div>
               )}
 
-              {/* Parent - School Code + Children Numbers */}
+              {signupRole === "parent" && (
+                <div className="space-y-2 animate-fade-in">
+                  <Label htmlFor="signup-phone" className="text-sm font-medium text-foreground">
+                    Phone Number
+                  </Label>
+                  <Input
+                    id="signup-phone"
+                    type="tel"
+                    placeholder="+233..."
+                    className="h-12 border-2"
+                    value={signupPhone}
+                    onChange={(e) => setSignupPhone(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="signup-confirm-password" className="text-sm font-medium text-foreground">
+                  Confirm Password
+                </Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    id="signup-confirm-password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    className="pl-10 h-12 border-2 focus:border-primary"
+                    value={signupConfirmPassword}
+                    onChange={(e) => setSignupConfirmPassword(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Parent — admission number links child & school */}
               {signupRole === "parent" && (
                 <div className="space-y-4 animate-fade-in">
                   <div className="space-y-2">
-                    <Label htmlFor="school-code" className="text-sm font-medium text-foreground">
-                      School Code
-                    </Label>
-                    <div className="relative">
-                      <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                      <Input
-                        id="school-code"
-                        type="text"
-                        placeholder="Enter your school code"
-                        className="pl-10 h-12 border-2 focus:border-primary uppercase"
-                        value={schoolCode}
-                        onChange={e => setSchoolCode(e.target.value.toUpperCase())}
-                        required
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
                     <Label className="text-sm font-medium text-foreground">
-                      Children's Student Numbers
+                      Child&apos;s admission number
                     </Label>
                     <p className="text-xs text-muted-foreground mb-2">
-                      Enter your children's student numbers to link your account
+                      Enter your child&apos;s admission number — school and class are detected automatically
                     </p>
+
+                    {previewLoading && (
+                      <p className="text-sm text-muted-foreground">Verifying admission number…</p>
+                    )}
+                    {childPreview?.valid && (
+                      <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm space-y-1">
+                        <p className="font-semibold text-foreground">{childPreview.student_name}</p>
+                        <p className="text-muted-foreground">School: {childPreview.school_name}</p>
+                        <p className="text-muted-foreground">Class: {childPreview.class_name}</p>
+                        <p className="font-mono text-xs">{childPreview.admission_number}</p>
+                      </div>
+                    )}
+                    {childPreview && !childPreview.valid && !previewLoading && (
+                      <p className="text-sm text-destructive">{childPreview.error}</p>
+                    )}
                     
                     {childStudentNumbers.map((num, index) => (
                       <div key={index} className="flex gap-2">

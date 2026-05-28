@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, Search, Filter, Pencil, Trash2, RefreshCw, Hash, Phone, Mail, UserRound } from "lucide-react";
 import { Link } from "react-router-dom";
 import { generateRegistrationNumber } from "@/lib/registration-numbers";
+import { formatExample, fetchSchoolPrefixById } from "@/lib/admission-numbers";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -158,6 +159,7 @@ const Students = () => {
   const [generatingAdmissionNo, setGeneratingAdmissionNo] = useState(false);
   const [assignClassId, setAssignClassId] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [admissionPlaceholder, setAdmissionPlaceholder] = useState("MINGO-Stu-2026-001");
   const { toast } = useToast();
   
   const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<StudentFormData>({
@@ -193,6 +195,13 @@ const Students = () => {
 
     if (!profileData?.school_id) return;
     setSchoolId(profileData.school_id);
+
+    try {
+      const prefix = await fetchSchoolPrefixById(profileData.school_id);
+      setAdmissionPlaceholder(formatExample(prefix, "Stu"));
+    } catch {
+      /* keep default */
+    }
 
     const { data } = await supabase
       .from("classes")
@@ -263,7 +272,7 @@ const Students = () => {
       const registrationNumber = await generateRegistrationNumber({
         schoolId: sid,
         userId: user.id,
-        type: "student",
+        poolType: "student",
         auditAction: "modal_generate",
       });
 
@@ -582,7 +591,7 @@ const Students = () => {
                       <Input
                         id="admission_no"
                         {...register("admission_no")}
-                        placeholder={loadingAdmissionNo ? "Loading next number…" : "ADM-YYYY-001"}
+                        placeholder={loadingAdmissionNo ? "Loading next number…" : admissionPlaceholder}
                         disabled={loadingAdmissionNo || generatingAdmissionNo}
                         readOnly={unusedAdmissionNumbers.length === 1}
                         className={unusedAdmissionNumbers.length === 1 ? "bg-muted font-mono" : "font-mono"}

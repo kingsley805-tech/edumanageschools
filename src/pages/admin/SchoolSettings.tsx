@@ -12,6 +12,7 @@ import { useSchoolTheme } from "@/contexts/SchoolThemeContext";
 import { SchoolBrandColorPicker } from "@/components/SchoolBrandColorPicker";
 import { BRAND_DEFAULTS, parseSchoolBrand, type BrandColors } from "@/lib/themeColors";
 import { fetchSchoolForUser, resolveUserSchoolId } from "@/lib/schoolFetch";
+import { formatExample } from "@/lib/admission-numbers";
 import { Upload, Building, Image, Save, Loader2, Palette } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -27,12 +28,14 @@ const SchoolSettings = () => {
     id: string;
     school_name: string;
     school_code: string;
+    admission_prefix: string | null;
     logo_url: string | null;
     theme_primary: string | null;
     theme_secondary: string | null;
     theme_accent: string | null;
   } | null>(null);
   const [schoolName, setSchoolName] = useState("");
+  const [admissionPrefix, setAdmissionPrefix] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [brandColors, setBrandColors] = useState<BrandColors>({ ...BRAND_DEFAULTS });
 
@@ -60,12 +63,14 @@ const SchoolSettings = () => {
         id: schoolData.id,
         school_name: schoolData.school_name,
         school_code: schoolData.school_code,
+        admission_prefix: schoolData.admission_prefix ?? schoolData.school_code,
         logo_url: schoolData.logo_url,
         theme_primary: schoolData.theme_primary ?? null,
         theme_secondary: schoolData.theme_secondary ?? null,
         theme_accent: schoolData.theme_accent ?? null,
       });
       setSchoolName(schoolData.school_name);
+      setAdmissionPrefix(schoolData.admission_prefix ?? schoolData.school_code ?? "");
       setPreviewUrl(schoolData.logo_url);
       const colors = parseSchoolBrand(schoolData);
       setBrandColors(colors);
@@ -142,14 +147,22 @@ const SchoolSettings = () => {
 
     setSaving(true);
     try {
+      const prefix = admissionPrefix.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+      if (!prefix) {
+        toast.error("Admission prefix is required (e.g. MINGO)");
+        setSaving(false);
+        return;
+      }
+
       const { error } = await supabase
         .from("schools")
-        .update({ school_name: schoolName })
+        .update({ school_name: schoolName, admission_prefix: prefix })
         .eq("id", school.id);
 
       if (error) throw error;
 
-      setSchool({ ...school, school_name: schoolName });
+      setSchool({ ...school, school_name: schoolName, admission_prefix: prefix });
+      setAdmissionPrefix(prefix);
       toast.success("School settings saved successfully");
     } catch (error: unknown) {
       console.error("Error saving settings:", error);
@@ -344,9 +357,29 @@ const SchoolSettings = () => {
                 />
                 <p className="text-xs text-muted-foreground">School code cannot be changed</p>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="admission-prefix">Admission number prefix</Label>
+                <Input
+                  id="admission-prefix"
+                  value={admissionPrefix}
+                  onChange={(e) =>
+                    setAdmissionPrefix(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))
+                  }
+                  placeholder="MINGO"
+                  maxLength={12}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Used for student, teacher, and staff IDs. Example:{" "}
+                  {formatExample(admissionPrefix || school.school_code || "SCHOOL", "Stu")}
+                </p>
+              </div>
               <Button
                 onClick={handleSaveSettings}
-                disabled={saving || schoolName === school.school_name}
+                disabled={
+                  saving ||
+                  (schoolName === school.school_name &&
+                    admissionPrefix === (school.admission_prefix ?? school.school_code))
+                }
                 className="w-full"
               >
                 {saving ? (

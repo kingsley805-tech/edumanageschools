@@ -3,21 +3,26 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
+export type SignUpMetadata = {
+  email: string;
+  password: string;
+  fullName: string;
+  role: string;
+  schoolCode?: string;
+  schoolId?: string;
+  adminKey?: string;
+  schoolName?: string;
+  admissionPrefix?: string;
+  registrationNumber?: string;
+  gender?: string;
+  phone?: string;
+};
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  signUp: (
-    email: string, 
-    password: string, 
-    fullName: string, 
-    role: string, 
-    schoolCode: string, 
-    adminKey?: string, 
-    schoolName?: string,
-    registrationNumber?: string,
-    gender?: string
-  ) => Promise<{ error: any; data?: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any; data?: any }>;
+  signUp: (meta: SignUpMetadata) => Promise<{ error: unknown; data?: unknown }>;
+  signIn: (email: string, password: string) => Promise<{ error: unknown; data?: unknown }>;
   signOut: () => Promise<void>;
   loading: boolean;
 }
@@ -31,49 +36,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+      setLoading(false);
+    });
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    supabase.auth.getSession().then(({ data: { session: existing } }) => {
+      setSession(existing);
+      setUser(existing?.user ?? null);
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (
-    email: string, 
-    password: string, 
-    fullName: string, 
-    role: string, 
-    schoolCode: string, 
-    adminKey?: string, 
-    schoolName?: string,
-    registrationNumber?: string,
-    gender?: string
-  ) => {
+  const signUp = async (meta: SignUpMetadata) => {
     const { error, data } = await supabase.auth.signUp({
-      email,
-      password,
+      email: meta.email,
+      password: meta.password,
       options: {
         emailRedirectTo: `${window.location.origin}/`,
         data: {
-          full_name: fullName,
-          role: role,
-          school_code: schoolCode,
-          school_name: schoolName || '',
-          admin_key: adminKey || '',
-          registration_number: registrationNumber || '',
-          gender: gender || '',
+          full_name: meta.fullName,
+          role: meta.role,
+          school_code: meta.schoolCode ?? "",
+          school_id: meta.schoolId ?? "",
+          school_name: meta.schoolName ?? "",
+          admin_key: meta.adminKey ?? "",
+          admission_prefix: meta.admissionPrefix ?? "",
+          registration_number: meta.registrationNumber ?? "",
+          gender: meta.gender ?? "",
+          phone: meta.phone ?? "",
         },
       },
     });

@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Award } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { fetchParentRecordByUserId, fetchStudentsForParent } from "@/lib/parent-students";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 
@@ -27,20 +28,15 @@ const Grades = () => {
   const fetchChildren = async () => {
     if (!user) return;
 
-    const { data: parentData } = await supabase
-      .from("parents")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
-
+    const parentData = await fetchParentRecordByUserId(user.id);
     if (!parentData) return;
 
-    const { data: studentsData } = await supabase
-      .from("students")
-      .select("id, profiles(full_name)")
-      .eq("guardian_id", parentData.id);
+    const studentsData = await fetchStudentsForParent<{ id: string; profiles: { full_name: string } | null }>(
+      parentData.id,
+      "id, profiles:user_id(full_name)"
+    );
 
-    if (studentsData && studentsData.length > 0) {
+    if (studentsData.length > 0) {
       setChildren(studentsData);
       setSelectedChild(studentsData[0].id);
     }

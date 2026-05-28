@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { fetchParentRecordByUserId, fetchStudentsForParent } from "@/lib/parent-students";
 import { EventsCalendar } from "@/components/EventsCalendar";
 
 const ParentDashboard = () => {
@@ -25,20 +26,15 @@ const ParentDashboard = () => {
   const fetchChildrenData = async () => {
     if (!user) return;
 
-    const { data: parent } = await supabase
-      .from("parents")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
-
+    const parent = await fetchParentRecordByUserId(user.id);
     if (!parent) return;
 
-    const { data: studentsData } = await supabase
-      .from("students")
-      .select("*, class:classes(name), profiles:user_id(full_name)")
-      .eq("guardian_id", parent.id);
+    const studentsData = await fetchStudentsForParent(
+      parent.id,
+      "*, class:classes(name), profiles:user_id(full_name)"
+    );
 
-    if (studentsData && studentsData.length > 0) {
+    if (studentsData.length > 0) {
       const childrenWithStats = await Promise.all(
         studentsData.map(async (student) => {
           const [attendanceRes, gradesRes, invoiceRes] = await Promise.all([
@@ -100,9 +96,12 @@ const ParentDashboard = () => {
           </CardHeader>
           <CardContent>
             {children.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
+              <div className="text-center py-8 text-muted-foreground space-y-3">
                 <UserCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>No children found</p>
+                <p>No children linked yet</p>
+                <Button variant="outline" size="sm" onClick={() => navigate("/parent/children")}>
+                  Link a child
+                </Button>
               </div>
             ) : (
               children.map((child, index) => (

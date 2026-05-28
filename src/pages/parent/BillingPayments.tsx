@@ -15,6 +15,7 @@ import {
   shouldAttemptPaystackConfirm,
   isExplicitPaystackFailure,
 } from "@/billing/lib/paystackReturnParams";
+import { fetchParentRecordByUserId, fetchStudentsForParent } from "@/lib/parent-students";
 
 type ChildInvoice = {
   id: string;
@@ -69,40 +70,17 @@ export default function ParentBillingPayments() {
       }
       setSchoolId(parent.school_id);
 
-      let studentRows: { id: string; full_name: string; class_name: string }[] = [];
+      const linked = await fetchStudentsForParent<{
+        id: string;
+        full_name: string;
+        classes: { name?: string } | null;
+      }>(parent.id, "id, full_name, class_id, classes(name)");
 
-      const { data: guardianStudents } = await supabase
-        .from("students")
-        .select("id, full_name, class_id, classes(name)")
-        .eq("school_id", parent.school_id)
-        .eq("guardian_id", parent.id);
-
-      if (guardianStudents?.length) {
-        studentRows = guardianStudents.map((st) => ({
-          id: st.id,
-          full_name: st.full_name,
-          class_name: (st.classes as { name?: string } | null)?.name ?? "—",
-        }));
-      } else {
-        const { data: links } = await supabase
-          .from("parent_students")
-          .select("student_id, students(id, full_name, class_id, classes(name))")
-          .eq("parent_id", parent.id);
-        for (const link of links ?? []) {
-          const st = link.students as {
-            id: string;
-            full_name: string;
-            classes?: { name: string } | null;
-          } | null;
-          if (st) {
-            studentRows.push({
-              id: st.id,
-              full_name: st.full_name,
-              class_name: st.classes?.name ?? "—",
-            });
-          }
-        }
-      }
+      const studentRows = linked.map((st) => ({
+        id: st.id,
+        full_name: st.full_name,
+        class_name: st.classes?.name ?? "—",
+      }));
 
       const studentIds = studentRows.map((s) => s.id);
       if (!studentIds.length) {

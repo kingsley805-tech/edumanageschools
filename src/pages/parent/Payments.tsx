@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { fetchParentRecordByUserId, fetchStudentsForParent } from "@/lib/parent-students";
 import { useToast } from "@/hooks/use-toast";
 interface Invoice {
   id: string;
@@ -28,22 +29,13 @@ const Payments = () => {
     const fetchInvoices = async () => {
       if (!user) return;
 
-      const { data: parentData } = await supabase
-        .from("parents")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
-
+      const parentData = await fetchParentRecordByUserId(user.id);
       if (!parentData) return;
 
-      const { data: studentsData } = await supabase
-        .from("students")
-        .select("id")
-        .eq("guardian_id", parentData.id);
+      const studentsData = await fetchStudentsForParent<{ id: string }>(parentData.id, "id");
+      if (studentsData.length === 0) return;
 
-      if (!studentsData || studentsData.length === 0) return;
-
-      const studentIds = studentsData.map(s => s.id);
+      const studentIds = studentsData.map((s) => s.id);
 
       const { data } = await supabase
         .from("invoices")
