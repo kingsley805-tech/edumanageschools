@@ -372,7 +372,7 @@ export default function PermissionManagement() {
   if (loading) {
     return (
       <DashboardLayout role="admin">
-        <div className="flex min-h-[50vh] items-center justify-center bg-[#0a0a0a]">
+        <div className="flex min-h-[50vh] items-center justify-center bg-background">
           <Loader2 className="h-8 w-8 animate-spin text-white" />
         </div>
       </DashboardLayout>
@@ -386,8 +386,7 @@ export default function PermissionManagement() {
         anyOf={["portal.staff_access.manage", "admin.manage_permissions"]}
         showDenied
       >
-        {/* Full-bleed dark canvas like reference screenshot */}
-        <div className="-m-3 md:-m-6 min-h-[calc(100vh-4rem)] bg-[#0a0a0a] p-4 md:p-8">
+        <div className="-m-3 md:-m-6 min-h-[calc(100vh-4rem)] bg-background p-4 md:p-8">
           <div className="mx-auto max-w-[1200px]">
             {rbacReady === false && (
               <Alert className="mb-6 border-amber-500/40 bg-amber-500/10 text-amber-50">

@@ -1,5 +1,5 @@
 // @ts-nocheck
-﻿import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useBillingAuth } from "@/billing/hooks/useBillingAuth";
@@ -17,6 +17,9 @@ import { DollarSign, Layers, Link2, Plus, Tag, Trash2, ChevronRight } from "luci
 import { toast } from "sonner";
 import { fetchStudentsWithLinkedProfiles, formatStudentDisplayName } from "@/billing/lib/studentDisplayName";
 import type { StaffPagePermission } from "@/lib/staffPermissions";
+import { isBillingFeeCategoriesAvailable } from "@/lib/billing/availability";
+import { BillingSchemaAlert } from "@/components/billing/BillingSchemaAlert";
+import { seedBillingDefaults } from "@/billing/lib/consolidated/api";
 
 /* ─────────────────────────── types ─────────────────────────── */
 type CreatedFeeRow = {
@@ -754,6 +757,23 @@ export default function BillingFeeStructure() {
   const { schoolId, loading: orgLoading } = useBillingAuth();
   const { getPermission } = useBillingPermissions();
   const permission = getPermission("fees");
+  const [billingReady, setBillingReady] = useState<boolean | null>(null);
+
+  const checkBilling = async () => {
+    const ok = await isBillingFeeCategoriesAvailable();
+    setBillingReady(ok);
+    if (ok && schoolId) {
+      try {
+        await seedBillingDefaults(schoolId);
+      } catch {
+        /* seed optional */
+      }
+    }
+  };
+
+  useEffect(() => {
+    void checkBilling();
+  }, [schoolId]);
 
   return (
     <div className="fee-root fee-bg" style={{ padding: "32px 28px", minHeight: "100vh" }}>
@@ -766,6 +786,12 @@ export default function BillingFeeStructure() {
       ) : !schoolId ? (
         <div style={{ textAlign: "center", paddingTop: 80, color: "hsl(var(--muted-foreground))", fontSize: 14 }}>
           Please set up your organization first in Settings.
+        </div>
+      ) : billingReady === false ? (
+        <BillingSchemaAlert onRecheck={() => void checkBilling()} />
+      ) : billingReady === null ? (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 320 }}>
+          <div className="fee-spinner" style={{ width: 48, height: 48, borderWidth: 4 }} />
         </div>
       ) : (
         <>

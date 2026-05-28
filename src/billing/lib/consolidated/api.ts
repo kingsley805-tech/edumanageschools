@@ -45,10 +45,13 @@ export async function backfillBillingAccounts(schoolId: string) {
 }
 
 export async function seedBillingDefaults(schoolId: string) {
-  await Promise.all([
-    supabase.rpc("seed_billing_fee_categories", { p_school_id: schoolId }),
-    supabase.rpc("seed_billing_allocation_rules", { p_school_id: schoolId }),
-  ]);
+  const { error: catError } = await supabase.rpc("seed_billing_fee_categories", {
+    p_school_id: schoolId,
+  });
+  if (catError) throw catError;
+
+  // Optional — present only after consolidated billing migration
+  await supabase.rpc("seed_billing_allocation_rules", { p_school_id: schoolId });
 }
 
 export async function createBillingJob(params: {

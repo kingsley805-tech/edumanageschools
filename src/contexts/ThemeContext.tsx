@@ -23,8 +23,8 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 const defaultCustomColors: CustomThemeColors = {
   primary: "142 71% 38%",
   accent: "142 71% 38%",
-  background: "0 0% 100%",
-  foreground: "0 0% 4%",
+  background: "0 0% 4%",
+  foreground: "0 0% 98%",
 };
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {

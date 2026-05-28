@@ -17,7 +17,8 @@
     "android:dev": "npm run build && npx cap sync android && npx cap open android",
     "android:build": "npm run build && npx cap sync android",
     "db:link": "supabase link --project-ref xbhhpjtwawfawifhpxbe",
-    "db:push": "supabase db push"
+    "db:push": "supabase db push",
+    "verify:build": "npm run build"
   },
   "dependencies": {
     "@capacitor/app": "^6.0.3",

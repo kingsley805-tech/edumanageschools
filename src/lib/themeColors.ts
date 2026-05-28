@@ -1,9 +1,14 @@
-/** Platform default: green, black, white */
+/** Platform default: green actions on dark portal canvas (#0a0a0a) */
 export const BRAND_DEFAULTS = {
   primary: "#16a34a",
   secondary: "#0a0a0a",
-  accent: "#ffffff",
+  accent: "#141414",
 } as const;
+
+/** Roles & Permissions page canvas — used for all portal shells */
+export const PORTAL_CANVAS = "#0a0a0a";
+export const PORTAL_PANEL = "#141414";
+export const PORTAL_BORDER = "#2a2a2a";
 
 export type BrandColors = {
   primary: string;
@@ -67,16 +72,17 @@ export function contrastForeground(hex: string): string {
 }
 
 /**
- * Apply green / black / white brand palette to CSS variables.
- * primary = green actions, secondary = black sidebar/text, accent = white surfaces
+ * Apply school brand colors on the dark portal canvas used across admin/teacher/parent/student shells.
+ * primary = actions, secondary = sidebar/canvas base, accent = elevated panels (optional school tint)
  */
 export function applyBrandTheme(colors: BrandColors): void {
   const root = document.documentElement;
   const primary = hslString(colors.primary);
-  const secondary = hslString(colors.secondary);
-  const accent = hslString(colors.accent);
+  const canvas = hslString(PORTAL_CANVAS);
+  const panel = hslString(PORTAL_PANEL);
   const secondaryParts = hexToHsl(colors.secondary);
   const accentParts = hexToHsl(colors.accent);
+  const panelL = Math.min(Math.max(accentParts.l, 8), 14);
 
   root.classList.add("school-branded");
   root.dataset.brandPrimary = colors.primary;
@@ -88,46 +94,44 @@ export function applyBrandTheme(colors: BrandColors): void {
   root.style.setProperty("--ring", primary);
   root.style.setProperty("--primary-glow", primary);
 
-  root.style.setProperty("--foreground", secondary);
-  root.style.setProperty("--background", accent);
-  root.style.setProperty("--card", accent);
-  root.style.setProperty("--card-foreground", secondary);
-  root.style.setProperty("--popover", accent);
-  root.style.setProperty("--popover-foreground", secondary);
+  root.style.setProperty("--foreground", "0 0% 98%");
+  root.style.setProperty("--background", canvas);
+  root.style.setProperty("--card", `${accentParts.h} ${Math.min(accentParts.s, 8)}% ${panelL}%`);
+  root.style.setProperty("--card-foreground", "0 0% 98%");
+  root.style.setProperty("--popover", panel);
+  root.style.setProperty("--popover-foreground", "0 0% 98%");
 
-  const mutedL = accentParts.l > 50 ? Math.max(accentParts.l - 4, 92) : Math.min(accentParts.l + 8, 25);
-  const borderL = accentParts.l > 50 ? Math.max(accentParts.l - 12, 85) : Math.min(accentParts.l + 12, 30);
-  root.style.setProperty("--secondary", `${accentParts.h} ${Math.max(accentParts.s - 20, 0)}% ${mutedL}%`);
-  root.style.setProperty("--secondary-foreground", secondary);
-  root.style.setProperty("--muted", `${accentParts.h} ${Math.max(accentParts.s - 20, 0)}% ${mutedL}%`);
-  root.style.setProperty("--muted-foreground", `${secondaryParts.h} ${secondaryParts.s}% ${Math.min(secondaryParts.l + 35, 55)}%`);
+  root.style.setProperty("--secondary", "0 0% 12%");
+  root.style.setProperty("--secondary-foreground", "0 0% 98%");
+  root.style.setProperty("--muted", "0 0% 14%");
+  root.style.setProperty("--muted-foreground", "0 0% 64%");
   root.style.setProperty("--accent", primary);
   root.style.setProperty("--accent-foreground", contrastForeground(colors.primary));
-  root.style.setProperty("--border", `${secondaryParts.h} ${Math.min(secondaryParts.s, 15)}% ${borderL}%`);
-  root.style.setProperty("--input", `${secondaryParts.h} ${Math.min(secondaryParts.s, 15)}% ${borderL}%`);
+  root.style.setProperty("--border", hslString(PORTAL_BORDER));
+  root.style.setProperty("--input", "0 0% 11%");
 
-  root.style.setProperty("--sidebar-background", secondary);
+  root.style.setProperty("--sidebar-background", hslString(colors.secondary));
   root.style.setProperty("--sidebar-foreground", "0 0% 98%");
   root.style.setProperty("--sidebar-primary", primary);
   root.style.setProperty("--sidebar-primary-foreground", contrastForeground(colors.primary));
   root.style.setProperty(
     "--sidebar-accent",
-    `${secondaryParts.h} ${secondaryParts.s}% ${Math.min(secondaryParts.l + 8, 22)}%`
+    `${secondaryParts.h} ${secondaryParts.s}% ${Math.min(secondaryParts.l + 8, 22)}%`,
   );
   root.style.setProperty("--sidebar-accent-foreground", "0 0% 98%");
   root.style.setProperty(
     "--sidebar-border",
-    `${secondaryParts.h} ${secondaryParts.s}% ${Math.min(secondaryParts.l + 12, 25)}%`
+    `${secondaryParts.h} ${secondaryParts.s}% ${Math.min(secondaryParts.l + 12, 25)}%`,
   );
   root.style.setProperty("--sidebar-ring", primary);
 
   root.style.setProperty(
     "--gradient-hero",
-    `linear-gradient(135deg, hsl(${primary} / 0.95), hsl(${secondary} / 0.92))`
+    `linear-gradient(135deg, hsl(${primary} / 0.95), hsl(${canvas} / 0.98))`,
   );
   root.style.setProperty(
     "--gradient-card",
-    `linear-gradient(135deg, hsl(${accent}), hsl(${accentParts.h} ${accentParts.s}% ${Math.max(accentParts.l - 2, 96)}%))`
+    `linear-gradient(135deg, hsl(${panel}), hsl(0 0% 10%))`,
   );
   root.style.setProperty("--shadow-glow", `0 0 30px -5px hsl(${primary} / 0.35)`);
 
