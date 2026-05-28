@@ -31,6 +31,7 @@ import {
   Wallet,
   UserCog,
   PenLine,
+  CreditCard,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { NotificationCenter } from "./NotificationCenter";
@@ -163,6 +164,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
             { icon: Users, label: "Family Billing", path: "/admin/billing/family" },
             { icon: Wallet, label: "Payroll", path: "/admin/billing/payroll" },
             { icon: Settings, label: "Billing settings", path: "/admin/billing/settings" },
+            { icon: CreditCard, label: "Payment gateway", path: "/admin/billing/settings/payments" },
           ],
         },
         {

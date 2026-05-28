@@ -171,7 +171,7 @@ export default function BillingPayments() {
     fetchWebhookEvents();
     const channel = supabase
       .channel(`admin-payments-${schoolId || "no-org"}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => fetchPayments())
+      .on("postgres_changes", { event: "*", schema: "public", table: "billing_payments" }, () => fetchPayments())
       .on("postgres_changes", { event: "*", schema: "public", table: "paystack_webhook_events" }, () => fetchWebhookEvents())
       .subscribe();
     return () => {

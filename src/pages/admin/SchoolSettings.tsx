@@ -18,7 +18,8 @@ import {
 } from "@/lib/schoolFetch";
 import { formatExample } from "@/lib/admission-numbers";
 import { derivePrefixFromSchoolName } from "@/lib/school-prefix";
-import { Upload, Building, Image, Save, Loader2, Palette } from "lucide-react";
+import { Upload, Building, Image, Save, Loader2, Palette, CreditCard } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const SchoolSettings = () => {
@@ -442,6 +443,25 @@ const SchoolSettings = () => {
               </Button>
             </CardContent>
           </Card>
+
+          {(role === "admin" || role === "super_admin") && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Online payments
+                </CardTitle>
+                <CardDescription>
+                  Connect this school&apos;s own Paystack account for fee collection.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button asChild variant="outline">
+                  <Link to="/admin/billing/settings/payments">Payment gateway settings</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </DashboardLayout>

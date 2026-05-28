@@ -9,7 +9,8 @@ import { Loader2, CreditCard, Download, DollarSign, FileText, TrendingUp, AlertC
 import { toast } from "sonner";
 import { generateReceipt } from "@/billing/lib/generateReceipt";
 import { fetchSchoolLetterhead } from "@/billing/lib/schoolLetterhead";
-import { confirmPaystackPayment } from "@/billing/lib/paystackConfirm";
+import { confirmPaystackPayment, initializePaystackCheckout } from "@/billing/lib/paystackConfirm";
+import { formatEdgeFunctionError } from "@/lib/invokeEdgeFunction";
 import {
   parsePaystackReturnSearch,
   shouldAttemptPaystackConfirm,
@@ -104,7 +105,7 @@ export default function StudentBilling() {
           toast.error("Payment was not completed");
         }
       } catch (e) {
-        toast.error((e as Error).message);
+        toast.error(formatEdgeFunctionError(e, "paystack"));
       }
     })();
   }, [paymentReturn, load]);
@@ -121,16 +122,13 @@ export default function StudentBilling() {
     setPayingId(invoice.id);
     try {
       const returnUrl = `${window.location.origin}/student/billing`;
-      const { data, error } = await supabase.functions.invoke("paystack", {
-        body: { action: "initialize", invoice_id: invoice.id, callback_url: returnUrl },
+      const checkoutUrl = await initializePaystackCheckout({
+        invoice_id: invoice.id,
+        callback_url: returnUrl,
       });
-      if (error) throw error;
-      const body = data as { error?: string; authorization_url?: string };
-      if (body?.error) throw new Error(body.error);
-      if (!body.authorization_url) throw new Error("No checkout URL");
-      window.location.href = body.authorization_url;
+      window.location.href = checkoutUrl;
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(formatEdgeFunctionError(e, "paystack"));
       setPayingId(null);
     }
   };

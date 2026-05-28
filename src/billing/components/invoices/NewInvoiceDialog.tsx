@@ -20,6 +20,8 @@ import {
   formatSupabaseError,
   insertBillingInvoiceLineItems,
 } from "@/billing/lib/invoices";
+import { isBillingInvoicesAvailable } from "@/lib/billing/availability";
+import { BillingInvoicesSchemaAlert } from "@/components/billing/BillingInvoicesSchemaAlert";
 
 interface NewInvoiceDialogProps {
   onSuccess?: () => void;
@@ -64,6 +66,7 @@ export default function NewInvoiceDialog({ onSuccess }: NewInvoiceDialogProps) {
   const [selectedSavedFeeIds, setSelectedSavedFeeIds] = useState<string[]>([]);
   const [loadingAssignedFees, setLoadingAssignedFees] = useState(false);
   const [assignedFeesHint, setAssignedFeesHint] = useState<string | null>(null);
+  const [billingTablesOk, setBillingTablesOk] = useState<boolean | null>(null);
 
   const [studentId, setStudentId] = useState("");
   const [termId, setTermId] = useState("none");
@@ -71,6 +74,11 @@ export default function NewInvoiceDialog({ onSuccess }: NewInvoiceDialogProps) {
   const [description, setDescription] = useState("Tuition Fees");
   const [amount, setAmount] = useState("");
   const [status, setStatus] = useState<"draft" | "sent">("sent");
+
+  useEffect(() => {
+    if (!open) return;
+    void isBillingInvoicesAvailable().then(setBillingTablesOk);
+  }, [open]);
 
   useEffect(() => {
     if (!open || !user) return;
@@ -294,6 +302,12 @@ export default function NewInvoiceDialog({ onSuccess }: NewInvoiceDialogProps) {
         </DialogHeader>
 
         <div className="space-y-4">
+          {billingTablesOk === false ? (
+            <BillingInvoicesSchemaAlert
+              onRecheck={() => void isBillingInvoicesAvailable().then(setBillingTablesOk)}
+            />
+          ) : null}
+
           <div className="space-y-2">
             <Label>Student</Label>
             <Select value={studentId} onValueChange={setStudentId}>
@@ -429,7 +443,15 @@ export default function NewInvoiceDialog({ onSuccess }: NewInvoiceDialogProps) {
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={loading || !studentId || (selectedSavedFeeIds.length === 0 && (!amount || !description.trim()))}>
+            <Button
+              onClick={handleCreate}
+              disabled={
+                billingTablesOk === false ||
+                loading ||
+                !studentId ||
+                (selectedSavedFeeIds.length === 0 && (!amount || !description.trim()))
+              }
+            >
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Create Invoice
             </Button>

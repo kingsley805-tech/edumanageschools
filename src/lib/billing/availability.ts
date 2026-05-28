@@ -2,11 +2,14 @@ import { supabase } from "@/integrations/supabase/client";
 
 const SESSION_KEY_FEE_CATEGORIES = "school_hub_billing_fee_categories_available";
 const SESSION_KEY_ACADEMIC_CALENDAR = "school_hub_academic_calendar_available";
+const SESSION_KEY_BILLING_INVOICES = "school_hub_billing_invoices_available";
 
 let feeCategoriesAvailable: boolean | null = null;
 let feeCategoriesProbe: Promise<boolean> | null = null;
 let academicCalendarAvailable: boolean | null = null;
 let academicCalendarProbe: Promise<boolean> | null = null;
+let billingInvoicesAvailable: boolean | null = null;
+let billingInvoicesProbe: Promise<boolean> | null = null;
 
 export function isMissingTableError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
@@ -15,10 +18,13 @@ export function isMissingTableError(error: { code?: string; message?: string } |
     error.code === "PGRST205" ||
     error.code === "42P01" ||
     msg.includes("schema cache") ||
+    msg.includes("could not find the table") ||
     (msg.includes("does not exist") &&
       (msg.includes("fee_categories") ||
         msg.includes("academic_years") ||
-        msg.includes("academic_year")))
+        msg.includes("academic_year") ||
+        msg.includes("billing_invoices") ||
+        msg.includes("billing_invoice")))
   );
 }
 
@@ -106,14 +112,49 @@ export async function isAcademicCalendarAvailable(): Promise<boolean> {
   return academicCalendarProbe;
 }
 
+/** Probe whether billing_invoices exists (one check per session). */
+export async function isBillingInvoicesAvailable(): Promise<boolean> {
+  if (billingInvoicesAvailable !== null) return billingInvoicesAvailable;
+
+  const cached = readSessionFlag(SESSION_KEY_BILLING_INVOICES);
+  if (cached !== null) {
+    billingInvoicesAvailable = cached;
+    return cached;
+  }
+
+  if (!billingInvoicesProbe) {
+    billingInvoicesProbe = (async () => {
+      const { error } = await supabase.from("billing_invoices").select("id").limit(1);
+      if (!error) {
+        billingInvoicesAvailable = true;
+        writeSessionFlag(SESSION_KEY_BILLING_INVOICES, true);
+        return true;
+      }
+      if (isMissingTableError(error)) {
+        billingInvoicesAvailable = false;
+        writeSessionFlag(SESSION_KEY_BILLING_INVOICES, false);
+        billingInvoicesProbe = null;
+        return false;
+      }
+      billingInvoicesAvailable = true;
+      writeSessionFlag(SESSION_KEY_BILLING_INVOICES, true);
+      return true;
+    })();
+  }
+  return billingInvoicesProbe;
+}
+
 export function resetBillingAvailabilityProbe(): void {
   feeCategoriesAvailable = null;
   feeCategoriesProbe = null;
   academicCalendarAvailable = null;
   academicCalendarProbe = null;
+  billingInvoicesAvailable = null;
+  billingInvoicesProbe = null;
   try {
     sessionStorage.removeItem(SESSION_KEY_FEE_CATEGORIES);
     sessionStorage.removeItem(SESSION_KEY_ACADEMIC_CALENDAR);
+    sessionStorage.removeItem(SESSION_KEY_BILLING_INVOICES);
   } catch {
     /* ignore */
   }
@@ -121,3 +162,4 @@ export function resetBillingAvailabilityProbe(): void {
 
 export const BILLING_SETUP_SQL_PATH = "supabase/scripts/apply-all-missing-tables.sql";
 export const ACADEMIC_CALENDAR_SQL_PATH = "supabase/scripts/apply-academic-calendar.sql";
+export const BILLING_INVOICES_SQL_PATH = "supabase/scripts/apply-billing-system.sql";

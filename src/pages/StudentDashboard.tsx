@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useStudentData } from "@/hooks/useStudentData";
 import { supabase } from "@/integrations/supabase/client";
+import { StudentPortalSections } from "@/components/student/StudentPortalSections";
 
 const StudentDashboard = () => {
   const { studentId, classId, loading } = useStudentData();
@@ -66,6 +67,15 @@ const StudentDashboard = () => {
   return (
     <DashboardLayout role="student">
       <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Student portal</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Choose a section to view your school work, exams, fees, and account.
+          </p>
+        </div>
+
+        <StudentPortalSections />
+
         {/* Stats */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat, index) => (

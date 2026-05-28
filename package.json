@@ -19,6 +19,7 @@
     "android:build": "npm run build && npx cap sync android",
     "db:link": "supabase link --project-ref xbhhpjtwawfawifhpxbe",
     "db:push": "supabase db push",
+    "functions:deploy": "supabase functions deploy paystack && supabase functions deploy create-user-account && supabase functions deploy delete-user-account && supabase functions deploy create-payment-intent && supabase functions deploy send-contact-email",
     "verify:build": "npm run build"
   },
   "dependencies": {

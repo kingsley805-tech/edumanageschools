@@ -28,6 +28,9 @@ import {
   setPaystackSecretInSession,
 } from "@/billing/lib/paystackSecretSessionCache";
 import { cn } from "@/lib/utils";
+import { invokeEdgeFunction, formatEdgeFunctionError } from "@/lib/invokeEdgeFunction";
+import { PaymentGatewaySchemaAlert } from "@/components/billing/PaymentGatewaySchemaAlert";
+import { isPaymentGatewaySchemaAvailable } from "@/lib/billing/gatewayAvailability";
 
 type GatewayConfigRow = Tables<"tenant_payment_gateway_configs"> & {
   secret_key?: string;
@@ -38,24 +41,9 @@ type GatewayConfigRow = Tables<"tenant_payment_gateway_configs"> & {
 };
 
 async function invokePaystackGatewayList(): Promise<GatewayConfigRow[]> {
-  const { data, error } = await supabase.functions.invoke("paystack", {
-    body: { action: "gateway-list" },
+  const body = await invokeEdgeFunction<{ gateways?: GatewayConfigRow[] }>("paystack", {
+    action: "gateway-list",
   });
-  if (error) {
-    let msg = error.message;
-    const ctx = (error as { context?: Response }).context;
-    if (ctx && typeof ctx.json === "function") {
-      try {
-        const parsed = (await ctx.json()) as { error?: string };
-        if (parsed?.error) msg = parsed.error;
-      } catch {
-        /* keep msg */
-      }
-    }
-    throw new Error(msg);
-  }
-  const body = data as { error?: string; gateways?: GatewayConfigRow[] };
-  if (body?.error) throw new Error(body.error);
   return body.gateways ?? [];
 }
 
@@ -86,6 +74,14 @@ export default function PaymentGatewaySettings() {
   const webhookUrl = `${baseUrl.replace(/\/$/, "")}${WEBHOOK_PATH}`;
 
   const canManage = isAdmin;
+  const [schemaOk, setSchemaOk] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!canManage) return;
+    void isPaymentGatewaySchemaAvailable().then(setSchemaOk);
+  }, [canManage]);
+
+  const defaultCallbackUrl = `${window.location.origin}/student/billing`;
 
   const {
     data: configs = [],
@@ -126,6 +122,8 @@ export default function PaymentGatewaySettings() {
   const [isEnabled, setIsEnabled] = useState(true);
   const [isTestMode, setIsTestMode] = useState(true);
   const [isDefault, setIsDefault] = useState(true);
+  const [callbackUrl, setCallbackUrl] = useState("");
+  const [currency, setCurrency] = useState("GHS");
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   /** Re-render when sessionStorage secret changes (API may not return secret after save). */
@@ -143,6 +141,8 @@ export default function PaymentGatewaySettings() {
     isTestMode: true,
     isDefault: true,
     paystackConfigId: undefined as string | undefined,
+    callbackUrl: "",
+    currency: "GHS",
   });
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -158,8 +158,22 @@ export default function PaymentGatewaySettings() {
       isTestMode,
       isDefault,
       paystackConfigId: paystackConfig?.id,
+      callbackUrl,
+      currency,
     };
   });
+
+  useEffect(() => {
+    if (!schoolId) return;
+    void supabase
+      .from("schools")
+      .select("currency")
+      .eq("id", schoolId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.currency) setCurrency(String(data.currency).toUpperCase());
+      });
+  }, [schoolId]);
 
   // Hydrate from gateway-list (DB) + sessionStorage fallback for secret in this tab.
   useEffect(() => {
@@ -171,6 +185,7 @@ export default function PaymentGatewaySettings() {
       setIsDefault(true);
       setSecretKey("");
       setWebhookSecret("");
+      setCallbackUrl(defaultCallbackUrl);
       return;
     }
     setPublicKey(paystackConfig.public_key ?? "");
@@ -178,6 +193,7 @@ export default function PaymentGatewaySettings() {
     setIsEnabled(paystackConfig.is_enabled);
     setIsTestMode(paystackConfig.is_test_mode);
     setIsDefault(paystackConfig.is_default);
+    setCallbackUrl(paystackConfig.callback_url?.trim() || defaultCallbackUrl);
     const serverSk = (paystackConfig.secret_key ?? "").trim();
     if (schoolId && serverSk) {
       setPaystackSecretInSession(schoolId, serverSk);
@@ -216,7 +232,7 @@ export default function PaymentGatewaySettings() {
     queryFn: async () => {
       if (!schoolId) return [];
       const { data, error } = await supabase
-        .from("payments")
+        .from("billing_payments")
         .select("id, amount, currency, status, gateway, gateway_ref, paid_at, created_at, method")
         .eq("school_id", schoolId)
         .eq("gateway", "paystack")
@@ -270,16 +286,18 @@ export default function PaymentGatewaySettings() {
           is_default: s.isDefault,
           public_key: pk,
           merchant_email: s.merchantEmail.trim() || null,
-          callback_url: null,
+          callback_url: s.callbackUrl.trim() || null,
         };
         if (s.paystackConfigId) payload.id = s.paystackConfigId;
         if (skTrim && secretFormatOk) payload.secret_key = skTrim;
         if (s.webhookSecret.trim()) payload.webhook_secret = s.webhookSecret.trim();
 
-        const { data, error } = await supabase.functions.invoke("paystack", { body: payload });
-        if (error) throw new Error(error.message);
-        const body = data as { error?: string; ok?: boolean };
-        if (body?.error) throw new Error(body.error);
+        await invokeEdgeFunction("paystack", payload);
+
+        if (schoolId && s.currency.trim()) {
+          await supabase.from("schools").update({ currency: s.currency.trim() }).eq("id", schoolId);
+        }
+
         if (schoolId) {
           await qc.refetchQueries({ queryKey: ["tenant-payment-gateways", schoolId] });
           if (skTrim && secretFormatOk) {
@@ -291,7 +309,7 @@ export default function PaymentGatewaySettings() {
         if (!opts?.silent) toast.success("Paystack settings saved");
         else toast.success("Saved", { duration: 2000 });
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Save failed");
+        toast.error(formatEdgeFunctionError(e, "paystack"));
       } finally {
         setSaving(false);
       }
@@ -340,15 +358,12 @@ export default function PaymentGatewaySettings() {
       } else if (paystackConfig?.id) payload.gateway_config_id = paystackConfig.id;
       else throw new Error("Enter a secret key or save credentials first");
 
-      const { data, error } = await supabase.functions.invoke("paystack", { body: payload });
-      if (error) throw new Error(error.message);
-      const body = data as { ok?: boolean; error?: string };
-      if (body?.error) throw new Error(body.error);
+      const body = await invokeEdgeFunction<{ ok?: boolean }>("paystack", payload);
       if (body?.ok) toast.success("Paystack credentials verified");
       else toast.error("Verification failed");
       if (schoolId) await qc.refetchQueries({ queryKey: ["tenant-payment-gateways", schoolId] });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Test failed");
+      toast.error(formatEdgeFunctionError(e, "paystack"));
     } finally {
       setTesting(false);
     }
@@ -390,10 +405,16 @@ export default function PaymentGatewaySettings() {
         </div>
       </div>
 
+      {schemaOk === false ? (
+        <PaymentGatewaySchemaAlert onRecheck={() => void isPaymentGatewaySchemaAvailable().then(setSchemaOk)} />
+      ) : null}
+
       {gatewaysLoadError instanceof Error ? (
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">
           <p className="font-medium text-destructive">Could not load saved payment keys</p>
-          <p className="mt-1 whitespace-pre-wrap text-destructive/90">{gatewaysLoadError.message}</p>
+          <p className="mt-1 whitespace-pre-wrap text-destructive/90">
+            {formatEdgeFunctionError(gatewaysLoadError, "paystack")}
+          </p>
         </div>
       ) : null}
 
@@ -569,6 +590,36 @@ export default function PaymentGatewaySettings() {
                     type="email"
                   />
                 </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Callback URL (after Paystack checkout)</Label>
+                  <Input
+                    value={callbackUrl}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setCallbackUrl(v);
+                      saveSnapshotRef.current = { ...saveSnapshotRef.current, callbackUrl: v };
+                      schedulePaystackAutosave();
+                    }}
+                    placeholder="https://your-app.com/student/billing"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Parents and students return here to confirm payment. Use your live app URL in production.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Checkout currency</Label>
+                  <Input
+                    value={currency}
+                    onChange={(e) => {
+                      const v = e.target.value.toUpperCase();
+                      setCurrency(v);
+                      saveSnapshotRef.current = { ...saveSnapshotRef.current, currency: v };
+                    }}
+                    placeholder="GHS"
+                    maxLength={6}
+                  />
+                  <p className="text-xs text-muted-foreground">Saved with billing settings for this school.</p>
+                </div>
               </div>
 
               <div className="flex flex-wrap gap-2">
@@ -610,11 +661,17 @@ export default function PaymentGatewaySettings() {
 
       <Separator />
 
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/admin/billing/payments">View all transactions &amp; export</Link>
+        </Button>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Recent Paystack transactions</CardTitle>
-            <CardDescription>Validated, tenant-scoped payment rows</CardDescription>
+            <CardDescription>School-isolated — each payment uses this school&apos;s Paystack account</CardDescription>
           </CardHeader>
           <CardContent className="max-h-80 overflow-auto text-sm">
             {recentPayments.length === 0 ? (
