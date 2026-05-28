@@ -48,8 +48,19 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
+function formatLoadError(e: unknown): string {
+  if (e && typeof e === "object" && "message" in e && typeof (e as { message: string }).message === "string") {
+    const msg = (e as { message: string }).message;
+    if (msg.includes("account_invoices") || msg.includes("billing_accounts") || msg.includes("schema cache")) {
+      return `${msg} — Run supabase/migrations/20260528000000_multi_child_consolidated_billing.sql in the Supabase SQL Editor.`;
+    }
+    return msg;
+  }
+  return "Failed to load consolidated billing";
+}
+
 export default function ConsolidatedBilling() {
-  const schoolId = useBillingSchoolId();
+  const { schoolId, loading: schoolLoading } = useBillingSchoolId();
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState<AccountInvoiceSummary[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -101,6 +112,12 @@ export default function ConsolidatedBilling() {
           .eq("school_id", schoolId)
           .order("admission_no"),
       ]);
+
+      if (termsRes.error) throw termsRes.error;
+      if (catsRes.error) throw catsRes.error;
+      if (classesRes.error) throw classesRes.error;
+      if (studentsRes.error) throw studentsRes.error;
+
       setInvoices(inv);
       setAccounts(acc);
       setTemplates(tmpl);
@@ -124,15 +141,16 @@ export default function ConsolidatedBilling() {
         })),
       );
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to load consolidated billing");
+      toast.error(formatLoadError(e));
     } finally {
       setLoading(false);
     }
   }, [schoolId]);
 
   useEffect(() => {
+    if (schoolLoading || !schoolId) return;
     void load();
-  }, [load]);
+  }, [load, schoolLoading, schoolId]);
 
   const openInvoice = async (inv: AccountInvoiceSummary) => {
     setSelectedInvoice(inv);
@@ -294,11 +312,21 @@ export default function ConsolidatedBilling() {
     }
   };
 
-  if (loading) {
+  if (schoolLoading || loading) {
     return (
       <div className="flex justify-center py-20">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
+    );
+  }
+
+  if (!schoolId) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center text-muted-foreground">
+          No school selected. Choose a school from the header switcher, then open Family Billing again.
+        </CardContent>
+      </Card>
     );
   }
 
