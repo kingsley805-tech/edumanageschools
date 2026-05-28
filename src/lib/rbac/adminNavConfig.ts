@@ -13,6 +13,7 @@ import {
   Calendar,
   Wallet,
   DollarSign,
+  CreditCard,
   Hash,
   UserCheck,
   Link as LinkIcon,
@@ -52,6 +53,7 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
   billing_fees: Wallet,
   billing_invoices: DollarSign,
   billing_payments: FileText,
+  billing_payment_gateways: CreditCard,
   billing_paid: Users,
   billing_outstanding: Users,
   billing_reports: BarChart3,
@@ -88,7 +90,11 @@ export function buildAdminNav(hasPermission: (code: string) => boolean): (AdminN
       // Teacher-only routes belong in the teacher shell, not the admin sidebar.
       if (!mod.path.startsWith("/admin") && mod.path !== "/settings") continue;
       const viewPerm = permissionCode(mod.key, "view");
-      if (!hasPermission(viewPerm)) continue;
+      const canView =
+        hasPermission(viewPerm) ||
+        (mod.key === "billing_payment_gateways" &&
+          hasPermission(permissionCode("billing_payments", "view")));
+      if (!canView) continue;
       items.push({
         label: mod.label,
         path: mod.path,

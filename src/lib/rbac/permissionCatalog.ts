@@ -83,6 +83,12 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
       { key: "billing_fees", label: "Fees", path: "/admin/billing/fees", actions: ["view", "create", "edit", "delete", "manage"] },
       { key: "billing_invoices", label: "Invoices", path: "/admin/billing/invoices", actions: ["view", "create", "edit", "delete", "approve", "export", "manage"] },
       { key: "billing_payments", label: "Payments", path: "/admin/billing/payments", actions: ["view", "create", "edit", "approve", "export", "manage"] },
+      {
+        key: "billing_payment_gateways",
+        label: "Payment gateways",
+        path: "/admin/billing/settings/payments",
+        actions: ["view", "edit", "manage"],
+      },
       { key: "billing_paid", label: "Paid Students", path: "/admin/billing/paid-students", actions: ["view", "export"] },
       { key: "billing_outstanding", label: "Outstanding", path: "/admin/billing/outstanding", actions: ["view", "export"] },
       { key: "billing_reports", label: "Reports", path: "/admin/billing/reports", actions: ["view", "export", "manage"] },
@@ -202,7 +208,7 @@ export function defaultCodesForRole(slug: string): string[] {
   const viewOnly = all.filter((c) => c.endsWith(".view") || c.endsWith(".export"));
   const finance = all.filter((c) => {
     const p = parsePermissionCode(c);
-    return p && ["billing_fees", "billing_invoices", "billing_payments", "billing_paid", "billing_outstanding", "billing_reports", "dashboard"].includes(p.moduleKey);
+    return p && ["billing_fees", "billing_invoices", "billing_payments", "billing_payment_gateways", "billing_paid", "billing_outstanding", "billing_reports", "dashboard"].includes(p.moduleKey);
   });
   const exams = all.filter((c) => {
     const p = parsePermissionCode(c);
