@@ -55,6 +55,59 @@ export type Database = {
           },
         ]
       }
+      approval_requests: {
+        Row: {
+          created_at: string
+          id: string
+          module: string
+          payload: Json
+          record_id: string | null
+          request_type: string
+          requested_by: string
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          school_id: string
+          status: Database["public"]["Enums"]["approval_status"]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          module: string
+          payload?: Json
+          record_id?: string | null
+          request_type: string
+          requested_by: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          school_id: string
+          status?: Database["public"]["Enums"]["approval_status"]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          module?: string
+          payload?: Json
+          record_id?: string | null
+          request_type?: string
+          requested_by?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          school_id?: string
+          status?: Database["public"]["Enums"]["approval_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_requests_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assignments: {
         Row: {
           class_id: string | null
@@ -159,8 +212,14 @@ export type Database = {
           entity_id: string | null
           entity_type: string
           id: string
+          ip_address: string | null
+          module: string | null
+          new_values: Json | null
+          old_values: Json | null
           performed_by: string | null
+          record_id: string | null
           school_id: string | null
+          user_agent: string | null
         }
         Insert: {
           action_type: string
@@ -169,8 +228,14 @@ export type Database = {
           entity_id?: string | null
           entity_type: string
           id?: string
+          ip_address?: string | null
+          module?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
           performed_by?: string | null
+          record_id?: string | null
           school_id?: string | null
+          user_agent?: string | null
         }
         Update: {
           action_type?: string
@@ -179,8 +244,14 @@ export type Database = {
           entity_id?: string | null
           entity_type?: string
           id?: string
+          ip_address?: string | null
+          module?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
           performed_by?: string | null
+          record_id?: string | null
           school_id?: string | null
+          user_agent?: string | null
         }
         Relationships: [
           {
@@ -848,6 +919,50 @@ export type Database = {
           },
         ]
       }
+      login_activity: {
+        Row: {
+          created_at: string
+          email: string | null
+          failure_reason: string | null
+          id: string
+          ip_address: string | null
+          school_id: string | null
+          success: boolean
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          failure_reason?: string | null
+          id?: string
+          ip_address?: string | null
+          school_id?: string | null
+          success?: boolean
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          failure_reason?: string | null
+          id?: string
+          ip_address?: string | null
+          school_id?: string | null
+          success?: boolean
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "login_activity_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           body: string | null
@@ -1287,6 +1402,87 @@ export type Database = {
           },
         ]
       }
+      permission_logs: {
+        Row: {
+          action_type: string
+          actor_id: string | null
+          created_at: string
+          details: Json
+          id: string
+          permission_code: string | null
+          role_id: string | null
+          school_id: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          permission_code?: string | null
+          role_id?: string | null
+          school_id?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          permission_code?: string | null
+          role_id?: string | null
+          school_id?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permission_logs_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "permission_logs_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      permissions: {
+        Row: {
+          action: string
+          category: string | null
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          module: string
+        }
+        Insert: {
+          action: string
+          category?: string | null
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          module: string
+        }
+        Update: {
+          action?: string
+          category?: string | null
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          module?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1570,6 +1766,83 @@ export type Database = {
             columns: ["term_id"]
             isOneToOne: false
             referencedRelation: "terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      role_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          permission_id: string
+          role_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          permission_id: string
+          role_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          permission_id?: string
+          role_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roles: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_system: boolean
+          name: string
+          school_id: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name: string
+          school_id?: string | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name?: string
+          school_id?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roles_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]
@@ -2245,6 +2518,48 @@ export type Database = {
           },
         ]
       }
+      user_role_assignments: {
+        Row: {
+          assigned_by: string | null
+          created_at: string
+          id: string
+          role_id: string
+          school_id: string | null
+          user_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          role_id: string
+          school_id?: string | null
+          user_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          role_id?: string
+          school_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_role_assignments_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_role_assignments_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -2332,6 +2647,10 @@ export type Database = {
       }
     }
     Functions: {
+      can_manage_role_permissions: {
+        Args: { _school_id?: string; _user_id: string }
+        Returns: boolean
+      }
       create_notification: {
         Args: {
           p_body: string
@@ -2369,7 +2688,19 @@ export type Database = {
         Args: { _teacher_user_id: string }
         Returns: string[]
       }
+      get_user_permissions: {
+        Args: { _school_id?: string; _user_id: string }
+        Returns: string[]
+      }
       get_user_school_id: { Args: { _user_id: string }; Returns: string }
+      has_permission: {
+        Args: {
+          _permission_code: string
+          _school_id?: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2377,6 +2708,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_role_slug: {
+        Args: { _school_id?: string; _slug: string; _user_id: string }
+        Returns: boolean
+      }
+      is_portal_student: { Args: { _user_id: string }; Returns: boolean }
       is_school_admin: {
         Args: { _school_id: string; _user_id: string }
         Returns: boolean
@@ -2392,6 +2728,10 @@ export type Database = {
       result_ranking_score: {
         Args: { p_ca: number; p_exam: number }
         Returns: number
+      }
+      save_role_permissions: {
+        Args: { p_permission_codes: string[]; p_role_id: string }
+        Returns: Json
       }
       set_school_current_term: {
         Args: { p_term_id: string }
@@ -2413,9 +2753,35 @@ export type Database = {
         Args: { p_class_id: string; p_teacher_id: string }
         Returns: boolean
       }
+      user_can_access_school: {
+        Args: { _school_id: string; _user_id: string }
+        Returns: boolean
+      }
+      write_audit_log: {
+        Args: {
+          p_action_type: string
+          p_details?: Json
+          p_entity_id: string
+          p_entity_type: string
+          p_module?: string
+          p_new_values?: Json
+          p_old_values?: Json
+          p_record_id?: string
+          p_school_id: string
+        }
+        Returns: string
+      }
     }
     Enums: {
-      app_role: "admin" | "teacher" | "parent" | "student" | "super_admin"
+      app_role:
+        | "admin"
+        | "teacher"
+        | "parent"
+        | "student"
+        | "super_admin"
+        | "accountant"
+        | "auditor"
+      approval_status: "pending" | "approved" | "rejected" | "cancelled"
       report_card_status:
         | "draft"
         | "saved"
@@ -2551,7 +2917,16 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "teacher", "parent", "student", "super_admin"],
+      app_role: [
+        "admin",
+        "teacher",
+        "parent",
+        "student",
+        "super_admin",
+        "accountant",
+        "auditor",
+      ],
+      approval_status: ["pending", "approved", "rejected", "cancelled"],
       report_card_status: [
         "draft",
         "saved",
