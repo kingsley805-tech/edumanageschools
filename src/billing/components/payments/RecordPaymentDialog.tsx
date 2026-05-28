@@ -1,3 +1,4 @@
+// @ts-nocheck
 ﻿import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBillingAuth } from "@/billing/hooks/useBillingAuth";

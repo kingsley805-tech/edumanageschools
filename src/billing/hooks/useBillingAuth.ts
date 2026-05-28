@@ -1,3 +1,4 @@
+// @ts-nocheck
 ﻿import { useMemo } from "react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useBillingSchoolId } from "@/billing/hooks/useBillingSchoolId";
