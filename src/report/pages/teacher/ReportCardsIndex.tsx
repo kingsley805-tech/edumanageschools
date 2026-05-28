@@ -87,14 +87,16 @@ function TeacherReportCards() {
     },
   });
 
+  const schoolId = profile?.school_id ?? "";
+
   const editor = useTermReportCard({
     studentId,
     classId,
     termId: term?.id ?? "",
-    schoolId: profile?.school_id ?? "",
+    schoolId,
     teacherId: user?.id ?? "",
     teacherName: profile?.full_name ?? undefined,
-    enabled: !!studentId && !!profile?.school_id && !!term?.id,
+    enabled: !!studentId && !!schoolId && !!term?.id,
     showPositions: positionsRevealed,
   });
 
@@ -131,9 +133,9 @@ function TeacherReportCards() {
   };
 
   const { teacherSignatureUrl, headSignatureUrl } = useReportSignatures({
-    schoolId: profile?.school_id ?? "",
+    schoolId,
     teacherId: user?.id,
-    enabled: !!editor.form,
+    enabled: !!editor.form && !!schoolId,
   });
 
   return (
@@ -234,12 +236,12 @@ function TeacherReportCards() {
           </CardContent>
         </Card>
 
-        {classId && term && user?.id && profile?.school_id && (
+        {classId && term && user?.id && schoolId && (
           <TeacherBulkReportActions
             classId={classId}
             termId={term.id}
             teacherId={user.id}
-            schoolId={profile.school_id}
+            schoolId={schoolId}
             className={selectedClassName}
             termLabel={term.name}
             students={students}
@@ -312,7 +314,7 @@ function TeacherReportCards() {
               status={editor.status}
               lastSaved={editor.lastSaved}
               toolbarTitle={`Report — ${editor.form.studentName}`}
-              schoolId={profile?.school_id}
+              schoolId={schoolId || undefined}
               teacherSignatureUrl={teacherSignatureUrl}
               headSignatureUrl={headSignatureUrl}
             />

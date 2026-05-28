@@ -43,19 +43,19 @@ export async function persistTermReportCard(
     toSave = mergeStoredPositionsForSave(input.form, existingRow);
   }
 
-  let effectiveClassId = input.classId || existingRow?.class_id || null;
-  if (!effectiveClassId) {
-    const { data: st } = await supabase
-      .from("students")
-      .select("class_id")
-      .eq("id", input.studentId)
-      .maybeSingle();
-    effectiveClassId = st?.class_id ?? null;
-  }
+  const { data: studentRow } = await supabase
+    .from("students")
+    .select("class_id, school_id")
+    .eq("id", input.studentId)
+    .maybeSingle();
+
+  let effectiveClassId = input.classId || existingRow?.class_id || studentRow?.class_id || null;
+  const effectiveSchoolId =
+    studentRow?.school_id ?? existingRow?.school_id ?? input.schoolId;
 
   const payload = {
     ...formToPayload(toSave, {
-      schoolId: input.schoolId,
+      schoolId: effectiveSchoolId,
       studentId: input.studentId,
       termId,
       classId: effectiveClassId,

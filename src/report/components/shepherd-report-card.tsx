@@ -14,6 +14,7 @@ import { canExportPdf, statusLabel } from "@/report/lib/report-card-status";
 import { useGradingFormat, useSchool } from "@/report/hooks/use-school-data";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { resolveReportAssetUrl } from "@/report/lib/report-assets";
 
 const DEFAULT_LOGO = "/shepherd-logo.png";
 
@@ -72,8 +73,10 @@ export function ShepherdReportCard({
   const { data: school } = useSchool(schoolId);
   const gradingFormat = useGradingFormat();
   const gradeScale = getGradeScale(gradingFormat);
-  const logoSrc = school?.logo_url?.trim() || DEFAULT_LOGO;
-  const stampSrc = school?.stamp_url?.trim() || "";
+  const logoSrc = resolveReportAssetUrl(school?.logo_url) || DEFAULT_LOGO;
+  const stampSrc = resolveReportAssetUrl(school?.stamp_url);
+  const teacherSigSrc = resolveReportAssetUrl(teacherSignatureUrl);
+  const headSigSrc = resolveReportAssetUrl(headSignatureUrl);
   const schoolName = school?.name?.trim() || SHEPHERD_SCHOOL.name;
   const schoolMotto = school?.motto?.trim() || SHEPHERD_SCHOOL.motto;
   const schoolAddress = school?.address?.trim() || SHEPHERD_SCHOOL.address;
@@ -355,7 +358,7 @@ export function ShepherdReportCard({
                           <input className="rc-cell-input rc-cell-sm" value={s.position}
                             onChange={(e) => updateSubject(i, { position: e.target.value })} />
                         ) : (
-                          <span style={{ fontWeight: 700, color: BRAND_COLORS.green }}>{s.position}</span>
+                          <span style={{ fontWeight: 700, color: BRAND_COLORS.black }}>{s.position}</span>
                         )}
                       </td>
                       <td style={{ textAlign: "center" }}>
@@ -430,12 +433,13 @@ export function ShepherdReportCard({
                 <div className="rc-sig-box rc-sig-box-centered">
                   <span className="rc-info-label">Class Teacher Signature</span>
                   <div className="rc-sig-area">
-                    {teacherSignatureUrl ? (
+                    {teacherSigSrc ? (
                       <img
-                        src={teacherSignatureUrl}
+                        src={teacherSigSrc}
                         alt="Class teacher signature"
-                        className="rc-sig-img"
                         crossOrigin="anonymous"
+                        referrerPolicy="no-referrer"
+                        className="rc-sig-img"
                       />
                     ) : (
                       <div className="rc-sig-placeholder">___________</div>
@@ -460,7 +464,7 @@ export function ShepherdReportCard({
               <div className="rc-head-stamp">
                 {stampSrc ? (
                   <div className="rc-stamp-img">
-                    <img src={stampSrc} alt="School stamp" crossOrigin="anonymous" />
+                    <img src={stampSrc} alt="School stamp" crossOrigin="anonymous" referrerPolicy="no-referrer" />
                   </div>
                 ) : (
                   <div className="rc-stamp">SCHOOL<br />STAMP</div>
@@ -469,12 +473,13 @@ export function ShepherdReportCard({
               <div className="rc-sig-box rc-sig-box-centered">
                 <span className="rc-info-label">{principalName} Signature</span>
                 <div className="rc-sig-area">
-                  {headSignatureUrl ? (
+                  {headSigSrc ? (
                     <img
-                      src={headSignatureUrl}
+                      src={headSigSrc}
                       alt={`${principalName} signature`}
-                      className="rc-sig-img"
                       crossOrigin="anonymous"
+                      referrerPolicy="no-referrer"
+                      className="rc-sig-img"
                     />
                   ) : (
                     <div className="rc-sig-placeholder">___________</div>

@@ -3,6 +3,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { useAuth as useBaseAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveUserSchoolId } from "@/lib/schoolFetch";
 
 export type AppRole = "super_admin" | "school_admin" | "teacher" | "student" | "parent";
 
@@ -34,7 +35,20 @@ export function useAuth() {
       .select("id, full_name, email, avatar_url, school_id")
       .eq("id", uid)
       .maybeSingle();
-    setProfile((data as Profile) ?? null);
+    const schoolId = data?.school_id ?? (await resolveUserSchoolId(uid));
+    setProfile(
+      data
+        ? ({ ...(data as Profile), school_id: schoolId })
+        : schoolId
+          ? ({
+              id: uid,
+              full_name: "",
+              email: null,
+              avatar_url: null,
+              school_id: schoolId,
+            } satisfies Profile)
+          : null,
+    );
   }, []);
 
   useEffect(() => {

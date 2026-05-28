@@ -30,26 +30,26 @@ export function computeShepherdGrade(
 ): { grade: string; remark: string } {
   return computeGrade(total, format);
 }
-/** Shepherd's Heart brand: black, white, visible professional green. */
+/** Report card palette: black & white (school branding via logo/stamp). */
 export const BRAND_COLORS = {
-  /** Main brand green — readable on white (buttons, links, labels). */
-  green: "#1a7a5c",
-  /** Headers, table bars, footer — slightly deeper but clearly green. */
-  greenDark: "#145c47",
-  /** Hover / chart accents */
-  greenLight: "#2a9d75",
+  /** Borders, labels, accents */
+  green: "#171717",
+  /** Header, table head, footer, stat blocks */
+  greenDark: "#000000",
+  /** Secondary accent */
+  greenLight: "#404040",
   white: "#ffffff",
   black: "#171717",
-  mutedBg: "#f4f7f5",
-  border: "rgba(26, 122, 92, 0.28)",
-  shadow: "rgba(20, 92, 71, 0.2)",
-  /** @deprecated use green */
-  navy: "#1a7a5c",
+  mutedBg: "#f5f5f5",
+  border: "rgba(0, 0, 0, 0.22)",
+  shadow: "rgba(0, 0, 0, 0.12)",
+  /** @deprecated use greenDark */
+  navy: "#000000",
 } as const;
 
-/** Report card grade styling — single palette (no per-grade rainbow colors). */
+/** Report card grade styling — black & white. */
 export function gradeStyle(_g?: string) {
-  return { bg: BRAND_COLORS.greenDark, text: BRAND_COLORS.white, bar: BRAND_COLORS.green };
+  return { bg: BRAND_COLORS.greenDark, text: BRAND_COLORS.white, bar: BRAND_COLORS.black };
 }
 
 export function recalcSubject(row: SubjectRow, format: GradingFormat = "letter"): SubjectRow {

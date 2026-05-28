@@ -53,7 +53,7 @@ export async function fetchSchoolHeadSignature(schoolId: string): Promise<string
     .from("user_signatures")
     .select("image_url")
     .eq("school_id", schoolId)
-    .eq("role_kind", "school_admin")
+    .in("role_kind", ["school_admin", "admin"])
     .eq("is_active", true)
     .order("created_at", { ascending: false })
     .limit(1)
