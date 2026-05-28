@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useUserRole } from "@/hooks/useUserRole";
-import { buildAdminNav } from "@/lib/rbac/adminNavConfig";
+import { buildAdminNav, ensurePaymentGatewaysInNav } from "@/lib/rbac/adminNavConfig";
 import { requiredViewPermissionForPath } from "@/lib/rbac/routeGuards";
 import { permissionCode, type PermissionAction } from "@/lib/rbac/permissionCatalog";
 
@@ -10,9 +10,10 @@ import { permissionCode, type PermissionAction } from "@/lib/rbac/permissionCata
 export function usePortalAccess() {
   const location = useLocation();
   const { role } = useUserRole();
-  const { hasPermission, isSuperAdmin, loading } = usePermissions();
+  const { hasPermission, isSuperAdmin, isSchoolAdmin, loading } = usePermissions();
 
   const hasFullAccess = isSuperAdmin || role === "super_admin";
+  const hasAdminNavAccess = hasFullAccess || isSchoolAdmin || role === "admin";
 
   const can = useCallback(
     (code: string) => hasFullAccess || hasPermission(code),
@@ -26,16 +27,26 @@ export function usePortalAccess() {
   );
 
   const navItems = useMemo(() => {
-    if (!hasFullAccess && loading) return [];
-    return buildAdminNav(can);
-  }, [can, hasFullAccess, loading]);
+    if (!hasAdminNavAccess && loading) return [];
+    const built = buildAdminNav(can);
+    if (hasAdminNavAccess || can(permissionCode("billing_payments", "view"))) {
+      return ensurePaymentGatewaysInNav(built);
+    }
+    return built;
+  }, [can, hasAdminNavAccess, loading]);
 
   const canAccessCurrentRoute = useMemo(() => {
-    if (hasFullAccess) return true;
+    if (hasAdminNavAccess) return true;
     const required = requiredViewPermissionForPath(location.pathname);
     if (!required) return true;
+    if (
+      location.pathname.startsWith("/admin/billing/settings/payments") &&
+      can(permissionCode("billing_payments", "view"))
+    ) {
+      return true;
+    }
     return can(required);
-  }, [hasFullAccess, location.pathname, can]);
+  }, [hasAdminNavAccess, location.pathname, can]);
 
   return {
     loading,

@@ -28,6 +28,19 @@ export type LoginResolveResult = {
   role?: string;
 };
 
+function formatAuthRpcError(error: { message?: string; code?: string }, fn: string): string {
+  const msg = error.message ?? "";
+  if (
+    error.code === "PGRST202" ||
+    error.code === "PGRST205" ||
+    msg.includes("schema cache") ||
+    msg.includes(`function public.${fn}`)
+  ) {
+    return `Login database function is not installed. Ask your administrator to run public/sql/apply-auth-login.sql in Supabase SQL Editor, then reload the API schema.`;
+  }
+  return msg || "Request failed.";
+}
+
 export type RegistrationNumberValidation = {
   valid: boolean;
   error?: string;
@@ -123,7 +136,7 @@ export async function resolveStudentByAdmissionNumber(
   });
 
   if (error) {
-    return { valid: false, error: error.message };
+    return { valid: false, error: formatAuthRpcError(error, "resolve_student_by_admission_number") };
   }
 
   return (data ?? { valid: false, error: "Could not verify admission number." }) as StudentAdmissionPreview;
@@ -135,7 +148,7 @@ export async function resolveLoginIdentifier(identifier: string): Promise<LoginR
   });
 
   if (error) {
-    return { ok: false, error: error.message };
+    return { ok: false, error: formatAuthRpcError(error, "resolve_login_identifier") };
   }
 
   return (data ?? { ok: false, error: "Login failed." }) as LoginResolveResult;

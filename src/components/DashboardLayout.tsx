@@ -45,6 +45,7 @@ import { SchoolSwitcher } from "./SchoolSwitcher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SidebarMenuGroup } from "@/components/SidebarMenuGroup";
 import { DynamicAdminSidebarNav } from "@/components/layout/DynamicAdminSidebarNav";
+import { ensurePaymentGatewaysInNav } from "@/lib/rbac/adminNavConfig";
 import { usePortalAccess } from "@/hooks/usePortalAccess";
 import { ADMIN_SHELL_ROLES } from "@/lib/rbac/routeGuards";
 import { toast } from "sonner";
@@ -218,6 +219,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
             { icon: Wallet, label: "Fees", path: "/admin/billing/fees", permission: PERMISSIONS.billing.feeTemplates },
             { icon: DollarSign, label: "Invoices", path: "/admin/billing/invoices", permission: PERMISSIONS.invoices.view },
             { icon: FileText, label: "Payments", path: "/admin/billing/payments", permission: PERMISSIONS.payments.view },
+            { icon: CreditCard, label: "Payment gateways", path: "/admin/billing/settings/payments", permission: PERMISSIONS.payments.view },
             { icon: Users, label: "Paid Students", path: "/admin/billing/paid-students", permission: PERMISSIONS.fees.viewStatus },
             { icon: Users, label: "Outstanding", path: "/admin/billing/outstanding", permission: PERMISSIONS.invoices.view },
             { icon: BarChart3, label: "Reports", path: "/admin/billing/reports", permission: PERMISSIONS.reports.viewFinancial },
@@ -485,7 +487,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
                 </div>
               ) : (
                 <DynamicAdminSidebarNav
-                  items={dynamicNavItems}
+                  items={ensurePaymentGatewaysInNav(dynamicNavItems)}
                   unreadMessages={unreadMessages}
                   navLinkBase={navLinkBase}
                   navLinkActive={navLinkActive}

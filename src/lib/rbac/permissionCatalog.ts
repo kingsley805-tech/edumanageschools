@@ -161,9 +161,17 @@ export function parsePermissionCode(code: string): { moduleKey: string; action: 
 
 export function moduleByPath(path: string): PortalModuleDef | undefined {
   const normalized = path.replace(/\/$/, "") || "/admin";
-  return ALL_PORTAL_MODULES.find(
-    (m) => normalized === m.path || (m.path !== "/admin" && normalized.startsWith(m.path + "/")),
-  );
+  let best: PortalModuleDef | undefined;
+  let bestLen = 0;
+  for (const m of ALL_PORTAL_MODULES) {
+    const matches =
+      normalized === m.path || (m.path !== "/admin" && normalized.startsWith(m.path + "/"));
+    if (matches && m.path.length > bestLen) {
+      best = m;
+      bestLen = m.path.length;
+    }
+  }
+  return best;
 }
 
 export function viewPermissionForPath(path: string): string | null {

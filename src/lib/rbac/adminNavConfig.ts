@@ -81,6 +81,48 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   administration: Shield,
 };
 
+export const PAYMENT_GATEWAYS_NAV_PATH = "/admin/billing/settings/payments";
+
+const PAYMENT_GATEWAYS_NAV_ITEM: AdminNavItem = {
+  label: "Payment gateways",
+  path: PAYMENT_GATEWAYS_NAV_PATH,
+  icon: CreditCard,
+  viewPermission: permissionCode("billing_payment_gateways", "view"),
+};
+
+const FINANCE_MODULE_KEYS_FOR_GATEWAYS = [
+  "billing_payment_gateways",
+  "billing_payments",
+  "billing_fees",
+  "billing_invoices",
+  "billing_overview",
+] as const;
+
+function canShowPaymentGateways(hasPermission: (code: string) => boolean): boolean {
+  return FINANCE_MODULE_KEYS_FOR_GATEWAYS.some((key) =>
+    hasPermission(permissionCode(key, "view")),
+  );
+}
+
+/** Ensures Payment gateways appears under Financial Management when user has any billing access. */
+export function ensurePaymentGatewaysInNav(
+  nav: (AdminNavItem | AdminNavGroup)[],
+): (AdminNavItem | AdminNavGroup)[] {
+  return nav.map((entry) => {
+    if (!("items" in entry) || entry.label !== "Financial Management") return entry;
+    if (entry.items.some((i) => i.path === PAYMENT_GATEWAYS_NAV_PATH)) return entry;
+
+    const items = [...entry.items];
+    const paymentsIdx = items.findIndex((i) => i.path === "/admin/billing/payments");
+    if (paymentsIdx >= 0) {
+      items.splice(paymentsIdx + 1, 0, PAYMENT_GATEWAYS_NAV_ITEM);
+    } else {
+      items.push(PAYMENT_GATEWAYS_NAV_ITEM);
+    }
+    return { ...entry, items };
+  });
+}
+
 export function buildAdminNav(hasPermission: (code: string) => boolean): (AdminNavItem | AdminNavGroup)[] {
   const result: (AdminNavItem | AdminNavGroup)[] = [];
 
@@ -92,8 +134,7 @@ export function buildAdminNav(hasPermission: (code: string) => boolean): (AdminN
       const viewPerm = permissionCode(mod.key, "view");
       const canView =
         hasPermission(viewPerm) ||
-        (mod.key === "billing_payment_gateways" &&
-          hasPermission(permissionCode("billing_payments", "view")));
+        (mod.key === "billing_payment_gateways" && canShowPaymentGateways(hasPermission));
       if (!canView) continue;
       items.push({
         label: mod.label,

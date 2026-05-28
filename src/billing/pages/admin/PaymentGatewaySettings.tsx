@@ -14,7 +14,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useBillingAuth } from "@/billing/hooks/useBillingAuth";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import type { Tables } from "@/integrations/supabase/types";
 import {
   isValidPaystackPublicKey,
   isValidPaystackSecretKey,
@@ -30,22 +29,12 @@ import {
 import { cn } from "@/lib/utils";
 import { invokeEdgeFunction, formatEdgeFunctionError } from "@/lib/invokeEdgeFunction";
 import { PaymentGatewaySchemaAlert } from "@/components/billing/PaymentGatewaySchemaAlert";
+import { PaystackEdgeFunctionAlert } from "@/components/billing/PaystackEdgeFunctionAlert";
 import { isPaymentGatewaySchemaAvailable } from "@/lib/billing/gatewayAvailability";
-
-type GatewayConfigRow = Tables<"tenant_payment_gateway_configs"> & {
-  secret_key?: string;
-  webhook_secret?: string;
-  has_encrypted_secrets?: boolean;
-  /** True when DB holds a secret even if `secret_key` is not returned to the client. */
-  secret_key_is_stored?: boolean;
-};
-
-async function invokePaystackGatewayList(): Promise<GatewayConfigRow[]> {
-  const body = await invokeEdgeFunction<{ gateways?: GatewayConfigRow[] }>("paystack", {
-    action: "gateway-list",
-  });
-  return body.gateways ?? [];
-}
+import {
+  fetchPaymentGatewayConfigs,
+  type GatewayConfigRow,
+} from "@/billing/lib/paymentGatewayApi";
 
 const WEBHOOK_PATH = "/functions/v1/paystack/webhook";
 /** Autosave debounce after typing stops (payment API keys). */
@@ -84,18 +73,22 @@ export default function PaymentGatewaySettings() {
   const defaultCallbackUrl = `${window.location.origin}/student/billing`;
 
   const {
-    data: configs = [],
+    data: gatewayQuery,
     isLoading: loadingConfigs,
     error: gatewaysLoadError,
   } = useQuery({
     queryKey: ["tenant-payment-gateways", schoolId],
     queryFn: async () => {
-      if (!schoolId) return [];
-      return invokePaystackGatewayList();
+      if (!schoolId) return { gateways: [], edgeFunctionAvailable: true };
+      return fetchPaymentGatewayConfigs(schoolId);
     },
     enabled: !!schoolId && canManage,
     retry: 1,
   });
+
+  const configs = gatewayQuery?.gateways ?? [];
+  const edgeFunctionAvailable = gatewayQuery?.edgeFunctionAvailable !== false;
+  const edgeFunctionWarning = gatewayQuery?.edgeFunctionWarning;
 
   const paystackConfig = useMemo(() => configs.find((c) => c.provider === "paystack") ?? null, [configs]);
 
@@ -264,6 +257,12 @@ export default function PaymentGatewaySettings() {
     async (opts?: { silent?: boolean }) => {
       const s = saveSnapshotRef.current;
       if (loadingConfigs || !s.user || !s.canManage) return;
+      if (!edgeFunctionAvailable) {
+        if (!opts?.silent) {
+          toast.error("Deploy the paystack Edge Function before saving keys.");
+        }
+        return;
+      }
       const pk = s.publicKey.trim();
       if (!pk) return;
       if (!isValidPaystackPublicKey(pk)) {
@@ -314,7 +313,7 @@ export default function PaymentGatewaySettings() {
         setSaving(false);
       }
     },
-    [loadingConfigs, qc, schoolId],
+    [loadingConfigs, qc, schoolId, edgeFunctionAvailable],
   );
 
   const schedulePaystackAutosave = useCallback(() => {
@@ -343,6 +342,10 @@ export default function PaymentGatewaySettings() {
 
   const testPaystack = async () => {
     if (!user || !canManage) return;
+    if (!edgeFunctionAvailable) {
+      toast.error("Deploy the paystack Edge Function before testing credentials.");
+      return;
+    }
     setTesting(true);
     try {
       const payload: Record<string, unknown> = {
@@ -409,11 +412,15 @@ export default function PaymentGatewaySettings() {
         <PaymentGatewaySchemaAlert onRecheck={() => void isPaymentGatewaySchemaAvailable().then(setSchemaOk)} />
       ) : null}
 
+      {!edgeFunctionAvailable ? (
+        <PaystackEdgeFunctionAlert detail={edgeFunctionWarning} />
+      ) : null}
+
       {gatewaysLoadError instanceof Error ? (
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">
-          <p className="font-medium text-destructive">Could not load saved payment keys</p>
+          <p className="font-medium text-destructive">Could not load payment gateway settings</p>
           <p className="mt-1 whitespace-pre-wrap text-destructive/90">
-            {formatEdgeFunctionError(gatewaysLoadError, "paystack")}
+            {gatewaysLoadError instanceof Error ? gatewaysLoadError.message : "Unknown error"}
           </p>
         </div>
       ) : null}

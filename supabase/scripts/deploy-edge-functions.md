@@ -1,31 +1,58 @@
 # Deploy Edge Functions (Supabase)
 
 The app calls Edge Functions for Paystack payments, user provisioning, etc.  
-If you see **"Failed to send a request to the Edge Function"**, the function is not deployed (or not reachable) on your project.
+If you see **"The paystack Edge Function is not reachable"**, the function is not deployed on your project yet.
 
-## One-time setup
+## Required for Payment gateways page
+
+| Secret | Purpose |
+|--------|---------|
+| `PAYMENT_SECRETS_ENCRYPTION_KEY` | Encrypt/decrypt school Paystack secret keys (base64-encoded 32 random bytes) |
+| `SUPABASE_URL` | Usually auto-injected by Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Usually auto-injected by Supabase |
+
+Generate encryption key (run once, save the output):
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+## Option A — Supabase CLI (recommended)
 
 1. Install [Supabase CLI](https://supabase.com/docs/guides/cli) and log in:
    ```bash
    supabase login
    ```
 
-2. Link your project (replace with your project ref):
+2. Link your project:
    ```bash
    cd school-hub
    supabase link --project-ref xbhhpjtwawfawifhpxbe
    ```
 
-3. Deploy all functions:
+3. Deploy Paystack (required for gateway settings + online fees):
    ```bash
    supabase functions deploy paystack
-   supabase functions deploy create-user-account
-   supabase functions deploy delete-user-account
-   supabase functions deploy create-payment-intent
-   supabase functions deploy send-contact-email
-   supabase functions deploy stripe-webhook
-   supabase functions deploy billing-process-job
    ```
+
+4. Set secrets:
+   ```bash
+   supabase secrets set PAYMENT_SECRETS_ENCRYPTION_KEY=PASTE_YOUR_BASE64_KEY_HERE
+   ```
+
+5. Deploy other functions (optional):
+   ```bash
+   npm run functions:deploy
+   ```
+
+If deploy returns **403**, your Supabase account may not have deploy access on this project. Use **Option B** or ask the project owner to deploy.
+
+## Option B — Supabase Dashboard
+
+1. Open [Edge Functions](https://supabase.com/dashboard/project/xbhhpjtwawfawifhpxbe/functions) for the project.
+2. Deploy or redeploy function **`paystack`** from this repo: `supabase/functions/paystack/index.ts`.
+3. Open **Secrets** for the project and add `PAYMENT_SECRETS_ENCRYPTION_KEY` (same value you will use when saving keys in the app).
+4. Confirm the function status is **Active**.
 
 ## Database (payment gateway tables)
 
