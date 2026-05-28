@@ -9,7 +9,10 @@ import {
   Calendar,
   DollarSign,
   LogOut,
-  Menu,
+  PanelLeft,
+  PanelRight,
+  Copy,
+  Check,
   UserCircle,
   FileText,
   Award,
@@ -43,6 +46,7 @@ import { SidebarMenuGroup } from "@/components/SidebarMenuGroup";
 import { DynamicAdminSidebarNav } from "@/components/layout/DynamicAdminSidebarNav";
 import { usePortalAccess } from "@/hooks/usePortalAccess";
 import { ADMIN_SHELL_ROLES } from "@/lib/rbac/routeGuards";
+import { toast } from "sonner";
 
 type MenuLinkDef = {
   icon: typeof LayoutDashboard;
@@ -65,6 +69,7 @@ interface DashboardLayoutProps {
 const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayoutProps) => {
   const { signOut, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false); // Start closed on mobile
+  const [schoolCodeCopied, setSchoolCodeCopied] = useState(false);
   const unreadMessages = useUnreadMessages();
   const { currentSchool } = useSchoolInfo();
   const { role: userRole } = useUserRole();
@@ -414,6 +419,19 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
     await signOut();
   };
 
+  const handleCopySchoolCode = async () => {
+    const code = currentSchool?.school_code?.trim();
+    if (!code) return;
+    try {
+      await navigator.clipboard.writeText(code);
+      setSchoolCodeCopied(true);
+      toast.success("School code copied");
+      window.setTimeout(() => setSchoolCodeCopied(false), 2000);
+    } catch {
+      toast.error("Could not copy school code");
+    }
+  };
+
   /** Flat sidebar nav — no pill backgrounds */
   const navLinkBase =
     "group flex items-center gap-3 border-l-2 border-transparent py-2.5 pl-3 pr-2 text-sm text-sidebar-foreground/85 transition-colors hover:text-sidebar-foreground";
@@ -432,21 +450,6 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
 
   return (
     <div className="min-h-screen bg-background relative">
-      {/* Watermark overlay - covers entire viewport behind all content */}
-      {currentSchool?.logo_url && !hideSidebar && (
-        <div 
-          className="fixed inset-0 pointer-events-none hidden md:block"
-          style={{
-            backgroundImage: `url(${currentSchool.logo_url})`,
-            backgroundSize: '400px 400px',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-            opacity: 0.15,
-            zIndex: 0,
-          }}
-        />
-      )}
-      
       {/* Mobile overlay */}
       {sidebarOpen && !hideSidebar && (
         <div 
@@ -547,14 +550,46 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
         {/* Top Bar */}
         <header className={`sticky top-0 z-30 flex h-14 md:h-16 items-center gap-2 md:gap-4 border-b bg-background/95 backdrop-blur px-3 md:px-6 ${hideSidebar ? "justify-end" : ""}`}>
           {!hideSidebar && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="bg-background/80 hover:bg-primary/10 border border-border/50"
-            >
-              <Menu className="h-5 w-5 text-foreground" />
-            </Button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="h-9 w-9 rounded-lg bg-muted/50 hover:bg-muted border border-border/60"
+                aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+              >
+                {sidebarOpen ? (
+                  <PanelRight className="h-[18px] w-[18px] text-foreground/80" />
+                ) : (
+                  <PanelLeft className="h-[18px] w-[18px] text-foreground/80" />
+                )}
+              </Button>
+              {currentSchool?.school_code && (
+                <div className="flex items-center gap-0.5 rounded-lg border border-border/60 bg-muted/30 pl-2.5 pr-0.5 h-9">
+                  <span className="text-xs font-medium text-muted-foreground hidden sm:inline">
+                    Code
+                  </span>
+                  <span className="text-xs font-mono font-semibold text-foreground px-1 sm:px-1.5 max-w-[100px] truncate sm:max-w-none">
+                    {currentSchool.school_code}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 hover:bg-background/80"
+                    onClick={handleCopySchoolCode}
+                    aria-label="Copy school code"
+                    title="Copy school code"
+                  >
+                    {schoolCodeCopied ? (
+                      <Check className="h-3.5 w-3.5 text-primary" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
           
           {!hideSidebar && (
@@ -573,11 +608,6 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
                   )}
                   <div className="flex items-center gap-1 md:gap-2 min-w-0">
                     <h1 className="text-base md:text-xl font-bold truncate">{currentSchool.school_name}</h1>
-                    {currentSchool.school_code && (
-                      <span className="text-xs md:text-sm text-muted-foreground font-medium hidden sm:inline">
-                        ({currentSchool.school_code})
-                      </span>
-                    )}
                   </div>
                   <span className="text-muted-foreground hidden sm:inline">-</span>
                   <h2 className="text-sm md:text-lg font-semibold hidden sm:block">
