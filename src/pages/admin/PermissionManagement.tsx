@@ -70,6 +70,7 @@ interface StaffUser {
   portal_role: string;
   employee_no: string | null;
   avatar_url: string | null;
+  rbac_role_id: string | null;
   rbac_role_name: string | null;
 }
 
@@ -91,6 +92,7 @@ export default function PermissionManagement() {
   const [moduleSearch, setModuleSearch] = useState("");
   const [newRoleName, setNewRoleName] = useState("");
   const [staff, setStaff] = useState<StaffUser[]>([]);
+  const [selectedTeacherId, setSelectedTeacherId] = useState("");
   const [assignUserId, setAssignUserId] = useState("");
   const [assignRoleId, setAssignRoleId] = useState("");
   const [deleteRoleOpen, setDeleteRoleOpen] = useState(false);
@@ -133,7 +135,7 @@ export default function PermissionManagement() {
       setStaff([]);
       return;
     }
-    let rbacMap = new Map<string, string | null>();
+    let rbacMap = new Map<string, { roleId: string | null; roleName: string | null }>();
     if (await isRbacAvailable()) {
       const { data: assignments } = await supabase
         .from("user_role_assignments")
@@ -143,7 +145,10 @@ export default function PermissionManagement() {
       rbacMap = new Map(
         (assignments ?? []).map((a) => [
           a.user_id,
-          (a.roles as { name: string } | null)?.name ?? null,
+          {
+            roleId: a.role_id ?? null,
+            roleName: (a.roles as { name: string } | null)?.name ?? null,
+          },
         ]),
       );
     }
@@ -155,10 +160,33 @@ export default function PermissionManagement() {
         portal_role: p.portal_role,
         employee_no: p.employee_no,
         avatar_url: p.avatar_url,
-        rbac_role_name: rbacMap.get(p.id) ?? null,
+        rbac_role_id: rbacMap.get(p.id)?.roleId ?? null,
+        rbac_role_name: rbacMap.get(p.id)?.roleName ?? null,
       })),
     );
   }, [schoolId]);
+
+  useEffect(() => {
+    if (!teacherStaff.length) {
+      setSelectedTeacherId("");
+      return;
+    }
+    setSelectedTeacherId((current) =>
+      current && teacherStaff.some((t) => t.id === current) ? current : teacherStaff[0].id,
+    );
+  }, [teacherStaff]);
+
+  useEffect(() => {
+    const teacher = teacherStaff.find((t) => t.id === selectedTeacherId);
+    if (!teacher) return;
+    if (teacher.rbac_role_id && roles.some((r) => r.id === teacher.rbac_role_id)) {
+      setSelectedRoleId(teacher.rbac_role_id);
+      return;
+    }
+    const fallbackRole =
+      roles.find((r) => r.slug === "teacher") ?? roles.find((r) => r.slug !== "super_admin");
+    if (fallbackRole) setSelectedRoleId(fallbackRole.id);
+  }, [selectedTeacherId, teacherStaff, roles]);
 
   const loadRoles = useCallback(async () => {
     const [roleRows, idMap] = await Promise.all([fetchRoles(schoolId), fetchPermissionIdMap()]);
@@ -328,19 +356,17 @@ export default function PermissionManagement() {
     setDirty(true);
   };
 
-  const roleSelect = (
-    <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
-      <SelectTrigger className="rp-select-trigger h-8 min-w-[140px] border-[#2a2a2a] bg-[#1c1c1c] text-[#fafafa] shadow-none focus:ring-0 focus:ring-offset-0 rounded-md text-sm font-medium">
-        <SelectValue placeholder="Select role" />
-      </SelectTrigger>
-      <SelectContent className="bg-[#1c1c1c] border-[#2a2a2a] text-[#fafafa]">
-        {assignableRoles.map((r) => (
-          <SelectItem key={r.id} value={r.id} className="focus:bg-[#262626] focus:text-white">
-            {r.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+  const roleSelect = teacherStaff.length ? (
+    <TeacherCombobox
+      teachers={teacherStaff}
+      value={selectedTeacherId}
+      onChange={setSelectedTeacherId}
+      placeholder="Select teacher"
+    />
+  ) : (
+    <div className="rounded-md border border-[#2a2a2a] bg-[#1c1c1c] px-3 py-2 text-sm text-[#a3a3a3]">
+      No teachers found
+    </div>
   );
 
   if (loading) {
@@ -390,6 +416,7 @@ export default function PermissionManagement() {
                 }}
                 search={moduleSearch}
                 onSearchChange={setModuleSearch}
+                controlLabel="Teacher"
                 readOnly={matrixReadOnly}
                 roleControl={roleSelect}
                 dirty={dirty}

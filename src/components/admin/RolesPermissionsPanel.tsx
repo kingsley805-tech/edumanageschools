@@ -16,6 +16,7 @@ export type RolesPermissionsPanelProps = {
   onChange: (next: Set<string>) => void;
   search: string;
   onSearchChange: (value: string) => void;
+  controlLabel?: string;
   readOnly?: boolean;
   onFullAccess?: () => void;
   onRevokeFullAccess?: () => void;
@@ -52,6 +53,7 @@ export function RolesPermissionsPanel({
   onChange,
   search,
   onSearchChange,
+  controlLabel = "Role",
   readOnly = false,
   onFullAccess,
   onRevokeFullAccess,
@@ -106,7 +108,7 @@ export function RolesPermissionsPanel({
       {/* Panel 1: control bar (separate rounded box) */}
       <div className="rp-control-panel">
         <div className="rp-control-left">
-          <span className="rp-role-label">Role</span>
+          <span className="rp-role-label">{controlLabel}</span>
           {roleControl}
           {onFullAccess && (
             <button
