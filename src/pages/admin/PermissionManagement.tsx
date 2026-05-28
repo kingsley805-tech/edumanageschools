@@ -67,6 +67,7 @@ interface StaffUser {
   full_name: string;
   email: string;
   portal_role: string;
+  employee_no: string | null;
   rbac_role_name: string | null;
 }
 
@@ -101,6 +102,10 @@ export default function PermissionManagement() {
   const assignableRoles = useMemo(
     () => roles.filter((r) => r.slug !== "super_admin"),
     [roles],
+  );
+  const teacherStaff = useMemo(
+    () => staff.filter((s) => s.portal_role === "teacher"),
+    [staff],
   );
 
   const filteredModuleCodes = useMemo(() => {
@@ -143,6 +148,7 @@ export default function PermissionManagement() {
         full_name: p.full_name,
         email: p.email,
         portal_role: p.portal_role,
+        employee_no: p.employee_no,
         rbac_role_name: rbacMap.get(p.id) ?? null,
       })),
     );
@@ -418,24 +424,30 @@ export default function PermissionManagement() {
                     <SheetHeader>
                       <SheetTitle className="text-white">Assign role to staff</SheetTitle>
                       <SheetDescription className="text-[#a3a3a3]">
-                        Link this matrix role to teacher, accountant, or auditor accounts.
+                        Link this matrix role to teachers in your school.
                       </SheetDescription>
                     </SheetHeader>
                     <div className="mt-6 space-y-4">
                       <div className="space-y-2">
-                        <Label className="text-[#fafafa]">Staff member</Label>
+                        <Label className="text-[#fafafa]">Teacher</Label>
                         <Select value={assignUserId} onValueChange={setAssignUserId}>
                           <SelectTrigger className="bg-[#1c1c1c] border-[#2a2a2a]">
-                            <SelectValue placeholder="Select staff" />
+                            <SelectValue placeholder="Select teacher" />
                           </SelectTrigger>
                           <SelectContent>
-                            {staff.map((s) => (
+                            {teacherStaff.map((s) => (
                               <SelectItem key={s.id} value={s.id}>
-                                {s.full_name} ({s.portal_role})
+                                {s.full_name}
+                                {s.employee_no ? ` (${s.employee_no})` : ""}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
+                        {teacherStaff.length === 0 && (
+                          <p className="text-xs text-[#a3a3a3]">
+                            No teacher accounts found in this school yet.
+                          </p>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label className="text-[#fafafa]">RBAC role</Label>
@@ -458,12 +470,12 @@ export default function PermissionManagement() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Name</TableHead>
+                            <TableHead>Teacher</TableHead>
                             <TableHead>RBAC role</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {staff.map((s) => (
+                          {teacherStaff.map((s) => (
                             <TableRow key={s.id}>
                               <TableCell>{s.full_name}</TableCell>
                               <TableCell>{s.rbac_role_name ?? "—"}</TableCell>

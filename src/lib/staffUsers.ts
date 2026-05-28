@@ -13,6 +13,7 @@ export type StaffPortalUser = {
   full_name: string;
   email: string;
   portal_role: StaffPortalRole | string;
+  employee_no: string | null;
 };
 
 /**
@@ -28,9 +29,14 @@ export async function fetchStaffPortalUsers(schoolId: string): Promise<StaffPort
   const ids = (profiles ?? []).map((p) => p.id);
   if (!ids.length) return [];
 
-  const [{ data: allPortalRoles }, { data: studentRows }] = await Promise.all([
+  const [{ data: allPortalRoles }, { data: studentRows }, { data: teacherRows }] = await Promise.all([
     supabase.from("user_roles").select("user_id, role").in("user_id", ids),
     supabase.from("students").select("user_id").eq("school_id", schoolId).not("user_id", "is", null),
+    supabase
+      .from("teachers")
+      .select("user_id, employee_no")
+      .eq("school_id", schoolId)
+      .not("user_id", "is", null),
   ]);
 
   const portalRoles = (allPortalRoles ?? []).filter((r) =>
@@ -50,6 +56,12 @@ export async function fetchStaffPortalUsers(schoolId: string): Promise<StaffPort
     staffByUser.set(row.user_id, row.role as StaffPortalRole);
   }
 
+  const employeeNoByUser = new Map<string, string>();
+  for (const row of teacherRows ?? []) {
+    if (!row.user_id || !row.employee_no) continue;
+    employeeNoByUser.set(row.user_id, row.employee_no);
+  }
+
   return (profiles ?? [])
     .filter((p) => staffByUser.has(p.id))
     .map((p) => ({
@@ -57,6 +69,7 @@ export async function fetchStaffPortalUsers(schoolId: string): Promise<StaffPort
       full_name: p.full_name ?? "—",
       email: p.email ?? "",
       portal_role: staffByUser.get(p.id)!,
+      employee_no: employeeNoByUser.get(p.id) ?? null,
     }));
 }
 
