@@ -24,7 +24,8 @@ export function isMissingTableError(error: { code?: string; message?: string } |
         msg.includes("academic_years") ||
         msg.includes("academic_year") ||
         msg.includes("billing_invoices") ||
-        msg.includes("billing_invoice")))
+        msg.includes("billing_invoice") ||
+        msg.includes("tenant_payment_gateway")))
   );
 }
 

@@ -33,6 +33,7 @@ import { PaystackEdgeFunctionAlert } from "@/components/billing/PaystackEdgeFunc
 import { isPaymentGatewaySchemaAvailable } from "@/lib/billing/gatewayAvailability";
 import {
   fetchPaymentGatewayConfigs,
+  upsertPaystackGatewayDirect,
   type GatewayConfigRow,
 } from "@/billing/lib/paymentGatewayApi";
 
@@ -89,6 +90,7 @@ export default function PaymentGatewaySettings() {
   const configs = gatewayQuery?.gateways ?? [];
   const edgeFunctionAvailable = gatewayQuery?.edgeFunctionAvailable !== false;
   const edgeFunctionWarning = gatewayQuery?.edgeFunctionWarning;
+  const gatewayDbSchemaMissing = gatewayQuery?.dbSchemaMissing === true;
 
   const paystackConfig = useMemo(() => configs.find((c) => c.provider === "paystack") ?? null, [configs]);
 
@@ -257,12 +259,6 @@ export default function PaymentGatewaySettings() {
     async (opts?: { silent?: boolean }) => {
       const s = saveSnapshotRef.current;
       if (loadingConfigs || !s.user || !s.canManage) return;
-      if (!edgeFunctionAvailable) {
-        if (!opts?.silent) {
-          toast.error("Deploy the paystack Edge Function before saving keys.");
-        }
-        return;
-      }
       const pk = s.publicKey.trim();
       if (!pk) return;
       if (!isValidPaystackPublicKey(pk)) {
@@ -277,38 +273,60 @@ export default function PaymentGatewaySettings() {
 
       setSaving(true);
       try {
-        const payload: Record<string, unknown> = {
-          action: "gateway-upsert",
-          provider: "paystack",
-          is_enabled: s.isEnabled,
-          is_test_mode: s.isTestMode,
-          is_default: s.isDefault,
-          public_key: pk,
-          merchant_email: s.merchantEmail.trim() || null,
-          callback_url: s.callbackUrl.trim() || null,
-        };
-        if (s.paystackConfigId) payload.id = s.paystackConfigId;
-        if (skTrim && secretFormatOk) payload.secret_key = skTrim;
-        if (s.webhookSecret.trim()) payload.webhook_secret = s.webhookSecret.trim();
+        if (!schoolId) throw new Error("School not found");
 
-        await invokeEdgeFunction("paystack", payload);
+        if (edgeFunctionAvailable) {
+          const payload: Record<string, unknown> = {
+            action: "gateway-upsert",
+            provider: "paystack",
+            is_enabled: s.isEnabled,
+            is_test_mode: s.isTestMode,
+            is_default: s.isDefault,
+            public_key: pk,
+            merchant_email: s.merchantEmail.trim() || null,
+            callback_url: s.callbackUrl.trim() || null,
+          };
+          if (s.paystackConfigId) payload.id = s.paystackConfigId;
+          if (skTrim && secretFormatOk) payload.secret_key = skTrim;
+          if (s.webhookSecret.trim()) payload.webhook_secret = s.webhookSecret.trim();
+          await invokeEdgeFunction("paystack", payload);
+        } else {
+          await upsertPaystackGatewayDirect(schoolId, {
+            id: s.paystackConfigId,
+            is_enabled: s.isEnabled,
+            is_test_mode: s.isTestMode,
+            is_default: s.isDefault,
+            public_key: pk,
+            merchant_email: s.merchantEmail.trim() || null,
+            callback_url: s.callbackUrl.trim() || null,
+            secret_key: skTrim && secretFormatOk ? skTrim : undefined,
+          });
+          if (!opts?.silent && skTrim && secretFormatOk) {
+            toast.message("Saved without Edge Function", {
+              description: "Deploy paystack for encrypted secrets and connection test.",
+            });
+          }
+        }
 
-        if (schoolId && s.currency.trim()) {
+        if (s.currency.trim()) {
           await supabase.from("schools").update({ currency: s.currency.trim() }).eq("id", schoolId);
         }
 
-        if (schoolId) {
-          await qc.refetchQueries({ queryKey: ["tenant-payment-gateways", schoolId] });
-          if (skTrim && secretFormatOk) {
-            setPaystackSecretInSession(schoolId, skTrim);
-            markPaystackSecretSavedAckInSession(schoolId);
-            setSessionSecretTick((t) => t + 1);
-          }
+        await qc.refetchQueries({ queryKey: ["tenant-payment-gateways", schoolId] });
+        if (skTrim && secretFormatOk) {
+          setPaystackSecretInSession(schoolId, skTrim);
+          markPaystackSecretSavedAckInSession(schoolId);
+          setSessionSecretTick((t) => t + 1);
         }
         if (!opts?.silent) toast.success("Paystack settings saved");
         else toast.success("Saved", { duration: 2000 });
       } catch (e) {
-        toast.error(formatEdgeFunctionError(e, "paystack"));
+        const msg = e instanceof Error ? e.message : "Save failed";
+        if (msg.includes("policy") || msg.includes("PGRST") || msg.includes("permission")) {
+          toast.error("Run apply-payment-gateway.sql in Supabase, then reload schema.");
+        } else {
+          toast.error(edgeFunctionAvailable ? formatEdgeFunctionError(e, "paystack") : msg);
+        }
       } finally {
         setSaving(false);
       }
@@ -408,20 +426,18 @@ export default function PaymentGatewaySettings() {
         </div>
       </div>
 
-      {schemaOk === false ? (
+      {schemaOk === false || gatewayDbSchemaMissing ? (
         <PaymentGatewaySchemaAlert onRecheck={() => void isPaymentGatewaySchemaAvailable().then(setSchemaOk)} />
       ) : null}
 
-      {!edgeFunctionAvailable ? (
+      {!edgeFunctionAvailable && !gatewayDbSchemaMissing ? (
         <PaystackEdgeFunctionAlert detail={edgeFunctionWarning} />
       ) : null}
 
-      {gatewaysLoadError instanceof Error ? (
+      {gatewaysLoadError instanceof Error && !gatewayQuery ? (
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">
           <p className="font-medium text-destructive">Could not load payment gateway settings</p>
-          <p className="mt-1 whitespace-pre-wrap text-destructive/90">
-            {gatewaysLoadError instanceof Error ? gatewaysLoadError.message : "Unknown error"}
-          </p>
+          <p className="mt-1 whitespace-pre-wrap text-destructive/90">{gatewaysLoadError.message}</p>
         </div>
       ) : null}
 
