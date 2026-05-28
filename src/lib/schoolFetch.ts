@@ -48,15 +48,26 @@ export async function resolveUserSchoolId(userId: string): Promise<string | null
   return superRow?.school_id ?? null;
 }
 
-function isMissingColumnError(error: { message?: string; code?: string } | null): boolean {
+/** True when PostgREST/Postgres reports an unknown or unavailable column (pre-migration). */
+export function isSchemaColumnError(
+  error: { message?: string; code?: string; details?: string; hint?: string } | null
+): boolean {
   if (!error) return false;
-  const msg = (error.message ?? "").toLowerCase();
+  const msg = `${error.message ?? ""} ${error.details ?? ""} ${error.hint ?? ""}`.toLowerCase();
   return (
     error.code === "42703" ||
-    msg.includes("column") ||
-    msg.includes("does not exist") ||
-    msg.includes("schema cache")
+    error.code === "PGRST204" ||
+    msg.includes("schema cache") ||
+    (msg.includes("column") &&
+      (msg.includes("does not exist") ||
+        msg.includes("could not find") ||
+        msg.includes("not found")))
   );
+}
+
+/** @deprecated use isSchemaColumnError */
+function isMissingColumnError(error: { message?: string; code?: string; details?: string } | null): boolean {
+  return isSchemaColumnError(error);
 }
 
 /** Load school row with fallback when optional theme/branding columns are not migrated yet. */
@@ -75,7 +86,33 @@ export async function fetchSchoolById(schoolId: string): Promise<SchoolRow | nul
   }
 
   if (result.error) throw result.error;
-  return (result.data as SchoolRow | null) ?? null;
+  const row = result.data as SchoolRow | null;
+  if (row && !row.admission_prefix && row.school_code) {
+    row.admission_prefix = row.school_code;
+  }
+  return row;
+}
+
+/** School prefix for admission numbers — falls back to school_code if column not migrated. */
+export async function fetchSchoolPrefixById(schoolId: string): Promise<string> {
+  let result = await supabase
+    .from("schools")
+    .select("admission_prefix, school_code")
+    .eq("id", schoolId)
+    .maybeSingle();
+
+  if (isSchemaColumnError(result.error)) {
+    result = await supabase.from("schools").select("school_code").eq("id", schoolId).maybeSingle();
+  }
+
+  if (result.error) throw result.error;
+  if (!result.data?.school_code) throw new Error("School not found");
+
+  const prefix =
+    ("admission_prefix" in result.data && result.data.admission_prefix?.trim()) ||
+    result.data.school_code?.trim();
+  if (!prefix) throw new Error("School admission prefix is not configured");
+  return prefix.toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
 export async function fetchSchoolForUser(userId: string): Promise<SchoolRow | null> {

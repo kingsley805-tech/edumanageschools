@@ -11,7 +11,11 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useSchoolTheme } from "@/contexts/SchoolThemeContext";
 import { SchoolBrandColorPicker } from "@/components/SchoolBrandColorPicker";
 import { BRAND_DEFAULTS, parseSchoolBrand, type BrandColors } from "@/lib/themeColors";
-import { fetchSchoolForUser, resolveUserSchoolId } from "@/lib/schoolFetch";
+import {
+  fetchSchoolForUser,
+  resolveUserSchoolId,
+  isSchemaColumnError,
+} from "@/lib/schoolFetch";
 import { formatExample } from "@/lib/admission-numbers";
 import { Upload, Building, Image, Save, Loader2, Palette } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -154,16 +158,32 @@ const SchoolSettings = () => {
         return;
       }
 
-      const { error } = await supabase
+      let prefixSaved = true;
+      let { error } = await supabase
         .from("schools")
         .update({ school_name: schoolName, admission_prefix: prefix })
         .eq("id", school.id);
+
+      if (isSchemaColumnError(error)) {
+        prefixSaved = false;
+        const nameOnly = await supabase
+          .from("schools")
+          .update({ school_name: schoolName })
+          .eq("id", school.id);
+        error = nameOnly.error;
+      }
 
       if (error) throw error;
 
       setSchool({ ...school, school_name: schoolName, admission_prefix: prefix });
       setAdmissionPrefix(prefix);
-      toast.success("School settings saved successfully");
+      if (prefixSaved) {
+        toast.success("School settings saved successfully");
+      } else {
+        toast.warning(
+          "School name saved. Run supabase/scripts/apply-admission-prefix.sql in Supabase to enable custom admission prefixes."
+        );
+      }
     } catch (error: unknown) {
       console.error("Error saving settings:", error);
       toast.error("Failed to save settings");

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchSchoolPrefixById as fetchSchoolPrefixFromDb, isSchemaColumnError } from "@/lib/schoolFetch";
 
 /** Role segment in admission numbers (MINGO-Stu-2026-001) */
 export type AdmissionRoleCode = "Stu" | "Tea" | "Par" | "Adm";
@@ -146,13 +147,7 @@ export async function getNextSequenceNumber(
 }
 
 export async function fetchSchoolPrefixById(schoolId: string): Promise<string> {
-  const { data, error } = await supabase
-    .from("schools")
-    .select("admission_prefix, school_code")
-    .eq("id", schoolId)
-    .single();
-  if (error || !data) throw new Error("School not found");
-  return getSchoolPrefix(data);
+  return fetchSchoolPrefixFromDb(schoolId);
 }
 
 export async function resolveSchoolIdFromAdmissionNumber(
@@ -161,26 +156,45 @@ export async function resolveSchoolIdFromAdmissionNumber(
   const parsed = parseAdmissionNumber(admissionNumber);
   if (!parsed?.schoolPrefix) return null;
 
-  const { data } = await supabase
+  const prefixQuery = await supabase
     .from("schools")
     .select("id, admission_prefix, school_code")
     .eq("admission_prefix", parsed.schoolPrefix)
     .eq("is_active", true)
     .maybeSingle();
 
-  if (data) {
-    return { schoolId: data.id, schoolPrefix: getSchoolPrefix(data) };
+  if (!isSchemaColumnError(prefixQuery.error) && prefixQuery.data) {
+    return {
+      schoolId: prefixQuery.data.id,
+      schoolPrefix: getSchoolPrefix(prefixQuery.data),
+    };
   }
 
-  const { data: byCode } = await supabase
+  const codeQuery = await supabase
     .from("schools")
-    .select("id, admission_prefix, school_code")
+    .select("id, school_code, admission_prefix")
     .eq("school_code", parsed.schoolPrefix)
     .eq("is_active", true)
     .maybeSingle();
 
-  if (byCode) {
-    return { schoolId: byCode.id, schoolPrefix: getSchoolPrefix(byCode) };
+  if (isSchemaColumnError(codeQuery.error)) {
+    const fallback = await supabase
+      .from("schools")
+      .select("id, school_code")
+      .eq("school_code", parsed.schoolPrefix)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (fallback.data) {
+      return {
+        schoolId: fallback.data.id,
+        schoolPrefix: getSchoolPrefix({ school_code: fallback.data.school_code }),
+      };
+    }
+  } else if (codeQuery.data) {
+    return {
+      schoolId: codeQuery.data.id,
+      schoolPrefix: getSchoolPrefix(codeQuery.data),
+    };
   }
 
   return null;
