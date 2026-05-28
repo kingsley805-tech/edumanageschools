@@ -4,6 +4,7 @@ import { ALL_PORTAL_MODULES, viewPermissionForPath } from "@/lib/rbac/permission
 const ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {};
 
 for (const mod of ALL_PORTAL_MODULES) {
+  if (!mod.path.startsWith("/admin") && mod.path !== "/settings") continue;
   ADMIN_ROUTE_PERMISSIONS[mod.path] = viewPermissionForPath(mod.path) ?? `portal.${mod.key}.view`;
 }
 

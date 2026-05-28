@@ -85,6 +85,8 @@ export function buildAdminNav(hasPermission: (code: string) => boolean): (AdminN
   for (const category of PORTAL_CATEGORIES) {
     const items: AdminNavItem[] = [];
     for (const mod of category.modules) {
+      // Teacher-only routes belong in the teacher shell, not the admin sidebar.
+      if (!mod.path.startsWith("/admin") && mod.path !== "/settings") continue;
       const viewPerm = permissionCode(mod.key, "view");
       if (!hasPermission(viewPerm)) continue;
       items.push({
