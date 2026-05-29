@@ -1,5 +1,6 @@
 // @ts-nocheck
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -8,9 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { Printer, Save, Send } from "lucide-react";
+import { DailyRegisterTable } from "@/register/components/DailyRegisterTable";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   createRegister,
@@ -23,6 +24,7 @@ import {
   fetchTeacherAssignments,
   fetchTeacherId,
   fetchTerms,
+  finalizeRegisterSubmission,
   getRegister,
   saveRegisterEntries,
   saveRegisterHeader,
@@ -132,24 +134,42 @@ export default function TeacherRegisterEditor() {
     });
   }, [classId, isNew]);
 
+  const effectiveTeacherId = isAdminRoute ? selectedTeacherId : teacherId;
+
+  const readOnly =
+    register?.locked || register?.status === "approved" || (register?.status === "submitted" && !isAdminRoute);
+
   const displayStudents = register?.entries?.length
     ? register.entries.map((e) => ({
         id: e.student_id,
         admission_no: e.students?.admission_no,
+        gender: (e.students as { gender?: string })?.gender,
         profiles: e.students?.profiles,
       }))
     : classStudents;
 
-  const handleSave = async (submit = false) => {
-    if (!schoolId || !teacherId) return;
-    if (isNew && (!classId || !subjectId)) {
-      toast.error("Select class and subject");
-      return;
-    }
-    setSaving(true);
-    try {
-      let registerId = register?.id;
-      if (isNew) {
+  const classDisplayName =
+    register?.classes?.name ??
+    adminClasses.find((c) => c.id === classId)?.name ??
+    assignments.find((a) => a.class_id === classId)?.classes?.name ??
+    "";
+
+  const subjectDisplayName =
+    register?.subjects?.name ??
+    classSubjects.find((s) => s.subject_id === subjectId)?.subjects?.name ??
+    assignments.find((a) => a.subject_id === subjectId)?.subjects?.name ??
+    "";
+
+  const registerIdRef = useRef<string | null>(register?.id ?? null);
+  registerIdRef.current = register?.id ?? registerIdRef.current;
+
+  const persistDraft = useCallback(
+    async (silent = false) => {
+      if (!schoolId || !effectiveTeacherId || readOnly) return;
+      if (isNew && (!classId || !subjectId)) return;
+
+      let registerId = registerIdRef.current ?? register?.id;
+      if (!registerId && isNew) {
         const term = terms.find((t) => t.id === termId);
         registerId = await createRegister({
           schoolId,
@@ -162,13 +182,10 @@ export default function TeacherRegisterEditor() {
           periodLabel,
           createdBy: user?.id,
         });
-        const studs = await fetchClassStudents(classId);
-        const initLines = {};
-        for (const s of studs) {
-          initLines[s.id] = lines[s.id] ?? { attendance_status: "present", time_in: "", participation: "", remarks: "" };
-        }
-        setLines(initLines);
+        registerIdRef.current = registerId;
+        if (!silent) navigate(`${registerBase}/${registerId}`, { replace: true });
       }
+      if (!registerId) return;
 
       await saveRegisterHeader(registerId, { lesson_summary: lessonSummary, homework });
       const entryRows = Object.entries(lines).map(([student_id, v]) => ({
@@ -178,17 +195,87 @@ export default function TeacherRegisterEditor() {
         participation: (v as { participation: string }).participation || null,
         remarks: (v as { remarks: string }).remarks || null,
       }));
-      await saveRegisterEntries(registerId, entryRows);
+      if (entryRows.length) await saveRegisterEntries(registerId, entryRows);
+      if (!silent) toast.success("Draft saved");
+    },
+    [
+      schoolId,
+      effectiveTeacherId,
+      readOnly,
+      isNew,
+      classId,
+      subjectId,
+      register?.id,
+      terms,
+      termId,
+      registerDate,
+      periodLabel,
+      user?.id,
+      lessonSummary,
+      homework,
+      lines,
+      navigate,
+      registerBase,
+    ],
+  );
+
+  const debouncedAutosave = useDebouncedCallback(() => {
+    void persistDraft(true);
+  }, 1200);
+
+  const handleLineChange = (studentId: string, patch: Record<string, string>) => {
+    setLines((prev) => ({
+      ...prev,
+      [studentId]: {
+        ...(prev[studentId] ?? { attendance_status: "present", time_in: "", participation: "", remarks: "" }),
+        ...patch,
+      },
+    }));
+    debouncedAutosave();
+  };
+
+  const markAllPresent = () => {
+    setLines((prev) => {
+      const next = { ...prev };
+      for (const s of displayStudents) {
+        next[s.id] = {
+          ...(next[s.id] ?? { time_in: "", participation: "", remarks: "" }),
+          attendance_status: "present",
+        };
+      }
+      return next;
+    });
+    debouncedAutosave();
+  };
+
+  const handleSave = async (submit = false) => {
+    if (!schoolId || !effectiveTeacherId) {
+      toast.error(isAdminRoute ? "Select a teacher for this register" : "Teacher profile not found");
+      return;
+    }
+    if (isNew && (!classId || !subjectId)) {
+      toast.error("Select class and subject");
+      return;
+    }
+    setSaving(true);
+    try {
+      await persistDraft(true);
+      let registerId = registerIdRef.current ?? register?.id;
+      if (!registerId) throw new Error("Could not save register");
 
       if (submit) {
         await submitRegister(registerId, schoolId);
         const full = await getRegister(registerId);
         if (full) await syncLegacyAttendance(full);
-        toast.success("Register submitted for approval");
+        const sms = await finalizeRegisterSubmission(registerId);
+        if (sms?.sent) {
+          toast.success(`Submitted — ${sms.sent} parent SMS sent`);
+        } else {
+          toast.success("Attendance submitted — parents notified when phone numbers are linked");
+        }
         navigate(registerBase);
       } else {
         toast.success("Draft saved");
-        if (isNew) navigate(`${registerBase}/${registerId}`);
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
@@ -200,8 +287,6 @@ export default function TeacherRegisterEditor() {
   const title = register
     ? `${register.classes?.name} · ${register.subjects?.name}`
     : "New class register";
-
-  const readOnly = register?.locked || register?.status === "approved" || register?.status === "submitted";
 
   return (
     <DashboardLayout role={layoutRole}>
@@ -338,89 +423,26 @@ export default function TeacherRegisterEditor() {
           </Card>
         ) : null}
 
-        <Card className="overflow-x-auto">
-          <CardHeader>
-            <CardTitle className="text-base">Student attendance</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">#</TableHead>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Admission No</TableHead>
-                  <TableHead>Attendance</TableHead>
-                  <TableHead>Time in</TableHead>
-                  <TableHead>Participation</TableHead>
-                  <TableHead>Remarks</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {displayStudents.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Select a class to load students.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  displayStudents.map((s, i) => {
-                    const sid = s.id;
-                    const student = s;
-                    const row = lines[sid] ?? { attendance_status: "present", time_in: "", participation: "", remarks: "" };
-                    return (
-                      <TableRow key={sid}>
-                        <TableCell>{i + 1}</TableCell>
-                        <TableCell className="font-medium">{student?.profiles?.full_name ?? "—"}</TableCell>
-                        <TableCell>{student?.admission_no ?? "—"}</TableCell>
-                        <TableCell>
-                          <Select
-                            disabled={readOnly}
-                            value={row.attendance_status}
-                            onValueChange={(v) => setLines((prev) => ({ ...prev, [sid]: { ...row, attendance_status: v } }))}
-                          >
-                            <SelectTrigger className="w-[130px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {statusTypes.map((st) => (
-                                <SelectItem key={st.code} value={st.code}>
-                                  {st.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="time"
-                            className="w-[110px]"
-                            disabled={readOnly}
-                            value={row.time_in}
-                            onChange={(ev) => setLines((prev) => ({ ...prev, [sid]: { ...row, time_in: ev.target.value } }))}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            disabled={readOnly}
-                            value={row.participation}
-                            onChange={(ev) => setLines((prev) => ({ ...prev, [sid]: { ...row, participation: ev.target.value } }))}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            disabled={readOnly}
-                            value={row.remarks}
-                            onChange={(ev) => setLines((prev) => ({ ...prev, [sid]: { ...row, remarks: ev.target.value } }))}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        {(classId && (displayStudents.length > 0 || register)) ? (
+          <DailyRegisterTable
+            className={classDisplayName}
+            subjectName={subjectDisplayName}
+            periodLabel={periodLabel}
+            registerDate={registerDate}
+            students={displayStudents}
+            lines={lines}
+            statusTypes={statusTypes}
+            readOnly={readOnly}
+            onChange={handleLineChange}
+            onMarkAllPresent={readOnly ? undefined : markAllPresent}
+          />
+        ) : (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              Select class and subject to open today&apos;s attendance register.
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

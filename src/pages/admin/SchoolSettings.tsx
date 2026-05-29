@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,7 +20,7 @@ import {
 } from "@/lib/schoolFetch";
 import { formatExample } from "@/lib/admission-numbers";
 import { derivePrefixFromSchoolName } from "@/lib/school-prefix";
-import { Upload, Building, Image, Save, Loader2, Palette, CreditCard } from "lucide-react";
+import { Upload, Building, Image, Save, Loader2, Palette, CreditCard, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { syncReportThemeWithSchoolBrand } from "@/report/lib/sync-report-theme";
@@ -31,6 +32,7 @@ const SchoolSettings = () => {
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingReportProfile, setSavingReportProfile] = useState(false);
   const [savingBrand, setSavingBrand] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [school, setSchool] = useState<{
@@ -42,8 +44,16 @@ const SchoolSettings = () => {
     theme_primary: string | null;
     theme_secondary: string | null;
     theme_accent: string | null;
+    motto: string | null;
+    address: string | null;
+    phone: string | null;
+    email: string | null;
   } | null>(null);
   const [schoolName, setSchoolName] = useState("");
+  const [schoolMotto, setSchoolMotto] = useState("");
+  const [schoolLocation, setSchoolLocation] = useState("");
+  const [schoolContacts, setSchoolContacts] = useState("");
+  const [schoolEmail, setSchoolEmail] = useState("");
   const [admissionPrefix, setAdmissionPrefix] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [brandColors, setBrandColors] = useState<BrandColors>({ ...BRAND_DEFAULTS });
@@ -78,8 +88,16 @@ const SchoolSettings = () => {
         theme_primary: schoolData.theme_primary ?? null,
         theme_secondary: schoolData.theme_secondary ?? null,
         theme_accent: schoolData.theme_accent ?? null,
+        motto: schoolData.motto ?? null,
+        address: schoolData.address ?? null,
+        phone: schoolData.phone ?? null,
+        email: schoolData.email ?? null,
       });
       setSchoolName(schoolData.school_name);
+      setSchoolMotto(schoolData.motto ?? "");
+      setSchoolLocation(schoolData.address ?? "");
+      setSchoolContacts(schoolData.phone ?? "");
+      setSchoolEmail(schoolData.email ?? "");
       setAdmissionPrefix(
         schoolData.admission_prefix ?? derivePrefixFromSchoolName(schoolData.school_name)
       );
@@ -145,6 +163,7 @@ const SchoolSettings = () => {
 
       setPreviewUrl(logoUrl);
       setSchool({ ...school, logo_url: logoUrl });
+      await queryClient.invalidateQueries({ queryKey: ["school"] });
       toast.success("School logo updated successfully");
     } catch (error: unknown) {
       console.error("Error uploading logo:", error);
@@ -199,6 +218,60 @@ const SchoolSettings = () => {
       setSaving(false);
     }
   };
+
+  const handleSaveReportProfile = async () => {
+    if (!school) return;
+
+    setSavingReportProfile(true);
+    try {
+      const payload = {
+        motto: schoolMotto.trim() || null,
+        address: schoolLocation.trim() || null,
+        phone: schoolContacts.trim() || null,
+        email: schoolEmail.trim() || null,
+      };
+
+      let { error } = await supabase.from("schools").update(payload).eq("id", school.id);
+
+      if (isSchemaColumnError(error)) {
+        ({ error } = await supabase
+          .from("schools")
+          .update({ school_name: payload.school_name })
+          .eq("id", school.id));
+      }
+
+      if (error) throw error;
+
+      setSchool({
+        ...school,
+        motto: payload.motto,
+        address: payload.address,
+        phone: payload.phone,
+        email: payload.email,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["school"] });
+      toast.success("Report card details saved — they will appear on all report cards");
+    } catch (error: unknown) {
+      console.error("Error saving report profile:", error);
+      const message = error instanceof Error ? error.message : "Failed to save report card details";
+      if (message.includes("column") || message.includes("schema")) {
+        toast.error(
+          "Database is missing report columns. Run supabase/migrations/20260527000000_report_system.sql in Supabase SQL Editor.",
+        );
+      } else {
+        toast.error(message);
+      }
+    } finally {
+      setSavingReportProfile(false);
+    }
+  };
+
+  const reportProfileDirty =
+    school &&
+    (schoolMotto !== (school.motto ?? "") ||
+      schoolLocation !== (school.address ?? "") ||
+      schoolContacts !== (school.phone ?? "") ||
+      schoolEmail !== (school.email ?? ""));
 
   const handleSaveBrandColors = async () => {
     if (!school) return;
@@ -283,7 +356,7 @@ const SchoolSettings = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">School Settings</h1>
           <p className="text-muted-foreground">
-            Manage your school profile, logo, and brand colors (green, black, white by default)
+            Manage your school profile, report card header details, logo, and brand colors
           </p>
         </div>
 
@@ -315,6 +388,82 @@ const SchoolSettings = () => {
                 <>
                   <Save className="h-4 w-4 mr-2" />
                   Save brand colors
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-primary/10">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Report card details
+            </CardTitle>
+            <CardDescription>
+              Motto, location, contacts, and email shown in the header of every printed and PDF report
+              card. Upload your logo above; set report colors under Brand Colors or Report settings.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="school-motto">School motto</Label>
+              <Textarea
+                id="school-motto"
+                rows={2}
+                value={schoolMotto}
+                onChange={(e) => setSchoolMotto(e.target.value)}
+                placeholder='e.g. "Excellence through discipline"'
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="school-location">Location / address</Label>
+              <Textarea
+                id="school-location"
+                rows={2}
+                value={schoolLocation}
+                onChange={(e) => setSchoolLocation(e.target.value)}
+                placeholder="Street, city, region"
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="school-contacts">Contacts (phone)</Label>
+                <Input
+                  id="school-contacts"
+                  value={schoolContacts}
+                  onChange={(e) => setSchoolContacts(e.target.value)}
+                  placeholder="0541234567 / 0570223940"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="school-email">Email</Label>
+                <Input
+                  id="school-email"
+                  type="email"
+                  value={schoolEmail}
+                  onChange={(e) => setSchoolEmail(e.target.value)}
+                  placeholder="school@example.com"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Only fields you fill in are printed on the report card header.
+            </p>
+            <Button
+              onClick={handleSaveReportProfile}
+              disabled={savingReportProfile || !reportProfileDirty}
+              className="w-full sm:w-auto"
+            >
+              {savingReportProfile ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save report card details
                 </>
               )}
             </Button>

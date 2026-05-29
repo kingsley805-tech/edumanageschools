@@ -163,7 +163,8 @@ export function ShepherdReportCard({
   return (
     <>
       <style data-report-export>{reportCss}</style>
-      <div className="rc-page no-print-root">
+      <div className="rc-page-shell no-print-root">
+      <div className="rc-page">
         {showToolbar && (
           <div className="rc-toolbar no-print">
             <div>
@@ -549,6 +550,7 @@ export function ShepherdReportCard({
             <div className="rc-footer-seal">OFFICIAL<br />RECORD</div>
           </div>
         </div>
+      </div>
       </div>
     </>
   );

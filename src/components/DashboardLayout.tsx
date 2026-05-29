@@ -78,7 +78,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
   const { role: userRole } = useUserRole();
   const { hasPermission, isSuperAdmin: isSuperAdminPerm } = usePermissions();
   const isSuperAdmin = userRole === "super_admin" || isSuperAdminPerm;
-  const { navItems: dynamicNavItems, loading: dynamicNavLoading } = usePortalAccess();
+  const { navItems: dynamicNavItems } = usePortalAccess();
   const usesDynamicAdminNav = (ADMIN_SHELL_ROLES as readonly string[]).includes(role);
 
   const canShow = (permission?: string) =>
@@ -497,19 +497,13 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           {/* Menu Items */}
           <nav className="flex-1 space-y-0.5 px-2 py-3 overflow-y-auto overflow-x-hidden custom-scrollbar">
             {usesDynamicAdminNav ? (
-              dynamicNavLoading ? (
-                <div className="flex justify-center py-8">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                </div>
-              ) : (
-                <DynamicAdminSidebarNav
-                  items={ensurePaymentGatewaysInNav(dynamicNavItems)}
-                  unreadMessages={unreadMessages}
-                  navLinkBase={navLinkBase}
-                  navLinkActive={navLinkActive}
-                  navSubLinkBase={navSubLinkBase}
-                />
-              )
+              <DynamicAdminSidebarNav
+                items={ensurePaymentGatewaysInNav(dynamicNavItems)}
+                unreadMessages={unreadMessages}
+                navLinkBase={navLinkBase}
+                navLinkActive={navLinkActive}
+                navSubLinkBase={navSubLinkBase}
+              />
             ) : (
               config.menuItems.map((item: MenuItemDef, index: number) => {
                 if (item.type === "group") {

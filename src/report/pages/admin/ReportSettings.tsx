@@ -33,6 +33,7 @@ import {
 import { parseSchoolBrand } from "@/lib/themeColors";
 import { validateReportImageFile } from "@/report/lib/validate-report-upload";
 import { Textarea } from "@/components/ui/textarea";
+import { Link } from "react-router-dom";
 
 function ReportSettingsPage() {
   const { profile, user } = useAuth();
@@ -216,7 +217,12 @@ function ReportSettingsPage() {
           <CardHeader>
             <CardTitle className="font-display">Report card branding</CardTitle>
             <CardDescription>
-              Identity information shown on printed and PDF report cards.
+              Identity information shown on printed and PDF report cards. You can also edit motto,
+              location, contacts, and email under{" "}
+              <Link to="/admin/school-settings" className="text-primary underline">
+                School Settings → Report card details
+              </Link>
+              .
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

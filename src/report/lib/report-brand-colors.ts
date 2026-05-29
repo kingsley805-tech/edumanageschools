@@ -128,8 +128,10 @@ export function buildReportCardCss(c: ReportBrandColors): string {
   const accent = c.primary;
   const dark = c.primaryDark;
   const light = c.primaryLight;
+  const pageBg = "#000000";
   return `
-.rc-page{background:${c.white};min-height:100vh;padding:24px 16px 48px;display:flex;flex-direction:column;align-items:center;gap:16px;font-family:'Manrope',sans-serif;color:${c.black};color-scheme:light;forced-color-adjust:none}
+.rc-page-shell{background:${pageBg};width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw)}
+.rc-page{background:transparent;min-height:100vh;padding:24px 16px 48px;display:flex;flex-direction:column;align-items:center;gap:16px;font-family:'Manrope',sans-serif;color:${c.white};color-scheme:dark;forced-color-adjust:none}
 .rc-toolbar{width:100%;max-width:860px;background:${dark};border-radius:10px;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;border:1px solid ${dark}}
 .rc-toolbar-title{color:${c.white};font-family:'Manrope',sans-serif;font-size:14px;display:block;font-weight:700}
 .rc-status-row{display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap}
@@ -162,7 +164,7 @@ export function buildReportCardCss(c: ReportBrandColors): string {
 .rc-btn-print{background:${c.white};color:${dark};border:1.5px solid ${c.white}}
 .rc-btn-pdf{background:transparent;color:${c.white};border:1.5px solid ${c.white}}
 .rc-btn-save{background:${c.white};color:${dark}}
-.rc-card{width:100%;max-width:860px;background:${c.white};border-radius:14px;overflow:hidden;box-shadow:0 6px 40px ${c.shadow};border:1px solid ${accent}}
+.rc-card{width:100%;max-width:860px;background:${c.white};border-radius:14px;overflow:hidden;box-shadow:0 8px 48px rgba(0,0,0,0.45);border:1px solid ${accent}}
 .rc-header{background:${dark};padding:28px 40px 20px}
 .rc-header-inner{display:flex;align-items:center;gap:20px}
 .rc-logo{width:90px;height:90px;border-radius:50%;background:#fff;padding:4px;box-shadow:0 0 0 3px #ffffff55;flex-shrink:0;display:flex;align-items:center;justify-content:center}
@@ -240,6 +242,7 @@ export function buildReportCardCss(c: ReportBrandColors): string {
 .rc-exporting .rc-bar-fill{transition:none!important}
 @media print{
   .no-print,.no-print-root .rc-toolbar,.no-print-root .rc-admin-feedback{display:none!important}
+  .rc-page-shell{background:#fff;width:auto;margin-left:0;margin-right:0}
   .rc-page{position:absolute;left:0;top:0;padding:0;margin:0;background:#fff;min-height:0;height:auto;width:100%}
   .rc-card,.rc-exporting{box-shadow:none;border-radius:0;max-width:100%;width:100%;border:1px solid ${accent};overflow:visible;break-inside:avoid;page-break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .rc-card *,.rc-exporting *{-webkit-print-color-adjust:exact;print-color-adjust:exact}

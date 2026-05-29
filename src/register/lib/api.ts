@@ -185,7 +185,7 @@ export async function getRegister(registerId: string): Promise<RegisterWithEntri
 export async function fetchClassStudents(classId: string) {
   const { data, error } = await supabase
     .from("students")
-    .select("id, admission_no, profiles(full_name)")
+    .select("id, admission_no, gender, profiles(full_name)")
     .eq("class_id", classId)
     .order("admission_no");
   if (error) throw error;
@@ -286,6 +286,21 @@ export async function submitRegister(registerId: string, schoolId: string) {
   if (error) throw toError(error, "Could not submit register");
 
   await logRegisterStatus(registerId, schoolId, "draft", "submitted");
+}
+
+/** After submit: sync term attendance + optional parent SMS via edge function */
+export async function finalizeRegisterSubmission(registerId: string) {
+  const { syncRegisterAttendance } = await import("@/register/lib/attendance");
+  const { sendAttendanceSmsNotifications } = await import("@/register/lib/sms");
+
+  await syncRegisterAttendance(registerId);
+
+  try {
+    const result = await sendAttendanceSmsNotifications(registerId);
+    return result;
+  } catch {
+    return { sent: 0, skipped: 0, errors: ["SMS service unavailable"] };
+  }
 }
 
 export async function reviewRegister(registerId: string, action: "approve" | "reject", comment?: string) {
