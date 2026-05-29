@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useStudentData } from "@/hooks/useStudentData";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchStudentAttendanceRate } from "@/lib/attendance-queries";
 import { StudentPortalSections } from "@/components/student/StudentPortalSections";
 
 const StudentDashboard = () => {
@@ -31,22 +32,15 @@ const StudentDashboard = () => {
 
     const today = new Date().getDay();
 
-    const [schedulesRes, assignmentsRes, attendanceRes, gradesRes, classCount] = await Promise.all([
+    const [schedulesRes, assignmentsRes, attendanceStats, gradesRes, classCount] = await Promise.all([
       supabase.from("schedules").select("*, subject:subjects(name), teacher:teachers(user_id)").eq("class_id", classId).eq("day_of_week", today),
       supabase.from("assignments").select("*, subject:subjects(name)").eq("class_id", classId).order("due_date", { ascending: true }).limit(3),
-      supabase.from("attendance").select("status", { count: "exact" }).eq("student_id", studentId),
+      fetchStudentAttendanceRate(studentId),
       supabase.from("grades").select("*, subject:subjects(name)").eq("student_id", studentId).order("created_at", { ascending: false }).limit(4),
       supabase.from("enrollments").select("id", { count: "exact", head: true }).eq("student_id", studentId).eq("status", "active")
     ]);
 
-    const presentCount = await supabase
-      .from("attendance")
-      .select("id", { count: "exact", head: true })
-      .eq("student_id", studentId)
-      .eq("status", "present");
-
-    const totalAttendance = attendanceRes.count || 1;
-    const attendanceRate = ((presentCount.count || 0) / totalAttendance * 100).toFixed(0);
+    const attendanceRate = attendanceStats.rate.toString();
 
     const avgGrade = gradesRes.data && gradesRes.data.length > 0
       ? (gradesRes.data.reduce((sum, g) => sum + (Number(g.score) || 0), 0) / gradesRes.data.length).toFixed(0)

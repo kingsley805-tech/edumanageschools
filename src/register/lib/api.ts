@@ -185,11 +185,21 @@ export async function getRegister(registerId: string): Promise<RegisterWithEntri
 export async function fetchClassStudents(classId: string) {
   const { data, error } = await supabase
     .from("students")
-    .select("id, admission_no, gender, profiles(full_name)")
+    .select("id, admission_no, admission_number, full_name, gender, profiles:profile_id(full_name)")
     .eq("class_id", classId)
     .order("admission_no");
   if (error) throw error;
   return data ?? [];
+}
+
+export function studentDisplayName(
+  student: {
+    full_name?: string | null;
+    profiles?: { full_name?: string | null } | { full_name?: string | null }[] | null;
+  },
+): string {
+  const profile = Array.isArray(student.profiles) ? student.profiles[0] : student.profiles;
+  return student.full_name?.trim() || profile?.full_name?.trim() || "—";
 }
 
 export async function createRegister(input: {

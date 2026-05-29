@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { ReportCardData } from "@/components/report-card";
 import { calculateGPA, studentAverage, rankStudents } from "./analytics";
+import { fetchAttendanceSummary, formatAttendanceForReportCard } from "@/register/lib/attendance";
 
 export async function fetchReportCard(studentId: string, termId?: string): Promise<ReportCardData | null> {
   const { data: student } = await supabase
@@ -59,14 +60,10 @@ export async function fetchReportCard(studentId: string, termId?: string): Promi
   );
   const myRank = rankings.find((r) => r.id === studentId);
 
-  const { data: attendance } = await supabase
-    .from("attendance")
-    .select("status")
-    .eq("student_id", studentId)
-    .eq("term_id", term.id);
-
-  const present = attendance?.filter((a) => a.status === "present").length ?? 0;
-  const total = attendance?.length ?? 0;
+  const summary = await fetchAttendanceSummary(studentId, term.id);
+  const attendanceFormatted = formatAttendanceForReportCard(summary);
+  const present = Number(attendanceFormatted.attendanceMade) || 0;
+  const total = Number(attendanceFormatted.attendanceTotal) || 0;
 
   const school = student.schools as (ReportCardData["school"] & { next_term_date?: string | null });
   const avg = studentAverage(mapped);

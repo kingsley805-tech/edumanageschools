@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchParentRecordByUserId, fetchStudentsForParent } from "@/lib/parent-students";
+import { fetchStudentAttendanceRate } from "@/lib/attendance-queries";
 import { EventsCalendar } from "@/components/EventsCalendar";
 
 const ParentDashboard = () => {
@@ -38,20 +39,13 @@ const ParentDashboard = () => {
     if (studentsData.length > 0) {
       const childrenWithStats = await Promise.all(
         studentsData.map(async (student) => {
-          const [attendanceRes, gradesRes, invoiceRes] = await Promise.all([
-            supabase.from("attendance").select("status", { count: "exact" }).eq("student_id", student.id),
+          const [attendanceStats, gradesRes, invoiceRes] = await Promise.all([
+            fetchStudentAttendanceRate(student.id),
             supabase.from("grades").select("score").eq("student_id", student.id),
             supabase.from("invoices").select("amount, due_date, status").eq("student_id", student.id).eq("status", "unpaid").order("due_date").limit(1)
           ]);
 
-          const presentCount = await supabase
-            .from("attendance")
-            .select("id", { count: "exact", head: true })
-            .eq("student_id", student.id)
-            .eq("status", "present");
-
-          const totalAttendance = attendanceRes.count || 1;
-          const attendance = ((presentCount.count || 0) / totalAttendance * 100).toFixed(0);
+          const attendance = attendanceStats.rate;
 
           const avgScore = gradesRes.data && gradesRes.data.length > 0
             ? gradesRes.data.reduce((sum, g) => sum + (Number(g.score) || 0), 0) / gradesRes.data.length

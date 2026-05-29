@@ -4,97 +4,84 @@ import { Button } from "@/components/ui/button";
 import { Calendar as CalendarIcon, Save } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { saveTeacherClassAttendance } from "@/lib/attendance-queries";
+import { fetchClassStudents, studentDisplayName } from "@/register/lib/api";
+import { fetchTeacherAssignedClasses } from "@/report/lib/teacher-assignments";
+
+type ClassOption = { id: string; name: string };
+type ClassStudent = Awaited<ReturnType<typeof fetchClassStudents>>[number];
 
 const Attendance = () => {
   const [date, setDate] = useState<Date>(new Date());
   const [selectedClass, setSelectedClass] = useState<string>("");
-  const [classes, setClasses] = useState<any[]>([]);
-  const [students, setStudents] = useState<any[]>([]);
+  const [classes, setClasses] = useState<ClassOption[]>([]);
+  const [students, setStudents] = useState<ClassStudent[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<Record<string, string>>({});
+  const [loadingClasses, setLoadingClasses] = useState(true);
+  const [loadingStudents, setLoadingStudents] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchClasses();
-  }, []);
-
-  useEffect(() => {
-    if (selectedClass) {
-      fetchStudents();
-      fetchAttendanceForDate();
-    }
-  }, [selectedClass, date]);
-
-  const fetchClasses = async () => {
     if (!user) return;
+    setLoadingClasses(true);
+    void fetchTeacherAssignedClasses(user.id)
+      .then(setClasses)
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : "Could not load classes";
+        toast({ title: "Error", description: message, variant: "destructive" });
+      })
+      .finally(() => setLoadingClasses(false));
+  }, [user, toast]);
 
-    // First get teacher_id from teachers table
-    const { data: teacherData } = await supabase
-      .from("teachers")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
+  const fetchAttendanceForDate = useCallback(async () => {
+    if (!selectedClass) return;
+    const dateStr = date.toISOString().split("T")[0];
 
-    if (!teacherData) return;
-
-    // Then fetch classes assigned to this teacher
-    const { data } = await supabase
-      .from("class_subjects")
-      .select(`
-        class_id,
-        classes(id, name)
-      `)
-      .eq("teacher_id", teacherData.id);
-
-    if (data) {
-      const uniqueClasses = Array.from(
-        new Map(data.map(item => [item.classes.id, item.classes])).values()
-      );
-      setClasses(uniqueClasses);
-    }
-  };
-
-  const fetchStudents = async () => {
-    const { data } = await supabase
-      .from("students")
-      .select(`
-        id,
-        admission_no,
-        profiles(full_name)
-      `)
-      .eq("class_id", selectedClass);
-
-    if (data) setStudents(data);
-  };
-
-  const fetchAttendanceForDate = async () => {
-    const dateStr = date.toISOString().split('T')[0];
-    
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("attendance")
       .select("student_id, status")
       .eq("class_id", selectedClass)
       .eq("date", dateStr);
 
-    if (data) {
-      const records: Record<string, string> = {};
-      data.forEach(record => {
-        records[record.student_id] = record.status;
-      });
-      setAttendanceRecords(records);
-    } else {
-      setAttendanceRecords({});
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
     }
-  };
+
+    const records: Record<string, string> = {};
+    for (const record of data ?? []) {
+      records[record.student_id] = record.status;
+    }
+    setAttendanceRecords(records);
+  }, [selectedClass, date, toast]);
+
+  useEffect(() => {
+    if (!selectedClass) {
+      setStudents([]);
+      return;
+    }
+
+    setLoadingStudents(true);
+    void fetchClassStudents(selectedClass)
+      .then(setStudents)
+      .catch((err: unknown) => {
+        setStudents([]);
+        const message = err instanceof Error ? err.message : "Could not load students";
+        toast({ title: "Error", description: message, variant: "destructive" });
+      })
+      .finally(() => setLoadingStudents(false));
+
+    void fetchAttendanceForDate();
+  }, [selectedClass, date, fetchAttendanceForDate, toast]);
 
   const handleStatusChange = (studentId: string, status: string) => {
-    setAttendanceRecords(prev => ({
+    setAttendanceRecords((prev) => ({
       ...prev,
       [studentId]: status,
     }));
@@ -110,43 +97,33 @@ const Attendance = () => {
       return;
     }
 
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = date.toISOString().split("T")[0];
 
     try {
-      // Delete existing records for this date and class
-      await supabase
-        .from("attendance")
-        .delete()
-        .eq("class_id", selectedClass)
-        .eq("date", dateStr);
-
-      // Insert new records
       const records = Object.entries(attendanceRecords).map(([studentId, status]) => ({
         student_id: studentId,
-        class_id: selectedClass,
-        date: dateStr,
         status,
-        recorded_by: user?.id,
       }));
 
-      const { error } = await supabase
-        .from("attendance")
-        .insert(records);
-
-      if (error) throw error;
+      await saveTeacherClassAttendance(selectedClass, dateStr, records);
 
       toast({
         title: "Success",
         description: "Attendance saved successfully",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to save attendance";
       toast({
         title: "Error",
-        description: error.message,
+        description: message,
         variant: "destructive",
       });
     }
   };
+
+  const emptyStudentsMessage = loadingStudents
+    ? "Loading students…"
+    : "No students in this class. Confirm each student has this class set under Admin → Students.";
 
   return (
     <DashboardLayout role="teacher">
@@ -156,7 +133,7 @@ const Attendance = () => {
             <h2 className="text-3xl font-bold tracking-tight">Attendance</h2>
             <p className="text-muted-foreground">Mark and manage student attendance</p>
           </div>
-          <Button className="gap-2" onClick={handleSaveAttendance}>
+          <Button className="gap-2" onClick={handleSaveAttendance} disabled={!selectedClass || loadingStudents}>
             <Save className="h-4 w-4" />
             Save Attendance
           </Button>
@@ -172,17 +149,17 @@ const Attendance = () => {
               <Calendar
                 mode="single"
                 selected={date}
-                onSelect={(date) => date && setDate(date)}
+                onSelect={(d) => d && setDate(d)}
                 className="rounded-md border"
               />
               <div className="space-y-2">
                 <label className="text-sm font-medium">Class</label>
-                <Select value={selectedClass} onValueChange={setSelectedClass}>
+                <Select value={selectedClass} onValueChange={setSelectedClass} disabled={loadingClasses}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select class" />
+                    <SelectValue placeholder={loadingClasses ? "Loading classes…" : "Select class"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {classes.map((cls: any) => (
+                    {classes.map((cls) => (
                       <SelectItem key={cls.id} value={cls.id}>
                         {cls.name}
                       </SelectItem>
@@ -192,23 +169,33 @@ const Attendance = () => {
               </div>
               {selectedClass && students.length > 0 && (
                 <div className="flex flex-wrap gap-2 pt-4 border-t">
-                  <Button variant="outline" size="sm" onClick={() => {
-                    const newRecords = { ...attendanceRecords };
-                    students.forEach((s: any) => { newRecords[s.id] = 'present'; });
-                    setAttendanceRecords(newRecords);
-                  }}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const newRecords = { ...attendanceRecords };
+                      students.forEach((s) => {
+                        newRecords[s.id] = "present";
+                      });
+                      setAttendanceRecords(newRecords);
+                    }}
+                  >
                     Mark All Present
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => {
-                    const newRecords = { ...attendanceRecords };
-                    students.forEach((s: any) => { newRecords[s.id] = 'absent'; });
-                    setAttendanceRecords(newRecords);
-                  }}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const newRecords = { ...attendanceRecords };
+                      students.forEach((s) => {
+                        newRecords[s.id] = "absent";
+                      });
+                      setAttendanceRecords(newRecords);
+                    }}
+                  >
                     Mark All Absent
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => {
-                    setAttendanceRecords({});
-                  }}>
+                  <Button variant="outline" size="sm" onClick={() => setAttendanceRecords({})}>
                     Clear All
                   </Button>
                 </div>
@@ -233,7 +220,7 @@ const Attendance = () => {
                   </div>
                 </div>
               ) : students.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">No students in this class</p>
+                <p className="text-center text-muted-foreground py-8">{emptyStudentsMessage}</p>
               ) : (
                 <Table>
                   <TableHeader>
@@ -246,8 +233,8 @@ const Attendance = () => {
                   <TableBody>
                     {students.map((student) => (
                       <TableRow key={student.id}>
-                        <TableCell>{student.admission_no}</TableCell>
-                        <TableCell>{student.profiles?.full_name}</TableCell>
+                        <TableCell>{student.admission_no ?? student.admission_number ?? "—"}</TableCell>
+                        <TableCell>{studentDisplayName(student)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex gap-2 justify-end">
                             <Button

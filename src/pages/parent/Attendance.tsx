@@ -2,27 +2,30 @@ import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, CheckCircle, XCircle, Clock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchParentRecordByUserId, fetchStudentsForParent } from "@/lib/parent-students";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { fetchStudentAttendanceRate, fetchStudentDailyAttendance } from "@/lib/attendance-queries";
+import { useToast } from "@/hooks/use-toast";
 
 const Attendance = () => {
   const { user } = useAuth();
-  const [children, setChildren] = useState<any[]>([]);
+  const { toast } = useToast();
+  const [children, setChildren] = useState<{ id: string; profiles: { full_name: string } | null }[]>([]);
   const [selectedChild, setSelectedChild] = useState<string>("");
-  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<
+    Awaited<ReturnType<typeof fetchStudentDailyAttendance>>
+  >([]);
   const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, rate: "0" });
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetchChildren();
+    void fetchChildren();
   }, [user]);
 
   useEffect(() => {
-    if (selectedChild) {
-      fetchAttendance();
-    }
+    if (selectedChild) void fetchAttendance();
   }, [selectedChild]);
 
   const fetchChildren = async () => {
@@ -33,7 +36,7 @@ const Attendance = () => {
 
     const studentsData = await fetchStudentsForParent<{ id: string; profiles: { full_name: string } | null }>(
       parentData.id,
-      "id, profiles:user_id(full_name)"
+      "id, profiles:user_id(full_name)",
     );
 
     if (studentsData.length > 0) {
@@ -44,24 +47,26 @@ const Attendance = () => {
 
   const fetchAttendance = async () => {
     if (!selectedChild) return;
+    setLoading(true);
+    try {
+      const [daily, rateStats] = await Promise.all([
+        fetchStudentDailyAttendance(selectedChild, 30),
+        fetchStudentAttendanceRate(selectedChild),
+      ]);
 
-    const { data, error } = await supabase
-      .from("attendance")
-      .select("*")
-      .eq("student_id", selectedChild)
-      .order("date", { ascending: false })
-      .limit(30);
-
-    if (error || !data) return;
-
-    setAttendanceRecords(data);
-
-    const total = data.length;
-    const present = data.filter(a => a.status === "present").length;
-    const absent = data.filter(a => a.status === "absent").length;
-    const rate = total > 0 ? ((present / total) * 100).toFixed(1) : "0";
-
-    setStats({ total, present, absent, rate });
+      setAttendanceRecords(daily);
+      setStats({
+        total: rateStats.total,
+        present: rateStats.present,
+        absent: rateStats.total - rateStats.present,
+        rate: rateStats.rate.toFixed(1),
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Could not load attendance";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -96,7 +101,7 @@ const Attendance = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.rate}%</div>
-              <p className="text-xs text-muted-foreground">Last 30 days</p>
+              <p className="text-xs text-muted-foreground">Current term / recent sessions</p>
             </CardContent>
           </Card>
 
@@ -129,7 +134,9 @@ const Attendance = () => {
             <CardDescription>Recent attendance history</CardDescription>
           </CardHeader>
           <CardContent>
-            {attendanceRecords.length === 0 ? (
+            {loading ? (
+              <p className="text-center text-muted-foreground py-12">Loading…</p>
+            ) : attendanceRecords.length === 0 ? (
               <div className="text-center py-12">
                 <Calendar className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <p className="text-lg font-medium">No attendance records yet</p>
@@ -150,14 +157,22 @@ const Attendance = () => {
                       <div>
                         <p className="font-medium">{new Date(record.date).toLocaleDateString()}</p>
                         <p className="text-sm text-muted-foreground">
-                          Recorded {new Date(record.recorded_at).toLocaleString()}
+                          {record.subjectName ? `${record.subjectName} · ` : ""}
+                          {record.recordedAt
+                            ? `Recorded ${new Date(record.recordedAt).toLocaleString()}`
+                            : "From class register"}
                         </p>
                       </div>
                     </div>
-                    <Badge variant={
-                      record.status === "present" ? "default" :
-                      record.status === "absent" ? "destructive" : "secondary"
-                    }>
+                    <Badge
+                      variant={
+                        record.status === "present"
+                          ? "default"
+                          : record.status === "absent"
+                            ? "destructive"
+                            : "secondary"
+                      }
+                    >
                       {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
                     </Badge>
                   </div>

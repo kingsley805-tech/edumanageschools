@@ -25,6 +25,7 @@ import {
   type StudentAdmissionPreview,
 } from "@/lib/auth-api";
 import { fetchParentRecordByUserId, fetchStudentsForParent } from "@/lib/parent-students";
+import { fetchStudentAttendanceRate } from "@/lib/attendance-queries";
 
 interface Child {
   id: string;
@@ -87,8 +88,8 @@ const Children = () => {
 
       const childrenWithStats = await Promise.all(
         rows.map(async (child) => {
-          const [attendanceRes, gradesRes, classesRes] = await Promise.all([
-            supabase.from("attendance").select("status", { count: "exact" }).eq("student_id", child.id),
+          const [attendanceStats, gradesRes, classesRes] = await Promise.all([
+            fetchStudentAttendanceRate(child.id),
             supabase.from("grades").select("score").eq("student_id", child.id),
             supabase
               .from("schedules")
@@ -96,14 +97,7 @@ const Children = () => {
               .eq("class_id", child.class_id ?? ""),
           ]);
 
-          const presentCount = await supabase
-            .from("attendance")
-            .select("id", { count: "exact", head: true })
-            .eq("student_id", child.id)
-            .eq("status", "present");
-
-          const totalAttendance = attendanceRes.count || 1;
-          const attendance = Math.round(((presentCount.count || 0) / totalAttendance) * 100);
+          const attendance = attendanceStats.rate;
 
           const avgScore =
             gradesRes.data && gradesRes.data.length > 0

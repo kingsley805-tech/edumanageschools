@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchParentRecordByUserId, fetchStudentsForParent } from "@/lib/parent-students";
 import { fetchSchoolId, listRegisters } from "@/register/lib/api";
 import { fetchAttendanceSummary, fetchStudentAttendanceRecords } from "@/register/lib/attendance";
+import { fetchStudentDailyAttendance } from "@/lib/attendance-queries";
 import { AttendanceStatusBadge } from "@/register/components/AttendanceStatusBadge";
 import { fetchAttendanceStatusTypes } from "@/register/lib/api";
 
@@ -59,7 +60,19 @@ export function RegisterPortalView({ role, childStudentId }: { role: PortalRole;
           setTitle(`${(st.classes as { name?: string })?.name ?? "Class"} attendance`);
           setRegisters(await listRegisters({ schoolId, classId: st.class_id, status: "approved", limit: 40 }));
           setSummary(await fetchAttendanceSummary(st.id, term?.id));
-          setRecords(await fetchStudentAttendanceRecords(st.id, 30));
+          const registerRecords = await fetchStudentAttendanceRecords(st.id, 30);
+          setRecords(
+            registerRecords.length > 0
+              ? registerRecords
+              : (await fetchStudentDailyAttendance(st.id, 30)).map((r) => ({
+                  id: r.id,
+                  attendance_date: r.date,
+                  attendance_status: r.status,
+                  time_in: null,
+                  remark: null,
+                  subjects: r.subjectName ? { name: r.subjectName } : null,
+                })),
+          );
         } else {
           const parentData = await fetchParentRecordByUserId(user.id);
           if (!parentData) return;
@@ -81,7 +94,19 @@ export function RegisterPortalView({ role, childStudentId }: { role: PortalRole;
               setRegisters(await listRegisters({ schoolId, classId: kid.class_id, status: "approved", limit: 40 }));
             }
             setSummary(await fetchAttendanceSummary(sid, term?.id));
-            setRecords(await fetchStudentAttendanceRecords(sid, 30));
+            const registerRecords = await fetchStudentAttendanceRecords(sid, 30);
+            setRecords(
+              registerRecords.length > 0
+                ? registerRecords
+                : (await fetchStudentDailyAttendance(sid, 30)).map((r) => ({
+                    id: r.id,
+                    attendance_date: r.date,
+                    attendance_status: r.status,
+                    time_in: null,
+                    remark: null,
+                    subjects: r.subjectName ? { name: r.subjectName } : null,
+                  })),
+            );
           }
         }
       } finally {

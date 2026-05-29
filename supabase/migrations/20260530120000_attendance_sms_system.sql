@@ -33,9 +33,15 @@ CREATE TABLE IF NOT EXISTS public.attendance_summaries (
   excused_count integer NOT NULL DEFAULT 0,
   sick_count integer NOT NULL DEFAULT 0,
   attendance_percentage numeric(5,2) NOT NULL DEFAULT 0,
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (school_id, student_id, COALESCE(term_id, '00000000-0000-0000-0000-000000000000'::uuid))
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_attendance_summaries_school_student_term
+  ON public.attendance_summaries (
+    school_id,
+    student_id,
+    COALESCE(term_id, '00000000-0000-0000-0000-000000000000'::uuid)
+  );
 
 CREATE INDEX IF NOT EXISTS idx_attendance_summaries_student ON public.attendance_summaries(student_id, term_id);
 

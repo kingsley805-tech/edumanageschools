@@ -6,20 +6,23 @@ import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { fetchSchoolAttendanceList } from "@/lib/attendance-queries";
+import { useToast } from "@/hooks/use-toast";
 
 const Attendance = () => {
-  const [attendanceData, setAttendanceData] = useState<any[]>([]);
-  const [classes, setClasses] = useState<any[]>([]);
+  const [attendanceData, setAttendanceData] = useState<Awaited<ReturnType<typeof fetchSchoolAttendanceList>>>([]);
+  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [selectedClass, setSelectedClass] = useState<string>("all");
   const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, late: 0 });
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    fetchClasses();
-    fetchAttendance();
+    void fetchClasses();
   }, []);
 
   useEffect(() => {
-    fetchAttendance();
+    void fetchAttendance();
   }, [selectedClass]);
 
   const fetchClasses = async () => {
@@ -44,63 +47,54 @@ const Attendance = () => {
   };
 
   const fetchAttendance = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("school_id")
-      .eq("id", user.id)
-      .single();
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("school_id")
+        .eq("id", user.id)
+        .single();
 
-    if (!profileData?.school_id) return;
+      if (!profileData?.school_id) return;
 
-    let query = supabase
-      .from("attendance")
-      .select(`
-        *,
-        students!inner(admission_no, school_id, profiles(full_name)),
-        classes(name)
-      `)
-      .eq("students.school_id", profileData.school_id)
-      .order("date", { ascending: false })
-      .limit(100);
+      const data = await fetchSchoolAttendanceList(profileData.school_id, {
+        classId: selectedClass === "all" ? undefined : selectedClass,
+        limit: 100,
+      });
 
-    if (selectedClass !== "all") {
-      query = query.eq("class_id", selectedClass);
-    }
-
-    const { data } = await query;
-
-    if (data) {
       setAttendanceData(data);
-      
-      // Calculate stats
+
       const total = data.length;
-      const present = data.filter(a => a.status === 'present').length;
-      const absent = data.filter(a => a.status === 'absent').length;
-      const late = data.filter(a => a.status === 'late').length;
-      
+      const present = data.filter((a) => a.status === "present").length;
+      const absent = data.filter((a) => a.status === "absent").length;
+      const late = data.filter((a) => a.status === "late").length;
+
       setStats({ total, present, absent, late });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Could not load attendance";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'present':
+      case "present":
         return <Badge className="bg-success">Present</Badge>;
-      case 'absent':
+      case "absent":
         return <Badge variant="destructive">Absent</Badge>;
-      case 'late':
+      case "late":
         return <Badge className="bg-warning text-warning-foreground">Late</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
   };
 
-  const attendanceRate = stats.total > 0 
-    ? ((stats.present / stats.total) * 100).toFixed(1) 
-    : "0.0";
+  const attendanceRate = stats.total > 0 ? ((stats.present / stats.total) * 100).toFixed(1) : "0.0";
 
   return (
     <DashboardLayout role="admin">
@@ -108,7 +102,7 @@ const Attendance = () => {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-bold tracking-tight">Attendance Reports</h2>
-            <p className="text-muted-foreground">View and analyze attendance data</p>
+            <p className="text-muted-foreground">Daily registers and teacher roll calls</p>
           </div>
           <Select value={selectedClass} onValueChange={setSelectedClass}>
             <SelectTrigger className="w-48">
@@ -165,14 +159,16 @@ const Attendance = () => {
         <Card>
           <CardHeader>
             <CardTitle>Recent Attendance Records</CardTitle>
-            <CardDescription>Latest attendance data across all classes</CardDescription>
+            <CardDescription>From class registers and daily roll calls</CardDescription>
           </CardHeader>
           <CardContent>
-            {attendanceData.length === 0 ? (
+            {loading ? (
+              <p className="text-center text-muted-foreground py-12">Loading attendance…</p>
+            ) : attendanceData.length === 0 ? (
               <div className="text-center py-12">
                 <Calendar className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <p className="text-lg font-medium">No attendance records found</p>
-                <p className="text-sm text-muted-foreground">Attendance data will appear here once teachers mark attendance</p>
+                <p className="text-sm text-muted-foreground">Data appears here when teachers mark attendance or submit registers</p>
               </div>
             ) : (
               <Table>
@@ -182,16 +178,18 @@ const Attendance = () => {
                     <TableHead>Student</TableHead>
                     <TableHead>Admission No</TableHead>
                     <TableHead>Class</TableHead>
+                    <TableHead>Subject</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {attendanceData.map((record) => (
-                    <TableRow key={record.id}>
+                    <TableRow key={`${record.source}-${record.id}`}>
                       <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
-                      <TableCell>{record.students?.profiles?.full_name}</TableCell>
-                      <TableCell>{record.students?.admission_no}</TableCell>
-                      <TableCell>{record.classes?.name}</TableCell>
+                      <TableCell>{record.studentName}</TableCell>
+                      <TableCell>{record.admissionNo}</TableCell>
+                      <TableCell>{record.className}</TableCell>
+                      <TableCell>{record.subjectName ?? (record.source === "legacy" ? "Daily roll call" : "—")}</TableCell>
                       <TableCell>{getStatusBadge(record.status)}</TableCell>
                     </TableRow>
                   ))}

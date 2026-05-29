@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Users, DollarSign, Calendar, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchSchoolAttendanceStats, fetchSchoolAttendanceTrend } from "@/lib/attendance-queries";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 const Reports = () => {
@@ -47,24 +48,9 @@ const Reports = () => {
       .eq("status", "completed");
     const revenue = payments?.reduce((sum, p) => sum + Number(p.amount || 0), 0) || 0;
 
-    // Fetch attendance rate for school's students
-    const { data: schoolStudents } = await supabase
-      .from("students")
-      .select("id")
-      .eq("school_id", schoolId);
-    
-    const studentIds = schoolStudents?.map(s => s.id) || [];
-    
-    let avgAttendance = 0;
-    if (studentIds.length > 0) {
-      const { data: attendance } = await supabase
-        .from("attendance")
-        .select("status")
-        .in("student_id", studentIds);
-      const presentCount = attendance?.filter(a => a.status === "present").length || 0;
-      const totalAttendance = attendance?.length || 1;
-      avgAttendance = (presentCount / totalAttendance) * 100;
-    }
+    // Fetch attendance rate for school
+    const attendanceStats = await fetchSchoolAttendanceStats(schoolId);
+    const avgAttendance = attendanceStats.rate;
 
     // Fetch active classes for this school
     const { count: classCount } = await supabase
@@ -79,30 +65,7 @@ const Reports = () => {
       activeClasses: classCount || 0,
     });
 
-    // Fetch attendance trends (last 7 days)
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() - (6 - i));
-      return date.toISOString().split('T')[0];
-    });
-
-    const attendanceTrends = await Promise.all(
-      last7Days.map(async (date) => {
-        const { data } = await supabase
-          .from("attendance")
-          .select("status")
-          .eq("date", date);
-        
-        const present = data?.filter(a => a.status === "present").length || 0;
-        const absent = data?.filter(a => a.status === "absent").length || 0;
-        
-        return {
-          date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          present,
-          absent,
-        };
-      })
-    );
+    const attendanceTrends = await fetchSchoolAttendanceTrend(schoolId, 7);
     setAttendanceData(attendanceTrends);
 
     // Fetch grade distribution

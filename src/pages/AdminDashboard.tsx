@@ -6,6 +6,7 @@ import { Users, GraduationCap, DollarSign, TrendingUp, Calendar, BookOpen, Noteb
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchSchoolAttendanceStats } from "@/lib/attendance-queries";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -55,23 +56,15 @@ const AdminDashboard = () => {
       if (!profileData?.school_id) return;
       const schoolId = profileData.school_id;
 
-      const [studentsRes, teachersRes, feesRes, attendanceRes] = await Promise.all([
+      const [studentsRes, teachersRes, feesRes, attendanceStats] = await Promise.all([
         supabase.from("students").select("id", { count: "exact", head: true }).eq("school_id", schoolId),
         supabase.from("teachers").select("id", { count: "exact", head: true }).eq("school_id", schoolId),
         supabase.from("invoices").select("amount, students!inner(school_id)").eq("students.school_id", schoolId),
-        supabase.from("attendance").select("status, students!inner(school_id)", { count: "exact", head: true }).eq("students.school_id", schoolId)
+        fetchSchoolAttendanceStats(schoolId),
       ]);
 
       const totalFees = feesRes.data?.reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
-      const totalAttendance = attendanceRes.count || 1;
-      const presentCount = await supabase
-        .from("attendance")
-        .select("id, students!inner(school_id)", { count: "exact", head: true })
-        .eq("students.school_id", schoolId)
-        .eq("status", "present");
-      const attendanceRate = totalAttendance > 0 
-        ? ((presentCount.count || 0) / totalAttendance * 100).toFixed(1)
-        : "0.0";
+      const attendanceRate = attendanceStats.rate.toFixed(1);
 
       setStats([
         { title: "Total Students", value: studentsRes.count?.toString() || "0", change: "+12.5%", icon: Users, color: "text-primary" },

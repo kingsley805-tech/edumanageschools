@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FileText, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { fetchStudentAttendanceRate } from "@/lib/attendance-queries";
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { ReportCard } from "@/components/ReportCard";
 
@@ -132,17 +133,12 @@ const ReportCards = () => {
       // Filter exam results by term
       const termExams = examsWithDetails?.filter((e: any) => e.exams?.term === selectedTerm) || [];
 
-      // Fetch attendance
-      const { data: attendanceData, error: attendanceError } = await supabase
-        .from("attendance")
-        .select("status, date")
-        .eq("student_id", selectedStudent);
+      // Fetch attendance from registers + legacy roll calls
+      const attendanceStats = await fetchStudentAttendanceRate(selectedStudent);
 
-      if (attendanceError) throw attendanceError;
-
-      const presentDays = attendanceData?.filter((a: any) => a.status === "present").length || 0;
-      const totalDays = attendanceData?.length || 1;
-      const attendancePercentage = ((presentDays / totalDays) * 100).toFixed(1);
+      const presentDays = attendanceStats.present;
+      const totalDays = attendanceStats.total || 1;
+      const attendancePercentage = attendanceStats.rate.toFixed(1);
 
       // Get student details
       const student = students.find(s => s.id === selectedStudent);
