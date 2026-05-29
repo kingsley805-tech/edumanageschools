@@ -51,6 +51,8 @@ interface Payment {
   paystack_transaction_id: string | null;
   invoice_id: string;
   invoice_number?: string | null;
+  student_name?: string | null;
+  parent_name?: string | null;
   payer_name: string | null;
   payer_role: string | null;
   payment_context: string;
@@ -119,6 +121,9 @@ export default function BillingPayments() {
   const [txnFilter, setTxnFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [methodFilter, setMethodFilter] = useState("all");
+  const [gatewayFilter, setGatewayFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [detailPayment, setDetailPayment] = useState<PaymentDetailsPayload | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -132,12 +137,19 @@ export default function BillingPayments() {
     const { data } = await supabase
       .from("billing_payments")
       .select(
-        "id, amount, method, status, paid_at, created_at, currency, gateway, gateway_ref, paystack_transaction_id, invoice_id, payer_name, payer_role, payment_context, notes, invoices ( invoice_number )",
+        `id, amount, method, status, paid_at, created_at, currency, gateway, gateway_ref, paystack_transaction_id,
+         invoice_id, payer_name, payer_role, payment_context, notes,
+         invoices ( invoice_number, students ( full_name, parents ( full_name ) ) )`,
       )
       .eq("school_id", schoolId)
       .order("created_at", { ascending: false })
-      .limit(500);
-    const raw = (data || []) as unknown as (Payment & { invoices?: { invoice_number: string } | null })[];
+      .limit(1000);
+    const raw = (data || []) as unknown as (Payment & {
+      invoices?: {
+        invoice_number: string;
+        students?: { full_name?: string; parents?: { full_name?: string } | null };
+      } | null;
+    })[];
     setPayments(
       raw.map((row) => {
         const inv = row.invoices;
@@ -145,6 +157,8 @@ export default function BillingPayments() {
         return {
           ...rest,
           invoice_number: inv?.invoice_number ?? null,
+          student_name: inv?.students?.full_name ?? null,
+          parent_name: inv?.students?.parents?.full_name ?? null,
         };
       }),
     );
@@ -532,8 +546,34 @@ export default function BillingPayments() {
       !txnQ || (payment.paystack_transaction_id || "").toLowerCase().includes(txnQ);
     const matchesStatus = statusFilter === "all" || payment.status === statusFilter;
     const matchesMethod = methodFilter === "all" || payment.method === methodFilter;
-    return matchesSearch && matchesRef && matchesTxn && matchesStatus && matchesMethod;
+    const matchesGateway = gatewayFilter === "all" || payment.gateway === gatewayFilter;
+    const dateRaw = payment.paid_at || payment.created_at;
+    let matchesDate = true;
+    if (dateFrom && dateRaw) {
+      matchesDate = new Date(dateRaw) >= new Date(dateFrom);
+    }
+    if (matchesDate && dateTo && dateRaw) {
+      const end = new Date(dateTo);
+      end.setHours(23, 59, 59, 999);
+      matchesDate = new Date(dateRaw) <= end;
+    }
+    return (
+      matchesSearch &&
+      matchesRef &&
+      matchesTxn &&
+      matchesStatus &&
+      matchesMethod &&
+      matchesGateway &&
+      matchesDate
+    );
   });
+
+  const revenueStats = (() => {
+    const paid = filtered.filter((p) => p.status === "paid");
+    const total = paid.reduce((s, p) => s + Number(p.amount), 0);
+    const currency = paid[0]?.currency ?? "GHS";
+    return { total, count: paid.length, currency };
+  })();
 
   const { page, totalPages, paged, setPage } = usePagination(filtered);
 
@@ -613,8 +653,10 @@ export default function BillingPayments() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Payments</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Track all fee payments received</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Payment transactions</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            All school fee payments — online gateways and manual · real-time
+          </p>
         </div>
         <div className="flex gap-2">
           {canManagePayments ? (
@@ -625,6 +667,27 @@ export default function BillingPayments() {
           ) : null}
           {canCreatePayments ? <RecordPaymentDialog onSuccess={fetchPayments} /> : null}
           {canCreatePayments ? <PaySalaryDialog /> : null}
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
+          <p className="text-xs font-medium uppercase text-muted-foreground">Total revenue</p>
+          <p className="mt-1 text-2xl font-bold text-emerald-700">
+            {revenueStats.currency} {revenueStats.total.toLocaleString()}
+          </p>
+          <p className="text-xs text-muted-foreground">Successful payments (filtered)</p>
+        </div>
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
+          <p className="text-xs font-medium uppercase text-muted-foreground">Transactions</p>
+          <p className="mt-1 text-2xl font-bold">{filtered.length}</p>
+          <p className="text-xs text-muted-foreground">{revenueStats.count} successful</p>
+        </div>
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
+          <p className="text-xs font-medium uppercase text-muted-foreground">Gateways</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Paystack, manual, and others appear as recorded
+          </p>
         </div>
       </div>
 
@@ -672,6 +735,18 @@ export default function BillingPayments() {
             <SelectItem value="ussd">USSD</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={gatewayFilter} onValueChange={setGatewayFilter}>
+          <SelectTrigger className="w-[150px]"><SelectValue placeholder="Gateway" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All gateways</SelectItem>
+            <SelectItem value="paystack">Paystack</SelectItem>
+            <SelectItem value="manual">Manual</SelectItem>
+            <SelectItem value="stripe">Stripe</SelectItem>
+            <SelectItem value="flutterwave">Flutterwave</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input type="date" className="w-[150px]" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+        <Input type="date" className="w-[150px]" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
       </div>
 
       {selectedIds.size > 0 && (
@@ -706,6 +781,8 @@ export default function BillingPayments() {
                 <th className="w-10 px-4 py-3">
                   <Checkbox checked={paged.length > 0 && selectedIds.size === paged.length} onCheckedChange={toggleSelectAll} />
                 </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Student</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Parent</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Amount</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Method</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Gateway</th>
@@ -721,14 +798,16 @@ export default function BillingPayments() {
             </thead>
             <tbody className="divide-y divide-border">
               {loading ? (
-                <tr><td colSpan={12} className="px-4 py-8 text-center text-sm text-muted-foreground">Loading...</td></tr>
+                <tr><td colSpan={14} className="px-4 py-8 text-center text-sm text-muted-foreground">Loading...</td></tr>
               ) : paged.length === 0 ? (
-                <tr><td colSpan={12} className="px-4 py-8 text-center text-sm text-muted-foreground">No payments match your filters</td></tr>
+                <tr><td colSpan={14} className="px-4 py-8 text-center text-sm text-muted-foreground">No payments match your filters</td></tr>
               ) : paged.map((payment) => (
                 <tr key={payment.id} className="transition-colors hover:bg-muted/30">
                   <td className="px-4 py-3.5">
                     <Checkbox checked={selectedIds.has(payment.id)} onCheckedChange={() => toggleSelect(payment.id)} />
                   </td>
+                  <td className="px-4 py-3.5 text-sm">{payment.student_name || "—"}</td>
+                  <td className="px-4 py-3.5 text-sm text-muted-foreground">{payment.parent_name || "—"}</td>
                   <td className="px-4 py-3.5 text-sm font-medium text-card-foreground">{payment.currency} {Number(payment.amount).toLocaleString()}</td>
                   <td className="px-4 py-3.5 text-sm capitalize text-muted-foreground">{payment.method.replace("_", " ")}</td>
                   <td className="px-4 py-3.5 text-sm capitalize text-muted-foreground">{payment.gateway}</td>
@@ -784,7 +863,48 @@ export default function BillingPayments() {
         {!loading ? <TablePagination page={page} totalPages={totalPages} setPage={setPage} totalItems={filtered.length} /> : null}
       </div>
 
-      <PaymentDetailsDialog payment={detailPayment} open={detailOpen} onOpenChange={setDetailOpen} />
+      <PaymentDetailsDialog
+        payment={detailPayment}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        canRefund={canManagePayments}
+        canDelete={canManagePayments}
+        onRefund={async (p) => {
+          const notes = window.prompt("Refund notes (optional)") ?? "";
+          const { data, error } = await supabase.rpc("refund_billing_payment", {
+            p_payment_id: p.id,
+            p_notes: notes || null,
+          });
+          if (error) {
+            toast.error(error.message);
+            return;
+          }
+          const res = data as { ok?: boolean; error?: string };
+          if (res?.ok) {
+            toast.success("Payment refunded");
+            setDetailOpen(false);
+            fetchPayments();
+          } else {
+            toast.error(res?.error ?? "Refund failed");
+          }
+        }}
+        onDelete={async (p) => {
+          if (!window.confirm("Delete this payment record? Invoice totals will be recalculated.")) return;
+          const { data, error } = await supabase.rpc("delete_billing_payment", { p_payment_id: p.id });
+          if (error) {
+            toast.error(error.message);
+            return;
+          }
+          const res = data as { ok?: boolean; error?: string };
+          if (res?.ok) {
+            toast.success("Payment deleted");
+            setDetailOpen(false);
+            fetchPayments();
+          } else {
+            toast.error(res?.error ?? "Delete failed");
+          }
+        }}
+      />
     </div>
   );
 };

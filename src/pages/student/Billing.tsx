@@ -6,7 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CreditCard, Download, DollarSign, FileText, TrendingUp, AlertCircle } from "lucide-react";
+import { Loader2, CreditCard, Download, DollarSign, FileText, TrendingUp, AlertCircle, History } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { generateReceipt } from "@/billing/lib/generateReceipt";
 import { fetchSchoolLetterhead } from "@/billing/lib/schoolLetterhead";
@@ -193,11 +194,19 @@ export default function StudentBilling() {
   return (
     <DashboardLayout role="student">
       <div className="space-y-6">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">My fees</h2>
-          <p className="text-muted-foreground">
-            {studentName} · {className}
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">My fees</h2>
+            <p className="text-muted-foreground">
+              {studentName} · {className}
+            </p>
+          </div>
+          <Button variant="outline" asChild>
+            <Link to="/student/payment-history">
+              <History className="mr-2 h-4 w-4" />
+              Payment history
+            </Link>
+          </Button>
         </div>
 
         {confirmingPayment ? (

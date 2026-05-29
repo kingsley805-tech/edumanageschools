@@ -293,6 +293,8 @@ const applySuccessfulCharge = async (
 
   const extendedPayment = {
     ...basePayment,
+    student_id: studentIdForPay,
+    parent_id: parentIdForPay,
     paystack_transaction_id: paystackTransactionId != null && String(paystackTransactionId).trim() !== ""
       ? String(paystackTransactionId).trim()
       : null,
@@ -322,6 +324,17 @@ const applySuccessfulCharge = async (
     .eq("id", invoiceId)
     .eq("school_id", schoolId)
     .single();
+
+  let studentIdForPay: string | null = invoice?.student_id ? String(invoice.student_id) : null;
+  let parentIdForPay: string | null = null;
+  if (studentIdForPay) {
+    const { data: stRow } = await adminSupabase
+      .from("students")
+      .select("guardian_id")
+      .eq("id", studentIdForPay)
+      .maybeSingle();
+    if (stRow?.guardian_id) parentIdForPay = String(stRow.guardian_id);
+  }
 
   if (invoice) {
     const newAmountPaid = Number(invoice.amount_paid) + paymentAmount;

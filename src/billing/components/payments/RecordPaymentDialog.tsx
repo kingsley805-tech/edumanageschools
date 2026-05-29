@@ -144,9 +144,23 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
       if (paymentAmount > invoice.balance) throw new Error("Amount exceeds invoice balance");
 
       // Record payment
+      const { data: invRow } = await supabase
+        .from("billing_invoices")
+        .select("student_id, students ( guardian_id )")
+        .eq("id", selectedInvoiceId)
+        .maybeSingle();
+
+      const studentId = invRow?.student_id ?? null;
+      const guardianId =
+        invRow?.students && typeof invRow.students === "object" && "guardian_id" in invRow.students
+          ? (invRow.students as { guardian_id?: string }).guardian_id
+          : null;
+
       const { error: payError } = await supabase.from("billing_payments").insert({
         school_id: profile.school_id,
         invoice_id: selectedInvoiceId,
+        student_id: studentId,
+        parent_id: guardianId ?? null,
         amount: paymentAmount,
         currency: invoice.currency,
         method,

@@ -68,6 +68,8 @@ import QuestionBank from "./pages/teacher/QuestionBank";
 import TeacherOnlineExams from "./pages/teacher/OnlineExams";
 import StudentOnlineExams from "./pages/student/OnlineExams";
 import StudentBilling from "./pages/student/Billing";
+import StudentPaymentHistory from "./pages/student/PaymentHistory";
+import ParentPaymentHistory from "./pages/parent/PaymentHistory";
 import SuperAdminManagement from "./pages/admin/SuperAdminManagement";
 import SchoolSettings from "./pages/admin/SchoolSettings";
 import PendingUsers from "./pages/admin/PendingUsers";
@@ -388,6 +390,11 @@ function App() {
                   <ParentBillingPayments />
                 </ProtectedRoute>
               } />
+              <Route path="/parent/payment-history" element={
+                <ProtectedRoute allowedRoles={["parent"]}>
+                  <ParentPaymentHistory />
+                </ProtectedRoute>
+              } />
               <Route path="/parent/children" element={
                 <ProtectedRoute allowedRoles={["parent"]}>
                   <Children />
@@ -476,6 +483,11 @@ function App() {
               <Route path="/student/billing" element={
                 <ProtectedRoute allowedRoles={["student"]}>
                   <StudentBilling />
+                </ProtectedRoute>
+              } />
+              <Route path="/student/payment-history" element={
+                <ProtectedRoute allowedRoles={["student"]}>
+                  <StudentPaymentHistory />
                 </ProtectedRoute>
               } />
               

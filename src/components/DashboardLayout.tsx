@@ -347,7 +347,10 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           type: "group",
           label: "Finance",
           icon: DollarSign,
-          items: [{ icon: DollarSign, label: "Payments", path: "/parent/payments" }],
+          items: [
+            { icon: DollarSign, label: "School fees", path: "/parent/payments" },
+            { icon: FileText, label: "Payment history", path: "/parent/payment-history" },
+          ],
         },
         {
           type: "group",
@@ -392,7 +395,10 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           type: "group",
           label: "Finance",
           icon: DollarSign,
-          items: [{ icon: DollarSign, label: "My fees", path: "/student/billing" }],
+          items: [
+            { icon: DollarSign, label: "My fees", path: "/student/billing" },
+            { icon: FileText, label: "Payment history", path: "/student/payment-history" },
+          ],
         },
         {
           type: "group",

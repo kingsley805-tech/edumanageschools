@@ -19,10 +19,14 @@ export interface ReceiptData {
   studentName: string;
   admissionNumber: string;
   className: string;
+  parentName?: string | null;
   invoiceNumber: string;
   amount: number;
   currency: string;
   method: string;
+  gateway?: string | null;
+  paymentStatus?: string | null;
+  payerName?: string | null;
   paidAt: string;
   items?: { description: string; amount: number }[];
   /** Paystack transaction reference (same as gateway_ref when paid online) */
@@ -122,10 +126,23 @@ export async function generateReceipt(data: ReceiptData) {
 
   const infoRows: [string, string][] = [
     ["Student Name", data.studentName],
-    ["Admission No.", data.admissionNumber],
+    ["Admission No.", data.admissionNumber || "—"],
     ["Class", data.className],
     ["Invoice #", data.invoiceNumber],
   ];
+  if (data.parentName?.trim()) {
+    infoRows.push(["Parent / Guardian", data.parentName.trim()]);
+  }
+  if (data.payerName?.trim()) {
+    infoRows.push(["Paid by", data.payerName.trim()]);
+  }
+  if (data.gateway?.trim()) {
+    infoRows.push(["Gateway", data.gateway.trim()]);
+  }
+  infoRows.push(["Payment method", data.method.replace(/_/g, " ")]);
+  if (data.paymentStatus?.trim()) {
+    infoRows.push(["Status", data.paymentStatus.trim()]);
+  }
   if (data.paystackReference) {
     infoRows.push(["Payment reference", data.paystackReference]);
   }

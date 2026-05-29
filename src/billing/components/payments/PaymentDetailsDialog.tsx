@@ -49,10 +49,18 @@ export function PaymentDetailsDialog({
   payment,
   open,
   onOpenChange,
+  onRefund,
+  onDelete,
+  canRefund,
+  canDelete,
 }: {
   payment: PaymentDetailsPayload | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onRefund?: (payment: PaymentDetailsPayload) => void;
+  onDelete?: (payment: PaymentDetailsPayload) => void;
+  canRefund?: boolean;
+  canDelete?: boolean;
 }) {
   if (!payment) return null;
   const st = statusMap[payment.status] || statusMap.pending;
@@ -94,6 +102,28 @@ export function PaymentDetailsDialog({
           <Row label="Internal ID" value={payment.id} />
           {payment.notes ? <Row label="Notes" value={payment.notes} /> : null}
         </div>
+        {(canRefund && onRefund) || (canDelete && onDelete) ? (
+          <div className="flex flex-wrap gap-2 border-t pt-4">
+            {canRefund && onRefund && payment.status === "paid" ? (
+              <button
+                type="button"
+                className="inline-flex h-9 items-center rounded-md border border-amber-500/40 bg-amber-500/10 px-3 text-sm font-medium text-amber-900 hover:bg-amber-500/20"
+                onClick={() => onRefund(payment)}
+              >
+                Refund payment
+              </button>
+            ) : null}
+            {canDelete && onDelete ? (
+              <button
+                type="button"
+                className="inline-flex h-9 items-center rounded-md border border-destructive/40 bg-destructive/10 px-3 text-sm font-medium text-destructive hover:bg-destructive/20"
+                onClick={() => onDelete(payment)}
+              >
+                Delete record
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </DialogContent>
     </Dialog>
   );
