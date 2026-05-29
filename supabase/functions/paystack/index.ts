@@ -928,17 +928,65 @@ serve(async (req) => {
 
       const payerRole = rolesData?.[0]?.role ?? null;
 
+      // Treat auto-generated student logins (e.g. "<uuid>.<admno>@students.app"
+      // or "...@school.local") as not real emails — Paystack rejects them.
+      const isSyntheticEmail = (e: string) =>
+        !e || /@(students\.app|school\.local|local)$/i.test(e) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+
       const emailFromBody = typeof jsonBody.email === "string" ? jsonBody.email.trim() : "";
-      const email =
-        emailFromBody ||
-        (typeof user.email === "string" ? user.email.trim() : "") ||
-        (typeof profileData?.email === "string" ? profileData.email.trim() : "");
+      const authEmail = typeof user.email === "string" ? user.email.trim() : "";
+      const profileEmail = typeof profileData?.email === "string" ? profileData.email.trim() : "";
+
+      let email = [emailFromBody, authEmail, profileEmail].find((e) => e && !isSyntheticEmail(e)) ?? "";
+
+      // Students: fall back to their guardian/parent email, then the school merchant email.
+      if (!email && payerRole === "student") {
+        const adminClient = createClient(supabaseUrl, serviceKey);
+        const { data: studentRow } = await adminClient
+          .from("students")
+          .select("guardian_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (studentRow?.guardian_id) {
+          const { data: parentRow } = await adminClient
+            .from("parents")
+            .select("user_id")
+            .eq("id", studentRow.guardian_id)
+            .maybeSingle();
+          if (parentRow?.user_id) {
+            const { data: parentProfile } = await adminClient
+              .from("profiles")
+              .select("email")
+              .eq("id", parentRow.user_id)
+              .maybeSingle();
+            const pe = typeof parentProfile?.email === "string" ? parentProfile.email.trim() : "";
+            if (pe && !isSyntheticEmail(pe)) email = pe;
+          }
+        }
+      }
+
+      // Last-resort: use the school's merchant email so checkout can proceed.
+      if (!email) {
+        const adminClient = createClient(supabaseUrl, serviceKey);
+        const { data: gw } = await adminClient
+          .from("payment_gateway_configs")
+          .select("merchant_email")
+          .eq("school_id", invoice.school_id)
+          .eq("is_default", true)
+          .maybeSingle();
+        const me = typeof gw?.merchant_email === "string" ? gw.merchant_email.trim() : "";
+        if (me && !isSyntheticEmail(me)) email = me;
+      }
 
       if (!email) {
         return jsonResponse({
-          error: "No email on your account. Add an email in profile settings before paying online.",
+          error:
+            payerRole === "student"
+              ? "No payer email available. Ask an admin to link a parent with a valid email to this student, or set a merchant email on the school's payment gateway."
+              : "No email on your account. Add an email in profile settings before paying online.",
         }, 400);
       }
+
 
       const amountIn = jsonBody.amount;
       let paymentAmount =

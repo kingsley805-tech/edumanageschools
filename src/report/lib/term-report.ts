@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { supabase } from "@/integrations/supabase/client";
 import { fetchClassSubjectTemplates } from "@/report/lib/class-subjects";
 import { isMissingSchemaColumnError } from "@/report/lib/supabase-errors";

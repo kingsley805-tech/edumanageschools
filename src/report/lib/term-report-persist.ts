@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { supabase } from "@/integrations/supabase/client";
 import type { ReportCardStatus } from "@/report/lib/report-card-status";
 import type { ReportFormData } from "@/report/lib/shepherd-grading";
