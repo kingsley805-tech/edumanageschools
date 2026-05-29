@@ -119,10 +119,13 @@ const loadPaystackGatewayRow = async (
       .eq("school_id", schoolId)
       .eq("provider", "paystack")
       .maybeSingle();
-    if (error) throw error;
+    if (error) {
+      console.warn("loadPaystackGatewayRow by id:", error.message);
+      return null;
+    }
     if (data?.is_enabled) return data;
   }
-  const { data: primary } = await admin
+  const { data: primary, error: primaryErr } = await admin
     .from("tenant_payment_gateway_configs")
     .select(
       "id, school_id, provider, is_enabled, is_test_mode, is_default, callback_url, public_key, merchant_email, paystack_secret_key",
@@ -133,6 +136,10 @@ const loadPaystackGatewayRow = async (
     .order("is_default", { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (primaryErr) {
+    console.warn("loadPaystackGatewayRow primary:", primaryErr.message);
+    return null;
+  }
   return primary ?? null;
 };
 
@@ -199,7 +206,10 @@ const resolveMerchantEmailForSchool = async (
     .eq("school_id", schoolId)
     .eq("provider", "paystack");
 
-  if (error) throw error;
+  if (error) {
+    console.warn("resolveMerchantEmailForSchool:", error.message);
+    return fromCreds && !isSyntheticPayerEmail(fromCreds) ? fromCreds : null;
+  }
 
   const sorted = [...(rows ?? [])].sort((a, b) => {
     const score = (r: { is_enabled?: boolean; is_default?: boolean }) =>
@@ -275,6 +285,28 @@ const applySuccessfulCharge = async (
     paymentMeta.confirmed_via = "return_url";
   }
 
+  const { data: invoice } = await adminSupabase
+    .from("billing_invoices")
+    .select("total_amount, amount_paid, school_id, invoice_number, student_id")
+    .eq("id", invoiceId)
+    .eq("school_id", schoolId)
+    .single();
+
+  if (!invoice) {
+    throw new Error("Invoice not found for this payment");
+  }
+
+  let studentIdForPay: string | null = invoice.student_id ? String(invoice.student_id) : null;
+  let parentIdForPay: string | null = null;
+  if (studentIdForPay) {
+    const { data: stRow } = await adminSupabase
+      .from("students")
+      .select("guardian_id")
+      .eq("id", studentIdForPay)
+      .maybeSingle();
+    if (stRow?.guardian_id) parentIdForPay = String(stRow.guardian_id);
+  }
+
   const paidAt = new Date().toISOString();
   const basePayment = {
     school_id: schoolId,
@@ -304,7 +336,7 @@ const applySuccessfulCharge = async (
   };
 
   let insertedPayment: { id: string } | null = null;
-  let payInsertError: { message?: string } | null = null;
+  let payInsertError: { message?: string; code?: string } | null = null;
 
   const fullInsert = await adminSupabase.from("billing_payments").insert(extendedPayment).select("id").single();
   insertedPayment = fullInsert.data;
@@ -316,27 +348,16 @@ const applySuccessfulCharge = async (
     payInsertError = minimalInsert.error;
   }
 
-  if (payInsertError) throw payInsertError;
-
-  const { data: invoice } = await adminSupabase
-    .from("billing_invoices")
-    .select("total_amount, amount_paid, school_id, invoice_number, student_id")
-    .eq("id", invoiceId)
-    .eq("school_id", schoolId)
-    .single();
-
-  let studentIdForPay: string | null = invoice?.student_id ? String(invoice.student_id) : null;
-  let parentIdForPay: string | null = null;
-  if (studentIdForPay) {
-    const { data: stRow } = await adminSupabase
-      .from("students")
-      .select("guardian_id")
-      .eq("id", studentIdForPay)
-      .maybeSingle();
-    if (stRow?.guardian_id) parentIdForPay = String(stRow.guardian_id);
+  if (payInsertError) {
+    const code = String(payInsertError.code ?? "");
+    const msg = payInsertError.message ?? "Failed to save payment";
+    if (code === "23505" || /duplicate|unique/i.test(msg)) {
+      return { duplicate: true };
+    }
+    throw new Error(msg);
   }
 
-  if (invoice) {
+  {
     const newAmountPaid = Number(invoice.amount_paid) + paymentAmount;
     const totalAmount = Number(invoice.total_amount);
     const newBalance = totalAmount - newAmountPaid;
@@ -670,7 +691,9 @@ serve(async (req) => {
               .select("ciphertext")
               .eq("gateway_config_id", row.id)
               .maybeSingle();
-            if (secErr) throw secErr;
+            if (secErr) {
+              console.warn("gateway-list secrets:", secErr.message);
+            }
 
             let secret_key = plainSk;
             let webhook_secret = "";
@@ -962,6 +985,7 @@ serve(async (req) => {
     }
 
     if (route === "initialize" && req.method === "POST") {
+      try {
       const authHeader = req.headers.get("Authorization");
       if (!authHeader?.startsWith("Bearer ")) {
         return jsonResponse({ error: "Unauthorized" }, 401);
@@ -1144,6 +1168,11 @@ serve(async (req) => {
         reference: paystackData.data.reference,
         access_code: paystackData.data.access_code,
       });
+      } catch (initErr: unknown) {
+        const msg = initErr instanceof Error ? initErr.message : "Payment initialization failed";
+        console.error("initialize route:", initErr);
+        return jsonResponse({ error: msg }, 400);
+      }
     }
 
     if (route === "retry-webhooks" && req.method === "POST") {
@@ -1649,6 +1678,7 @@ serve(async (req) => {
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Internal server error";
     console.error("Paystack function error:", error);
-    return jsonResponse({ error: msg }, 500);
+    const status = error instanceof Error ? 400 : 500;
+    return jsonResponse({ error: msg }, status);
   }
 });
