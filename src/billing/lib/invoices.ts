@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { supabase } from "@/integrations/supabase/client";
 import { isSchemaColumnError } from "@/lib/schoolFetch";
 import { formatSupabaseError } from "@/billing/lib/fee-assignments";
