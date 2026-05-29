@@ -87,6 +87,43 @@ export function readPaystackPendingReference(): string | null {
 
 let confirmInFlight: string | null = null;
 
+const confirmSuccessKey = (ref: string) => `school_hub_paystack_confirm_ok_${ref}`;
+const confirmThrottleKey = (ref: string) => `school_hub_paystack_confirm_at_${ref}`;
+const CONFIRM_THROTTLE_MS = 45_000;
+
+function wasConfirmSuccessful(ref: string): boolean {
+  try {
+    return sessionStorage.getItem(confirmSuccessKey(ref)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markConfirmSuccessful(ref: string) {
+  try {
+    sessionStorage.setItem(confirmSuccessKey(ref), "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+function isConfirmThrottled(ref: string): boolean {
+  try {
+    const at = Number(sessionStorage.getItem(confirmThrottleKey(ref)) || 0);
+    return at > 0 && Date.now() - at < CONFIRM_THROTTLE_MS;
+  } catch {
+    return false;
+  }
+}
+
+function markConfirmAttemptTime(ref: string) {
+  try {
+    sessionStorage.setItem(confirmThrottleKey(ref), String(Date.now()));
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Confirm using URL query or sessionStorage (after Paystack redirect). */
 export async function confirmPaystackPaymentFromReturn(
   returnState: { reference: string; status: string } | null,
@@ -100,11 +137,19 @@ export async function confirmPaystackPaymentFromReturn(
   if (confirmInFlight === reference) {
     return { ok: false, error: "Confirmation already in progress." };
   }
+  if (wasConfirmSuccessful(reference)) {
+    return { ok: true, duplicate: true };
+  }
+  if (isConfirmThrottled(reference)) {
+    return { ok: false, error: "Payment sync was just attempted. Wait a moment, then use Sync Paystack payment." };
+  }
   confirmInFlight = reference;
+  markConfirmAttemptTime(reference);
 
   try {
     const result = await confirmPaystackPayment(reference);
     if (result.ok) {
+      markConfirmSuccessful(reference);
       clearPaystackPendingReference();
     }
     return result;

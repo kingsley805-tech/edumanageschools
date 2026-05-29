@@ -142,9 +142,17 @@ const getSecretsForConfig = async (admin: SupabaseAdmin, configId: string): Prom
     .select("ciphertext")
     .eq("gateway_config_id", configId)
     .maybeSingle();
-  if (error) throw error;
+  if (error) {
+    console.warn("tenant_payment_gateway_secrets read:", error.message);
+    return {};
+  }
   if (!data?.ciphertext) return {};
-  return await decryptSecretsPayload(data.ciphertext);
+  try {
+    return await decryptSecretsPayload(data.ciphertext);
+  } catch (e) {
+    console.warn("decrypt gateway secrets:", e);
+    return {};
+  }
 };
 
 const getPaystackCredentialsForOrg = async (
@@ -660,8 +668,8 @@ serve(async (req) => {
                 const decrypted = await decryptSecretsPayload(secRow.ciphertext);
                 if (!secret_key) secret_key = decrypted.secret_key ?? "";
                 webhook_secret = decrypted.webhook_secret ?? "";
-              } catch (e) {
-                if (!plainSk) throw e;
+              } catch {
+                /* use plain paystack_secret_key column if decrypt fails */
               }
             }
 
@@ -1389,6 +1397,7 @@ serve(async (req) => {
     }
 
     if (route === "confirm" && req.method === "POST") {
+      try {
       const authHeader = req.headers.get("Authorization");
       if (!authHeader?.startsWith("Bearer ")) {
         return jsonResponse({ error: "Unauthorized" }, 401);
@@ -1430,13 +1439,18 @@ serve(async (req) => {
         if (payRow?.school_id) schoolIdForKeys = String(payRow.school_id);
       }
 
-      let secretHolder = schoolIdForKeys
-        ? await getPaystackCredentialsForOrg(
-          adminSupabase,
-          schoolIdForKeys,
-          checkoutSession?.gateway_config_id ? String(checkoutSession.gateway_config_id) : null,
-        )
-        : null;
+      let secretHolder: PaystackCreds | null = null;
+      if (schoolIdForKeys) {
+        try {
+          secretHolder = await getPaystackCredentialsForOrg(
+            adminSupabase,
+            schoolIdForKeys,
+            checkoutSession?.gateway_config_id ? String(checkoutSession.gateway_config_id) : null,
+          );
+        } catch (e) {
+          console.warn("getPaystackCredentialsForOrg:", e);
+        }
+      }
 
       let verifyJson: { status?: boolean; message?: string; data?: Record<string, unknown> } | null = null;
       let txn: Record<string, unknown> | undefined;
@@ -1457,7 +1471,12 @@ serve(async (req) => {
           .eq("is_enabled", true);
 
         for (const cfg of cfgRows ?? []) {
-          const creds = await getPaystackCredentialsForOrg(adminSupabase, String(cfg.school_id), cfg.id);
+          let creds: PaystackCreds | null = null;
+          try {
+            creds = await getPaystackCredentialsForOrg(adminSupabase, String(cfg.school_id), cfg.id);
+          } catch {
+            continue;
+          }
           if (!creds?.secretKey) continue;
           const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
             headers: { Authorization: `Bearer ${creds.secretKey}` },
@@ -1572,6 +1591,11 @@ serve(async (req) => {
       } catch (chargeErr: unknown) {
         const msg = chargeErr instanceof Error ? chargeErr.message : "Failed to record payment";
         console.error("confirm applySuccessfulCharge:", chargeErr);
+        return jsonResponse({ error: msg }, 400);
+      }
+      } catch (confirmErr: unknown) {
+        const msg = confirmErr instanceof Error ? confirmErr.message : "Payment confirmation failed";
+        console.error("confirm route:", confirmErr);
         return jsonResponse({ error: msg }, 400);
       }
     }

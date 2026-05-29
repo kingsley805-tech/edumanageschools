@@ -259,6 +259,10 @@ export default function PaymentGatewaySettings() {
     async (opts?: { silent?: boolean }) => {
       const s = saveSnapshotRef.current;
       if (loadingConfigs || !s.user || !s.canManage) return;
+      if (!edgeFunctionAvailable && !opts?.silent) {
+        toast.error("Deploy the paystack Edge Function before saving keys, or save public settings via SQL.");
+        return;
+      }
       const pk = s.publicKey.trim();
       const merchant = s.merchantEmail.trim();
       if (!pk) {
@@ -343,18 +347,12 @@ export default function PaymentGatewaySettings() {
   );
 
   const schedulePaystackAutosave = useCallback(() => {
+    /* Autosave disabled: debounced gateway-upsert was causing repeated paystack 500s in the console. */
     if (autosaveTimerRef.current) {
       clearTimeout(autosaveTimerRef.current);
       autosaveTimerRef.current = null;
     }
-    autosaveTimerRef.current = setTimeout(() => {
-      autosaveTimerRef.current = null;
-      const snap = saveSnapshotRef.current;
-      const pk = snap.publicKey.trim();
-      if (!pk || !isValidPaystackPublicKey(pk)) return;
-      void performPaystackSave({ silent: true });
-    }, PAYSTACK_AUTOSAVE_DEBOUNCE_MS);
-  }, [performPaystackSave]);
+  }, []);
 
   useEffect(
     () => () => {
