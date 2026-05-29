@@ -247,7 +247,8 @@ export default function ParentBillingPayments() {
                 ) : (
                   child.invoices.map((inv) => {
                     const due = balance(inv);
-                    const canPay = due > 0 && !["paid", "void"].includes(inv.status);
+                    const canPay = canPayPortalInvoice(inv.status, due);
+                    const statusBadge = getPortalInvoiceStatusBadge(inv.status);
                     return (
                       <div
                         key={inv.id}
