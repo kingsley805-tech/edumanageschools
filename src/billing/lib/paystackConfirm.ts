@@ -3,23 +3,72 @@ import { supabase } from "@/integrations/supabase/client";
 
 const PENDING_REF_KEY = "school_hub_paystack_pending_reference";
 
-export async function confirmPaystackPayment(reference: string) {
+type ConfirmResult = { ok: boolean; duplicate?: boolean; error?: string };
+
+async function confirmPaystackPaymentViaRpc(reference: string): Promise<ConfirmResult> {
+  const { data, error } = await supabase.rpc("confirm_paystack_payment", {
+    p_reference: reference.trim(),
+  });
+
+  if (error) {
+    const msg = error.message ?? "";
+    if (msg.includes("confirm_paystack_payment") || msg.includes("schema cache")) {
+      return {
+        ok: false,
+        error:
+          "Payment confirm SQL is missing. Run public/sql/apply-paystack-confirm-rpc.sql in Supabase, enable the http extension, then reload schema.",
+      };
+    }
+    return { ok: false, error: msg || "Could not confirm payment." };
+  }
+
+  const payload = (data ?? {}) as { ok?: boolean; duplicate?: boolean; error?: string };
+  if (payload.ok) {
+    return { ok: true, duplicate: Boolean(payload.duplicate) };
+  }
+  return { ok: false, error: payload.error ?? "Could not confirm payment." };
+}
+
+function isRpcNotInstalledError(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes("confirm_paystack_payment") ||
+    m.includes("schema cache") ||
+    m.includes("could not find the function")
+  );
+}
+
+export async function confirmPaystackPayment(reference: string): Promise<ConfirmResult> {
+  const ref = reference.trim();
+  if (!ref) return { ok: false, error: "Missing payment reference." };
+
+  const rpcResult = await confirmPaystackPaymentViaRpc(ref);
+  if (rpcResult.ok) return rpcResult;
+  if (rpcResult.error && !isRpcNotInstalledError(rpcResult.error)) {
+    return rpcResult;
+  }
+
   try {
     const data = await invokeEdgeFunction<{ ok?: boolean; duplicate?: boolean; error?: string }>(
       "paystack",
-      { action: "confirm", reference },
+      { action: "confirm", reference: ref },
     );
 
     if (data && typeof data === "object" && "error" in data && typeof data.error === "string") {
-      return { ok: false as const, error: data.error };
+      return { ok: false, error: data.error };
     }
 
     return {
-      ok: true as const,
+      ok: true,
       duplicate: Boolean(data?.duplicate),
     };
   } catch (e) {
-    return { ok: false as const, error: formatEdgeFunctionError(e, "paystack") };
+    const edgeMsg = formatEdgeFunctionError(e, "paystack");
+    const rpcHint = rpcResult.error ? ` Database: ${rpcResult.error}` : "";
+    return {
+      ok: false,
+      error: `${edgeMsg}${rpcHint} Run public/sql/apply-paystack-confirm-rpc.sql or deploy: supabase functions deploy paystack`,
+    };
   }
 }
 

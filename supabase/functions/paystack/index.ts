@@ -523,9 +523,18 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !supabaseKey || !serviceKey) {
+      return jsonResponse(
+        {
+          error:
+            "Edge Function secrets missing. Set SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY in Supabase → Edge Functions → paystack → Secrets.",
+        },
+        503,
+      );
+    }
 
     const url = new URL(req.url);
     const pathLast = url.pathname.split("/").filter(Boolean).pop() || "";
