@@ -900,13 +900,11 @@ serve(async (req) => {
         return jsonResponse({ error: "Unauthorized" }, 401);
       }
 
-      const invoice_id = jsonBody.invoice_id;
-      const amount = jsonBody.amount;
-      const email = jsonBody.email;
+      const invoice_id = typeof jsonBody.invoice_id === "string" ? jsonBody.invoice_id.trim() : "";
       const callback_url = jsonBody.callback_url;
 
-      if (!invoice_id || !amount || !email) {
-        return jsonResponse({ error: "Missing required fields: invoice_id, amount, email" }, 400);
+      if (!invoice_id) {
+        return jsonResponse({ error: "Missing required field: invoice_id" }, 400);
       }
 
       const { data: invoice, error: invError } = await supabase
@@ -925,12 +923,26 @@ serve(async (req) => {
 
       const [{ data: rolesData }, { data: profileData }] = await Promise.all([
         supabase.from("user_roles").select("role").eq("user_id", user.id).limit(1),
-        supabase.from("profiles").select("first_name, last_name").eq("user_id", user.id).maybeSingle(),
+        supabase.from("profiles").select("email, full_name").eq("id", user.id).maybeSingle(),
       ]);
 
       const payerRole = rolesData?.[0]?.role ?? null;
 
-      let paymentAmount = Number(amount);
+      const emailFromBody = typeof jsonBody.email === "string" ? jsonBody.email.trim() : "";
+      const email =
+        emailFromBody ||
+        (typeof user.email === "string" ? user.email.trim() : "") ||
+        (typeof profileData?.email === "string" ? profileData.email.trim() : "");
+
+      if (!email) {
+        return jsonResponse({
+          error: "No email on your account. Add an email in profile settings before paying online.",
+        }, 400);
+      }
+
+      const amountIn = jsonBody.amount;
+      let paymentAmount =
+        amountIn != null && amountIn !== "" ? Number(amountIn) : outstanding;
       if (payerRole === "student" || payerRole === "parent") {
         paymentAmount = outstanding;
       }
@@ -951,7 +963,7 @@ serve(async (req) => {
       }
       const metadataFullName =
         typeof user.user_metadata?.full_name === "string" ? String(user.user_metadata.full_name).trim() : "";
-      const profileName = [profileData?.first_name, profileData?.last_name].filter(Boolean).join(" ").trim();
+      const profileName = typeof profileData?.full_name === "string" ? profileData.full_name.trim() : "";
       const payerName = profileName || metadataFullName || String(email);
 
       let effectiveCallback =

@@ -1,4 +1,5 @@
 import { formatEdgeFunctionError, invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
+import { supabase } from "@/integrations/supabase/client";
 
 export async function confirmPaystackPayment(reference: string) {
   try {
@@ -28,11 +29,19 @@ export type PaystackInitializeResult = {
 export async function initializePaystackCheckout(input: {
   invoice_id: string;
   callback_url: string;
+  /** Optional partial amount (admins); students/parents pay full outstanding on the server. */
+  amount?: number;
+  email?: string;
 }): Promise<string> {
+  const { data: session } = await supabase.auth.getSession();
+  const sessionEmail = session.session?.user?.email?.trim() ?? "";
+
   const data = await invokeEdgeFunction<PaystackInitializeResult>("paystack", {
     action: "initialize",
     invoice_id: input.invoice_id,
     callback_url: input.callback_url,
+    email: (input.email?.trim() || sessionEmail) || undefined,
+    ...(input.amount != null && Number.isFinite(input.amount) ? { amount: input.amount } : {}),
   });
 
   if (!data.authorization_url) {
