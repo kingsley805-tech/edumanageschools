@@ -79,6 +79,7 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
     key: "attendance",
     label: "Attendance",
     modules: [
+      { key: "class_registers", label: "Class Registers", path: "/admin/register", actions: ["view", "create", "edit", "export", "manage", "approve"] },
       { key: "attendance", label: "Student Attendance", path: "/admin/attendance", actions: ["view", "create", "edit", "export", "manage"] },
     ],
   },

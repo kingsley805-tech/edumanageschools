@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +16,10 @@ import {
   createRegister,
   fetchAttendanceStatusTypes,
   fetchClassStudents,
+  fetchClassSubjectsForClass,
+  fetchClasses,
   fetchSchoolId,
+  fetchSchoolTeachers,
   fetchTeacherAssignments,
   fetchTeacherId,
   fetchTerms,
@@ -32,12 +35,20 @@ export default function TeacherRegisterEditor() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const isNew = id === "new" || !id;
+  const isAdminRoute = location.pathname.startsWith("/admin/register");
+  const layoutRole = isAdminRoute ? "admin" : "teacher";
+  const registerBase = isAdminRoute ? "/admin/register" : "/teacher/register";
 
   const [schoolId, setSchoolId] = useState(null);
   const [teacherId, setTeacherId] = useState(null);
   const [assignments, setAssignments] = useState([]);
+  const [adminClasses, setAdminClasses] = useState([]);
+  const [classSubjects, setClassSubjects] = useState([]);
+  const [schoolTeachers, setSchoolTeachers] = useState([]);
+  const [selectedTeacherId, setSelectedTeacherId] = useState("");
   const [statusTypes, setStatusTypes] = useState([]);
   const [terms, setTerms] = useState([]);
   const [register, setRegister] = useState(null);
@@ -68,8 +79,26 @@ export default function TeacherRegisterEditor() {
         if (current) setTermId(current.id);
       }
       if (tid) setAssignments(await fetchTeacherAssignments(tid));
+      if (sid && isAdminRoute) {
+        setAdminClasses(await fetchClasses(sid));
+        setSchoolTeachers(await fetchSchoolTeachers(sid));
+      }
     })();
-  }, [user]);
+  }, [user, isAdminRoute]);
+
+  useEffect(() => {
+    if (!isAdminRoute || !classId) {
+      setClassSubjects([]);
+      return;
+    }
+    void fetchClassSubjectsForClass(classId).then((rows) => {
+      setClassSubjects(rows);
+      if (subjectId) {
+        const match = rows.find((r) => r.subject_id === subjectId);
+        if (match?.teacher_id) setSelectedTeacherId(match.teacher_id);
+      }
+    });
+  }, [isAdminRoute, classId, subjectId]);
 
   useEffect(() => {
     if (!id || isNew) return;
@@ -126,7 +155,7 @@ export default function TeacherRegisterEditor() {
           schoolId,
           classId,
           subjectId,
-          teacherId,
+          teacherId: effectiveTeacherId,
           termId: termId || null,
           academicYearId: term?.academic_year_id ?? null,
           registerDate,
@@ -156,10 +185,10 @@ export default function TeacherRegisterEditor() {
         const full = await getRegister(registerId);
         if (full) await syncLegacyAttendance(full);
         toast.success("Register submitted for approval");
-        navigate("/teacher/register");
+        navigate(registerBase);
       } else {
         toast.success("Draft saved");
-        if (isNew) navigate(`/teacher/register/${registerId}`);
+        if (isNew) navigate(`${registerBase}/${registerId}`);
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
@@ -175,8 +204,11 @@ export default function TeacherRegisterEditor() {
   const readOnly = register?.locked || register?.status === "approved" || register?.status === "submitted";
 
   return (
-    <DashboardLayout role="teacher">
+    <DashboardLayout role={layoutRole}>
       <div className="space-y-6 max-w-6xl mx-auto">
+        <Button variant="ghost" size="sm" asChild>
+          <Link to={registerBase}>← Back to registers</Link>
+        </Button>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">{title}</h1>
@@ -214,7 +246,7 @@ export default function TeacherRegisterEditor() {
             <CardHeader>
               <CardTitle className="text-base">Register details</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-2">
                 <Label>Date</Label>
                 <Input type="date" value={registerDate} onChange={(e) => setRegisterDate(e.target.value)} />
@@ -225,38 +257,83 @@ export default function TeacherRegisterEditor() {
               </div>
               <div className="space-y-2">
                 <Label>Class</Label>
-                <Select value={classId} onValueChange={setClassId}>
+                <Select
+                  value={classId}
+                  onValueChange={(v) => {
+                    setClassId(v);
+                    setSubjectId("");
+                    setSelectedTeacherId("");
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Class" />
                   </SelectTrigger>
                   <SelectContent>
-                    {[...new Map(assignments.map((a) => [a.classes?.id, a.classes])).values()]
-                      .filter(Boolean)
-                      .map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
+                    {isAdminRoute
+                      ? adminClasses.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
+                          </SelectItem>
+                        ))
+                      : [...new Map(assignments.map((a) => [a.classes?.id, a.classes])).values()]
+                          .filter(Boolean)
+                          .map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label>Subject</Label>
-                <Select value={subjectId} onValueChange={setSubjectId}>
+                <Select
+                  value={subjectId}
+                  onValueChange={(v) => {
+                    setSubjectId(v);
+                    if (isAdminRoute) {
+                      const match = classSubjects.find((r) => r.subject_id === v);
+                      if (match?.teacher_id) setSelectedTeacherId(match.teacher_id);
+                    }
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Subject" />
                   </SelectTrigger>
                   <SelectContent>
-                    {assignments
-                      .filter((a) => !classId || a.class_id === classId)
-                      .map((a) => (
-                        <SelectItem key={a.subject_id} value={a.subject_id}>
-                          {a.subjects?.name}
-                        </SelectItem>
-                      ))}
+                    {isAdminRoute
+                      ? classSubjects.map((a) => (
+                          <SelectItem key={a.subject_id} value={a.subject_id}>
+                            {a.subjects?.name}
+                          </SelectItem>
+                        ))
+                      : assignments
+                          .filter((a) => !classId || a.class_id === classId)
+                          .map((a) => (
+                            <SelectItem key={a.subject_id} value={a.subject_id}>
+                              {a.subjects?.name}
+                            </SelectItem>
+                          ))}
                   </SelectContent>
                 </Select>
               </div>
+              {isAdminRoute ? (
+                <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+                  <Label>Teacher</Label>
+                  <Select value={selectedTeacherId} onValueChange={setSelectedTeacherId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Teacher" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {schoolTeachers.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.profiles?.full_name ?? "Teacher"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
         ) : null}

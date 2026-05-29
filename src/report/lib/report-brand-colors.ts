@@ -71,6 +71,34 @@ export function reportThemeFromSettings(
   return DEFAULT_REPORT_THEME;
 }
 
+/**
+ * Pick report card primary color: school brand (School Settings) with optional
+ * per-school override from Report Settings (`report_theme_primary`).
+ */
+export function resolveReportThemePrimary(
+  settingsPrimary: string | null | undefined,
+  schoolThemePrimary: string | null | undefined,
+): string {
+  const school = schoolThemePrimary && isValidHexColor(schoolThemePrimary)
+    ? normalizeHex(schoolThemePrimary)
+    : null;
+  const settings = settingsPrimary && isValidHexColor(settingsPrimary)
+    ? normalizeHex(settingsPrimary)
+    : null;
+
+  if (!school && !settings) return DEFAULT_REPORT_THEME;
+  if (!school) return settings!;
+  if (!settings) return school;
+
+  // Legacy rows: report_theme defaulted to black while school brand is customized
+  if (settings === DEFAULT_REPORT_THEME && school !== DEFAULT_REPORT_THEME) {
+    return school;
+  }
+  // Report Settings override when it differs from portal brand primary
+  if (settings !== school) return settings;
+  return school;
+}
+
 /** Build full report card palette from a single primary hex */
 export function buildReportBrandColors(primaryHex: string): ReportBrandColors {
   const primary = isValidHexColor(primaryHex)

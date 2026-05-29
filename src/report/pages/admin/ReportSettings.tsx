@@ -28,8 +28,9 @@ import { ReportThemeColorPicker } from "@/report/components/report-theme-color-p
 import {
   DEFAULT_REPORT_THEME,
   isValidHexColor,
-  reportThemeFromSettings,
+  resolveReportThemePrimary,
 } from "@/report/lib/report-brand-colors";
+import { parseSchoolBrand } from "@/lib/themeColors";
 import { validateReportImageFile } from "@/report/lib/validate-report-upload";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -78,22 +79,33 @@ function ReportSettingsPage() {
   }, [school]);
 
   useEffect(() => {
-    if (settings) {
-      setGrading({
-        ca_weight: Number(settings.ca_weight),
-        exam_weight: Number(settings.exam_weight),
-        pass_mark: Number(settings.pass_mark),
-        alert_drop_threshold: Number(settings.alert_drop_threshold),
-        auto_remarks: settings.auto_remarks ?? true,
-        grading_system:
-          (settings as { grading_system?: string }).grading_system === "numeric" ? "numeric" : "letter",
-        report_theme_primary: reportThemeFromSettings(
-          (settings as { report_theme_primary?: string }).report_theme_primary,
+    if (settings || school) {
+      const schoolPrimary = parseSchoolBrand(
+        school as { theme_primary?: string | null; theme_secondary?: string | null; theme_accent?: string | null } | null,
+      ).primary;
+      setGrading((prev) => ({
+        ...prev,
+        ...(settings
+          ? {
+              ca_weight: Number(settings.ca_weight),
+              exam_weight: Number(settings.exam_weight),
+              pass_mark: Number(settings.pass_mark),
+              alert_drop_threshold: Number(settings.alert_drop_threshold),
+              auto_remarks: settings.auto_remarks ?? true,
+              grading_system:
+                (settings as { grading_system?: string }).grading_system === "numeric"
+                  ? "numeric"
+                  : "letter",
+              report_card_footer: (settings as { report_card_footer?: string }).report_card_footer ?? "",
+            }
+          : {}),
+        report_theme_primary: resolveReportThemePrimary(
+          (settings as { report_theme_primary?: string } | null | undefined)?.report_theme_primary,
+          schoolPrimary,
         ),
-        report_card_footer: (settings as { report_card_footer?: string }).report_card_footer ?? "",
-      });
+      }));
     }
-  }, [settings]);
+  }, [settings, school]);
 
   const saveBranding = useMutation({
     mutationFn: async () => {
@@ -283,7 +295,10 @@ function ReportSettingsPage() {
           <CardHeader>
             <CardTitle className="font-display">Report card theme</CardTitle>
             <CardDescription>
-              Primary color for headers, tables, borders, and highlights on all report cards (print &amp; PDF).
+              Primary color for headers, tables, borders, and highlights on all report cards (print &amp;
+              PDF). By default this matches your school brand primary from{" "}
+              <strong>School Settings → Brand Colors</strong>. Change it here only if you want a different
+              color on reports than the rest of the portal.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

@@ -251,6 +251,11 @@ function App() {
                   <RegisterDashboard />
                 </ProtectedRoute>
               } />
+              <Route path="/admin/register/new" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                  <TeacherRegisterEditor />
+                </ProtectedRoute>
+              } />
               <Route path="/admin/register/:id" element={
                 <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
                   <AdminRegisterReview />

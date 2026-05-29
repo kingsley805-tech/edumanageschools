@@ -1,7 +1,8 @@
 // @ts-nocheck
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import { useReportCardAutosave } from "@/report/hooks/use-report-card-autosave";
 import { PageHeader } from "@/report/portal/page-header";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -69,6 +70,43 @@ function AdminViewReport() {
 
   const { updateStatus } = useAdminReportActions(report, user?.id ?? "");
 
+  const formRef = useRef<ReportFormData | null>(null);
+  const adminCommentRef = useRef(adminComment);
+  formRef.current = form;
+  adminCommentRef.current = adminComment;
+
+  const autosave = useReportCardAutosave({
+    enabled: !!report && !!form && canAdminEdit(report.status),
+    onSave: async () => {
+      if (!report || !formRef.current) return;
+      await updateStatus.mutateAsync({
+        status: report.status,
+        form: formRef.current,
+        adminComment: adminCommentRef.current,
+        note: "Auto-saved",
+        skipVersion: true,
+      });
+    },
+  });
+
+  const onFormChange = useCallback(
+    (next: ReportFormData) => {
+      formRef.current = next;
+      setForm(next);
+      autosave.scheduleAutosave();
+    },
+    [autosave.scheduleAutosave],
+  );
+
+  const onAdminCommentChange = useCallback(
+    (value: string) => {
+      adminCommentRef.current = value;
+      setAdminComment(value);
+      autosave.scheduleAutosave();
+    },
+    [autosave.scheduleAutosave],
+  );
+
   const { teacherSignatureUrl, headSignatureUrl } = useReportSignatures({
     schoolId: school?.id ?? report?.school_id ?? "",
     teacherId: report?.teacher_id,
@@ -84,8 +122,8 @@ function AdminViewReport() {
   const saveEdits = async () => {
     await updateStatus.mutateAsync({
       status: report.status,
-      form,
-      adminComment,
+      form: formRef.current ?? form,
+      adminComment: adminCommentRef.current,
       note: "Admin saved edits",
     });
     toast.success("Report updated");
@@ -143,7 +181,7 @@ function AdminViewReport() {
             <Textarea
               rows={3}
               value={adminComment}
-              onChange={(e) => setAdminComment(e.target.value)}
+              onChange={(e) => onAdminCommentChange(e.target.value)}
               placeholder="Notes for the teacher before approval…"
             />
           </div>
@@ -224,9 +262,11 @@ function AdminViewReport() {
         data={form}
         academicYear={form.academicYear}
         editable={editable}
-        onChange={setForm}
+        onChange={onFormChange}
         onSave={saveEdits}
         saving={updateStatus.isPending}
+        autosavePending={autosave.autosavePending}
+        lastSaved={autosave.lastSaved}
         status={report.status}
         adminComment={adminComment}
         rejectionReason={report.rejection_reason}

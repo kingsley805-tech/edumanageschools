@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,11 +22,13 @@ import { derivePrefixFromSchoolName } from "@/lib/school-prefix";
 import { Upload, Building, Image, Save, Loader2, Palette, CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { syncReportThemeWithSchoolBrand } from "@/report/lib/sync-report-theme";
 
 const SchoolSettings = () => {
   const { user } = useAuth();
   const { role } = useUserRole();
   const { applyColors, refreshSchoolTheme } = useSchoolTheme();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingBrand, setSavingBrand] = useState(false);
@@ -221,7 +224,13 @@ const SchoolSettings = () => {
       });
       applyColors(brandColors);
       await refreshSchoolTheme();
-      toast.success("Brand colors saved — all users at your school will see the new theme");
+      try {
+        await syncReportThemeWithSchoolBrand(school.id, brandColors.primary);
+        await queryClient.invalidateQueries({ queryKey: ["report-theme"] });
+      } catch (syncErr) {
+        console.warn("Report theme sync:", syncErr);
+      }
+      toast.success("Brand colors saved — portal and report cards use your primary color");
     } catch (error: unknown) {
       console.error("Error saving brand:", error);
       toast.error("Failed to save brand colors");
@@ -285,9 +294,9 @@ const SchoolSettings = () => {
               Brand Colors
             </CardTitle>
             <CardDescription>
-              Customize three colors for your entire school portal. Defaults are green (primary),
-              black (secondary), and white (accent). Changes apply to all staff, parents, and
-              students at your school.
+              Customize three colors for your entire school portal. The primary color is also applied
+              to report card headers, tables, and PDF exports when you save. Defaults are green
+              (primary), black (secondary), and white (accent).
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

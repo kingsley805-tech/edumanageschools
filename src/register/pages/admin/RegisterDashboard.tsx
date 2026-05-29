@@ -97,7 +97,7 @@ export default function RegisterDashboard() {
               <Download className="h-4 w-4 mr-1" />
               Export
             </Button>
-            <Button size="sm" onClick={() => navigate("/teacher/register/new")}>
+            <Button size="sm" onClick={() => navigate("/admin/register/new")}>
               <Plus className="h-4 w-4 mr-1" />
               New register
             </Button>

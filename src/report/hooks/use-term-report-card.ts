@@ -25,6 +25,7 @@ import {
 } from "@/report/lib/pwa-stub/background-sync";
 import { enqueueOfflineJob } from "@/report/lib/pwa-stub/offline-queue";
 import { clearReportPositions } from "@/report/lib/shepherd-grading";
+import { useReportCardAutosave } from "@/report/hooks/use-report-card-autosave";
 
 function hasSavedPositions(row: TermReportRow | null) {
   if (!row) return false;
@@ -55,9 +56,6 @@ export function useTermReportCard(opts: UseTermReportCardOpts) {
   const [status, setStatus] = useState<ReportCardStatus>("draft");
   const [version, setVersion] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [autosaveScheduled, setAutosaveScheduled] = useState(false);
-  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const formRef = useRef<ReportFormData | null>(null);
   formRef.current = form;
 
@@ -205,7 +203,6 @@ export function useTermReportCard(opts: UseTermReportCardOpts) {
       setReportId(result.id);
       setVersion(result.version);
       setStatus(result.status);
-      setLastSaved(new Date());
       return result.id;
     },
     onSuccess: async (newId) => {
@@ -247,7 +244,6 @@ export function useTermReportCard(opts: UseTermReportCardOpts) {
           },
         });
         await requestBackgroundSync();
-        setLastSaved(new Date());
         toast.info("Saved offline — will sync when you're back online.");
         return;
       }
@@ -255,23 +251,30 @@ export function useTermReportCard(opts: UseTermReportCardOpts) {
     },
   });
 
-  const scheduleAutosave = useCallback(() => {
-    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
-    setAutosaveScheduled(true);
-    autosaveTimer.current = setTimeout(() => {
-      autosaveTimer.current = null;
-      const keepStatus = status === "draft" && !reportId ? "draft" : status;
-      persist.mutate(
-        { nextStatus: keepStatus, note: "Auto-saved", skipVersion: true },
-        {
-          onSettled: () => setAutosaveScheduled(false),
-        },
-      );
-    }, 800);
-  }, [reportId, status, persist]);
+  const statusRef = useRef(status);
+  const reportIdRef = useRef(reportId);
+  statusRef.current = status;
+  reportIdRef.current = reportId;
+
+  const autosaveEnabled = opts.enabled && !loading && !!formRef.current;
+
+  const autosave = useReportCardAutosave({
+    enabled: autosaveEnabled,
+    onSave: async () => {
+      const keepStatus =
+        statusRef.current === "draft" && !reportIdRef.current ? "draft" : statusRef.current;
+      await persist.mutateAsync({
+        nextStatus: keepStatus,
+        note: "Auto-saved",
+        skipVersion: true,
+      });
+    },
+  });
+  const scheduleAutosave = autosave.scheduleAutosave;
 
   const onFormChange = useCallback(
     (next: ReportFormData) => {
+      formRef.current = next;
       setForm(next);
       scheduleAutosave();
     },
@@ -280,6 +283,7 @@ export function useTermReportCard(opts: UseTermReportCardOpts) {
 
   const saveDraft = async () => {
     try {
+      await autosave.flushAutosave();
       const keepStatus = status === "draft" && !reportId ? "draft" : status;
       await persist.mutateAsync({ nextStatus: keepStatus, note: "Manual save" });
       toast.success("Progress saved");
@@ -289,6 +293,7 @@ export function useTermReportCard(opts: UseTermReportCardOpts) {
   };
 
   const submitForReview = async () => {
+    await autosave.flushAutosave();
     const id = await persist.mutateAsync({
       nextStatus: "pending_review",
       note: "Submitted for admin review",
@@ -310,9 +315,9 @@ export function useTermReportCard(opts: UseTermReportCardOpts) {
     status,
     version,
     loading,
-    lastSaved,
+    lastSaved: autosave.lastSaved,
     saving: persist.isPending,
-    autosavePending: persist.isPending || autosaveScheduled,
+    autosavePending: persist.isPending || autosave.autosavePending,
     load,
     saveDraft,
     submitForReview,
@@ -330,13 +335,18 @@ export function useAdminReportActions(report: TermReportRow | undefined, adminId
       adminComment?: string;
       rejectionReason?: string;
       note: string;
+      skipVersion?: boolean;
     }) => {
       if (!report) throw new Error("No report");
+      const nextVersion = params.skipVersion
+        ? (report.version ?? 1)
+        : (report.version ?? 1) + 1;
       const payload: Record<string, unknown> = {
         status: params.status,
         admin_comment: params.adminComment ?? report.admin_comment,
         rejection_reason: params.rejectionReason ?? null,
-        version: (report.version ?? 1) + 1,
+        version: nextVersion,
+        saved_at: new Date().toISOString(),
       };
       if (params.form) {
         Object.assign(
@@ -358,10 +368,10 @@ export function useAdminReportActions(report: TermReportRow | undefined, adminId
         .update(payload as never)
         .eq("id", report.id);
       if (error) throw error;
-      if (params.form) {
+      if (params.form && !params.skipVersion) {
         await saveReportVersion(
           report.id,
-          (report.version ?? 1) + 1,
+          nextVersion,
           params.status,
           params.form,
           adminId,

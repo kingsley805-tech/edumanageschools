@@ -638,8 +638,9 @@ export async function saveTeacherReportEdits(
   form: ReportFormData,
   teacherId: string,
   note = "Teacher saved edits",
+  skipVersion = false,
 ) {
-  const nextVersion = (report.version ?? 1) + 1;
+  const nextVersion = skipVersion ? (report.version ?? 1) : (report.version ?? 1) + 1;
   const payload = {
     ...formToPayload(form, {
       schoolId: report.school_id,
@@ -657,16 +658,18 @@ export async function saveTeacherReportEdits(
     .update(payload as never)
     .eq("id", report.id);
   if (error) throw error;
-  try {
-    await saveReportVersion(
-      report.id,
-      nextVersion,
-      report.status as ReportCardStatus,
-      form,
-      teacherId,
-      note,
-    );
-  } catch {
-    /* version history optional */
+  if (!skipVersion) {
+    try {
+      await saveReportVersion(
+        report.id,
+        nextVersion,
+        report.status as ReportCardStatus,
+        form,
+        teacherId,
+        note,
+      );
+    } catch {
+      /* version history optional */
+    }
   }
 }

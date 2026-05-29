@@ -7,7 +7,9 @@ import { useGradingFormat } from "@/report/hooks/use-school-data";
 import { fetchTermReportById, rowToFormWithTermDates, saveTeacherReportEdits } from "@/report/lib/term-report";
 import { teacherReportEditByDefault } from "@/report/lib/report-card-status";
 import { ArrowLeft, Loader2, Pencil, Send } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useReportCardAutosave } from "@/report/hooks/use-report-card-autosave";
+import type { ReportFormData } from "@/report/lib/shepherd-grading";
 import { toast } from "sonner";
 import { deliverReportToParents } from "@/report/lib/report-delivery";
 import { ReportMetaPanel } from "@/report/components/report-meta-panel";
@@ -55,19 +57,44 @@ function ViewReport() {
     enabled: !!report,
   });
 
+  const formRef = useRef<ReportFormData | null>(null);
+  formRef.current = form;
+
   const saveEdits = useMutation({
-    mutationFn: async () => {
-      if (!report || !form || !user?.id) throw new Error("Missing report data");
-      await saveTeacherReportEdits(report, form, user.id);
+    mutationFn: async (opts?: { skipVersion?: boolean; note?: string }) => {
+      if (!report || !formRef.current || !user?.id) throw new Error("Missing report data");
+      await saveTeacherReportEdits(
+        report,
+        formRef.current,
+        user.id,
+        opts?.note ?? "Teacher saved edits",
+        opts?.skipVersion ?? false,
+      );
     },
-    onSuccess: () => {
-      toast.success("Report saved");
+    onSuccess: (_data, vars) => {
+      if (!vars?.skipVersion) toast.success("Report saved");
       qc.invalidateQueries({ queryKey: ["term-report", id] });
       qc.invalidateQueries({ queryKey: ["term-reports-history"] });
-      refetch();
+      if (!vars?.skipVersion) refetch();
     },
     onError: (e: Error) => toast.error(e.message || "Failed to save"),
   });
+
+  const autosave = useReportCardAutosave({
+    enabled: isEditing && !!report && !!form,
+    onSave: async () => {
+      await saveEdits.mutateAsync({ skipVersion: true, note: "Auto-saved" });
+    },
+  });
+
+  const onFormChange = useCallback(
+    (next: ReportFormData) => {
+      formRef.current = next;
+      setForm(next);
+      autosave.scheduleAutosave();
+    },
+    [autosave.scheduleAutosave],
+  );
 
   const { data: sentByProfile } = useQuery({
     queryKey: ["report-sender", report?.sent_to_parents_by],
@@ -155,7 +182,7 @@ function ViewReport() {
       <PageHeader title={`${report.student_name}`} description={`${report.class_name} · ${report.term_label}`} />
       {isEditing ? (
         <p className="no-print mx-6 mb-2 text-sm text-muted-foreground">
-          Editing mode — changes are saved without changing approval status. Manage your signature under{" "}
+          Editing mode — table and form fields auto-save as you type. Manage your signature under{" "}
           <Link to="/teacher/signatures" className="text-primary underline">
             Signatures
           </Link>
@@ -179,9 +206,11 @@ function ViewReport() {
         data={form}
         academicYear={form.academicYear || report.academic_year || undefined}
         editable={isEditing}
-        onChange={setForm}
-        onSave={() => saveEdits.mutate()}
+        onChange={onFormChange}
+        onSave={() => saveEdits.mutate({ skipVersion: false })}
         saving={saveEdits.isPending}
+        autosavePending={autosave.autosavePending}
+        lastSaved={autosave.lastSaved}
         status={report.status}
         adminComment={report.admin_comment}
         rejectionReason={report.rejection_reason}

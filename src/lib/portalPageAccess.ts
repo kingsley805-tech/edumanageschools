@@ -137,6 +137,14 @@ export const PORTAL_PAGES: PortalPageDef[] = [
     permissions: { view: PERMISSIONS.school.settings, manage: PERMISSIONS.school.settings },
   },
   {
+    key: "class_registers",
+    label: "Class Registers",
+    section: "Attendance",
+    path: "/admin/register",
+    assignableTo: ["teacher"],
+    permissions: {},
+  },
+  {
     key: "attendance",
     label: "Student Attendance",
     section: "Attendance",

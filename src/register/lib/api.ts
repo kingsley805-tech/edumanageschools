@@ -103,6 +103,25 @@ export async function fetchTeacherAssignments(teacherId: string) {
   return data ?? [];
 }
 
+export async function fetchSchoolTeachers(schoolId: string) {
+  const { data, error } = await supabase
+    .from("teachers")
+    .select("id, profiles(full_name)")
+    .eq("school_id", schoolId)
+    .order("profiles(full_name)");
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function fetchClassSubjectsForClass(classId: string) {
+  const { data, error } = await supabase
+    .from("class_subjects")
+    .select("subject_id, teacher_id, subjects(id, name), teachers(id, profiles(full_name))")
+    .eq("class_id", classId);
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function listRegisters(filters: {
   schoolId: string;
   classId?: string;
