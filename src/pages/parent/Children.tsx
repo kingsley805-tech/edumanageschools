@@ -28,12 +28,14 @@ import {
   fetchParentRecordByUserId,
   fetchStudentsForParent,
   getParentSignupAdmissionNumbers,
+  studentDisplayNameForParent,
 } from "@/lib/parent-students";
 import { fetchStudentAttendanceRate } from "@/lib/attendance-queries";
 
 interface Child {
   id: string;
   user_id: string;
+  full_name?: string | null;
   admission_no: string | null;
   admission_number?: string | null;
   class_id: string | null;
@@ -349,7 +351,7 @@ const Children = () => {
                       <UserCircle className="h-10 w-10 text-primary" />
                     </div>
                     <div className="flex-1">
-                      <CardTitle>{child.profiles?.full_name || "Student"}</CardTitle>
+                      <CardTitle>{studentDisplayNameForParent(child)}</CardTitle>
                       <CardDescription>
                         {child.classes?.name || "No class assigned"}
                       </CardDescription>

@@ -77,3 +77,12 @@ export async function fetchStudentsForParent<T = Record<string, unknown>>(
 
   return Array.from(merged.values());
 }
+
+/** Student name for parent UI — prefers students.full_name, then profile. */
+export function studentDisplayNameForParent(student: {
+  full_name?: string | null;
+  profiles?: { full_name?: string | null } | { full_name?: string | null }[] | null;
+}): string {
+  const profile = Array.isArray(student.profiles) ? student.profiles[0] : student.profiles;
+  return student.full_name?.trim() || profile?.full_name?.trim() || "Student";
+}

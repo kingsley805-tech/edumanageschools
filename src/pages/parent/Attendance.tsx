@@ -3,7 +3,11 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, CheckCircle, XCircle, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchParentRecordByUserId, fetchStudentsForParent } from "@/lib/parent-students";
+import {
+  fetchParentRecordByUserId,
+  fetchStudentsForParent,
+  studentDisplayNameForParent,
+} from "@/lib/parent-students";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchStudentAttendanceRate, fetchStudentDailyAttendance } from "@/lib/attendance-queries";
@@ -12,7 +16,9 @@ import { useToast } from "@/hooks/use-toast";
 const Attendance = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [children, setChildren] = useState<{ id: string; profiles: { full_name: string } | null }[]>([]);
+  const [children, setChildren] = useState<
+    { id: string; full_name?: string | null; profiles: { full_name: string } | null }[]
+  >([]);
   const [selectedChild, setSelectedChild] = useState<string>("");
   const [attendanceRecords, setAttendanceRecords] = useState<
     Awaited<ReturnType<typeof fetchStudentDailyAttendance>>
@@ -85,7 +91,7 @@ const Attendance = () => {
               <SelectContent>
                 {children.map((child) => (
                   <SelectItem key={child.id} value={child.id}>
-                    {child.profiles?.full_name}
+                    {studentDisplayNameForParent(child)}
                   </SelectItem>
                 ))}
               </SelectContent>

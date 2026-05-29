@@ -4,7 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Award } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchParentRecordByUserId, fetchStudentsForParent } from "@/lib/parent-students";
+import {
+  fetchParentRecordByUserId,
+  fetchStudentsForParent,
+  studentDisplayNameForParent,
+} from "@/lib/parent-students";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 
@@ -31,10 +35,11 @@ const Grades = () => {
     const parentData = await fetchParentRecordByUserId(user.id);
     if (!parentData) return;
 
-    const studentsData = await fetchStudentsForParent<{ id: string; profiles: { full_name: string } | null }>(
-      parentData.id,
-      "id, profiles:user_id(full_name)"
-    );
+    const studentsData = await fetchStudentsForParent<{
+      id: string;
+      full_name?: string | null;
+      profiles: { full_name: string } | null;
+    }>(parentData.id, "id, full_name, profiles:user_id(full_name)");
 
     if (studentsData.length > 0) {
       setChildren(studentsData);
@@ -95,7 +100,7 @@ const Grades = () => {
                 <SelectContent>
                   {children.map((child) => (
                     <SelectItem key={child.id} value={child.id}>
-                      {child.profiles?.full_name}
+                      {studentDisplayNameForParent(child)}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -8,7 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ClipboardList } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchParentRecordByUserId, fetchStudentsForParent } from "@/lib/parent-students";
+import {
+  fetchParentRecordByUserId,
+  fetchStudentsForParent,
+  studentDisplayNameForParent,
+} from "@/lib/parent-students";
 import { fetchSchoolId, listRegisters } from "@/register/lib/api";
 import { fetchAttendanceSummary, fetchStudentAttendanceRecords } from "@/register/lib/attendance";
 import { fetchStudentDailyAttendance } from "@/lib/attendance-queries";
@@ -51,13 +55,14 @@ export function RegisterPortalView({ role, childStudentId }: { role: PortalRole;
         if (role === "student") {
           const { data: st } = await supabase
             .from("students")
-            .select("id, class_id, classes(name)")
+            .select("id, class_id, full_name, classes(name)")
             .eq("user_id", user.id)
             .maybeSingle();
+          const studentName = st?.full_name?.trim() || "Class";
           if (!st?.class_id) return;
           setActiveStudentId(st.id);
           setClassId(st.class_id);
-          setTitle(`${(st.classes as { name?: string })?.name ?? "Class"} attendance`);
+          setTitle(`${studentName} — ${(st.classes as { name?: string })?.name ?? "Class"} attendance`);
           setRegisters(await listRegisters({ schoolId, classId: st.class_id, status: "approved", limit: 40 }));
           setSummary(await fetchAttendanceSummary(st.id, term?.id));
           const registerRecords = await fetchStudentAttendanceRecords(st.id, 30);
@@ -79,9 +84,10 @@ export function RegisterPortalView({ role, childStudentId }: { role: PortalRole;
           const kids = await fetchStudentsForParent<{
             id: string;
             class_id: string;
+            full_name?: string | null;
             profiles: { full_name: string } | null;
             classes: { name: string } | null;
-          }>(parentData.id, "id, class_id, profiles:user_id(full_name), classes(name)");
+          }>(parentData.id, "id, class_id, full_name, profiles:user_id(full_name), classes(name)");
           setChildren(kids);
           const sid = selectedChild || kids[0]?.id;
           if (sid) {
@@ -89,7 +95,7 @@ export function RegisterPortalView({ role, childStudentId }: { role: PortalRole;
             setActiveStudentId(sid);
             const kid = kids.find((k) => k.id === sid) ?? kids[0];
             setClassId(kid?.class_id);
-            setTitle(`${kid?.profiles?.full_name ?? "Child"} — attendance`);
+            setTitle(`${studentDisplayNameForParent(kid ?? {})} — attendance`);
             if (kid?.class_id) {
               setRegisters(await listRegisters({ schoolId, classId: kid.class_id, status: "approved", limit: 40 }));
             }
@@ -138,7 +144,7 @@ export function RegisterPortalView({ role, childStudentId }: { role: PortalRole;
             <SelectContent>
               {children.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
-                  {c.profiles?.full_name}
+                  {studentDisplayNameForParent(c)}
                 </SelectItem>
               ))}
             </SelectContent>

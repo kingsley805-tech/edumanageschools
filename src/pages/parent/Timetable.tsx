@@ -5,7 +5,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  fetchParentRecordByUserId,
+  fetchStudentsForParent,
+  studentDisplayNameForParent,
+} from "@/lib/parent-students";
 
 export default function ParentTimetable() {
   const { user } = useAuth();
@@ -15,16 +19,18 @@ export default function ParentTimetable() {
   useEffect(() => {
     void (async () => {
       if (!user) return;
-      const { data: parent } = await supabase.from("parents").select("id").eq("user_id", user.id).maybeSingle();
+      const parent = await fetchParentRecordByUserId(user.id);
       if (!parent) return;
-      const { data: students } = await supabase
-        .from("students")
-        .select("id, profiles(full_name), classes(name)")
-        .eq("guardian_id", parent.id);
-      const rows = (students ?? []).map((s) => ({
+      const students = await fetchStudentsForParent<{
+        id: string;
+        full_name?: string | null;
+        profiles: { full_name?: string } | null;
+        classes: { name?: string } | null;
+      }>(parent.id, "id, full_name, profiles:user_id(full_name), classes(name)");
+      const rows = students.map((s) => ({
         id: s.id,
-        name: (s.profiles as { full_name?: string })?.full_name ?? "Child",
-        className: (s.classes as { name?: string })?.name ?? "",
+        name: studentDisplayNameForParent(s),
+        className: s.classes?.name ?? "",
       }));
       setChildren(rows);
       if (rows.length) setSelectedId(rows[0].id);

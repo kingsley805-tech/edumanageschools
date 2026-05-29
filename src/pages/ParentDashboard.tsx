@@ -13,6 +13,7 @@ import {
   fetchParentRecordByUserId,
   fetchStudentsForParent,
   getParentSignupAdmissionNumbers,
+  studentDisplayNameForParent,
 } from "@/lib/parent-students";
 import { fetchStudentAttendanceRate } from "@/lib/attendance-queries";
 import { linkParentToStudents } from "@/lib/auth-api";
@@ -42,14 +43,14 @@ const ParentDashboard = () => {
 
     let studentsData = await fetchStudentsForParent(
       parent.id,
-      "*, class:classes(name), profiles:user_id(full_name)"
+      "id, full_name, admission_no, admission_number, class:classes(name), profiles:user_id(full_name)"
     );
 
     if (studentsData.length === 0 && signupNums.length > 0) {
       await linkParentToStudents(parent.id, parent.school_id, signupNums);
       studentsData = await fetchStudentsForParent(
         parent.id,
-        "*, class:classes(name), profiles:user_id(full_name)"
+        "id, full_name, admission_no, admission_number, class:classes(name), profiles:user_id(full_name)"
       );
     }
 
@@ -131,7 +132,7 @@ const ParentDashboard = () => {
                   </div>
                   <div className="flex-1 space-y-4">
                     <div>
-                      <h3 className="text-xl font-semibold">{child.profiles?.full_name}</h3>
+                      <h3 className="text-xl font-semibold">{studentDisplayNameForParent(child)}</h3>
                       <p className="text-muted-foreground">{child.class?.name}</p>
                       <Badge variant="outline" className="mt-1 font-mono text-xs">
                         {child.admission_no ?? child.admission_number ?? "—"}
