@@ -23,7 +23,7 @@ import Settings from "./pages/Settings";
 import Teachers from "./pages/admin/Teachers";
 import Classes from "./pages/admin/Classes";
 import AdminAttendance from "./pages/admin/Attendance";
-import AdminTimetable from "./pages/admin/Timetable";
+import TimetableDashboard from "@/timetable/pages/admin/TimetableDashboard";
 import Reports from "@/report/pages/admin/AnalyticsReports";
 import AdminReportCardsIndex from "@/report/pages/admin/ReportCardsIndex";
 import AdminReportCardsView from "@/report/pages/admin/ReportCardsView";
@@ -74,6 +74,7 @@ import StudentOnlineExams from "./pages/student/OnlineExams";
 import StudentBilling from "./pages/student/Billing";
 import StudentPaymentHistory from "./pages/student/PaymentHistory";
 import ParentPaymentHistory from "./pages/parent/PaymentHistory";
+import ParentTimetable from "./pages/parent/Timetable";
 import SuperAdminManagement from "./pages/admin/SuperAdminManagement";
 import SchoolSettings from "./pages/admin/SchoolSettings";
 import PendingUsers from "./pages/admin/PendingUsers";
@@ -241,7 +242,7 @@ function App() {
               } />
               <Route path="/admin/timetable" element={
                 <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
-                  <AdminTimetable />
+                  <TimetableDashboard />
                 </ProtectedRoute>
               } />
               <Route path="/admin/reports" element={
@@ -427,6 +428,11 @@ function App() {
               <Route path="/parent/reports" element={
                 <ProtectedRoute allowedRoles={["parent"]}>
                   <ParentReports />
+                </ProtectedRoute>
+              } />
+              <Route path="/parent/timetable" element={
+                <ProtectedRoute allowedRoles={["parent"]}>
+                  <ParentTimetable />
                 </ProtectedRoute>
               } />
               <Route path="/teacher/exams" element={

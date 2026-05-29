@@ -342,6 +342,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
             { icon: Calendar, label: "Attendance", path: "/parent/attendance" },
             { icon: Award, label: "Grades", path: "/parent/grades" },
             { icon: FileText, label: "Report Cards", path: "/parent/reports" },
+            { icon: Clock, label: "Timetable", path: "/parent/timetable" },
           ],
         },
         {
