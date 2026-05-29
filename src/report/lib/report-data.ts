@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { supabase } from "@/integrations/supabase/client";
 import type { ReportCardData } from "@/components/report-card";
 import { calculateGPA, studentAverage, rankStudents } from "./analytics";

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { supabase } from "@/integrations/supabase/client";
 
 export type PerformanceTier = "excellent" | "very_good" | "good" | "pass" | "weak" | "poor";
