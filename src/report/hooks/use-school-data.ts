@@ -47,14 +47,15 @@ export function useCurrentTerm() {
   });
 }
 
-export function useSchoolSettings() {
+export function useSchoolSettings(schoolIdOverride?: string | null) {
   const { profile, user } = useAuth();
-  const schoolId = profile?.school_id;
+  const schoolId = schoolIdOverride ?? profile?.school_id;
   return useQuery({
-    queryKey: ["school-settings", schoolId, user?.id],
-    enabled: !!(schoolId || user?.id),
+    queryKey: ["school-settings", schoolIdOverride ?? profile?.school_id, user?.id],
+    enabled: !!(schoolIdOverride ?? profile?.school_id ?? user?.id),
     queryFn: async () => {
-      const sid = schoolId ?? (user ? await resolveUserSchoolId(user.id) : null);
+      const sid =
+        schoolIdOverride ?? profile?.school_id ?? (user ? await resolveUserSchoolId(user.id) : null);
       if (!sid) return null;
       const { data, error } = await supabase
         .from("school_settings")

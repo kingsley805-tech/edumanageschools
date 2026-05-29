@@ -24,10 +24,11 @@ AS $$
   SELECT COALESCE(
     (SELECT p.school_id FROM public.profiles p WHERE p.id = _user_id),
     (SELECT t.school_id FROM public.teachers t WHERE t.user_id = _user_id LIMIT 1),
+    (SELECT s.school_id FROM public.students s WHERE s.user_id = _user_id LIMIT 1),
     (
-      SELECT ur.school_id
-      FROM public.user_roles ur
-      WHERE ur.user_id = _user_id AND ur.school_id IS NOT NULL
+      SELECT ura.school_id
+      FROM public.user_role_assignments ura
+      WHERE ura.user_id = _user_id AND ura.school_id IS NOT NULL
       LIMIT 1
     )
   );

@@ -17,17 +17,6 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { resolveReportAssetUrl } from "@/report/lib/report-assets";
 
-const DEFAULT_LOGO = "/shepherd-logo.png";
-
-export const SHEPHERD_SCHOOL = {
-  name: "SHEPHERD'S HEART SCHOOL",
-  motto: '"Those Led By Love Will Never Lose Their Way"',
-  email: "shepherdheart22@gmail.com",
-  contacts: "0541235596 / 0570223940",
-  address: "AMASAMAN (STADIUM ROAD), AGARTHA JUNCTION",
-  logo: DEFAULT_LOGO,
-};
-
 type Props = {
   data: ReportFormData;
   academicYear?: string;
@@ -59,7 +48,7 @@ export function ShepherdReportCard({
   onSave,
   saving = false,
   showToolbar = true,
-  toolbarTitle = "Shepherd's Heart School — Report Card",
+  toolbarTitle = "Report Card",
   status = "draft",
   lastSaved,
   adminComment,
@@ -75,25 +64,31 @@ export function ShepherdReportCard({
   const [exporting, setExporting] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const { data: school } = useSchool(schoolId);
-  const { data: schoolSettings } = useSchoolSettings();
+  const { data: schoolSettings } = useSchoolSettings(schoolId);
   const { brand } = useReportTheme(schoolId);
   const reportCss = useMemo(() => buildReportCardCss(brand), [brand]);
   const gradingFormat = useGradingFormat();
   const footerNote = (schoolSettings as { report_card_footer?: string | null } | null | undefined)
     ?.report_card_footer?.trim();
   const gradeScale = getGradeScale(gradingFormat);
-  const logoSrc = resolveReportAssetUrl(school?.logo_url) || DEFAULT_LOGO;
+  const logoSrc = resolveReportAssetUrl(school?.logo_url);
   const stampSrc = resolveReportAssetUrl(school?.stamp_url);
   const teacherSigSrc = resolveReportAssetUrl(teacherSignatureUrl);
   const headSigSrc = resolveReportAssetUrl(headSignatureUrl);
-  const schoolName = school?.name?.trim() || SHEPHERD_SCHOOL.name;
-  const schoolMotto = school?.motto?.trim() || SHEPHERD_SCHOOL.motto;
-  const schoolAddress = school?.address?.trim() || SHEPHERD_SCHOOL.address;
-  const schoolEmail = school?.email?.trim() || SHEPHERD_SCHOOL.email;
-  const schoolContacts = school?.phone?.trim() || SHEPHERD_SCHOOL.contacts;
+  const schoolName = (school?.name ?? school?.school_name ?? "").trim();
+  const schoolMotto = school?.motto?.trim() ?? "";
+  const schoolAddress = school?.address?.trim() ?? "";
+  const schoolEmail = school?.email?.trim() ?? "";
+  const schoolContacts = school?.phone?.trim() ?? "";
   const principalName = school?.principal_name?.trim() || "Headmaster";
+  const contactLine = [
+    schoolEmail ? `EMAIL: ${schoolEmail}` : "",
+    schoolContacts ? `CONTACTS: ${schoolContacts}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const displayToolbarTitle =
-    toolbarTitle === "Shepherd's Heart School — Report Card"
+    toolbarTitle === "Report Card" && schoolName
       ? `${schoolName} — Report Card`
       : toolbarTitle;
 
@@ -216,20 +211,24 @@ export function ShepherdReportCard({
           <div className="rc-header">
             <div className="rc-header-inner">
               <div className="rc-logo">
-                <img
-                  src={logoSrc}
-                  alt="School logo"
-                  crossOrigin="anonymous"
-                  loading="eager"
-                  decoding="async"
-                  onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_LOGO; }}
-                />
+                {logoSrc ? (
+                  <img
+                    src={logoSrc}
+                    alt={schoolName ? `${schoolName} logo` : "School logo"}
+                    crossOrigin="anonymous"
+                    loading="eager"
+                    decoding="async"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                ) : null}
               </div>
               <div className="rc-school-info">
-                <div className="rc-school-name">{schoolName}</div>
-                <div className="rc-school-motto">{schoolMotto}</div>
-                <div className="rc-school-contact">EMAIL: {schoolEmail} &nbsp;·&nbsp; CONTACTS: {schoolContacts}</div>
-                <div className="rc-school-addr">LOCATION: {schoolAddress}</div>
+                {schoolName ? <div className="rc-school-name">{schoolName}</div> : null}
+                {schoolMotto ? <div className="rc-school-motto">{schoolMotto}</div> : null}
+                {contactLine ? <div className="rc-school-contact">{contactLine}</div> : null}
+                {schoolAddress ? <div className="rc-school-addr">LOCATION: {schoolAddress}</div> : null}
               </div>
               <div className="rc-header-right">
                 <div className="rc-header-label">Academic Year</div>
@@ -540,7 +539,9 @@ export function ShepherdReportCard({
 
           <div className="rc-footer">
             <div>
-              <div className="rc-footer-text">{schoolName} — Official Academic Report Card</div>
+              <div className="rc-footer-text">
+                {schoolName ? `${schoolName} — ` : ""}Official Academic Report Card
+              </div>
               <div className="rc-footer-text">
                 {footerNote || "Confidential — for the named learner and their guardian."}
               </div>
