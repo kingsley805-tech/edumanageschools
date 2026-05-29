@@ -300,6 +300,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
             { icon: FileText, label: "Report Cards", path: "/teacher/report-cards" },
             { icon: PenLine, label: "Signatures", path: "/teacher/signatures" },
             { icon: BookOpen, label: "Resources", path: "/teacher/resources" },
+            { icon: FileText, label: "Lesson notes", path: "/teacher/lesson-notes" },
           ],
         },
         {

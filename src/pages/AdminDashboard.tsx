@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, GraduationCap, DollarSign, TrendingUp, Calendar, BookOpen } from "lucide-react";
+import { Users, GraduationCap, DollarSign, TrendingUp, Calendar, BookOpen, NotebookPen } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -85,6 +86,12 @@ const AdminDashboard = () => {
 
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [classDistribution, setClassDistribution] = useState<any[]>([]);
+  const [lessonNoteStats, setLessonNoteStats] = useState({
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    recent: [] as { id: string; topic: string; teacher_name: string | null; status: string; updated_at: string }[],
+  });
 
   useEffect(() => {
     const fetchRecentActivity = async () => {
@@ -174,8 +181,35 @@ const AdminDashboard = () => {
       setClassDistribution(distribution.slice(0, 4));
     };
 
+    const fetchLessonNotes = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("school_id")
+        .eq("id", user.id)
+        .single();
+      if (!profileData?.school_id) return;
+
+      const { data: notes } = await supabase
+        .from("lesson_notes")
+        .select("id, topic, teacher_name, status, updated_at")
+        .eq("school_id", profileData.school_id)
+        .order("updated_at", { ascending: false })
+        .limit(50);
+
+      const rows = notes ?? [];
+      setLessonNoteStats({
+        pending: rows.filter((n) => n.status === "pending_review").length,
+        approved: rows.filter((n) => n.status === "approved").length,
+        rejected: rows.filter((n) => n.status === "rejected" || n.status === "needs_correction").length,
+        recent: rows.slice(0, 5) as typeof lessonNoteStats.recent,
+      });
+    };
+
     fetchRecentActivity();
     fetchClassDistribution();
+    fetchLessonNotes();
   }, []);
 
   return (
@@ -200,6 +234,56 @@ const AdminDashboard = () => {
             </Card>
           ))}
         </div>
+
+        {/* Lesson notes overview */}
+        <Card className="animate-fade-up">
+          <CardHeader className="flex flex-row items-center justify-between p-4 md:p-6">
+            <div>
+              <CardTitle className="text-lg md:text-xl flex items-center gap-2">
+                <NotebookPen className="h-5 w-5 text-primary" />
+                Lesson Notes
+              </CardTitle>
+              <CardDescription>Teacher submissions awaiting review</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => navigate("/admin/lesson-notes")}>
+              Open queue
+            </Button>
+          </CardHeader>
+          <CardContent className="p-4 md:p-6 pt-0">
+            <div className="grid grid-cols-3 gap-3 mb-4 text-center">
+              <div className="rounded-lg border p-3">
+                <p className="text-2xl font-bold text-amber-700">{lessonNoteStats.pending}</p>
+                <p className="text-xs text-muted-foreground">Pending review</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-2xl font-bold text-emerald-700">{lessonNoteStats.approved}</p>
+                <p className="text-xs text-muted-foreground">Approved</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-2xl font-bold text-red-700">{lessonNoteStats.rejected}</p>
+                <p className="text-xs text-muted-foreground">Needs action</p>
+              </div>
+            </div>
+            {lessonNoteStats.recent.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-2">No lesson notes yet</p>
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {lessonNoteStats.recent.map((n) => (
+                  <li key={n.id} className="flex justify-between gap-2 border-b pb-2 last:border-0">
+                    <button
+                      type="button"
+                      className="text-left hover:underline truncate"
+                      onClick={() => navigate(`/admin/lesson-notes/${n.id}`)}
+                    >
+                      {n.topic || "Untitled"} — {n.teacher_name ?? "Teacher"}
+                    </button>
+                    <span className="text-muted-foreground shrink-0 capitalize">{n.status.replace(/_/g, " ")}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Charts & Activity */}
         <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
@@ -274,6 +358,10 @@ const AdminDashboard = () => {
               <button onClick={() => navigate("/admin/billing/invoices")} className="flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-lg border hover:bg-muted transition-colors text-left sm:col-span-2 md:col-span-1">
                 <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-success flex-shrink-0" />
                 <span className="font-medium text-sm md:text-base">Generate Invoice</span>
+              </button>
+              <button onClick={() => navigate("/admin/lesson-notes")} className="flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-lg border hover:bg-muted transition-colors text-left">
+                <NotebookPen className="h-4 w-4 md:h-5 md:w-5 text-primary flex-shrink-0" />
+                <span className="font-medium text-sm md:text-base">Review Lesson Notes</span>
               </button>
             </div>
           </CardContent>

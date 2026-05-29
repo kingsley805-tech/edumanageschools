@@ -21,6 +21,7 @@ import {
   Megaphone,
   Building,
   Shield,
+  NotebookPen,
 } from "lucide-react";
 import { PORTAL_CATEGORIES, permissionCode, type PermissionAction } from "@/lib/rbac/permissionCatalog";
 
@@ -45,6 +46,7 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
   subjects: ClipboardList,
   timetable: Clock,
   grade_scales: Award,
+  lesson_notes: NotebookPen,
   report_cards: FileText,
   report_archive: FileText,
   academic_reports: BarChart3,

@@ -57,6 +57,10 @@ import StudentAssignments from "./pages/student/Assignments";
 import StudentGrades from "./pages/student/Grades";
 import TeacherExams from "./pages/teacher/Exams";
 import TeacherResources from "./pages/teacher/Resources";
+import TeacherLessonNotes from "@/lesson-notes/pages/teacher/TeacherLessonNotes";
+import TeacherLessonNoteEditor from "@/lesson-notes/pages/teacher/TeacherLessonNoteEditor";
+import AdminLessonNotes from "@/lesson-notes/pages/admin/AdminLessonNotes";
+import AdminLessonNoteReview from "@/lesson-notes/pages/admin/AdminLessonNoteReview";
 import StudentResources from "./pages/student/Resources";
 import Messages from "./pages/Messages";
 import StudentTimetable from "./pages/student/Timetable";
@@ -295,6 +299,16 @@ function App() {
                   <Subjects />
                 </ProtectedRoute>
               } />
+              <Route path="/admin/lesson-notes" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin", "accountant"]}>
+                  <AdminLessonNotes />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/lesson-notes/:id" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin", "accountant"]}>
+                  <AdminLessonNoteReview />
+                </ProtectedRoute>
+              } />
               <Route path="/admin/grade-scales" element={
                 <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
                   <GradeScales />
@@ -433,6 +447,21 @@ function App() {
               <Route path="/teacher/resources" element={
                 <ProtectedRoute allowedRoles={["teacher"]}>
                   <TeacherResources />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher/lesson-notes" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <TeacherLessonNotes />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher/lesson-notes/new" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <TeacherLessonNoteEditor />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher/lesson-notes/:id" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <TeacherLessonNoteEditor />
                 </ProtectedRoute>
               } />
               <Route path="/student" element={
