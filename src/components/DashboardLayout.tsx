@@ -131,6 +131,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
             { icon: BookOpen, label: "Classes", path: "/admin/classes" },
             { icon: ClipboardList, label: "Subjects", path: "/admin/subjects" },
             { icon: Clock, label: "Timetable", path: "/admin/timetable" },
+            { icon: FileText, label: "Lesson Notes", path: "/admin/lesson-notes" },
             { icon: Award, label: "Grade Scales", path: "/admin/grade-scales" },
           ],
         },
@@ -149,7 +150,10 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           type: "group",
           label: "Attendance",
           icon: Calendar,
-          items: [{ icon: Calendar, label: "Student Attendance", path: "/admin/attendance" }],
+          items: [
+            { icon: ClipboardList, label: "Class Registers", path: "/admin/register" },
+            { icon: Calendar, label: "Student Attendance", path: "/admin/attendance" },
+          ],
         },
         {
           type: "group",
@@ -293,6 +297,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           items: [
             { icon: BookOpen, label: "My Classes", path: "/teacher/classes" },
             { icon: Clock, label: "Timetable", path: "/teacher/timetable" },
+            { icon: ClipboardList, label: "Class Registers", path: "/teacher/register" },
             { icon: Calendar, label: "Attendance", path: "/teacher/attendance" },
             { icon: FileText, label: "Assignments", path: "/teacher/assignments" },
             { icon: Award, label: "Grades", path: "/teacher/grades" },
@@ -339,6 +344,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           icon: BookOpen,
           items: [
             { icon: UserCircle, label: "My Children", path: "/parent/children" },
+            { icon: ClipboardList, label: "Class Registers", path: "/parent/register" },
             { icon: Calendar, label: "Attendance", path: "/parent/attendance" },
             { icon: Award, label: "Grades", path: "/parent/grades" },
             { icon: FileText, label: "Report Cards", path: "/parent/reports" },
@@ -380,6 +386,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           icon: BookOpen,
           items: [
             { icon: Clock, label: "Timetable", path: "/student/timetable" },
+            { icon: ClipboardList, label: "Class Register", path: "/student/register" },
             { icon: FileText, label: "Assignments", path: "/student/assignments" },
             { icon: Award, label: "Grades", path: "/student/grades" },
             { icon: Award, label: "Performance", path: "/student/performance" },

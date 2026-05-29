@@ -6,6 +6,8 @@ import {
   type TimetablePeriod,
   type TimetableSettings,
 } from "@/timetable/lib/types";
+import { dedupeSubjectOptions, readSubjectName } from "@/timetable/lib/subjectLabel";
+import { toTimeInputValue } from "@/timetable/lib/timeUtils";
 
 const SCHEDULE_SELECT_FULL = `
   id, class_id, subject_id, teacher_id, day_of_week, start_time, end_time, room,
@@ -32,14 +34,44 @@ function isMissingColumnError(error: { code?: string; message?: string } | null)
   return error.code === "42703" || error.code === "PGRST204" || msg.includes("column") || msg.includes("schema cache");
 }
 
+function isUuid(value: string | null | undefined): boolean {
+  if (!value) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function toError(error: { message?: string } | null | undefined, fallback: string): Error {
+  return new Error(error?.message?.trim() || fallback);
+}
+
+function isSchemaError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const msg = (error.message ?? "").toLowerCase();
+  return (
+    isMissingColumnError(error) ||
+    error.code === "42P01" ||
+    error.code === "PGRST205" ||
+    msg.includes("does not exist") ||
+    msg.includes("could not find the table")
+  );
+}
+
 export async function fetchSchoolId(userId: string): Promise<string | null> {
-  const { data } = await supabase.from("profiles").select("school_id").eq("id", userId).maybeSingle();
-  return data?.school_id ?? null;
+  const { data: profile } = await supabase.from("profiles").select("school_id").eq("id", userId).maybeSingle();
+  if (profile?.school_id) return profile.school_id;
+
+  const { data: session } = await supabase.auth.getSession();
+  const metaSchool = session.session?.user?.user_metadata?.school_id as string | undefined;
+  if (metaSchool) return metaSchool;
+
+  return null;
 }
 
 export async function fetchTimetableSettings(schoolId: string): Promise<TimetableSettings | null> {
   const { data, error } = await supabase.from("timetable_settings").select("*").eq("school_id", schoolId).maybeSingle();
-  if (error && error.code !== "PGRST116") throw error;
+  if (error) {
+    if (error.code === "PGRST116" || isSchemaError(error)) return null;
+    throw error;
+  }
   return data as TimetableSettings | null;
 }
 
@@ -62,15 +94,63 @@ export async function fetchPeriods(schoolId: string): Promise<TimetablePeriod[]>
     .select("*")
     .eq("school_id", schoolId)
     .order("sort_order");
-  if (error) throw error;
+  if (error) {
+    if (isSchemaError(error)) return [];
+    throw error;
+  }
   return (data ?? []) as TimetablePeriod[];
+}
+
+export function isPersistedPeriodId(periodId: string): boolean {
+  return isUuid(periodId);
+}
+
+function normalizeDbTime(time: string): string {
+  return time.length === 5 ? `${time}:00` : time;
+}
+
+export async function updateTimetablePeriod(
+  periodId: string,
+  patch: Partial<Pick<TimetablePeriod, "name" | "start_time" | "end_time" | "sort_order">>,
+): Promise<TimetablePeriod | null> {
+  if (!isPersistedPeriodId(periodId)) return null;
+  const row: Record<string, string | number> = {};
+  if (patch.name != null) row.name = patch.name;
+  if (patch.start_time != null) row.start_time = normalizeDbTime(patch.start_time);
+  if (patch.end_time != null) row.end_time = normalizeDbTime(patch.end_time);
+  if (patch.sort_order != null) row.sort_order = patch.sort_order;
+  if (Object.keys(row).length === 0) return null;
+
+  const { data, error } = await supabase
+    .from("timetable_periods")
+    .update(row)
+    .eq("id", periodId)
+    .select()
+    .single();
+  if (error) {
+    if (isSchemaError(error)) return null;
+    throw error;
+  }
+  return data as TimetablePeriod;
 }
 
 export async function seedDefaultPeriods(schoolId: string): Promise<TimetablePeriod[]> {
   const rows = DEFAULT_PERIODS.map((p) => ({ ...p, school_id: schoolId }));
   const { data, error } = await supabase.from("timetable_periods").insert(rows).select();
-  if (error) throw error;
+  if (error) {
+    if (isSchemaError(error)) return DEFAULT_PERIODS.map((p, i) => ({ ...p, id: `local-${i}`, school_id: schoolId })) as TimetablePeriod[];
+    throw error;
+  }
   return (data ?? []) as TimetablePeriod[];
+}
+
+/** In-memory periods when DB table is not migrated yet */
+export function localDefaultPeriods(schoolId: string): TimetablePeriod[] {
+  return DEFAULT_PERIODS.map((p, i) => ({
+    ...p,
+    id: `default-period-${i}`,
+    school_id: schoolId,
+  })) as TimetablePeriod[];
 }
 
 export async function fetchClassSubjectOptions(classId: string, schoolId: string): Promise<ClassSubjectOption[]> {
@@ -81,27 +161,31 @@ export async function fetchClassSubjectOptions(classId: string, schoolId: string
 
   if (error) throw error;
 
-  const mapped = (data ?? [])
-    .filter((row) => row.subject_id)
-    .map((row) => ({
-      subjectId: row.subject_id as string,
-      subjectName: (row.subjects as { name?: string } | null)?.name ?? "Subject",
-      teacherId: row.teacher_id,
-      teacherName:
-        row.teacher_id && row.teachers
-          ? profileName((row.teachers as { profiles?: { full_name?: string } | { full_name?: string }[] }).profiles)
-          : null,
-    }));
+  const mapped = dedupeSubjectOptions(
+    (data ?? [])
+      .filter((row) => row.subject_id)
+      .map((row) => ({
+        subjectId: row.subject_id as string,
+        subjectName: readSubjectName(row.subjects),
+        teacherId: row.teacher_id,
+        teacherName:
+          row.teacher_id && row.teachers
+            ? profileName((row.teachers as { profiles?: { full_name?: string } | { full_name?: string }[] }).profiles)
+            : null,
+      })),
+  );
 
   if (mapped.length > 0) return mapped;
 
   const allSubjects = await fetchSubjects(schoolId);
-  return allSubjects.map((s) => ({
-    subjectId: s.id,
-    subjectName: s.name,
-    teacherId: null,
-    teacherName: null,
-  }));
+  return dedupeSubjectOptions(
+    allSubjects.map((s) => ({
+      subjectId: s.id,
+      subjectName: readSubjectName(s),
+      teacherId: null,
+      teacherName: null,
+    })),
+  );
 }
 
 export async function fetchSchedules(filters: {
@@ -161,6 +245,49 @@ export async function fetchSchedules(filters: {
   }));
 }
 
+async function findExistingScheduleEntryId(input: {
+  classId: string;
+  dayOfWeek: number;
+  periodId?: string | null;
+  startTime: string;
+}): Promise<string | null> {
+  if (isUuid(input.periodId)) {
+    const { data, error } = await supabase
+      .from("schedules")
+      .select("id")
+      .eq("class_id", input.classId)
+      .eq("day_of_week", input.dayOfWeek)
+      .eq("period_id", input.periodId!)
+      .maybeSingle();
+    if (!error && data?.id) return data.id as string;
+  }
+
+  const startNorm = normalizeDbTime(input.startTime);
+  const { data: rows, error } = await supabase
+    .from("schedules")
+    .select("id, start_time")
+    .eq("class_id", input.classId)
+    .eq("day_of_week", input.dayOfWeek);
+
+  if (error || !rows?.length) return null;
+
+  const match = rows.find((r) => toTimeInputValue(String(r.start_time)) === toTimeInputValue(startNorm));
+  return (match?.id as string) ?? null;
+}
+
+async function updateScheduleRow(
+  id: string,
+  rowFull: Record<string, unknown>,
+  rowBase: Record<string, unknown>,
+): Promise<string | null> {
+  let { data, error } = await supabase.from("schedules").update(rowFull).eq("id", id).select("id").maybeSingle();
+  if (isMissingColumnError(error)) {
+    ({ data, error } = await supabase.from("schedules").update(rowBase).eq("id", id).select("id").maybeSingle());
+  }
+  if (error) throw error;
+  return (data?.id as string) ?? null;
+}
+
 export async function upsertScheduleEntry(input: {
   id?: string;
   schoolId: string;
@@ -181,13 +308,13 @@ export async function upsertScheduleEntry(input: {
     subject_id: input.subjectId,
     teacher_id: input.teacherId,
     day_of_week: input.dayOfWeek,
-    start_time: input.startTime.length === 5 ? `${input.startTime}:00` : input.startTime,
-    end_time: input.endTime.length === 5 ? `${input.endTime}:00` : input.endTime,
+    start_time: normalizeDbTime(input.startTime),
+    end_time: normalizeDbTime(input.endTime),
     room: input.room ?? null,
     school_id: input.schoolId,
     term_id: input.termId ?? null,
     academic_year_id: input.academicYearId ?? null,
-    period_id: input.periodId ?? null,
+    period_id: isUuid(input.periodId) ? input.periodId : null,
     status: input.status ?? "draft",
     updated_at: new Date().toISOString(),
   };
@@ -202,13 +329,41 @@ export async function upsertScheduleEntry(input: {
     room: rowFull.room,
   };
 
-  if (input.id) {
-    let { error } = await supabase.from("schedules").update(rowFull).eq("id", input.id);
-    if (isMissingColumnError(error)) {
-      ({ error } = await supabase.from("schedules").update(rowBase).eq("id", input.id));
+  let targetId = input.id && isUuid(input.id) ? input.id : null;
+
+  if (!targetId) {
+    targetId = await findExistingScheduleEntryId({
+      classId: input.classId,
+      dayOfWeek: input.dayOfWeek,
+      periodId: input.periodId,
+      startTime: input.startTime,
+    });
+  }
+
+  if (targetId) {
+    const updated = await updateScheduleRow(targetId, rowFull, rowBase);
+    if (updated) {
+      if (isUuid(input.periodId)) {
+        await supabase
+          .from("schedules")
+          .delete()
+          .eq("class_id", input.classId)
+          .eq("day_of_week", input.dayOfWeek)
+          .eq("period_id", input.periodId!)
+          .neq("id", targetId);
+      }
+      return updated;
     }
-    if (error) throw error;
-    return input.id;
+    targetId = await findExistingScheduleEntryId({
+      classId: input.classId,
+      dayOfWeek: input.dayOfWeek,
+      periodId: input.periodId,
+      startTime: input.startTime,
+    });
+    if (targetId) {
+      const retry = await updateScheduleRow(targetId, rowFull, rowBase);
+      if (retry) return retry;
+    }
   }
 
   let { data, error } = await supabase.from("schedules").insert(rowFull).select("id").single();
@@ -225,7 +380,46 @@ export async function deleteScheduleEntry(id: string) {
 }
 
 export async function publishClassTimetable(classId: string, schoolId: string) {
-  const { data: entries } = await supabase.from("schedules").select("*").eq("class_id", classId);
+  const { count, error: countError } = await supabase
+    .from("schedules")
+    .select("id", { count: "exact", head: true })
+    .eq("class_id", classId);
+
+  if (countError) throw toError(countError, "Could not load timetable entries");
+  if (!count) {
+    throw new Error("Add at least one period to the timetable before publishing.");
+  }
+
+  const { data: rpcCount, error: rpcError } = await supabase.rpc("publish_class_timetable", {
+    p_class_id: classId,
+    p_school_id: schoolId,
+  });
+
+  if (!rpcError) {
+    if (typeof rpcCount === "number" && rpcCount > 0) return;
+    if (rpcCount == null) return;
+  }
+
+  const rpcMissing =
+    rpcError &&
+    (isSchemaError(rpcError) ||
+      rpcError.code === "PGRST202" ||
+      (rpcError.message ?? "").toLowerCase().includes("publish_class_timetable"));
+
+  if (!rpcMissing) {
+    throw toError(
+      rpcError,
+      "Publish failed. Run public/sql/apply-timetable-publish-fix.sql in Supabase if this persists.",
+    );
+  }
+
+  await publishClassTimetableDirect(classId, schoolId);
+}
+
+async function publishClassTimetableDirect(classId: string, schoolId: string) {
+  const { data: entries, error: fetchError } = await supabase.from("schedules").select("*").eq("class_id", classId);
+  if (fetchError) throw toError(fetchError, "Could not load timetable entries");
+
   const version = (entries?.length ?? 0) > 0 ? Math.max(1, await nextVersion(classId)) : 1;
   const { data: session } = await supabase.auth.getSession();
   const uid = session.session?.user?.id;
@@ -235,7 +429,7 @@ export async function publishClassTimetable(classId: string, schoolId: string) {
     name = p?.full_name ?? name;
   }
 
-  await supabase.from("timetable_versions").insert({
+  const { error: versionError } = await supabase.from("timetable_versions").insert({
     school_id: schoolId,
     class_id: classId,
     version_number: version,
@@ -244,14 +438,44 @@ export async function publishClassTimetable(classId: string, schoolId: string) {
     created_by: uid,
     created_by_name: name,
   });
+  if (versionError && !isSchemaError(versionError)) {
+    throw toError(versionError, "Could not save timetable version history");
+  }
 
-  const { error } = await supabase
+  let { data: published, error: publishError } = await supabase
     .from("schedules")
     .update({ status: "published", updated_at: new Date().toISOString() })
-    .eq("class_id", classId);
-  if (error) throw error;
+    .eq("class_id", classId)
+    .select("id");
 
-  await notifyTimetablePublished(classId, schoolId);
+  if (isMissingColumnError(publishError)) {
+    ({ data: published, error: publishError } = await supabase
+      .from("schedules")
+      .update({ status: "published" })
+      .eq("class_id", classId)
+      .select("id"));
+  }
+
+  if (publishError) {
+    if (isMissingColumnError(publishError)) {
+      throw new Error(
+        "Timetable publish needs a database update. Run public/sql/apply-timetable-publish-fix.sql in the Supabase SQL Editor, then try again.",
+      );
+    }
+    throw toError(publishError, "Could not mark timetable as published");
+  }
+
+  if (!published?.length) {
+    throw new Error(
+      "No periods were published. Confirm you are a school admin and run public/sql/apply-timetable-publish-fix.sql if needed.",
+    );
+  }
+
+  try {
+    await notifyTimetablePublished(classId, schoolId);
+  } catch {
+    /* notifications are optional */
+  }
 }
 
 async function nextVersion(classId: string): Promise<number> {
@@ -300,32 +524,41 @@ export async function fetchSubjectAllocations(schoolId: string, classId?: string
     .eq("school_id", schoolId);
   if (classId) q = q.eq("class_id", classId);
   const { data, error } = await q;
-  if (error) throw error;
+  if (error) {
+    if (isSchemaError(error)) return [];
+    throw error;
+  }
   return data ?? [];
 }
 
 export async function fetchTimetableStats(schoolId: string) {
-  const { data: schoolClasses } = await supabase.from("classes").select("id").eq("school_id", schoolId);
-  const classIds = (schoolClasses ?? []).map((c) => c.id);
+  const classList = await fetchClasses(schoolId);
+  const classIds = classList.map((c) => c.id);
 
-  const [classesRes, teachersRes, schedulesRes] = await Promise.all([
+  const [classesRes, teachersRes] = await Promise.all([
     supabase.from("classes").select("id", { count: "exact", head: true }).eq("school_id", schoolId),
     supabase.from("teachers").select("id", { count: "exact", head: true }).eq("school_id", schoolId),
-    classIds.length
-      ? supabase.from("schedules").select("id, status, teacher_id, class_id").in("class_id", classIds)
-      : Promise.resolve({ data: [] as { id: string; status: string; teacher_id: string | null; class_id: string }[] }),
   ]);
 
-  const schedules = schedulesRes.data ?? [];
+  let schedules: { id: string; status?: string; teacher_id: string | null; class_id: string }[] = [];
+  if (classIds.length) {
+    let res = await supabase.from("schedules").select("id, status, teacher_id, class_id").in("class_id", classIds);
+    if (isMissingColumnError(res.error)) {
+      res = await supabase.from("schedules").select("id, teacher_id, class_id").in("class_id", classIds);
+    }
+    if (res.error && !isSchemaError(res.error)) throw res.error;
+    schedules = (res.data ?? []) as typeof schedules;
+  }
+
   const classesWithSchedules = new Set(schedules.map((s) => s.class_id));
   const assignedTeachers = new Set(schedules.map((s) => s.teacher_id).filter(Boolean));
 
   return {
-    totalClasses: classesRes.count ?? 0,
+    totalClasses: classesRes.count ?? classList.length,
     totalTeachers: teachersRes.count ?? 0,
     teachersAssigned: assignedTeachers.size,
     activeTimetables: classesWithSchedules.size,
-    drafts: schedules.filter((s) => s.status === "draft").length,
+    drafts: schedules.filter((s) => (s.status ?? "draft") === "draft").length,
     published: schedules.filter((s) => s.status === "published").length,
   };
 }
@@ -341,9 +574,18 @@ export async function fetchTerms(schoolId: string) {
 }
 
 export async function fetchClasses(schoolId: string) {
-  const { data, error } = await supabase.from("classes").select("id, name").eq("school_id", schoolId).order("name");
+  const { data, error } = await supabase
+    .from("classes")
+    .select("id, name, school_id")
+    .eq("school_id", schoolId)
+    .order("name");
   if (error) throw error;
-  return data ?? [];
+  if ((data ?? []).length > 0) return data.map((c) => ({ id: c.id, name: c.name }));
+
+  // Legacy rows or profile mismatch: return any class visible via RLS for this admin
+  const { data: visible, error: err2 } = await supabase.from("classes").select("id, name").order("name");
+  if (err2) throw err2;
+  return visible ?? [];
 }
 
 export async function fetchSubjects(schoolId: string) {

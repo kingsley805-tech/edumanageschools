@@ -3,15 +3,7 @@ import type { ScheduleEntry, TimetablePeriod } from "@/timetable/lib/types";
 import { WEEKDAYS } from "@/timetable/lib/types";
 import { TimetableCellCard } from "@/timetable/components/TimetableCellCard";
 import { entryHasConflict, type TimetableConflict } from "@/timetable/lib/conflicts";
-
-function formatTimeRange(start: string, end: string) {
-  const fmt = (t: string) => {
-    const [h, m] = t.slice(0, 5).split(":").map(Number);
-    const ampm = h >= 12 ? "PM" : "AM";
-    return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${ampm}`;
-  };
-  return `${fmt(start)} – ${fmt(end)}`;
-}
+import { findEntryForPeriod, formatTimeDisplay, formatTimeRange } from "@/timetable/lib/timeUtils";
 
 export function TimetableGrid({
   periods,
@@ -19,27 +11,23 @@ export function TimetableGrid({
   conflicts = [],
   editable = false,
   includeSaturday = false,
+  schoolCloseTime,
   onCellClick,
   onMoveEntry,
+  onBellPeriodClick,
 }: {
   periods: TimetablePeriod[];
   entries: ScheduleEntry[];
   conflicts?: TimetableConflict[];
   editable?: boolean;
   includeSaturday?: boolean;
-  onCellClick?: (day: number, period: TimetablePeriod) => void;
+  schoolCloseTime?: string | null;
+  onCellClick?: (day: number, period: TimetablePeriod, entry?: ScheduleEntry | null) => void;
   onMoveEntry?: (entryId: string, day: number, period: TimetablePeriod) => void;
+  onBellPeriodClick?: (period: TimetablePeriod) => void;
 }) {
   const days = WEEKDAYS.filter((d) => (includeSaturday ? true : d.value <= 5));
   const dragIdRef = { current: "" as string };
-
-  const findEntry = (day: number, period: TimetablePeriod) =>
-    entries.find(
-      (e) =>
-        e.day_of_week === day &&
-        period.period_type === "period" &&
-        e.start_time.slice(0, 5) === period.start_time.slice(0, 5),
-    );
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border bg-card">
@@ -59,11 +47,20 @@ export function TimetableGrid({
         <tbody>
           {periods.map((period) => {
             if (period.period_type !== "period") {
+              const clickable = editable && onBellPeriodClick;
               return (
-                <tr key={period.id} className="bg-muted/30">
+                <tr
+                  key={period.id}
+                  className={cn(
+                    "bg-muted/30 border-b border-border",
+                    clickable && "cursor-pointer hover:bg-muted/50 transition-colors",
+                  )}
+                  onClick={clickable ? () => onBellPeriodClick(period) : undefined}
+                  title={clickable ? `Click to edit ${period.name} times` : undefined}
+                >
                   <td
                     colSpan={days.length + 1}
-                    className="py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-border"
+                    className="py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground"
                   >
                     {period.name} · {formatTimeRange(period.start_time, period.end_time)}
                   </td>
@@ -78,14 +75,14 @@ export function TimetableGrid({
                   <div>{formatTimeRange(period.start_time, period.end_time)}</div>
                 </td>
                 {days.map((day) => {
-                  const entry = findEntry(day.value, period);
+                  const entry = findEntryForPeriod(day.value, period, entries);
                   return (
                     <td key={`${day.value}-${period.id}`} className="p-1.5 align-top bg-card">
                       <TimetableCellCard
                         entry={entry}
                         hasConflict={entry ? entryHasConflict(entry.id, conflicts) : false}
                         editable={editable}
-                        onClick={() => onCellClick?.(day.value, period)}
+                        onClick={() => onCellClick?.(day.value, period, entry)}
                         onDragStart={(e) => {
                           if (!entry) return;
                           dragIdRef.current = entry.id;
@@ -106,6 +103,16 @@ export function TimetableGrid({
               </tr>
             );
           })}
+          {schoolCloseTime ? (
+            <tr className="bg-muted/20">
+              <td
+                colSpan={days.length + 1}
+                className="py-2 text-center text-xs font-medium text-muted-foreground border-t border-border"
+              >
+                School closes · {formatTimeDisplay(schoolCloseTime)}
+              </td>
+            </tr>
+          ) : null}
         </tbody>
       </table>
     </div>

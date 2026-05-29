@@ -12,6 +12,16 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { ClassSubjectOption, ScheduleEntry, TimetablePeriod } from "@/timetable/lib/types";
 import { WEEKDAYS } from "@/timetable/lib/types";
+import { dedupeSubjectOptions, readSubjectName } from "@/timetable/lib/subjectLabel";
+import { formatTimeRange, isValidTimeRange, toTimeInputValue } from "@/timetable/lib/timeUtils";
+
+export type TimetableSlotSaveData = {
+  subject_id: string;
+  teacher_id: string;
+  start_time: string;
+  end_time: string;
+  room?: string;
+};
 
 export function TimetableSlotDialog({
   open,
@@ -33,42 +43,63 @@ export function TimetableSlotDialog({
   className: string;
   classSubjects: ClassSubjectOption[];
   teachers: { id: string; profiles?: { full_name: string } | null }[];
-  onSave: (data: { subject_id: string; teacher_id: string; room?: string }) => Promise<void>;
+  onSave: (data: TimetableSlotSaveData, entryId?: string) => Promise<void>;
   onDelete?: () => Promise<void>;
 }) {
   const [subjectId, setSubjectId] = useState("");
   const [teacherId, setTeacherId] = useState("");
+  const [startTime, setStartTime] = useState("08:00");
+  const [endTime, setEndTime] = useState("08:40");
   const [room, setRoom] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const periodDefaults = useMemo(() => {
+    if (!period || period.period_type !== "period") return null;
+    return {
+      start: toTimeInputValue(period.start_time),
+      end: toTimeInputValue(period.end_time),
+      label: period.name,
+    };
+  }, [period]);
 
   useEffect(() => {
     if (!open) return;
     setSubjectId(entry?.subject_id ?? "");
     setTeacherId(entry?.teacher_id ?? "");
+    setStartTime(toTimeInputValue(entry?.start_time ?? period?.start_time ?? "08:00"));
+    setEndTime(toTimeInputValue(entry?.end_time ?? period?.end_time ?? "08:40"));
     setRoom(entry?.room ?? "");
     setFormError(null);
-  }, [open, entry]);
+  }, [open, entry, period]);
 
   const subjectOptions = useMemo(() => {
-    const byId = new Map<string, ClassSubjectOption>();
-    for (const s of classSubjects) byId.set(s.subjectId, s);
-    if (entry?.subject_id && !byId.has(entry.subject_id)) {
-      byId.set(entry.subject_id, {
+    const list = [...classSubjects];
+    if (entry?.subject_id && !list.some((s) => s.subjectId === entry.subject_id)) {
+      list.push({
         subjectId: entry.subject_id,
-        subjectName: entry.subjects?.name ?? "Subject",
+        subjectName: readSubjectName(entry.subjects),
         teacherId: entry.teacher_id,
         teacherName: entry.teachers?.profiles?.full_name ?? null,
       });
     }
-    return [...byId.values()].sort((a, b) => a.subjectName.localeCompare(b.subjectName));
+    return dedupeSubjectOptions(list).sort((a, b) => a.subjectName.localeCompare(b.subjectName));
   }, [classSubjects, entry]);
+
+  const selectedSubject = subjectOptions.find((s) => s.subjectId === subjectId);
 
   const handleSubjectChange = (value: string) => {
     setSubjectId(value);
     setFormError(null);
     const match = subjectOptions.find((s) => s.subjectId === value);
     if (match?.teacherId) setTeacherId(match.teacherId);
+  };
+
+  const applyPeriodDefaults = () => {
+    if (!periodDefaults) return;
+    setStartTime(periodDefaults.start);
+    setEndTime(periodDefaults.end);
+    setFormError(null);
   };
 
   const handleSave = async () => {
@@ -80,9 +111,22 @@ export function TimetableSlotDialog({
       setFormError("Please select a teacher.");
       return;
     }
+    if (!isValidTimeRange(startTime, endTime)) {
+      setFormError("End time must be after start time.");
+      return;
+    }
     setSaving(true);
     try {
-      await onSave({ subject_id: subjectId, teacher_id: teacherId, room: room.trim() || undefined });
+      await onSave(
+        {
+          subject_id: subjectId,
+          teacher_id: teacherId,
+          start_time: startTime,
+          end_time: endTime,
+          room: room.trim() || undefined,
+        },
+        entry?.id,
+      );
       onOpenChange(false);
     } catch (e) {
       setFormError(e instanceof Error ? e.message : "Could not save period");
@@ -100,51 +144,101 @@ export function TimetableSlotDialog({
           <DialogTitle>{entry ? "Edit" : "Add"} period</DialogTitle>
           <DialogDescription>
             {className} · {dayLabel}
-            {period
-              ? ` · ${period.name} (${period.start_time.slice(0, 5)} – ${period.end_time.slice(0, 5)})`
-              : ""}
+            {periodDefaults ? ` · ${periodDefaults.label}` : ""}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Subject</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label>Time range</Label>
+              {periodDefaults ? (
+                <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={applyPeriodDefaults}>
+                  Use {periodDefaults.label} ({periodDefaults.start}–{periodDefaults.end})
+                </Button>
+              ) : null}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="timetable-start" className="text-xs text-muted-foreground">
+                  Start
+                </Label>
+                <Input
+                  id="timetable-start"
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => {
+                    setStartTime(e.target.value);
+                    setFormError(null);
+                  }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="timetable-end" className="text-xs text-muted-foreground">
+                  End
+                </Label>
+                <Input
+                  id="timetable-end"
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => {
+                    setEndTime(e.target.value);
+                    setFormError(null);
+                  }}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">{formatTimeRange(startTime, endTime)}</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="timetable-subject">Subject</Label>
             {subjectOptions.length === 0 ? (
               <p className="text-sm text-muted-foreground rounded-md border border-dashed p-3">
                 No subjects linked to this class. Assign subjects under Admin → Teachers or Subjects,
                 then try again.
               </p>
             ) : (
-              <Select value={subjectId || undefined} onValueChange={handleSubjectChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select subject" />
-                </SelectTrigger>
-                <SelectContent>
-                  {subjectOptions.map((s) => (
-                    <SelectItem key={s.subjectId} value={s.subjectId}>
-                      {s.subjectName}
-                      {s.teacherName ? ` · ${s.teacherName}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <>
+                <Select value={subjectId || undefined} onValueChange={handleSubjectChange}>
+                  <SelectTrigger id="timetable-subject">
+                    <SelectValue placeholder="Select subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subjectOptions.map((s) => (
+                      <SelectItem key={s.subjectId} value={s.subjectId} textValue={s.subjectName}>
+                        {s.subjectName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedSubject?.teacherName ? (
+                  <p className="text-xs text-muted-foreground">
+                    Assigned teacher: {selectedSubject.teacherName}
+                  </p>
+                ) : null}
+              </>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label>Teacher</Label>
+            <Label htmlFor="timetable-teacher">Teacher</Label>
             {teachers.length === 0 ? (
               <p className="text-sm text-muted-foreground rounded-md border border-dashed p-3">
                 No teachers found for this school.
               </p>
             ) : (
               <Select value={teacherId || undefined} onValueChange={(v) => { setTeacherId(v); setFormError(null); }}>
-                <SelectTrigger>
+                <SelectTrigger id="timetable-teacher">
                   <SelectValue placeholder="Select teacher" />
                 </SelectTrigger>
                 <SelectContent>
                   {teachers.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
+                    <SelectItem
+                      key={t.id}
+                      value={t.id}
+                      textValue={t.profiles?.full_name ?? "Teacher"}
+                    >
                       {t.profiles?.full_name ?? "Teacher"}
                     </SelectItem>
                   ))}
@@ -154,8 +248,9 @@ export function TimetableSlotDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Room (optional)</Label>
+            <Label htmlFor="timetable-room">Room (optional)</Label>
             <Input
+              id="timetable-room"
               placeholder="e.g. Room 4B"
               value={room}
               onChange={(e) => setRoom(e.target.value)}

@@ -135,8 +135,14 @@ DROP POLICY IF EXISTS "timetable versions insert admin" ON public.timetable_vers
 CREATE POLICY "timetable versions insert admin" ON public.timetable_versions
   FOR INSERT TO authenticated
   WITH CHECK (
-    public.has_role(auth.uid(), 'admin'::app_role)
-    OR public.has_role(auth.uid(), 'super_admin'::app_role)
+    (
+      public.has_role(auth.uid(), 'admin'::app_role)
+      OR public.has_role(auth.uid(), 'super_admin'::app_role)
+    )
+    AND (
+      school_id = public.get_user_school_id(auth.uid())
+      OR public.has_role(auth.uid(), 'super_admin'::app_role)
+    )
   );
 
 -- Students/teachers/parents: only published schedules (admins see all)

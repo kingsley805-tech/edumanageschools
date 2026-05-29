@@ -23,6 +23,12 @@ import Settings from "./pages/Settings";
 import Teachers from "./pages/admin/Teachers";
 import Classes from "./pages/admin/Classes";
 import AdminAttendance from "./pages/admin/Attendance";
+import RegisterDashboard from "@/register/pages/admin/RegisterDashboard";
+import AdminRegisterReview from "@/register/pages/admin/AdminRegisterReview";
+import TeacherRegisterList from "@/register/pages/teacher/TeacherRegisterList";
+import TeacherRegisterEditor from "@/register/pages/teacher/TeacherRegisterEditor";
+import StudentRegister from "./pages/student/Register";
+import ParentRegister from "./pages/parent/Register";
 import TimetableDashboard from "@/timetable/pages/admin/TimetableDashboard";
 import Reports from "@/report/pages/admin/AnalyticsReports";
 import AdminReportCardsIndex from "@/report/pages/admin/ReportCardsIndex";
@@ -240,6 +246,16 @@ function App() {
                   <AdminAttendance />
                 </ProtectedRoute>
               } />
+              <Route path="/admin/register" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                  <RegisterDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/register/:id" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                  <AdminRegisterReview />
+                </ProtectedRoute>
+              } />
               <Route path="/admin/timetable" element={
                 <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
                   <TimetableDashboard />
@@ -350,6 +366,21 @@ function App() {
                   <TeacherAttendance />
                 </ProtectedRoute>
               } />
+              <Route path="/teacher/register" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <TeacherRegisterList />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher/register/new" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <TeacherRegisterEditor />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher/register/:id" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <TeacherRegisterEditor />
+                </ProtectedRoute>
+              } />
               <Route path="/teacher/assignments" element={
                 <ProtectedRoute allowedRoles={["teacher"]}>
                   <TeacherAssignments />
@@ -418,6 +449,11 @@ function App() {
               <Route path="/parent/attendance" element={
                 <ProtectedRoute allowedRoles={["parent"]}>
                   <ParentAttendance />
+                </ProtectedRoute>
+              } />
+              <Route path="/parent/register" element={
+                <ProtectedRoute allowedRoles={["parent"]}>
+                  <ParentRegister />
                 </ProtectedRoute>
               } />
               <Route path="/parent/grades" element={
@@ -493,6 +529,11 @@ function App() {
               <Route path="/student/performance" element={
                 <ProtectedRoute allowedRoles={["student"]}>
                   <StudentPerformance />
+                </ProtectedRoute>
+              } />
+              <Route path="/student/register" element={
+                <ProtectedRoute allowedRoles={["student"]}>
+                  <StudentRegister />
                 </ProtectedRoute>
               } />
               <Route path="/student/timetable" element={

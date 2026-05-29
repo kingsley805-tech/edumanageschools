@@ -2,6 +2,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { ScheduleEntry } from "@/timetable/lib/types";
 import { subjectColorStyle } from "@/timetable/lib/subjectColors";
+import { readSubjectName } from "@/timetable/lib/subjectLabel";
+import { formatTimeRange } from "@/timetable/lib/timeUtils";
 import { AlertCircle, Plus } from "lucide-react";
 
 export function TimetableCellCard({
@@ -63,8 +65,11 @@ export function TimetableCellCard({
           Conflict
         </Badge>
       ) : null}
-      <p className="text-[11px] font-bold uppercase tracking-wide opacity-90 line-clamp-1">
-        {entry.subjects?.name ?? "Subject"}
+      <p className="text-[10px] font-medium opacity-80 line-clamp-1">
+        {formatTimeRange(entry.start_time, entry.end_time)}
+      </p>
+      <p className="text-[11px] font-bold uppercase tracking-wide opacity-90 line-clamp-1 mt-0.5">
+        {readSubjectName(entry.subjects)}
       </p>
       <p className="text-xs font-medium mt-0.5 line-clamp-1">{entry.teachers?.profiles?.full_name ?? "—"}</p>
       {entry.room ? <p className="text-[10px] opacity-80 mt-1">{entry.room}</p> : null}

@@ -6,7 +6,13 @@ import { Download, Printer, Calendar } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { TimetableGrid } from "@/timetable/components/TimetableGrid";
-import { fetchPeriods, fetchSchedules, fetchSchoolId, seedDefaultPeriods } from "@/timetable/lib/api";
+import {
+  fetchPeriods,
+  fetchSchedules,
+  fetchSchoolId,
+  fetchTimetableSettings,
+  seedDefaultPeriods,
+} from "@/timetable/lib/api";
 import { exportTimetableExcel, exportTimetablePdf } from "@/timetable/lib/export";
 import type { ScheduleEntry, TimetablePeriod } from "@/timetable/lib/types";
 import { toast } from "sonner";
@@ -27,6 +33,7 @@ export function TimetablePortalView({
   const [periods, setPeriods] = useState<TimetablePeriod[]>([]);
   const [title, setTitle] = useState("My Timetable");
   const [schoolName, setSchoolName] = useState("School");
+  const [schoolCloseTime, setSchoolCloseTime] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -43,6 +50,13 @@ export function TimetablePortalView({
         let per = await fetchPeriods(schoolId);
         if (per.length === 0) per = await seedDefaultPeriods(schoolId);
         setPeriods(per);
+
+        try {
+          const settings = await fetchTimetableSettings(schoolId);
+          setSchoolCloseTime(settings?.school_close_time?.slice(0, 5) ?? null);
+        } catch {
+          setSchoolCloseTime(null);
+        }
 
         if (role === "student") {
           const { data: st } = await supabase
@@ -168,7 +182,7 @@ export function TimetablePortalView({
             ))}
           </div>
         ) : (
-          <TimetableGrid periods={periods} entries={entries} />
+          <TimetableGrid periods={periods} entries={entries} schoolCloseTime={schoolCloseTime} />
         )}
       </div>
     </Wrapper>
