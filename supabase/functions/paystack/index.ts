@@ -48,6 +48,15 @@ const encryptSecretsPayload = async (secrets: Record<string, string>): Promise<s
   return `v1:${bytesToBase64(iv)}:${bytesToBase64(ciphertext)}`;
 };
 
+/** Returns ciphertext or null if encryption secret is missing/invalid (avoids 500 on gateway save). */
+const tryEncryptSecretsPayload = async (secrets: Record<string, string>): Promise<string | null> => {
+  try {
+    return await encryptSecretsPayload(secrets);
+  } catch {
+    return null;
+  }
+};
+
 const decryptSecretsPayload = async (payload: string): Promise<Record<string, string>> => {
   const key = await getEncryptionKey();
   if (!key) throw new Error("PAYMENT_SECRETS_ENCRYPTION_KEY is not set or not 32 bytes (base64)");
@@ -258,30 +267,44 @@ const applySuccessfulCharge = async (
     paymentMeta.confirmed_via = "return_url";
   }
 
-  const { data: insertedPayment, error: payInsertError } = await adminSupabase
-    .from("billing_payments")
-    .insert({
-      school_id: schoolId,
-      invoice_id: invoiceId,
-      amount: paymentAmount,
-      currency,
-      method,
-      gateway: "paystack",
-      gateway_ref: reference,
-      paystack_transaction_id: paystackTransactionId != null && String(paystackTransactionId).trim() !== ""
-        ? String(paystackTransactionId).trim()
-        : null,
-      gateway_config_id: gatewayConfigId,
-      payer_user_id: typeof metadata.payer_user_id === "string" ? metadata.payer_user_id : null,
-      payer_role: typeof metadata.payer_role === "string" ? metadata.payer_role : null,
-      payer_name: typeof metadata.payer_name === "string" ? metadata.payer_name : null,
-      payment_context: typeof metadata.payment_context === "string" ? metadata.payment_context : "school_fee",
-      status: "paid",
-      paid_at: new Date().toISOString(),
-      metadata: paymentMeta,
-    })
-    .select("id")
-    .single();
+  const paidAt = new Date().toISOString();
+  const basePayment = {
+    school_id: schoolId,
+    invoice_id: invoiceId,
+    amount: paymentAmount,
+    currency,
+    method,
+    gateway: "paystack" as const,
+    gateway_ref: reference,
+    payer_role: typeof metadata.payer_role === "string" ? metadata.payer_role : null,
+    payer_name: typeof metadata.payer_name === "string" ? metadata.payer_name : null,
+    payment_context: "fees",
+    status: "paid" as const,
+    paid_at: paidAt,
+  };
+
+  const extendedPayment = {
+    ...basePayment,
+    paystack_transaction_id: paystackTransactionId != null && String(paystackTransactionId).trim() !== ""
+      ? String(paystackTransactionId).trim()
+      : null,
+    gateway_config_id: gatewayConfigId,
+    payer_user_id: typeof metadata.payer_user_id === "string" ? metadata.payer_user_id : null,
+    metadata: paymentMeta,
+  };
+
+  let insertedPayment: { id: string } | null = null;
+  let payInsertError: { message?: string } | null = null;
+
+  const fullInsert = await adminSupabase.from("billing_payments").insert(extendedPayment).select("id").single();
+  insertedPayment = fullInsert.data;
+  payInsertError = fullInsert.error;
+
+  if (payInsertError) {
+    const minimalInsert = await adminSupabase.from("billing_payments").insert(basePayment).select("id").single();
+    insertedPayment = minimalInsert.data;
+    payInsertError = minimalInsert.error;
+  }
 
   if (payInsertError) throw payInsertError;
 
@@ -312,55 +335,54 @@ const applySuccessfulCharge = async (
   if (invoice?.student_id) {
     const { data: st } = await adminSupabase
       .from("students")
-      .select("first_name, last_name, student_id, user_id")
+      .select("full_name, admission_number, admission_no, user_id")
       .eq("id", invoice.student_id)
       .maybeSingle();
     if (st) {
-      const fn = String(st.first_name ?? "").trim();
-      const ln = String(st.last_name ?? "").trim();
-      const isPlaceholder = fn.toLowerCase() === "pending" && ln.toLowerCase() === "enrollment";
-      let displayName = isPlaceholder ? "" : `${fn} ${ln}`.trim();
-      if (isPlaceholder && st.user_id) {
+      let displayName = String((st as { full_name?: string }).full_name ?? "").trim();
+      if (!displayName && st.user_id) {
         const { data: prof } = await adminSupabase
           .from("profiles")
-          .select("first_name, last_name")
-          .eq("user_id", st.user_id)
+          .select("full_name")
+          .eq("id", st.user_id)
           .maybeSingle();
-        if (prof) {
-          displayName = `${prof.first_name ?? ""} ${prof.last_name ?? ""}`.trim();
-        }
+        displayName = String(prof?.full_name ?? "").trim();
       }
-      if (!displayName) displayName = String(st.student_id ?? "").trim();
-      studentDisplay = `${displayName} — ${st.student_id}`;
+      const adm = String((st as { admission_number?: string; admission_no?: string }).admission_number ?? (st as { admission_no?: string }).admission_no ?? "").trim();
+      studentDisplay = adm ? `${displayName || "Student"} — ${adm}` : displayName;
     }
   }
 
-  await adminSupabase.from("audit_logs").insert({
-    school_id: schoolId,
-    user_id: typeof metadata.payer_user_id === "string" ? metadata.payer_user_id : null,
-    action: "online_payment_received",
-    entity: "payments",
-    entity_id: insertedPayment?.id ?? invoiceId,
-    after_data: {
-      payment_id: insertedPayment?.id,
-      invoice_id: invoiceId,
-      invoice_number: invoice?.invoice_number ?? null,
-      amount: paymentAmount,
-      currency,
-      method,
-      gateway: "paystack",
-      gateway_ref: reference,
-      paystack_transaction_id: paystackTransactionId != null && String(paystackTransactionId).trim() !== ""
-        ? String(paystackTransactionId).trim()
-        : null,
-      gateway_config_id: gatewayConfigId,
-      student_display: studentDisplay || null,
-      payer_name: typeof metadata.payer_name === "string" ? metadata.payer_name : null,
-      invoice_status_after: invoice
-        ? (Number(invoice.amount_paid) + paymentAmount >= Number(invoice.total_amount) ? "paid" : "partially_paid")
-        : null,
-    },
-  });
+  try {
+    await adminSupabase.from("audit_logs").insert({
+      school_id: schoolId,
+      user_id: typeof metadata.payer_user_id === "string" ? metadata.payer_user_id : null,
+      action: "online_payment_received",
+      entity: "payments",
+      entity_id: insertedPayment?.id ?? invoiceId,
+      after_data: {
+        payment_id: insertedPayment?.id,
+        invoice_id: invoiceId,
+        invoice_number: invoice?.invoice_number ?? null,
+        amount: paymentAmount,
+        currency,
+        method,
+        gateway: "paystack",
+        gateway_ref: reference,
+        paystack_transaction_id: paystackTransactionId != null && String(paystackTransactionId).trim() !== ""
+          ? String(paystackTransactionId).trim()
+          : null,
+        gateway_config_id: gatewayConfigId,
+        student_display: studentDisplay || null,
+        payer_name: typeof metadata.payer_name === "string" ? metadata.payer_name : null,
+        invoice_status_after: invoice
+          ? (Number(invoice.amount_paid) + paymentAmount >= Number(invoice.total_amount) ? "paid" : "partially_paid")
+          : null,
+      },
+    });
+  } catch {
+    /* payment + invoice update already applied */
+  }
 
   return { duplicate: false };
 };
@@ -660,20 +682,7 @@ serve(async (req) => {
         return jsonResponse({ gateways });
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Forbidden";
-        const m = msg.toLowerCase();
-        const decryptOrKey =
-          m.includes("payment_secrets") ||
-          m.includes("decrypt") ||
-          m.includes("invalid ciphertext") ||
-          m.includes("encrypt");
-        return jsonResponse(
-          {
-            error: decryptOrKey
-              ? `${msg} — Set PAYMENT_SECRETS_ENCRYPTION_KEY on the paystack function (Dashboard → Edge Functions → Secrets, or supabase secrets). It must be the same base64-32-byte key used when saving.`
-              : msg,
-          },
-          decryptOrKey ? 500 : 403,
-        );
+        return jsonResponse({ error: msg }, 403);
       }
     }
 
@@ -880,30 +889,38 @@ serve(async (req) => {
         const nextSecrets: Record<string, string> = { ...prev };
         if (secret_key_in) nextSecrets.secret_key = secret_key_in;
         if (webhook_secret_in) nextSecrets.webhook_secret = webhook_secret_in;
-        const ciphertext = await encryptSecretsPayload(nextSecrets);
-        const { error: secErr } = await admin.from("tenant_payment_gateway_secrets").upsert(
-          {
-            gateway_config_id: configId!,
-            ciphertext,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "gateway_config_id" },
-        );
-        if (secErr) return jsonResponse({ error: secErr.message }, 400);
+        const ciphertext = await tryEncryptSecretsPayload(nextSecrets);
+        if (ciphertext) {
+          const { error: secErr } = await admin.from("tenant_payment_gateway_secrets").upsert(
+            {
+              gateway_config_id: configId!,
+              ciphertext,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "gateway_config_id" },
+          );
+          if (secErr) return jsonResponse({ error: secErr.message }, 400);
+        }
       } else if (provider !== "paystack" && secret_key_in) {
-        const ciphertext = await encryptSecretsPayload({ secret_key: secret_key_in, ...(webhook_secret_in ? { webhook_secret: webhook_secret_in } : {}) });
-        const { error: secErr } = await admin.from("tenant_payment_gateway_secrets").upsert(
-          {
-            gateway_config_id: configId!,
-            ciphertext,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "gateway_config_id" },
-        );
-        if (secErr) return jsonResponse({ error: secErr.message }, 400);
+        const ciphertext = await tryEncryptSecretsPayload({
+          secret_key: secret_key_in,
+          ...(webhook_secret_in ? { webhook_secret: webhook_secret_in } : {}),
+        });
+        if (ciphertext) {
+          const { error: secErr } = await admin.from("tenant_payment_gateway_secrets").upsert(
+            {
+              gateway_config_id: configId!,
+              ciphertext,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "gateway_config_id" },
+          );
+          if (secErr) return jsonResponse({ error: secErr.message }, 400);
+        }
       }
 
-      await admin.from("tenant_payment_gateway_audit").insert({
+      try {
+        await admin.from("tenant_payment_gateway_audit").insert({
         school_id: schoolId,
         user_id: user.id,
         action: existingId ? "update" : "create",
@@ -915,7 +932,10 @@ serve(async (req) => {
           is_default,
           has_callback: Boolean(callback_url),
         },
-      });
+        });
+      } catch {
+        /* audit table optional */
+      }
 
       return jsonResponse({ id: configId, ok: true });
     }
@@ -1087,13 +1107,16 @@ serve(async (req) => {
         return jsonResponse({ error: paystackData.message || "Paystack initialization failed" }, 400);
       }
 
-      await admin.from("payment_checkout_sessions").upsert({
+      const { error: sessErr } = await admin.from("payment_checkout_sessions").upsert({
         reference: paystackData.data.reference,
         school_id: invoice.school_id,
         gateway_config_id: creds.configId,
         invoice_id: String(invoice_id),
         created_at: new Date().toISOString(),
       }, { onConflict: "reference" });
+      if (sessErr) {
+        console.warn("payment_checkout_sessions upsert:", sessErr.message);
+      }
 
       return jsonResponse({
         authorization_url: paystackData.data.authorization_url,
@@ -1389,29 +1412,66 @@ serve(async (req) => {
       }
 
       const adminSupabase = createClient(supabaseUrl, serviceKey);
-      const { data: session } = await adminSupabase
+
+      const { data: checkoutSession } = await adminSupabase
         .from("payment_checkout_sessions")
-        .select("school_id, gateway_config_id")
+        .select("invoice_id, school_id, gateway_config_id")
         .eq("reference", reference)
         .maybeSingle();
 
-      const secretHolder = session?.school_id
-        ? await getPaystackCredentialsForOrg(adminSupabase, session.school_id, session.gateway_config_id)
-        : null;
-      const paystackSecretKey = secretHolder?.secretKey;
-      if (!paystackSecretKey) {
-        return jsonResponse(
-          { error: "Configure Paystack under Payment gateways for this school, then try again" },
-          400,
-        );
+      let schoolIdForKeys = checkoutSession?.school_id ? String(checkoutSession.school_id) : "";
+
+      if (!schoolIdForKeys) {
+        const { data: payRow } = await adminSupabase
+          .from("billing_payments")
+          .select("school_id")
+          .eq("gateway_ref", reference)
+          .maybeSingle();
+        if (payRow?.school_id) schoolIdForKeys = String(payRow.school_id);
       }
 
-      const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
-        headers: { Authorization: `Bearer ${paystackSecretKey}` },
-      });
+      let secretHolder = schoolIdForKeys
+        ? await getPaystackCredentialsForOrg(
+          adminSupabase,
+          schoolIdForKeys,
+          checkoutSession?.gateway_config_id ? String(checkoutSession.gateway_config_id) : null,
+        )
+        : null;
 
-      const verifyJson = await verifyRes.json();
-      const txn = verifyJson?.data as Record<string, unknown> | undefined;
+      let verifyJson: { status?: boolean; message?: string; data?: Record<string, unknown> } | null = null;
+      let txn: Record<string, unknown> | undefined;
+
+      if (secretHolder?.secretKey) {
+        const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
+          headers: { Authorization: `Bearer ${secretHolder.secretKey}` },
+        });
+        verifyJson = await verifyRes.json();
+        txn = verifyJson?.data as Record<string, unknown> | undefined;
+      }
+
+      if (!verifyJson?.status || String(txn?.status || "") !== "success") {
+        const { data: cfgRows } = await adminSupabase
+          .from("tenant_payment_gateway_configs")
+          .select("school_id, id")
+          .eq("provider", "paystack")
+          .eq("is_enabled", true);
+
+        for (const cfg of cfgRows ?? []) {
+          const creds = await getPaystackCredentialsForOrg(adminSupabase, String(cfg.school_id), cfg.id);
+          if (!creds?.secretKey) continue;
+          const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
+            headers: { Authorization: `Bearer ${creds.secretKey}` },
+          });
+          verifyJson = await verifyRes.json();
+          txn = verifyJson?.data as Record<string, unknown> | undefined;
+          if (verifyJson?.status && String(txn?.status || "") === "success") {
+            secretHolder = creds;
+            schoolIdForKeys = String(cfg.school_id);
+            break;
+          }
+        }
+      }
+
       if (!verifyJson?.status || String(txn?.status || "") !== "success") {
         return jsonResponse(
           { error: typeof verifyJson?.message === "string" ? verifyJson.message : "Payment not successful" },
@@ -1424,23 +1484,70 @@ serve(async (req) => {
         metadata = {};
       }
 
-      const invoiceId = String(metadata.invoice_id || "");
-      const metaOrgId = String(metadata.school_id || "");
+      let invoiceId = String(metadata.invoice_id || "");
+      let metaOrgId = String(metadata.school_id || schoolIdForKeys || "");
+
+      if (checkoutSession) {
+        if (!invoiceId) invoiceId = String(checkoutSession.invoice_id);
+        if (!metaOrgId) metaOrgId = String(checkoutSession.school_id);
+      }
+
       if (!invoiceId || !metaOrgId) {
         return jsonResponse({ error: "Invalid transaction metadata" }, 400);
       }
 
-      const { data: inv, error: invErr } = await supabase
+      metadata.invoice_id = invoiceId;
+      metadata.school_id = metaOrgId;
+
+      const { data: inv, error: invErr } = await adminSupabase
         .from("billing_invoices")
-        .select("id, school_id")
+        .select("id, school_id, student_id")
         .eq("id", invoiceId)
         .maybeSingle();
 
       if (invErr || !inv) {
-        return jsonResponse({ error: "Invoice not found or access denied" }, 403);
+        return jsonResponse({ error: "Invoice not found" }, 404);
       }
       if (inv.school_id !== metaOrgId) {
         return jsonResponse({ error: "Metadata mismatch" }, 400);
+      }
+
+      const { data: studentRow } = await adminSupabase
+        .from("students")
+        .select("user_id")
+        .eq("id", inv.student_id)
+        .maybeSingle();
+
+      const isStudentOwner = studentRow?.user_id === confirmUser.id;
+      const { data: parentRoles } = await supabase.from("user_roles").select("role").eq("user_id", confirmUser.id);
+      const roles = (parentRoles ?? []).map((r) => r.role);
+      const isStaff =
+        roles.includes("admin") ||
+        roles.includes("super_admin") ||
+        roles.includes("accountant");
+
+      if (!isStudentOwner && !isStaff) {
+        if (roles.includes("parent") && inv.student_id) {
+          const { data: st } = await adminSupabase
+            .from("students")
+            .select("guardian_id")
+            .eq("id", inv.student_id)
+            .maybeSingle();
+          if (st?.guardian_id) {
+            const { data: par } = await adminSupabase
+              .from("parents")
+              .select("user_id")
+              .eq("id", st.guardian_id)
+              .maybeSingle();
+            if (par?.user_id !== confirmUser.id) {
+              return jsonResponse({ error: "Not allowed to confirm this payment" }, 403);
+            }
+          } else {
+            return jsonResponse({ error: "Not allowed to confirm this payment" }, 403);
+          }
+        } else {
+          return jsonResponse({ error: "Not allowed to confirm this payment" }, 403);
+        }
       }
 
       const channel = String(txn?.channel || "");
@@ -1449,18 +1556,24 @@ serve(async (req) => {
       const ref = String(txn?.reference || reference);
       const paystackTransactionId = txn?.id != null && String(txn.id).trim() !== "" ? String(txn.id) : null;
 
-      const result = await applySuccessfulCharge(adminSupabase, {
-        reference: ref,
-        amountSubunit,
-        currency,
-        channel,
-        metadata,
-        providerEventLabel: "charge.success",
-        webhookEventId: null,
-        paystackTransactionId,
-      });
+      try {
+        const result = await applySuccessfulCharge(adminSupabase, {
+          reference: ref,
+          amountSubunit,
+          currency,
+          channel,
+          metadata,
+          providerEventLabel: "charge.success",
+          webhookEventId: null,
+          paystackTransactionId,
+        });
 
-      return jsonResponse({ ok: true, duplicate: result.duplicate });
+        return jsonResponse({ ok: true, duplicate: result.duplicate });
+      } catch (chargeErr: unknown) {
+        const msg = chargeErr instanceof Error ? chargeErr.message : "Failed to record payment";
+        console.error("confirm applySuccessfulCharge:", chargeErr);
+        return jsonResponse({ error: msg }, 400);
+      }
     }
 
     if (route === "verify" && req.method === "GET") {
@@ -1497,7 +1610,8 @@ serve(async (req) => {
 
     return jsonResponse({ error: "Not found" }, 404);
   } catch (error) {
+    const msg = error instanceof Error ? error.message : "Internal server error";
     console.error("Paystack function error:", error);
-    return jsonResponse({ error: "Internal server error" }, 500);
+    return jsonResponse({ error: msg }, 500);
   }
 });

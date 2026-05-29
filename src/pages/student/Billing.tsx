@@ -10,7 +10,12 @@ import { Loader2, CreditCard, Download, DollarSign, FileText, TrendingUp, AlertC
 import { toast } from "sonner";
 import { generateReceipt } from "@/billing/lib/generateReceipt";
 import { fetchSchoolLetterhead } from "@/billing/lib/schoolLetterhead";
-import { confirmPaystackPayment, initializePaystackCheckout } from "@/billing/lib/paystackConfirm";
+import {
+  confirmPaystackPaymentFromReturn,
+  initializePaystackCheckout,
+  readPaystackPendingReference,
+  stashPaystackPendingReference,
+} from "@/billing/lib/paystackConfirm";
 import { formatEdgeFunctionError } from "@/lib/invokeEdgeFunction";
 import {
   parsePaystackReturnSearch,
@@ -44,6 +49,7 @@ export default function StudentBilling() {
   const [schoolId, setSchoolId] = useState<string | null>(null);
   const [invoices, setInvoices] = useState<StudentInvoice[]>([]);
   const [payingId, setPayingId] = useState<string | null>(null);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
 
   const paymentReturn = useMemo(() => parsePaystackReturnSearch(window.location.search), []);
 
@@ -93,23 +99,32 @@ export default function StudentBilling() {
     void load();
   }, [load]);
 
-  useEffect(() => {
-    if (!shouldAttemptPaystackConfirm(paymentReturn)) return;
-    void (async () => {
-      try {
-        const result = await confirmPaystackPayment(paymentReturn.reference!);
-        if (result.ok) {
-          toast.success("Payment confirmed");
-          window.history.replaceState({}, "", window.location.pathname);
-          await load();
-        } else if (isExplicitPaystackFailure(paymentReturn)) {
-          toast.error("Payment was not completed");
-        }
-      } catch (e) {
-        toast.error(formatEdgeFunctionError(e, "paystack"));
+  const runPaymentConfirm = useCallback(async () => {
+    const shouldConfirm =
+      shouldAttemptPaystackConfirm(paymentReturn) || Boolean(readPaystackPendingReference());
+    if (!shouldConfirm) return;
+    setConfirmingPayment(true);
+    try {
+      const result = await confirmPaystackPaymentFromReturn(paymentReturn);
+      if (result.ok) {
+        toast.success(result.duplicate ? "Payment already recorded" : "Payment confirmed — thank you!");
+        window.history.replaceState({}, "", window.location.pathname);
+        await load();
+      } else if (result.error) {
+        toast.error(result.error);
+      } else if (paymentReturn && isExplicitPaystackFailure(paymentReturn)) {
+        toast.error("Payment was not completed");
       }
-    })();
+    } catch (e) {
+      toast.error(formatEdgeFunctionError(e, "paystack"));
+    } finally {
+      setConfirmingPayment(false);
+    }
   }, [paymentReturn, load]);
+
+  useEffect(() => {
+    void runPaymentConfirm();
+  }, [runPaymentConfirm]);
 
   const balance = (inv: StudentInvoice) =>
     Number(inv.balance_due ?? Math.max(0, Number(inv.total_amount) - Number(inv.amount_paid)));
@@ -185,7 +200,12 @@ export default function StudentBilling() {
           </p>
         </div>
 
-        {loading ? (
+        {confirmingPayment ? (
+          <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <p className="text-sm">Confirming your payment…</p>
+          </div>
+        ) : loading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
@@ -231,6 +251,34 @@ export default function StudentBilling() {
                 <CardContent className="text-2xl font-bold">{invoices.length}</CardContent>
               </Card>
             </div>
+
+            {outstanding > 0 ? (
+              <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 space-y-3">
+                <p className="text-sm">
+                  Paid on Paystack but balance still shows? Enter the reference from Paystack (email/SMS) and tap sync.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const ref = window.prompt("Paystack payment reference (e.g. SCH-… or from Paystack email)");
+                      if (!ref?.trim()) return;
+                      stashPaystackPendingReference(ref.trim());
+                      void runPaymentConfirm();
+                    }}
+                    disabled={confirmingPayment}
+                  >
+                    Sync Paystack payment
+                  </Button>
+                  {readPaystackPendingReference() ? (
+                    <Button size="sm" onClick={() => void runPaymentConfirm()} disabled={confirmingPayment}>
+                      {confirmingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sync last checkout"}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
 
             <Card>
               <CardHeader>

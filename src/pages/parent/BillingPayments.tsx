@@ -10,7 +10,11 @@ import { Loader2, CreditCard, Download } from "lucide-react";
 import { toast } from "sonner";
 import { generateReceipt } from "@/billing/lib/generateReceipt";
 import { fetchSchoolLetterhead } from "@/billing/lib/schoolLetterhead";
-import { confirmPaystackPayment, initializePaystackCheckout } from "@/billing/lib/paystackConfirm";
+import {
+  confirmPaystackPaymentFromReturn,
+  initializePaystackCheckout,
+  readPaystackPendingReference,
+} from "@/billing/lib/paystackConfirm";
 import { formatEdgeFunctionError } from "@/lib/invokeEdgeFunction";
 import {
   parsePaystackReturnSearch,
@@ -50,6 +54,7 @@ export default function ParentBillingPayments() {
   const [children, setChildren] = useState<ChildRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [payingId, setPayingId] = useState<string | null>(null);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
   const [schoolId, setSchoolId] = useState<string | null>(null);
 
   const paymentReturn = useMemo(
@@ -118,23 +123,32 @@ export default function ParentBillingPayments() {
     void load();
   }, [load]);
 
-  useEffect(() => {
-    if (!shouldAttemptPaystackConfirm(paymentReturn)) return;
-    void (async () => {
-      try {
-        const result = await confirmPaystackPayment(paymentReturn.reference!);
-        if (result.ok) {
-          toast.success("Payment confirmed");
-          window.history.replaceState({}, "", window.location.pathname);
-          await load();
-        } else if (isExplicitPaystackFailure(paymentReturn)) {
-          toast.error("Payment was not completed");
-        }
-      } catch (e) {
-        toast.error(formatEdgeFunctionError(e, "paystack"));
+  const runPaymentConfirm = useCallback(async () => {
+    const shouldConfirm =
+      shouldAttemptPaystackConfirm(paymentReturn) || Boolean(readPaystackPendingReference());
+    if (!shouldConfirm) return;
+    setConfirmingPayment(true);
+    try {
+      const result = await confirmPaystackPaymentFromReturn(paymentReturn);
+      if (result.ok) {
+        toast.success(result.duplicate ? "Payment already recorded" : "Payment confirmed");
+        window.history.replaceState({}, "", window.location.pathname);
+        await load();
+      } else if (result.error) {
+        toast.error(result.error);
+      } else if (paymentReturn && isExplicitPaystackFailure(paymentReturn)) {
+        toast.error("Payment was not completed");
       }
-    })();
+    } catch (e) {
+      toast.error(formatEdgeFunctionError(e, "paystack"));
+    } finally {
+      setConfirmingPayment(false);
+    }
   }, [paymentReturn, load]);
+
+  useEffect(() => {
+    void runPaymentConfirm();
+  }, [runPaymentConfirm]);
 
   const payInvoice = async (invoice: ChildInvoice) => {
     setPayingId(invoice.id);

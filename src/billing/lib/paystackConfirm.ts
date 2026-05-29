@@ -1,6 +1,8 @@
 import { formatEdgeFunctionError, invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { supabase } from "@/integrations/supabase/client";
 
+const PENDING_REF_KEY = "school_hub_paystack_pending_reference";
+
 export async function confirmPaystackPayment(reference: string) {
   try {
     const data = await invokeEdgeFunction<{ ok?: boolean; duplicate?: boolean; error?: string }>(
@@ -23,8 +25,13 @@ export async function confirmPaystackPayment(reference: string) {
 
 export type PaystackInitializeResult = {
   authorization_url?: string;
+  reference?: string;
   error?: string;
 };
+
+function isSyntheticStudentLoginEmail(email: string): boolean {
+  return /@(students\.app|school\.local|local)$/i.test(email.trim());
+}
 
 type CheckoutContext = {
   ok: boolean;
@@ -32,11 +39,6 @@ type CheckoutContext = {
   email?: string;
   amount?: number;
 };
-
-/** Student login addresses are not valid Paystack payer emails. */
-function isSyntheticStudentLoginEmail(email: string): boolean {
-  return /@(students\.app|school\.local|local)$/i.test(email.trim());
-}
 
 async function loadCheckoutContext(invoiceId: string): Promise<CheckoutContext> {
   const { data, error } = await supabase.rpc("get_paystack_checkout_context", {
@@ -56,6 +58,59 @@ async function loadCheckoutContext(invoiceId: string): Promise<CheckoutContext> 
   }
 
   return (data ?? { ok: false, error: "Could not load payment details." }) as CheckoutContext;
+}
+
+export function stashPaystackPendingReference(reference: string) {
+  try {
+    sessionStorage.setItem(PENDING_REF_KEY, reference.trim());
+  } catch {
+    /* ignore */
+  }
+}
+
+export function clearPaystackPendingReference() {
+  try {
+    sessionStorage.removeItem(PENDING_REF_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function readPaystackPendingReference(): string | null {
+  try {
+    const v = sessionStorage.getItem(PENDING_REF_KEY)?.trim();
+    return v || null;
+  } catch {
+    return null;
+  }
+}
+
+let confirmInFlight: string | null = null;
+
+/** Confirm using URL query or sessionStorage (after Paystack redirect). */
+export async function confirmPaystackPaymentFromReturn(
+  returnState: { reference: string; status: string } | null,
+): Promise<{ ok: boolean; error?: string; duplicate?: boolean }> {
+  const reference =
+    returnState?.reference?.trim() || readPaystackPendingReference() || "";
+  if (!reference) {
+    return { ok: false, error: "No payment reference found. Try Pay again or contact the school." };
+  }
+
+  if (confirmInFlight === reference) {
+    return { ok: false, error: "Confirmation already in progress." };
+  }
+  confirmInFlight = reference;
+
+  try {
+    const result = await confirmPaystackPayment(reference);
+    if (result.ok) {
+      clearPaystackPendingReference();
+    }
+    return result;
+  } finally {
+    if (confirmInFlight === reference) confirmInFlight = null;
+  }
 }
 
 export async function initializePaystackCheckout(input: {
@@ -80,7 +135,7 @@ export async function initializePaystackCheckout(input: {
 
   if (!payerEmail) {
     throw new Error(
-      "Merchant email is not set. Admin: Payment gateways → enter kingsleyyeboah805@gmail.com (or school email) → Save.",
+      "Merchant email is not set. Admin: Payment gateways → enter merchant email → Save.",
     );
   }
 
@@ -101,6 +156,10 @@ export async function initializePaystackCheckout(input: {
 
   if (!data.authorization_url) {
     throw new Error("No checkout URL returned from Paystack.");
+  }
+
+  if (data.reference?.trim()) {
+    stashPaystackPendingReference(data.reference);
   }
 
   return data.authorization_url;

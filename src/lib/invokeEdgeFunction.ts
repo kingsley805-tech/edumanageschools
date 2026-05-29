@@ -75,7 +75,8 @@ export async function invokeEdgeFunction<T = unknown>(
       error && typeof error === "object" && "context" in error
         ? await readFunctionsHttpError(error as { context?: Response })
         : null;
-    throw new Error(httpDetail ?? formatEdgeFunctionError(error, functionName));
+    const detail = httpDetail ?? formatEdgeFunctionError(error, functionName);
+    throw new Error(detail);
   }
 
   const payload = data as { error?: string } | null;
