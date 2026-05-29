@@ -23,6 +23,13 @@ export type TimetableSettings = {
   include_saturday: boolean;
 };
 
+export type ClassSubjectOption = {
+  subjectId: string;
+  subjectName: string;
+  teacherId: string | null;
+  teacherName: string | null;
+};
+
 export type ScheduleEntry = {
   id: string;
   class_id: string;

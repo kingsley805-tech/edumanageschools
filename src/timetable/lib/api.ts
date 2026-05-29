@@ -1,12 +1,36 @@
 import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_PERIODS, type ScheduleEntry, type TimetablePeriod, type TimetableSettings } from "@/timetable/lib/types";
+import {
+  DEFAULT_PERIODS,
+  type ClassSubjectOption,
+  type ScheduleEntry,
+  type TimetablePeriod,
+  type TimetableSettings,
+} from "@/timetable/lib/types";
 
-const SCHEDULE_SELECT = `
+const SCHEDULE_SELECT_FULL = `
   id, class_id, subject_id, teacher_id, day_of_week, start_time, end_time, room,
   school_id, term_id, academic_year_id, period_id, status,
   classes ( name ), subjects ( name, code ),
   teachers ( id, profiles ( full_name ) )
 `;
+
+const SCHEDULE_SELECT_BASE = `
+  id, class_id, subject_id, teacher_id, day_of_week, start_time, end_time, room,
+  classes ( name ), subjects ( name, code ),
+  teachers ( id, profiles ( full_name ) )
+`;
+
+function profileName(profiles: { full_name?: string } | { full_name?: string }[] | null | undefined): string {
+  if (!profiles) return "Teacher";
+  if (Array.isArray(profiles)) return profiles[0]?.full_name ?? "Teacher";
+  return profiles.full_name ?? "Teacher";
+}
+
+function isMissingColumnError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const msg = (error.message ?? "").toLowerCase();
+  return error.code === "42703" || error.code === "PGRST204" || msg.includes("column") || msg.includes("schema cache");
+}
 
 export async function fetchSchoolId(userId: string): Promise<string | null> {
   const { data } = await supabase.from("profiles").select("school_id").eq("id", userId).maybeSingle();
@@ -49,6 +73,37 @@ export async function seedDefaultPeriods(schoolId: string): Promise<TimetablePer
   return (data ?? []) as TimetablePeriod[];
 }
 
+export async function fetchClassSubjectOptions(classId: string, schoolId: string): Promise<ClassSubjectOption[]> {
+  const { data, error } = await supabase
+    .from("class_subjects")
+    .select("subject_id, teacher_id, subjects(id, name), teachers(id, profiles(full_name))")
+    .eq("class_id", classId);
+
+  if (error) throw error;
+
+  const mapped = (data ?? [])
+    .filter((row) => row.subject_id)
+    .map((row) => ({
+      subjectId: row.subject_id as string,
+      subjectName: (row.subjects as { name?: string } | null)?.name ?? "Subject",
+      teacherId: row.teacher_id,
+      teacherName:
+        row.teacher_id && row.teachers
+          ? profileName((row.teachers as { profiles?: { full_name?: string } | { full_name?: string }[] }).profiles)
+          : null,
+    }));
+
+  if (mapped.length > 0) return mapped;
+
+  const allSubjects = await fetchSubjects(schoolId);
+  return allSubjects.map((s) => ({
+    subjectId: s.id,
+    subjectName: s.name,
+    teacherId: null,
+    teacherName: null,
+  }));
+}
+
 export async function fetchSchedules(filters: {
   schoolId?: string;
   classId?: string;
@@ -57,23 +112,53 @@ export async function fetchSchedules(filters: {
   status?: string;
   publishedOnly?: boolean;
 }): Promise<ScheduleEntry[]> {
-  let q = supabase.from("schedules").select(SCHEDULE_SELECT).order("day_of_week").order("start_time");
+  const applyFilters = (
+    q: ReturnType<typeof supabase.from>,
+    useExtendedColumns: boolean,
+  ) => {
+    let query = q.order("day_of_week").order("start_time");
+    if (filters.classId) query = query.eq("class_id", filters.classId);
+    if (filters.teacherId) query = query.eq("teacher_id", filters.teacherId);
+    if (useExtendedColumns) {
+      if (filters.termId && filters.termId !== "all") query = query.eq("term_id", filters.termId);
+      if (filters.status && filters.status !== "all") query = query.eq("status", filters.status);
+      if (filters.publishedOnly) query = query.eq("status", "published");
+    }
+    return query;
+  };
 
-  if (filters.classId) q = q.eq("class_id", filters.classId);
-  if (filters.teacherId) q = q.eq("teacher_id", filters.teacherId);
-  if (filters.termId && filters.termId !== "all") q = q.eq("term_id", filters.termId);
-  if (filters.status && filters.status !== "all") q = q.eq("status", filters.status);
-  if (filters.publishedOnly) q = q.eq("status", "published");
-  if (filters.schoolId && !filters.classId && !filters.teacherId) {
+  const schoolClassFilter = async () => {
+    if (!filters.schoolId || filters.classId || filters.teacherId) return null;
     const { data: cls } = await supabase.from("classes").select("id").eq("school_id", filters.schoolId);
     const ids = (cls ?? []).map((c) => c.id);
-    if (ids.length) q = q.in("class_id", ids);
-    else return [];
+    return ids.length ? ids : [];
+  };
+
+  let q = applyFilters(supabase.from("schedules").select(SCHEDULE_SELECT_FULL), true);
+  if (filters.schoolId && !filters.classId && !filters.teacherId) {
+    const ids = await schoolClassFilter();
+    if (ids && ids.length === 0) return [];
+    if (ids) q = q.in("class_id", ids);
   }
 
-  const { data, error } = await q;
+  let { data, error } = await q;
+  if (isMissingColumnError(error)) {
+    let qBase = applyFilters(supabase.from("schedules").select(SCHEDULE_SELECT_BASE), false);
+    if (filters.schoolId && !filters.classId && !filters.teacherId) {
+      const ids = await schoolClassFilter();
+      if (ids && ids.length === 0) return [];
+      if (ids) qBase = qBase.in("class_id", ids);
+    }
+    const res = await qBase;
+    data = res.data;
+    error = res.error;
+  }
+
   if (error) throw error;
-  return (data ?? []) as ScheduleEntry[];
+  return ((data ?? []) as ScheduleEntry[]).map((row) => ({
+    ...row,
+    status: row.status ?? "draft",
+  }));
 }
 
 export async function upsertScheduleEntry(input: {
@@ -91,7 +176,7 @@ export async function upsertScheduleEntry(input: {
   periodId?: string | null;
   status?: "draft" | "published";
 }) {
-  const row = {
+  const rowFull = {
     class_id: input.classId,
     subject_id: input.subjectId,
     teacher_id: input.teacherId,
@@ -107,12 +192,29 @@ export async function upsertScheduleEntry(input: {
     updated_at: new Date().toISOString(),
   };
 
+  const rowBase = {
+    class_id: input.classId,
+    subject_id: input.subjectId,
+    teacher_id: input.teacherId,
+    day_of_week: input.dayOfWeek,
+    start_time: rowFull.start_time,
+    end_time: rowFull.end_time,
+    room: rowFull.room,
+  };
+
   if (input.id) {
-    const { error } = await supabase.from("schedules").update(row).eq("id", input.id);
+    let { error } = await supabase.from("schedules").update(rowFull).eq("id", input.id);
+    if (isMissingColumnError(error)) {
+      ({ error } = await supabase.from("schedules").update(rowBase).eq("id", input.id));
+    }
     if (error) throw error;
     return input.id;
   }
-  const { data, error } = await supabase.from("schedules").insert(row).select("id").single();
+
+  let { data, error } = await supabase.from("schedules").insert(rowFull).select("id").single();
+  if (isMissingColumnError(error)) {
+    ({ data, error } = await supabase.from("schedules").insert(rowBase).select("id").single());
+  }
   if (error) throw error;
   return data.id as string;
 }
@@ -215,14 +317,14 @@ export async function fetchTimetableStats(schoolId: string) {
   ]);
 
   const schedules = schedulesRes.data ?? [];
-  const classIds = new Set(schedules.map((s) => s.class_id));
+  const classesWithSchedules = new Set(schedules.map((s) => s.class_id));
   const assignedTeachers = new Set(schedules.map((s) => s.teacher_id).filter(Boolean));
 
   return {
     totalClasses: classesRes.count ?? 0,
     totalTeachers: teachersRes.count ?? 0,
     teachersAssigned: assignedTeachers.size,
-    activeTimetables: classIds.size,
+    activeTimetables: classesWithSchedules.size,
     drafts: schedules.filter((s) => s.status === "draft").length,
     published: schedules.filter((s) => s.status === "published").length,
   };
@@ -253,8 +355,12 @@ export async function fetchSubjects(schoolId: string) {
 export async function fetchTeachers(schoolId: string) {
   const { data, error } = await supabase
     .from("teachers")
-    .select("id, profiles(full_name)")
-    .eq("school_id", schoolId);
+    .select("id, user_id, profiles(full_name)")
+    .eq("school_id", schoolId)
+    .order("created_at");
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []).map((t) => ({
+    id: t.id as string,
+    profiles: { full_name: profileName(t.profiles as { full_name?: string } | { full_name?: string }[]) },
+  }));
 }

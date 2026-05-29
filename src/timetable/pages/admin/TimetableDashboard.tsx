@@ -18,6 +18,7 @@ import { TeacherWorkloadPanel } from "@/timetable/components/TeacherWorkloadPane
 import { TimetableSlotDialog } from "@/timetable/components/TimetableSlotDialog";
 import {
   deleteScheduleEntry,
+  fetchClassSubjectOptions,
   fetchClasses,
   fetchPeriods,
   fetchSchedules,
@@ -45,8 +46,9 @@ export default function TimetableDashboard() {
   const [tab, setTab] = useState("dashboard");
   const [stats, setStats] = useState({ totalClasses: 0, totalTeachers: 0, teachersAssigned: 0, activeTimetables: 0, drafts: 0, published: 0 });
   const [periods, setPeriods] = useState<TimetablePeriod[]>([]);
-  const [classes, setClasses] = useState([]);
-  const [subjects, setSubjects] = useState([]);
+  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
+  const [subjects, setSubjects] = useState<{ id: string; name: string; code?: string }[]>([]);
+  const [classSubjectOptions, setClassSubjectOptions] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [terms, setTerms] = useState([]);
   const [entries, setEntries] = useState<ScheduleEntry[]>([]);
@@ -109,9 +111,11 @@ export default function TimetableDashboard() {
       }
       setPeriods(periodList);
 
-      if (!classId && cls.length) setClassId(cls[0].id);
       const currentTerm = termRows.find((t) => t.is_current);
       if (currentTerm && termId === "all") setTermId(currentTerm.id);
+
+      const activeClassId = classId || cls[0]?.id || "";
+      if (!classId && activeClassId) setClassId(activeClassId);
 
       const settings = await fetchTimetableSettings(sid);
       if (settings) {
@@ -126,16 +130,21 @@ export default function TimetableDashboard() {
         });
       }
 
-      const scheds = await fetchSchedules({
-        schoolId: sid,
-        classId: classId || cls[0]?.id,
-        termId: termId !== "all" ? termId : undefined,
-        status: statusFilter !== "all" ? statusFilter : undefined,
-      });
-      setEntries(scheds);
-
-      const alloc = await fetchSubjectAllocations(sid, classId || cls[0]?.id);
-      setAllocations(alloc);
+      if (activeClassId) {
+        setClassSubjectOptions(await fetchClassSubjectOptions(activeClassId, sid));
+        const scheds = await fetchSchedules({
+          schoolId: sid,
+          classId: activeClassId,
+          termId: termId !== "all" ? termId : undefined,
+          status: statusFilter !== "all" ? statusFilter : undefined,
+        });
+        setEntries(scheds);
+        setAllocations(await fetchSubjectAllocations(sid, activeClassId));
+      } else {
+        setClassSubjectOptions([]);
+        setEntries([]);
+        setAllocations([]);
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load timetable");
     } finally {
@@ -150,14 +159,24 @@ export default function TimetableDashboard() {
   useEffect(() => {
     if (!schoolId || !classId) return;
     void (async () => {
-      const scheds = await fetchSchedules({
-        schoolId,
-        classId,
-        termId: termId !== "all" ? termId : undefined,
-        status: statusFilter !== "all" ? statusFilter : undefined,
-      });
-      setEntries(scheds);
-      setAllocations(await fetchSubjectAllocations(schoolId, classId));
+      try {
+        const [scheds, alloc, classSubs] = await Promise.all([
+          fetchSchedules({
+            schoolId,
+            classId,
+            termId: termId !== "all" ? termId : undefined,
+            status: statusFilter !== "all" ? statusFilter : undefined,
+          }),
+          fetchSubjectAllocations(schoolId, classId),
+          fetchClassSubjectOptions(classId, schoolId),
+        ]);
+        setEntries(scheds);
+        setAllocations(alloc);
+        setClassSubjectOptions(classSubs);
+        setSubjectFilter("all");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to load class timetable");
+      }
     })();
   }, [schoolId, classId, termId, statusFilter]);
 
@@ -199,18 +218,34 @@ export default function TimetableDashboard() {
 
   const workloads = useMemo(() => computeTeacherWorkloads(entries), [entries]);
 
-  const className = classes.find((c) => c.id === classId)?.name ?? "Class";
+  const subjectFilterOptions = useMemo(() => {
+    if (classSubjectOptions.length) {
+      return classSubjectOptions.map((s) => ({ id: s.subjectId, name: s.subjectName }));
+    }
+    return subjects;
+  }, [classSubjectOptions, subjects]);
+
+  const className = classes.find((c) => c.id === classId)?.name ?? "Select a class";
   const termLabel = terms.find((t) => t.id === termId)?.name ?? "Term";
   const sessionLabel = terms.find((t) => t.id === termId)?.session ?? sessionFilter;
 
   const openSlot = (day: number, period: TimetablePeriod, entry?: ScheduleEntry | null) => {
+    if (!classId) {
+      toast.error("Select a class first");
+      return;
+    }
+    if (period.period_type !== "period") return;
+    if (classSubjectOptions.length === 0) {
+      toast.error("No subjects assigned to this class. Link subjects in Admin → Teachers first.");
+      return;
+    }
     setSlotDay(day);
     setSlotPeriod(period);
     setEditingEntry(entry ?? null);
     setSlotOpen(true);
   };
 
-  const handleSaveSlot = async (data) => {
+  const handleSaveSlot = async (data: { subject_id: string; teacher_id: string; room?: string }) => {
     if (!schoolId || !classId || !slotPeriod) return;
     const term = termId !== "all" ? termId : null;
     const termRow = terms.find((t) => t.id === termId);
@@ -227,11 +262,17 @@ export default function TimetableDashboard() {
       termId: term,
       academicYearId: termRow?.academic_year_id ?? null,
       periodId: slotPeriod.id,
-      status: "draft",
+      status: editingEntry?.status ?? "draft",
     });
     toast.success(editingEntry ? "Period updated" : "Period added");
-    const scheds = await fetchSchedules({ schoolId, classId });
-    setEntries(scheds);
+    setEntries(
+      await fetchSchedules({
+        schoolId,
+        classId,
+        termId: termId !== "all" ? termId : undefined,
+        status: statusFilter !== "all" ? statusFilter : undefined,
+      }),
+    );
   };
 
   const handleMoveEntry = async (entryId: string, day: number, period: TimetablePeriod) => {
@@ -312,7 +353,14 @@ export default function TimetableDashboard() {
               <Printer className="h-4 w-4 mr-1" />
               Print
             </Button>
-            <Button size="sm" onClick={() => openSlot(1, periods.find((p) => p.period_type === "period") ?? periods[0])}>
+            <Button
+              size="sm"
+              disabled={!classId || classSubjectOptions.length === 0}
+              onClick={() => {
+                const firstPeriod = periods.find((p) => p.period_type === "period");
+                if (firstPeriod) openSlot(1, firstPeriod);
+              }}
+            >
               <Plus className="h-4 w-4 mr-1" />
               New entry
             </Button>
@@ -368,18 +416,22 @@ export default function TimetableDashboard() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Class</Label>
-                <Select value={classId} onValueChange={setClassId}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {classes.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {classes.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-2">No classes — create one under Admin → Classes.</p>
+                ) : (
+                  <Select value={classId || undefined} onValueChange={setClassId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classes.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Subject</Label>
@@ -389,7 +441,7 @@ export default function TimetableDashboard() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All subjects</SelectItem>
-                    {subjects.map((s) => (
+                    {subjectFilterOptions.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
                         {s.name}
                       </SelectItem>
@@ -444,7 +496,9 @@ export default function TimetableDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                {loading ? (
+                {!classId ? (
+                  <p className="text-center py-12 text-muted-foreground">Select a class to view and edit its timetable.</p>
+                ) : loading ? (
                   <p className="text-center py-12 text-muted-foreground">Loading timetable…</p>
                 ) : (
                   <TimetableGrid
@@ -600,7 +654,8 @@ export default function TimetableDashboard() {
           entry={editingEntry}
           dayOfWeek={slotDay}
           period={slotPeriod}
-          subjects={subjects}
+          className={className}
+          classSubjects={classSubjectOptions}
           teachers={teachers}
           onSave={handleSaveSlot}
           onDelete={
