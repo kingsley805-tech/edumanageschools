@@ -24,7 +24,11 @@ import {
   resolveStudentByAdmissionNumber,
   type StudentAdmissionPreview,
 } from "@/lib/auth-api";
-import { fetchParentRecordByUserId, fetchStudentsForParent } from "@/lib/parent-students";
+import {
+  fetchParentRecordByUserId,
+  fetchStudentsForParent,
+  getParentSignupAdmissionNumbers,
+} from "@/lib/parent-students";
 import { fetchStudentAttendanceRate } from "@/lib/attendance-queries";
 
 interface Child {
@@ -57,6 +61,7 @@ const Children = () => {
   const [preview, setPreview] = useState<StudentAdmissionPreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [linking, setLinking] = useState(false);
+  const [signupAdmissionNumbers, setSignupAdmissionNumbers] = useState<string[]>([]);
 
   const loadChildren = useCallback(async () => {
     if (!user) return;
@@ -67,13 +72,16 @@ const Children = () => {
         setChildren([]);
         setParentId(null);
         setSchoolId(null);
+        setSignupAdmissionNumbers(getParentSignupAdmissionNumbers(user, null));
         return;
       }
 
       setParentId(parent.id);
       setSchoolId(parent.school_id);
+      const signupNums = getParentSignupAdmissionNumbers(user, parent);
+      setSignupAdmissionNumbers(signupNums);
 
-      const rows = await fetchStudentsForParent<Child>(
+      let rows = await fetchStudentsForParent<Child>(
         parent.id,
         `
           id,
@@ -85,6 +93,21 @@ const Children = () => {
           classes (name)
         `
       );
+
+      if (rows.length === 0 && signupNums.length > 0) {
+        const relink = await linkParentToStudents(parent.id, parent.school_id, signupNums);
+        if (relink.ok) {
+          rows = await fetchStudentsForParent<Child>(parent.id, `
+          id,
+          user_id,
+          admission_no,
+          admission_number,
+          class_id,
+          profiles:user_id (full_name, email),
+          classes (name)
+        `);
+        }
+      }
 
       const childrenWithStats = await Promise.all(
         rows.map(async (child) => {
@@ -209,6 +232,14 @@ const Children = () => {
           <div>
             <h2 className="text-3xl font-bold tracking-tight">My Children</h2>
             <p className="text-muted-foreground">View profiles and link additional children</p>
+            {signupAdmissionNumbers.length > 0 && (
+              <p className="text-sm text-muted-foreground mt-2">
+                Admission number{signupAdmissionNumbers.length > 1 ? "s" : ""} from signup:{" "}
+                <span className="font-mono font-medium text-foreground">
+                  {signupAdmissionNumbers.join(", ")}
+                </span>
+              </p>
+            )}
           </div>
 
           <Dialog open={linkOpen} onOpenChange={setLinkOpen}>
@@ -290,10 +321,18 @@ const Children = () => {
             <CardContent className="flex flex-col items-center justify-center py-12 text-center">
               <UserCircle className="h-16 w-16 text-muted-foreground mb-4" />
               <p className="text-lg font-medium">No children linked yet</p>
-              <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+              <p className="text-sm text-muted-foreground mb-2 max-w-sm">
                 Use your child&apos;s admission number to connect their records to your parent
                 account.
               </p>
+              {signupAdmissionNumbers.length > 0 && (
+                <p className="text-sm mb-6 max-w-sm">
+                  You signed up with:{" "}
+                  <span className="font-mono font-semibold">{signupAdmissionNumbers.join(", ")}</span>
+                  . Tap below to link automatically, or enter the number again.
+                </p>
+              )}
+              {!signupAdmissionNumbers.length && <div className="mb-6" />}
               <Button onClick={() => setLinkOpen(true)} className="gap-2">
                 <Plus className="h-4 w-4" />
                 Link your first child

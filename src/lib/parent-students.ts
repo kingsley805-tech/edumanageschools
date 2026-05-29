@@ -4,18 +4,43 @@ import { supabase } from "@/integrations/supabase/client";
 export type ParentRecord = {
   id: string;
   school_id: string;
+  signup_child_admission_numbers?: string[] | null;
 };
 
 /** Load the parent row for the signed-in user. */
 export async function fetchParentRecordByUserId(userId: string): Promise<ParentRecord | null> {
   const { data, error } = await supabase
     .from("parents")
-    .select("id, school_id")
+    .select("id, school_id, signup_child_admission_numbers")
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    if (error.code === "42703" || error.message?.includes("signup_child_admission_numbers")) {
+      const { data: fallback, error: fallbackErr } = await supabase
+        .from("parents")
+        .select("id, school_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (fallbackErr) throw fallbackErr;
+      return fallback;
+    }
+    throw error;
+  }
   return data;
+}
+
+/** Admission numbers from signup metadata and/or parents table. */
+export function getParentSignupAdmissionNumbers(
+  user: { user_metadata?: Record<string, unknown> } | null | undefined,
+  parent: ParentRecord | null,
+): string[] {
+  const fromMeta = user?.user_metadata?.child_admission_numbers;
+  const metaList = Array.isArray(fromMeta)
+    ? fromMeta.map((n) => String(n).trim()).filter(Boolean)
+    : [];
+  const fromDb = parent?.signup_child_admission_numbers ?? [];
+  return [...new Set([...metaList, ...fromDb].map((n) => n.toUpperCase()))];
 }
 
 /**

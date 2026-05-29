@@ -156,76 +156,90 @@ export async function resolveLoginIdentifier(identifier: string): Promise<LoginR
 }
 
 export async function linkParentToStudents(
-  parentId: string,
-  schoolId: string,
-  admissionNumbers: string[]
-): Promise<{ ok: boolean; error?: string; linked: number }> {
-  let linked = 0;
+  _parentId: string | null,
+  _schoolId: string | null,
+  admissionNumbers: string[],
+): Promise<{ ok: boolean; error?: string; linked: number; admission_numbers?: string[] }> {
+  const nums = admissionNumbers.map(normalizeAdmissionNumber).filter(Boolean);
+  if (nums.length === 0) {
+    return { ok: false, error: "No admission numbers provided.", linked: 0 };
+  }
 
-  for (const raw of admissionNumbers) {
-    const num = normalizeAdmissionNumber(raw);
-    if (!num) continue;
+  const { data, error } = await supabase.rpc("link_parent_children_by_admission", {
+    p_admission_numbers: nums,
+  });
 
-    const preview = await resolveStudentByAdmissionNumber(num);
-    if (!preview.valid || !preview.student_id) {
-      return { ok: false, error: preview.error ?? `Invalid admission number: ${num}`, linked };
-    }
-
-    if (preview.school_id !== schoolId) {
-      return { ok: false, error: "All children must belong to the same school.", linked };
-    }
-
-    const { data: existingLink } = await supabase
-      .from("parent_student_links")
-      .select("id")
-      .eq("parent_id", parentId)
-      .eq("student_id", preview.student_id)
-      .maybeSingle();
-
-    if (existingLink) {
-      linked += 1;
-      continue;
-    }
-
-    const { data: studentRow } = await supabase
-      .from("students")
-      .select("guardian_id")
-      .eq("id", preview.student_id)
-      .maybeSingle();
-
-    if (studentRow?.guardian_id && studentRow.guardian_id !== parentId) {
+  if (error) {
+    const msg = error.message ?? "";
+    if (
+      error.code === "PGRST202" ||
+      error.code === "PGRST205" ||
+      msg.includes("link_parent_children_by_admission")
+    ) {
       return {
         ok: false,
-        error: "This student is already linked to another parent account.",
-        linked,
+        error:
+          "Parent linking is not installed. Ask your administrator to run public/sql/apply-parent-child-link.sql in Supabase.",
+        linked: 0,
       };
     }
+    return { ok: false, error: msg, linked: 0 };
+  }
 
-    const { error: linkErr } = await supabase.from("parent_student_links").upsert(
-      {
-        parent_id: parentId,
-        student_id: preview.student_id,
-        relationship: "parent",
-      },
-      { onConflict: "parent_id,student_id" }
-    );
+  const result = (data ?? {}) as {
+    ok?: boolean;
+    error?: string;
+    linked?: number;
+    admission_numbers?: string[];
+  };
 
-    if (linkErr) {
-      return { ok: false, error: linkErr.message, linked };
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: result.error ?? "Could not link children",
+      linked: result.linked ?? 0,
+    };
+  }
+
+  return {
+    ok: true,
+    linked: result.linked ?? nums.length,
+    admission_numbers: result.admission_numbers,
+  };
+}
+
+/** Retry linking after signup while the parent row is created by the auth trigger. */
+export async function ensureParentChildrenLinked(
+  admissionNumbers: string[],
+  maxAttempts = 8,
+): Promise<{ ok: boolean; error?: string; linked: number }> {
+  const nums = admissionNumbers.map(normalizeAdmissionNumber).filter(Boolean);
+  if (nums.length === 0) {
+    return { ok: false, error: "No admission numbers to link.", linked: 0 };
+  }
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      return { ok: false, error: "Sign in required to link children.", linked: 0 };
     }
 
-    await supabase
-      .from("students")
-      .update({ guardian_id: parentId })
-      .eq("id", preview.student_id)
-      .is("guardian_id", null);
+    const { data: parent } = await supabase
+      .from("parents")
+      .select("id")
+      .eq("user_id", session.user.id)
+      .maybeSingle();
 
-    linked += 1;
+    if (parent?.id) {
+      return linkParentToStudents(parent.id, null, nums);
+    }
+
+    await new Promise((r) => setTimeout(r, 800));
   }
 
-  if (linked === 0) {
-    return { ok: false, error: "No students were linked.", linked: 0 };
-  }
-
-  return { ok: true, linked };
+  return {
+    ok: false,
+    error: "Parent profile is still being created. Sign in and open My Children to finish linking.",
+    linked: 0,
+  };
 }

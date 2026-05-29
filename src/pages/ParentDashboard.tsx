@@ -9,8 +9,13 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchParentRecordByUserId, fetchStudentsForParent } from "@/lib/parent-students";
+import {
+  fetchParentRecordByUserId,
+  fetchStudentsForParent,
+  getParentSignupAdmissionNumbers,
+} from "@/lib/parent-students";
 import { fetchStudentAttendanceRate } from "@/lib/attendance-queries";
+import { linkParentToStudents } from "@/lib/auth-api";
 import { EventsCalendar } from "@/components/EventsCalendar";
 
 const ParentDashboard = () => {
@@ -18,6 +23,7 @@ const ParentDashboard = () => {
   const { user } = useAuth();
   const [children, setChildren] = useState<any[]>([]);
   const [recentGrades, setRecentGrades] = useState<any[]>([]);
+  const [signupAdmissionNumbers, setSignupAdmissionNumbers] = useState<string[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -31,10 +37,21 @@ const ParentDashboard = () => {
     const parent = await fetchParentRecordByUserId(user.id);
     if (!parent) return;
 
-    const studentsData = await fetchStudentsForParent(
+    const signupNums = getParentSignupAdmissionNumbers(user, parent);
+    setSignupAdmissionNumbers(signupNums);
+
+    let studentsData = await fetchStudentsForParent(
       parent.id,
       "*, class:classes(name), profiles:user_id(full_name)"
     );
+
+    if (studentsData.length === 0 && signupNums.length > 0) {
+      await linkParentToStudents(parent.id, parent.school_id, signupNums);
+      studentsData = await fetchStudentsForParent(
+        parent.id,
+        "*, class:classes(name), profiles:user_id(full_name)"
+      );
+    }
 
     if (studentsData.length > 0) {
       const childrenWithStats = await Promise.all(
@@ -94,6 +111,14 @@ const ParentDashboard = () => {
               <div className="text-center py-8 text-muted-foreground space-y-3">
                 <UserCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
                 <p>No children linked yet</p>
+                {signupAdmissionNumbers.length > 0 && (
+                  <p className="text-sm">
+                    Admission number from signup:{" "}
+                    <span className="font-mono font-semibold text-foreground">
+                      {signupAdmissionNumbers.join(", ")}
+                    </span>
+                  </p>
+                )}
                 <Button variant="outline" size="sm" onClick={() => navigate("/parent/children")}>
                   Link a child
                 </Button>
@@ -108,6 +133,9 @@ const ParentDashboard = () => {
                     <div>
                       <h3 className="text-xl font-semibold">{child.profiles?.full_name}</h3>
                       <p className="text-muted-foreground">{child.class?.name}</p>
+                      <Badge variant="outline" className="mt-1 font-mono text-xs">
+                        {child.admission_no ?? child.admission_number ?? "—"}
+                      </Badge>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-3">
                       <div className="space-y-1">

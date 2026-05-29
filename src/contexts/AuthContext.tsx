@@ -16,6 +16,7 @@ export type SignUpMetadata = {
   registrationNumber?: string;
   gender?: string;
   phone?: string;
+  childAdmissionNumbers?: string[];
 };
 
 interface AuthContextType {
@@ -70,6 +71,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           registration_number: meta.registrationNumber ?? "",
           gender: meta.gender ?? "",
           phone: meta.phone ?? "",
+          child_admission_numbers: meta.childAdmissionNumbers ?? [],
         },
       },
     });

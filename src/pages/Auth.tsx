@@ -14,7 +14,7 @@ import { logLoginActivity } from "@/lib/auditLog";
 import { normalizeAdmissionNumber, derivePrefixFromSchoolName } from "@/lib/admission-numbers";
 import {
   buildStudentAuthEmail,
-  linkParentToStudents,
+  ensureParentChildrenLinked,
   resolveLoginIdentifier,
   resolveStudentByAdmissionNumber,
   validateUnusedRegistrationNumber,
@@ -269,6 +269,8 @@ const Auth = () => {
       registrationNumber: regNumber,
       gender,
       phone: signupPhone,
+      childAdmissionNumbers:
+        signupRole === "parent" ? childStudentNumbers.filter((n) => n.trim()) : undefined,
     });
 
     if (error) {
@@ -283,27 +285,20 @@ const Auth = () => {
       return;
     }
 
-    if (signupRole === "parent" && schoolId) {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      const { data: { user: newUser } } = await supabase.auth.getUser();
-      if (newUser) {
-        const { data: parentRecord } = await supabase
-          .from("parents")
-          .select("id")
-          .eq("user_id", newUser.id)
-          .single();
-        if (parentRecord) {
-          const linkResult = await linkParentToStudents(
-            parentRecord.id,
-            schoolId,
-            childStudentNumbers.filter((n) => n.trim())
-          );
-          if (!linkResult.ok) {
-            toast.error(linkResult.error ?? "Account created but child linking failed");
-            setIsLoading(false);
-            return;
-          }
-        }
+    if (signupRole === "parent") {
+      const numbers = childStudentNumbers.filter((n) => n.trim());
+      const linkResult = await ensureParentChildrenLinked(numbers);
+      if (!linkResult.ok) {
+        toast.error(
+          linkResult.error ??
+            "Account created. Sign in and open My Children to link your child.",
+        );
+      } else {
+        toast.success(
+          `Account created — ${linkResult.linked} child${linkResult.linked === 1 ? "" : "ren"} linked.`,
+        );
+        setIsLoading(false);
+        return;
       }
     }
 
