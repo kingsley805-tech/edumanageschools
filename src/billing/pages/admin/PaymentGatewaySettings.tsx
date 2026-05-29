@@ -260,7 +260,15 @@ export default function PaymentGatewaySettings() {
       const s = saveSnapshotRef.current;
       if (loadingConfigs || !s.user || !s.canManage) return;
       const pk = s.publicKey.trim();
-      if (!pk) return;
+      const merchant = s.merchantEmail.trim();
+      if (!pk) {
+        if (!opts?.silent) toast.error("Add Paystack public key first.");
+        return;
+      }
+      if (s.isEnabled && !merchant) {
+        if (!opts?.silent) toast.error("Merchant email is required for student fee payments.");
+        return;
+      }
       if (!isValidPaystackPublicKey(pk)) {
         if (!opts?.silent) toast.error(PAYSTACK_PUBLIC_KEY_HINT);
         return;
@@ -600,7 +608,10 @@ export default function PaymentGatewaySettings() {
                   </p>
                 </div>
                 <div className="space-y-2 sm:col-span-2">
-                  <Label>Merchant email (optional)</Label>
+                  <Label>Merchant email</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Required for student fee checkout (students without a personal email use this address with Paystack).
+                  </p>
                   <Input
                     value={merchantEmail}
                     onChange={(e) => {

@@ -92,6 +92,7 @@ type PaystackCreds = {
   webhookSecret: string;
   configId: string | null;
   callbackUrl: string | null;
+  merchantEmail: string | null;
 };
 
 const loadPaystackGatewayRow = async (
@@ -149,12 +150,49 @@ const getPaystackCredentialsForOrg = async (
     const sk = plain || secrets.secret_key?.trim() || "";
     if (!sk) return null;
     const wh = secrets.webhook_secret?.trim() || sk;
+    const merchantEmail =
+      typeof (row as { merchant_email?: string | null }).merchant_email === "string"
+        ? String((row as { merchant_email?: string | null }).merchant_email).trim() || null
+        : null;
     return {
       secretKey: sk,
       webhookSecret: wh,
       configId: row.id,
       callbackUrl: row.callback_url ? String(row.callback_url) : null,
+      merchantEmail,
     };
+  }
+  return null;
+};
+
+const isSyntheticPayerEmail = (e: string) =>
+  !e || /@(students\.app|school\.local|local)$/i.test(e) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+
+const resolveMerchantEmailForSchool = async (
+  admin: SupabaseAdmin,
+  schoolId: string,
+  creds: PaystackCreds | null,
+): Promise<string | null> => {
+  const fromCreds = creds?.merchantEmail?.trim() ?? "";
+  if (fromCreds && !isSyntheticPayerEmail(fromCreds)) return fromCreds;
+
+  const { data: rows, error } = await admin
+    .from("tenant_payment_gateway_configs")
+    .select("merchant_email, is_enabled, is_default")
+    .eq("school_id", schoolId)
+    .eq("provider", "paystack");
+
+  if (error) throw error;
+
+  const sorted = [...(rows ?? [])].sort((a, b) => {
+    const score = (r: { is_enabled?: boolean; is_default?: boolean }) =>
+      (r.is_enabled ? 2 : 0) + (r.is_default ? 1 : 0);
+    return score(b) - score(a);
+  });
+
+  for (const row of sorted) {
+    const me = typeof row.merchant_email === "string" ? row.merchant_email.trim() : "";
+    if (me && !isSyntheticPayerEmail(me)) return me;
   }
   return null;
 };
@@ -921,72 +959,68 @@ serve(async (req) => {
       const alreadyPaid = Number(invoice.amount_paid || 0);
       const outstanding = Number(invoice.balance_due ?? Math.max(0, totalAmount - alreadyPaid));
 
-      const [{ data: rolesData }, { data: profileData }] = await Promise.all([
+      const [{ data: rolesData }, { data: profileData }, { data: studentRow }] = await Promise.all([
         supabase.from("user_roles").select("role").eq("user_id", user.id).limit(1),
         supabase.from("profiles").select("email, full_name").eq("id", user.id).maybeSingle(),
+        supabase.from("students").select("id, guardian_id").eq("user_id", user.id).maybeSingle(),
       ]);
 
-      const payerRole = rolesData?.[0]?.role ?? null;
+      let payerRole = rolesData?.[0]?.role ?? null;
+      const isStudentPayer = payerRole === "student" || Boolean(studentRow?.id);
+      if (isStudentPayer && !payerRole) payerRole = "student";
 
-      // Treat auto-generated student logins (e.g. "<uuid>.<admno>@students.app"
-      // or "...@school.local") as not real emails — Paystack rejects them.
-      const isSyntheticEmail = (e: string) =>
-        !e || /@(students\.app|school\.local|local)$/i.test(e) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+      const admin = createClient(supabaseUrl, serviceKey);
+      const creds = await getPaystackCredentialsForOrg(admin, invoice.school_id);
+      if (!creds?.secretKey) {
+        return jsonResponse({
+          error:
+            "Payment gateway not configured. In Admin → Payment gateways, enable Paystack and save your Public + Secret keys.",
+        }, 400);
+      }
+
+      const merchantEmail = await resolveMerchantEmailForSchool(admin, invoice.school_id, creds);
 
       const emailFromBody = typeof jsonBody.email === "string" ? jsonBody.email.trim() : "";
       const authEmail = typeof user.email === "string" ? user.email.trim() : "";
       const profileEmail = typeof profileData?.email === "string" ? profileData.email.trim() : "";
 
-      let email = [emailFromBody, authEmail, profileEmail].find((e) => e && !isSyntheticEmail(e)) ?? "";
+      let email = "";
 
-      // Students: fall back to their guardian/parent email, then the school merchant email.
-      if (!email && payerRole === "student") {
-        const adminClient = createClient(supabaseUrl, serviceKey);
-        const { data: studentRow } = await adminClient
-          .from("students")
-          .select("guardian_id")
-          .eq("user_id", user.id)
-          .maybeSingle();
+      // Students always use the school merchant email when configured (no parent required).
+      if (isStudentPayer && merchantEmail) {
+        email = merchantEmail;
+      } else {
+        email = [emailFromBody, authEmail, profileEmail].find((e) => e && !isSyntheticPayerEmail(e)) ?? "";
+        if (!email && merchantEmail) email = merchantEmail;
+      }
+
+      // Optional: use linked parent's email when available (not required).
+      if (!email && isStudentPayer) {
         if (studentRow?.guardian_id) {
-          const { data: parentRow } = await adminClient
+          const { data: parentRow } = await admin
             .from("parents")
             .select("user_id")
             .eq("id", studentRow.guardian_id)
             .maybeSingle();
           if (parentRow?.user_id) {
-            const { data: parentProfile } = await adminClient
+            const { data: parentProfile } = await admin
               .from("profiles")
               .select("email")
               .eq("id", parentRow.user_id)
               .maybeSingle();
             const pe = typeof parentProfile?.email === "string" ? parentProfile.email.trim() : "";
-            if (pe && !isSyntheticEmail(pe)) email = pe;
+            if (pe && !isSyntheticPayerEmail(pe)) email = pe;
           }
         }
       }
 
-      // Last-resort: use the school's merchant email so checkout can proceed.
-      if (!email) {
-        const adminClient = createClient(supabaseUrl, serviceKey);
-        const { data: gw } = await adminClient
-          .from("payment_gateway_configs")
-          .select("merchant_email")
-          .eq("school_id", invoice.school_id)
-          .eq("is_default", true)
-          .maybeSingle();
-        const me = typeof gw?.merchant_email === "string" ? gw.merchant_email.trim() : "";
-        if (me && !isSyntheticEmail(me)) email = me;
-      }
-
       if (!email) {
         return jsonResponse({
-          error:
-            payerRole === "student"
-              ? "No payer email available. Ask an admin to link a parent with a valid email to this student, or set a merchant email on the school's payment gateway."
-              : "No email on your account. Add an email in profile settings before paying online.",
+          error: isStudentPayer
+            ? "Merchant email was not found for this school. In Admin → Payment gateways, enter Merchant email, wait for Saved, then run: supabase functions deploy paystack"
+            : "No email on your account. Add an email in profile settings before paying online.",
         }, 400);
       }
-
 
       const amountIn = jsonBody.amount;
       let paymentAmount =
@@ -1004,11 +1038,6 @@ serve(async (req) => {
         return jsonResponse({ error: "Amount exceeds outstanding balance" }, 400);
       }
 
-      const admin = createClient(supabaseUrl, serviceKey);
-      const creds = await getPaystackCredentialsForOrg(admin, invoice.school_id);
-      if (!creds?.secretKey) {
-        return jsonResponse({ error: "Payment gateway not configured for this school" }, 400);
-      }
       const metadataFullName =
         typeof user.user_metadata?.full_name === "string" ? String(user.user_metadata.full_name).trim() : "";
       const profileName = typeof profileData?.full_name === "string" ? profileData.full_name.trim() : "";
