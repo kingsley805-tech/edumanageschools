@@ -366,16 +366,16 @@ const assertOrgGatewayAdmin = async (
   supabase: SupabaseAdmin,
   userId: string,
 ): Promise<{ schoolId: string }> => {
-  const { data: profile, error: pErr } = await supabase.from("profiles").select("school_id").eq("user_id", userId).maybeSingle();
+  const { data: profile, error: pErr } = await supabase.from("profiles").select("school_id").eq("id", userId).maybeSingle();
   if (pErr) throw pErr;
-  if (!profile?.school_id) throw new Error("Organization not found");
 
   const { data: roleRows, error: rErr } = await supabase.from("user_roles").select("role").eq("user_id", userId);
   if (rErr) throw rErr;
   const roles = (roleRows || []).map((r) => r.role);
-  const ok = roles.includes("org_admin") || roles.includes("super_admin");
+  const ok = roles.includes("admin") || roles.includes("super_admin") || roles.includes("accountant") || roles.includes("org_admin");
   if (!ok) throw new Error("Forbidden");
-  return { schoolId: profile.school_id };
+  if (!profile?.school_id && !roles.includes("super_admin")) throw new Error("Organization not found");
+  return { schoolId: profile?.school_id ?? "" };
 };
 
 const validatePaystackSecretKey = async (secretKey: string): Promise<boolean> => {
