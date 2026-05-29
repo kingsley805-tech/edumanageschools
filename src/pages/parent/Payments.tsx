@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchParentRecordByUserId, fetchStudentsForParent } from "@/lib/parent-students";
+import { getPortalInvoiceStatusBadge } from "@/billing/lib/portalInvoiceStatus";
 import { useToast } from "@/hooks/use-toast";
 interface Invoice {
   id: string;
@@ -120,12 +121,20 @@ const Payments = () => {
                         <TableCell>${invoice.amount.toLocaleString()}</TableCell>
                         <TableCell>{new Date(invoice.due_date).toLocaleDateString()}</TableCell>
                         <TableCell>
-                          <Badge variant={invoice.status === "paid" ? "default" : "destructive"}>
-                            {invoice.status}
-                          </Badge>
+                          {(() => {
+                            const badge = getPortalInvoiceStatusBadge(invoice.status);
+                            return (
+                              <Badge
+                                variant={invoice.status === "paid" ? "default" : "secondary"}
+                                className={badge.className}
+                              >
+                                {badge.label}
+                              </Badge>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell className="text-right">
-                          {invoice.status !== "paid" && (
+                          {invoice.status !== "paid" && invoice.status !== "void" && (
                             <Button 
                               size="sm" 
                               onClick={() => handlePayment(invoice)}

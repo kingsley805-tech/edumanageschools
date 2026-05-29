@@ -23,6 +23,10 @@ import {
   shouldAttemptPaystackConfirm,
   isExplicitPaystackFailure,
 } from "@/billing/lib/paystackReturnParams";
+import {
+  canPayPortalInvoice,
+  getPortalInvoiceStatusBadge,
+} from "@/billing/lib/portalInvoiceStatus";
 
 type StudentInvoice = {
   id: string;
@@ -33,13 +37,6 @@ type StudentInvoice = {
   status: string;
   due_date: string;
   currency: string;
-};
-
-const statusClass: Record<string, string> = {
-  paid: "bg-emerald-500/10 text-emerald-700",
-  sent: "bg-blue-500/10 text-blue-700",
-  partially_paid: "bg-amber-500/10 text-amber-800",
-  overdue: "bg-red-500/10 text-red-700",
 };
 
 export default function StudentBilling() {
@@ -300,7 +297,8 @@ export default function StudentBilling() {
                 ) : (
                   invoices.map((inv) => {
                     const due = balance(inv);
-                    const canPay = due > 0 && !["paid", "void"].includes(inv.status);
+                    const canPay = canPayPortalInvoice(inv.status, due);
+                    const statusBadge = getPortalInvoiceStatusBadge(inv.status);
                     return (
                       <div
                         key={inv.id}
@@ -316,8 +314,8 @@ export default function StudentBilling() {
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge className={statusClass[inv.status] ?? ""}>
-                            {inv.status.replace(/_/g, " ")}
+                          <Badge className={statusBadge.className}>
+                            {statusBadge.label}
                           </Badge>
                           {inv.status === "paid" && (
                             <Button size="sm" variant="outline" onClick={() => void downloadReceipt(inv)}>

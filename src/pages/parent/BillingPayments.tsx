@@ -23,6 +23,10 @@ import {
   isExplicitPaystackFailure,
 } from "@/billing/lib/paystackReturnParams";
 import { fetchParentRecordByUserId, fetchStudentsForParent } from "@/lib/parent-students";
+import {
+  canPayPortalInvoice,
+  getPortalInvoiceStatusBadge,
+} from "@/billing/lib/portalInvoiceStatus";
 
 type ChildInvoice = {
   id: string;
@@ -40,14 +44,6 @@ type ChildRow = {
   full_name: string;
   class_name: string;
   invoices: ChildInvoice[];
-};
-
-const statusVariant: Record<string, string> = {
-  paid: "bg-emerald-500/10 text-emerald-700",
-  sent: "bg-blue-500/10 text-blue-700",
-  partially_paid: "bg-amber-500/10 text-amber-800",
-  overdue: "bg-red-500/10 text-red-700",
-  draft: "bg-muted text-muted-foreground",
 };
 
 export default function ParentBillingPayments() {
@@ -104,6 +100,7 @@ export default function ParentBillingPayments() {
         .eq("school_id", parent.school_id)
         .in("student_id", studentIds)
         .neq("status", "void")
+        .neq("status", "draft")
         .order("due_date", { ascending: false });
 
       const byStudent = new Map<string, ChildRow>();
@@ -267,8 +264,8 @@ export default function ParentBillingPayments() {
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge className={statusVariant[inv.status] ?? ""}>
-                            {inv.status.replace(/_/g, " ")}
+                          <Badge className={statusBadge.className}>
+                            {statusBadge.label}
                           </Badge>
                           {inv.status === "paid" && (
                             <Button size="sm" variant="outline" onClick={() => void downloadReceipt(inv)}>
