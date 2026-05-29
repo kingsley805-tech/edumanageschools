@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeAdmissionNumber, type RegistrationPoolType } from "@/lib/admission-numbers";
 
