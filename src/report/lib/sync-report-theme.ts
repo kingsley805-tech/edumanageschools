@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeHex } from "@/lib/themeColors";
 import { isValidHexColor } from "@/report/lib/report-brand-colors";

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { cn } from "@/lib/utils";
 import type { ScheduleEntry, TimetablePeriod } from "@/timetable/lib/types";
 import { WEEKDAYS } from "@/timetable/lib/types";

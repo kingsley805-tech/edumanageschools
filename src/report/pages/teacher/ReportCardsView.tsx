@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Link, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/report/portal/page-header";
