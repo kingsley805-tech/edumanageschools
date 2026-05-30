@@ -193,39 +193,66 @@ BEGIN
   v_student_id := v_inv.student_id;
   SELECT st.guardian_id INTO v_parent_id FROM public.students st WHERE st.id = v_student_id;
 
-  INSERT INTO public.billing_payments (
-    school_id,
-    invoice_id,
-    student_id,
-    parent_id,
-    amount,
-    currency,
-    method,
-    gateway,
-    gateway_ref,
-    paystack_transaction_id,
-    payer_user_id,
-    status,
-    paid_at,
-    payment_context,
-    metadata
-  ) VALUES (
-    v_school_id,
-    v_invoice_id,
-    v_student_id,
-    v_parent_id,
-    v_amount,
-    v_currency,
-    v_method,
-    'paystack',
-    v_ref,
-    v_txn_id,
-    v_uid,
-    'paid',
-    now(),
-    'fees',
-    jsonb_build_object('confirmed_via', 'confirm_paystack_payment_rpc')
-  );
+  BEGIN
+    INSERT INTO public.billing_payments (
+      school_id,
+      invoice_id,
+      student_id,
+      parent_id,
+      amount,
+      currency,
+      method,
+      gateway,
+      gateway_ref,
+      paystack_transaction_id,
+      payer_user_id,
+      status,
+      paid_at,
+      payment_context,
+      metadata
+    ) VALUES (
+      v_school_id,
+      v_invoice_id,
+      v_student_id,
+      v_parent_id,
+      v_amount,
+      v_currency,
+      v_method,
+      'paystack',
+      v_ref,
+      v_txn_id,
+      v_uid,
+      'paid',
+      now(),
+      'fees',
+      jsonb_build_object('confirmed_via', 'confirm_paystack_payment_rpc')
+    );
+  EXCEPTION
+    WHEN undefined_column THEN
+      INSERT INTO public.billing_payments (
+        school_id,
+        invoice_id,
+        amount,
+        currency,
+        method,
+        gateway,
+        gateway_ref,
+        status,
+        paid_at,
+        payment_context
+      ) VALUES (
+        v_school_id,
+        v_invoice_id,
+        v_amount,
+        v_currency,
+        v_method,
+        'paystack',
+        v_ref,
+        'paid',
+        now(),
+        'fees'
+      );
+  END;
 
   v_new_paid := coalesce(v_inv.amount_paid, 0) + v_amount;
   v_balance := greatest(0, coalesce(v_inv.total_amount, 0) - v_new_paid);

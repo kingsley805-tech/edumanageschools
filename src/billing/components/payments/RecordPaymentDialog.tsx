@@ -156,7 +156,7 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
           ? (invRow.students as { guardian_id?: string }).guardian_id
           : null;
 
-      const { error: payError } = await supabase.from("billing_payments").insert({
+      const fullPaymentRow = {
         school_id: profile.school_id,
         invoice_id: selectedInvoiceId,
         student_id: studentId,
@@ -164,8 +164,8 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
         amount: paymentAmount,
         currency: invoice.currency,
         method,
-        gateway: "manual",
-        status: "paid",
+        gateway: "manual" as const,
+        status: "paid" as const,
         paid_at: new Date(paidDate).toISOString(),
         recorded_by: user!.id,
         payer_user_id: user!.id,
@@ -173,7 +173,21 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
         payer_name: user?.user_metadata?.full_name || user?.email || "School Admin",
         payment_context: "school_fee",
         notes: notes || null,
-      });
+      };
+
+      let { error: payError } = await supabase.from("billing_payments").insert(fullPaymentRow);
+
+      if (payError && /student_id|parent_id|does not exist/i.test(payError.message ?? "")) {
+        const {
+          student_id: _s,
+          parent_id: _p,
+          recorded_by: _r,
+          payer_user_id: _u,
+          ...legacyRow
+        } = fullPaymentRow;
+        const retry = await supabase.from("billing_payments").insert(legacyRow);
+        payError = retry.error;
+      }
 
       if (payError) throw payError;
 
