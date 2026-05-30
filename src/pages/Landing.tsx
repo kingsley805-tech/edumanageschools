@@ -137,9 +137,22 @@ export default function Landing() {
 
           <div
             id="features"
-            className="relative flex min-h-0 flex-1 items-center justify-center lg:w-[52%] xl:w-[54%]"
+            className="relative flex min-h-0 flex-1 items-end justify-center lg:w-[52%] xl:w-[54%]"
           >
-            <DashboardMockup />
+            <motion.img
+              src="/image.png"
+              alt="Student with school supplies"
+              custom={5}
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              className="relative z-20 w-full max-w-[280px] object-contain object-bottom drop-shadow-[0_24px_48px_rgba(0,0,0,0.45)] sm:max-w-sm lg:max-h-[min(58vh,560px)] lg:max-w-md xl:max-w-lg"
+            />
+            <div className="pointer-events-none absolute inset-0 z-10 hidden items-start justify-center pt-4 opacity-85 lg:flex">
+              <div className="origin-top scale-[0.72] xl:scale-[0.78]">
+                <DashboardMockup />
+              </div>
+            </div>
           </div>
         </div>
       </main>

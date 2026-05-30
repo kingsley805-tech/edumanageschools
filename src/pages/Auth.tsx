@@ -387,14 +387,13 @@ const Auth = () => {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-[hsl(200,25%,18%)]">
       {/* Left Panel - Hero Section */}
-      <div className="relative lg:w-1/2 min-h-[300px] lg:min-h-screen flex flex-col">
-        {/* Background Image */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center"
+      <div className="relative lg:w-1/2 min-h-[280px] lg:min-h-screen flex flex-col overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-40"
           style={{ backgroundImage: `url(${schoolPicture})` }}
         />
-        
-        {/* Content */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(200,30%,14%)] via-[hsl(200,25%,18%)] to-[hsl(200,35%,22%)]" />
+
         <div className="relative z-10 flex flex-col h-full p-6 lg:p-10">
           {/* Logo & Title */}
           <div className="flex items-center gap-3 mb-8">
@@ -411,11 +410,12 @@ const Auth = () => {
             </div>
           </div>
           
-          {/* Main Content - Hidden on mobile, shown on desktop */}
-          <div className="hidden lg:flex flex-1 items-center justify-center">
-            <p className="text-lg text-white/90 text-center max-w-md leading-relaxed">
-              All-in-one portal for teachers, students, and parents.
-            </p>
+          <div className="flex flex-1 items-end justify-center min-h-[200px] lg:min-h-0">
+            <img
+              src="/image.png"
+              alt="Student welcoming you to the school portal"
+              className="w-full max-w-[240px] object-contain object-bottom drop-shadow-2xl sm:max-w-xs lg:max-h-[min(72vh,640px)] lg:max-w-md xl:max-w-lg"
+            />
           </div>
           
           {/* Feature Badges */}
