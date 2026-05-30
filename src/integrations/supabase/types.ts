@@ -3914,6 +3914,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      confirm_paystack_payment: { Args: { p_reference: string }; Returns: Json }
       create_notification: {
         Args: {
           p_body: string
