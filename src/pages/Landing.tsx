@@ -13,12 +13,12 @@ const trustStats = [
   { value: 50, suffix: "k+", label: "Students" },
 ];
 
-const fadeUp = {
+const fadeUp: import("framer-motion").Variants = {
   hidden: { opacity: 0, y: 24 },
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: 0.15 + i * 0.1, duration: 0.7, ease: [0.22, 1, 0.36, 1] },
+    transition: { delay: 0.15 + i * 0.1, duration: 0.7, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
   }),
 };
 
