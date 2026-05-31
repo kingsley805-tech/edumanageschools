@@ -12,6 +12,7 @@ import { Search, Download, FileText, Upload, RefreshCcw, RotateCw, Eye } from "l
 import RecordPaymentDialog from "@/billing/components/payments/RecordPaymentDialog";
 import PaySalaryDialog from "@/billing/components/payments/PaySalaryDialog";
 import { PaymentDetailsDialog, type PaymentDetailsPayload } from "@/billing/components/payments/PaymentDetailsDialog";
+import { TruncatedMonoText } from "@/billing/components/payments/TruncatedMonoText";
 import TablePagination from "@/billing/components/TablePagination";
 import { usePagination } from "@/billing/hooks/usePagination";
 import { exportToCSV, exportToPDF } from "@/billing/lib/exportUtils";
@@ -789,7 +790,7 @@ export default function BillingPayments() {
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Paid By</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Invoice</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Reference</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Txn ID</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Paystack Txn ID</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Notes</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Date</th>
@@ -813,8 +814,12 @@ export default function BillingPayments() {
                   <td className="px-4 py-3.5 text-sm capitalize text-muted-foreground">{payment.gateway}</td>
                   <td className="px-4 py-3.5 text-sm text-muted-foreground">{payment.payer_name || (payment.payer_role ? payment.payer_role.replace("_", " ") : "--")}</td>
                   <td className="max-w-[120px] truncate px-4 py-3.5 font-mono text-xs text-muted-foreground">{payment.invoice_number || payment.invoice_id.slice(0, 8)}</td>
-                  <td className="max-w-[140px] truncate px-4 py-3.5 font-mono text-xs text-muted-foreground">{payment.gateway_ref || "--"}</td>
-                  <td className="max-w-[120px] truncate px-4 py-3.5 font-mono text-xs text-muted-foreground">{payment.paystack_transaction_id || "--"}</td>
+                  <td className="px-4 py-3.5">
+                    <TruncatedMonoText value={payment.gateway_ref} emptyLabel="--" />
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <TruncatedMonoText value={payment.paystack_transaction_id} emptyLabel="--" />
+                  </td>
                   <td className="px-4 py-3.5">
                     <Badge variant="outline" className={cn("text-xs font-medium", (statusMap[payment.status] || statusMap.pending).className)}>
                       {(statusMap[payment.status] || statusMap.pending).label}

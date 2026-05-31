@@ -63,10 +63,13 @@ export default function ParentPaymentHistory() {
   }, [user]);
 
   const studentIds = useMemo(() => children.map((c) => c.id), [children]);
-  const scope =
-    schoolId && studentIds.length
-      ? { mode: "parent" as const, schoolId, studentIds }
-      : null;
+  const scope = useMemo(
+    () =>
+      schoolId && studentIds.length
+        ? { mode: "parent" as const, schoolId, studentIds }
+        : null,
+    [schoolId, studentIds],
+  );
 
   const { rows, loading, error, refetch } = usePaymentTransactions(scope);
 
@@ -80,6 +83,10 @@ export default function ParentPaymentHistory() {
 
   const stats = useMemo(() => paymentRevenueStats(filtered), [filtered]);
   const { page, totalPages, paged, setPage } = usePagination(filtered);
+
+  useEffect(() => {
+    setPage(1);
+  }, [childFilter, statusFilter, search, setPage]);
 
   const openDetail = useCallback((row: (typeof rows)[0]) => {
     setDetail({

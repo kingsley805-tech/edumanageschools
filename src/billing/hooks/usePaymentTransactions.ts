@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { PaymentTransactionRow } from "@/billing/lib/paymentTransactions";
 
@@ -13,6 +13,13 @@ type InvoiceEmbed = {
   student_id?: string;
   students?: { full_name?: string } | null;
 };
+
+function scopeCacheKey(scope: Scope | null): string {
+  if (!scope) return "";
+  if (scope.mode === "school") return `school:${scope.schoolId}`;
+  if (scope.mode === "student") return `student:${scope.studentId}`;
+  return `parent:${scope.schoolId}:${[...scope.studentIds].sort().join(",")}`;
+}
 
 function invoiceEmbed(row: Record<string, unknown>): InvoiceEmbed | null {
   const raw = row.billing_invoices ?? row.invoices;
@@ -89,16 +96,21 @@ export function usePaymentTransactions(scope: Scope | null) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchRows = useCallback(async () => {
-    if (!scope) {
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
+  const scopeKey = scopeCacheKey(scope);
+
+  const fetchRows = useCallback(async (opts?: { silent?: boolean }) => {
+    const current = scopeRef.current;
+    if (!current) {
       setRows([]);
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!opts?.silent) setLoading(true);
     setError(null);
     try {
-      if (scope.mode === "school") {
+      if (current.mode === "school") {
         let { data, error: qErr } = await supabase
           .from("billing_payments")
           .select(
@@ -106,7 +118,7 @@ export function usePaymentTransactions(scope: Scope | null) {
              paystack_transaction_id, status, payer_name, payer_role, notes, paid_at, created_at, payment_context, metadata,
              billing_invoices ( invoice_number, student_id, students ( full_name ) )`,
           )
-          .eq("school_id", scope.schoolId)
+          .eq("school_id", current.schoolId)
           .order("created_at", { ascending: false })
           .limit(1000);
 
@@ -118,7 +130,7 @@ export function usePaymentTransactions(scope: Scope | null) {
                status, payer_name, payer_role, notes, paid_at, created_at, payment_context,
                billing_invoices ( invoice_number, student_id, students ( full_name ) )`,
             )
-            .eq("school_id", scope.schoolId)
+            .eq("school_id", current.schoolId)
             .order("created_at", { ascending: false })
             .limit(1000);
           data = retry.data;
@@ -138,11 +150,11 @@ export function usePaymentTransactions(scope: Scope | null) {
         return;
       }
 
-      if (scope.mode === "student") {
+      if (current.mode === "student") {
         const { data, error: qErr } = await supabase
           .from("billing_payments")
           .select(`${PAYMENT_EXTENDED_COLS}, billing_invoices ( invoice_number )`)
-          .eq("student_id", scope.studentId)
+          .eq("student_id", current.studentId)
           .order("created_at", { ascending: false });
 
         if (qErr) {
@@ -152,7 +164,7 @@ export function usePaymentTransactions(scope: Scope | null) {
               `${PAYMENT_EXTENDED_COLS},
                billing_invoices!inner ( invoice_number, student_id )`,
             )
-            .eq("billing_invoices.student_id", scope.studentId)
+            .eq("billing_invoices.student_id", current.studentId)
             .order("created_at", { ascending: false });
           if (invErr) throw invErr;
           setRows((viaInv ?? []).map((r) => mapPaymentRow(r as Record<string, unknown>)));
@@ -162,8 +174,8 @@ export function usePaymentTransactions(scope: Scope | null) {
         return;
       }
 
-      if (scope.mode === "parent") {
-        if (!scope.studentIds.length) {
+      if (current.mode === "parent") {
+        if (!current.studentIds.length) {
           setRows([]);
           return;
         }
@@ -173,12 +185,12 @@ export function usePaymentTransactions(scope: Scope | null) {
             `${PAYMENT_EXTENDED_COLS}, student_id,
              billing_invoices!inner ( invoice_number, student_id, students ( full_name ) )`,
           )
-          .eq("school_id", scope.schoolId)
-          .in("student_id", scope.studentIds)
+          .eq("school_id", current.schoolId)
+          .in("student_id", current.studentIds)
           .order("created_at", { ascending: false });
 
         if (qErr) {
-          setRows(await fetchParentPaymentsViaInvoices(scope.schoolId, scope.studentIds));
+          setRows(await fetchParentPaymentsViaInvoices(current.schoolId, current.studentIds));
           return;
         }
         setRows(
@@ -195,37 +207,41 @@ export function usePaymentTransactions(scope: Scope | null) {
       setError(e instanceof Error ? e.message : "Failed to load payments");
       setRows([]);
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
-  }, [scope]);
+  }, [scopeKey]);
 
   useEffect(() => {
     void fetchRows();
   }, [fetchRows]);
 
   useEffect(() => {
-    if (!scope) return;
-    const filter =
-      scope.mode === "school" && scope.schoolId
-        ? `school_id=eq.${scope.schoolId}`
+    const current = scopeRef.current;
+    if (!current) return;
+
+    const schoolFilter =
+      current.mode === "school" || current.mode === "parent"
+        ? `school_id=eq.${current.schoolId}`
         : undefined;
+
     const channel = supabase
-      .channel(`payment-tx-${scope.mode}-${scope.mode === "parent" ? scope.schoolId : scope.mode === "school" ? scope.schoolId : scope.studentId}`)
+      .channel(`payment-tx-${scopeKey}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "billing_payments",
-          ...(filter ? { filter } : {}),
+          ...(schoolFilter ? { filter: schoolFilter } : {}),
         },
-        () => void fetchRows(),
+        () => void fetchRows({ silent: true }),
       )
       .subscribe();
+
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [scope, fetchRows]);
+  }, [scopeKey, fetchRows]);
 
-  return { rows, loading, error, refetch: fetchRows };
+  return { rows, loading, error, refetch: () => fetchRows() };
 }

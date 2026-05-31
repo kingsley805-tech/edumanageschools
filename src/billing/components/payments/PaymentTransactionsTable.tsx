@@ -10,12 +10,12 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { Download, Eye, Printer } from "lucide-react";
+import { TruncatedMonoText } from "@/billing/components/payments/TruncatedMonoText";
 import {
   PAYMENT_STATUS_BADGE,
   formatGateway,
   formatPaymentMethod,
   paymentDisplayDate,
-  txnId,
   type PaymentTransactionRow,
 } from "@/billing/lib/paymentTransactions";
 
@@ -30,6 +30,20 @@ type Props = {
   onPrint?: (row: PaymentTransactionRow) => void;
   emptyMessage?: string;
 };
+
+function TruncatedMonoCell({
+  value,
+  className,
+}: {
+  value: string | null | undefined;
+  className?: string;
+}) {
+  return (
+    <TableCell className={className}>
+      <TruncatedMonoText value={value} />
+    </TableCell>
+  );
+}
 
 export default function PaymentTransactionsTable({
   variant,
@@ -71,7 +85,7 @@ export default function PaymentTransactionsTable({
             <TableHead>Amount</TableHead>
             <TableHead>Invoice</TableHead>
             <TableHead>Reference</TableHead>
-            {variant === "admin" ? <TableHead>Txn ID</TableHead> : null}
+            <TableHead>Paystack Txn ID</TableHead>
             <TableHead>Gateway</TableHead>
             <TableHead>Method</TableHead>
             <TableHead>Status</TableHead>
@@ -97,12 +111,12 @@ export default function PaymentTransactionsTable({
                   {row.currency} {Number(row.amount).toLocaleString()}
                 </TableCell>
                 <TableCell>{row.invoice_number ?? "—"}</TableCell>
-                <TableCell className="max-w-[120px] truncate font-mono text-xs" title={row.gateway_ref ?? ""}>
-                  {row.gateway_ref ?? "—"}
-                </TableCell>
-                {variant === "admin" ? (
-                  <TableCell className="max-w-[100px] truncate font-mono text-xs">{txnId(row)}</TableCell>
-                ) : null}
+                <TruncatedMonoCell value={row.gateway_ref} />
+                <TruncatedMonoCell
+                  value={
+                    row.paystack_transaction_id || row.transaction_id || null
+                  }
+                />
                 <TableCell>{formatGateway(row.gateway)}</TableCell>
                 <TableCell>{formatPaymentMethod(row.method)}</TableCell>
                 <TableCell>

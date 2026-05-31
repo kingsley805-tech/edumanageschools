@@ -57,7 +57,10 @@ export default function StudentPaymentHistory() {
     })();
   }, [user]);
 
-  const scope = studentId ? { mode: "student" as const, studentId } : null;
+  const scope = useMemo(
+    () => (studentId ? { mode: "student" as const, studentId } : null),
+    [studentId],
+  );
   const { rows, loading, error, refetch } = usePaymentTransactions(scope);
 
   const filtered = useMemo(
