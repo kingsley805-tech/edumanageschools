@@ -424,33 +424,35 @@ export default function PermissionManagement() {
               </Alert>
             )}
             {selectedRole ? (
-              {enforced && !isSuperAdmin ? (
-                <Alert className="mb-4 border-blue-500/30 bg-blue-500/5">
-                  <AlertTitle>Subscription package active</AlertTitle>
-                  <AlertDescription>
-                    You can only assign permissions for modules included in your organization&apos;s
-                    package. Contact the software owner to add more modules.
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-              <RolesPermissionsPanel
-                selected={selectedCodes}
-                onChange={(next) => {
-                  setSelectedCodes(next);
-                  setDirty(true);
-                }}
-                search={moduleSearch}
-                onSearchChange={setModuleSearch}
-                controlLabel="Teacher"
-                readOnly={matrixReadOnly}
-                roleControl={roleSelect}
-                dirty={dirty}
-                saving={saving}
-                visibleModules={entitledModules}
-                onSave={canManage && !isSuperAdminRole ? handleSavePermissions : undefined}
-                onFullAccess={matrixReadOnly ? undefined : handleFullAccess}
-                onRevokeFullAccess={matrixReadOnly ? undefined : handleRevokeFullAccess}
-              />
+              <>
+                {enforced && !isSuperAdmin ? (
+                  <Alert className="mb-4 border-blue-500/30 bg-blue-500/5">
+                    <AlertTitle>Subscription package active</AlertTitle>
+                    <AlertDescription>
+                      You can only assign permissions for modules included in your organization&apos;s
+                      package. Contact the software owner to add more modules.
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+                <RolesPermissionsPanel
+                  selected={selectedCodes}
+                  onChange={(next) => {
+                    setSelectedCodes(next);
+                    setDirty(true);
+                  }}
+                  search={moduleSearch}
+                  onSearchChange={setModuleSearch}
+                  controlLabel="Teacher"
+                  readOnly={matrixReadOnly}
+                  roleControl={roleSelect}
+                  dirty={dirty}
+                  saving={saving}
+                  visibleModules={entitledModules}
+                  onSave={canManage && !isSuperAdminRole ? handleSavePermissions : undefined}
+                  onFullAccess={matrixReadOnly ? undefined : handleFullAccess}
+                  onRevokeFullAccess={matrixReadOnly ? undefined : handleRevokeFullAccess}
+                />
+              </>
             ) : (
               <div className="rp-page">
                 <h1 className="rp-title">Roles &amp; Permissions</h1>
