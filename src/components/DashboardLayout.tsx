@@ -51,6 +51,8 @@ import { usePortalAccess } from "@/hooks/usePortalAccess";
 import { ADMIN_SHELL_ROLES } from "@/lib/rbac/routeGuards";
 import { toast } from "sonner";
 import { ParentAdmissionNav } from "@/components/parent/ParentAdmissionNav";
+import SubscriptionExpiryBanner from "@/subscription/components/SubscriptionExpiryBanner";
+import { useOrganizationSubscription } from "@/subscription/hooks/useOrganizationSubscription";
 
 type MenuLinkDef = {
   icon: typeof LayoutDashboard;
@@ -80,6 +82,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
   const { hasPermission, isSuperAdmin: isSuperAdminPerm } = usePermissions();
   const isSuperAdmin = userRole === "super_admin" || isSuperAdminPerm;
   const { navItems: dynamicNavItems } = usePortalAccess();
+  const { access: subscriptionAccess } = useOrganizationSubscription();
   const usesDynamicAdminNav = (ADMIN_SHELL_ROLES as readonly string[]).includes(role);
 
   const canShow = (permission?: string) =>
@@ -658,6 +661,9 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
 
         {/* Page Content */}
         <main className="p-3 md:p-6 relative z-10 bg-background min-h-[calc(100vh-4rem)]">
+          {role === "admin" && subscriptionAccess?.can_use_platform ? (
+            <SubscriptionExpiryBanner access={subscriptionAccess} />
+          ) : null}
           {children}
         </main>
       </div>

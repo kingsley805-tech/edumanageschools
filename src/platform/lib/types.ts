@@ -1,4 +1,4 @@
-export type SubscriptionStatus = "trial" | "active" | "suspended" | "expired" | "cancelled";
+export type SubscriptionStatus = "trial" | "pending" | "active" | "suspended" | "expired" | "locked" | "cancelled";
 
 export type PlatformModule = {
   module_key: string;

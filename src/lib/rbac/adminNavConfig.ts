@@ -22,6 +22,7 @@ import {
   Building,
   Shield,
   NotebookPen,
+  CreditCard as SubscriptionIcon,
 } from "lucide-react";
 import { PORTAL_CATEGORIES, permissionCode, type PermissionAction } from "@/lib/rbac/permissionCatalog";
 
@@ -70,6 +71,7 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
   staff_access: Shield,
   approvals: FileText,
   audit_logs: FileText,
+  organization_subscription: SubscriptionIcon,
   account_settings: Settings,
 };
 

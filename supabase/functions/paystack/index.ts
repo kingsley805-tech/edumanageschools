@@ -429,6 +429,38 @@ const applySuccessfulCharge = async (
   return { duplicate: false };
 };
 
+const getPlatformPaystackSecret = () =>
+  Deno.env.get("PLATFORM_PAYSTACK_SECRET_KEY")?.trim() ||
+  Deno.env.get("PAYSTACK_SECRET_KEY")?.trim() ||
+  "";
+
+const getPlatformPaystackWebhookSecret = () =>
+  Deno.env.get("PLATFORM_PAYSTACK_WEBHOOK_SECRET")?.trim() ||
+  getPlatformPaystackSecret();
+
+const processPlatformSubscriptionCharge = async (
+  adminSupabase: SupabaseAdmin,
+  params: {
+    reference: string;
+    amountSubunit: number;
+    metadata: Record<string, unknown>;
+    paystackTransactionId: string | null;
+  },
+) => {
+  const { reference, amountSubunit, paystackTransactionId } = params;
+  const amount = Number(amountSubunit || 0) / 100;
+  const { data, error } = await adminSupabase.rpc("activate_organization_subscription", {
+    p_reference: reference,
+    p_paystack_transaction_id: paystackTransactionId,
+    p_amount: amount,
+    p_payment_status: "success",
+  });
+  if (error) throw error;
+  const res = data as { ok?: boolean; error?: string; duplicate?: boolean };
+  if (!res?.ok && !res?.duplicate) throw new Error(res?.error ?? "Subscription activation failed");
+  return { duplicate: Boolean(res?.duplicate) };
+};
+
 const processWebhookEvent = async (adminSupabase: SupabaseAdmin, event: Record<string, unknown>, eventId: string) => {
   const eventType = String(event?.event || "");
   if (eventType !== "charge.success") {
@@ -446,6 +478,20 @@ const processWebhookEvent = async (adminSupabase: SupabaseAdmin, event: Record<s
   const channel = String(eventData.channel || "");
 
   const paystackTransactionId = eventData.id != null && eventData.id !== "" ? String(eventData.id) : null;
+
+  if (metadata.payment_context === "platform_subscription") {
+    await processPlatformSubscriptionCharge(adminSupabase, {
+      reference,
+      amountSubunit: amount,
+      metadata,
+      paystackTransactionId,
+    });
+    await adminSupabase
+      .from("paystack_webhook_events")
+      .update({ status: "processed", processed_at: new Date().toISOString(), last_error: null, next_retry_at: null })
+      .eq("id", eventId);
+    return;
+  }
 
   await applySuccessfulCharge(adminSupabase, {
     reference,
@@ -552,6 +598,7 @@ serve(async (req) => {
       const eventData = (event.data as Record<string, unknown>) || {};
       const metadata = (eventData.metadata as Record<string, unknown>) || {};
       const orgIdMeta = metadata.school_id != null ? String(metadata.school_id) : null;
+      const paymentContext = metadata.payment_context != null ? String(metadata.payment_context) : "";
 
       const adminSupabase = createClient(supabaseUrl, serviceKey);
 
@@ -560,6 +607,16 @@ serve(async (req) => {
       if (orgIdMeta) {
         const creds = await getPaystackCredentialsForOrg(adminSupabase, orgIdMeta);
         if (creds && (await paystackVerifySignature(rawBody, signature, creds.webhookSecret))) {
+          verified = true;
+        }
+      }
+
+      if (!verified && paymentContext === "platform_subscription") {
+        const platformWebhookSecret = getPlatformPaystackWebhookSecret();
+        if (
+          platformWebhookSecret &&
+          (await paystackVerifySignature(rawBody, signature, platformWebhookSecret))
+        ) {
           verified = true;
         }
       }
@@ -1647,6 +1704,188 @@ serve(async (req) => {
       } catch (confirmErr: unknown) {
         const msg = confirmErr instanceof Error ? confirmErr.message : "Payment confirmation failed";
         console.error("confirm route:", confirmErr);
+        return jsonResponse({ error: msg }, 400);
+      }
+    }
+
+    if (route === "platform-subscription-init" && req.method === "POST") {
+      try {
+        const authHeader = req.headers.get("Authorization");
+        if (!authHeader?.startsWith("Bearer ")) {
+          return jsonResponse({ error: "Unauthorized" }, 401);
+        }
+
+        const supabase = createClient(supabaseUrl, supabaseKey, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const admin = createClient(supabaseUrl, serviceKey);
+
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+        if (userError || !user) return jsonResponse({ error: "Unauthorized" }, 401);
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("school_id, email, full_name")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (!profile?.school_id) return jsonResponse({ error: "Organization not found" }, 400);
+
+        const { data: roleRows } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
+        const roles = (roleRows ?? []).map((r) => r.role);
+        if (!roles.includes("admin")) return jsonResponse({ error: "Forbidden" }, 403);
+
+        const planId = typeof jsonBody.plan_id === "string" ? jsonBody.plan_id.trim() : "";
+        const billingCycle = jsonBody.billing_cycle === "annual" ? "annual" : "monthly";
+        if (!planId) return jsonResponse({ error: "Missing plan_id" }, 400);
+
+        const { data: plan, error: planErr } = await admin
+          .from("subscription_plans")
+          .select("id, name, price_monthly, price_annual, is_active")
+          .eq("id", planId)
+          .maybeSingle();
+        if (planErr || !plan || !plan.is_active) return jsonResponse({ error: "Plan not found" }, 404);
+
+        const amount =
+          billingCycle === "annual" ? Number(plan.price_annual) : Number(plan.price_monthly);
+        if (!Number.isFinite(amount) || amount < 0) {
+          return jsonResponse({ error: "Invalid plan price" }, 400);
+        }
+
+        const platformSecret = getPlatformPaystackSecret();
+        if (!platformSecret) {
+          return jsonResponse({
+            error:
+              "Platform Paystack is not configured. Set PLATFORM_PAYSTACK_SECRET_KEY in Edge Function secrets.",
+          }, 503);
+        }
+
+        const email =
+          (typeof profile.email === "string" && profile.email.trim()) ||
+          (typeof user.email === "string" && user.email.trim()) ||
+          "";
+        if (!email) return jsonResponse({ error: "Admin email is required for payment" }, 400);
+
+        const callbackRaw =
+          typeof jsonBody.callback_url === "string" && jsonBody.callback_url.trim()
+            ? jsonBody.callback_url.trim()
+            : `${req.headers.get("origin") || ""}/admin/subscription`;
+        let effectiveCallback = callbackRaw;
+        try {
+          effectiveCallback = validateCallbackUrl(callbackRaw) || callbackRaw;
+        } catch {
+          effectiveCallback = `${req.headers.get("origin") || ""}/admin/subscription`;
+        }
+
+        const reference = `ORG-SUB-${String(profile.school_id).slice(0, 8)}-${Date.now()}`;
+
+        const { error: checkoutErr } = await admin.from("platform_subscription_checkouts").insert({
+          reference,
+          school_id: profile.school_id,
+          plan_id: planId,
+          billing_cycle: billingCycle,
+          amount,
+          created_by: user.id,
+        });
+        if (checkoutErr) return jsonResponse({ error: checkoutErr.message }, 400);
+
+        const paystackRes = await fetch("https://api.paystack.co/transaction/initialize", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${platformSecret}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            amount: Math.round(amount * 100),
+            currency: "GHS",
+            reference,
+            callback_url: effectiveCallback,
+            metadata: {
+              payment_context: "platform_subscription",
+              school_id: profile.school_id,
+              plan_id: planId,
+              billing_cycle: billingCycle,
+              payer_user_id: user.id,
+              payer_name: profile.full_name || email,
+            },
+          }),
+        });
+
+        const paystackData = await paystackRes.json();
+        if (!paystackData.status) {
+          return jsonResponse({ error: paystackData.message || "Paystack initialization failed" }, 400);
+        }
+
+        return jsonResponse({
+          authorization_url: paystackData.data.authorization_url,
+          reference: paystackData.data.reference,
+        });
+      } catch (initErr: unknown) {
+        const msg = initErr instanceof Error ? initErr.message : "Subscription payment failed";
+        console.error("platform-subscription-init:", initErr);
+        return jsonResponse({ error: msg }, 400);
+      }
+    }
+
+    if (route === "platform-subscription-confirm" && req.method === "POST") {
+      try {
+        const authHeader = req.headers.get("Authorization");
+        if (!authHeader?.startsWith("Bearer ")) {
+          return jsonResponse({ error: "Unauthorized" }, 401);
+        }
+
+        const supabase = createClient(supabaseUrl, supabaseKey, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const admin = createClient(supabaseUrl, serviceKey);
+
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+        if (userError || !user) return jsonResponse({ error: "Unauthorized" }, 401);
+
+        const reference = typeof jsonBody.reference === "string" ? jsonBody.reference.trim() : "";
+        if (!reference) return jsonResponse({ error: "Missing reference" }, 400);
+
+        const platformSecret = getPlatformPaystackSecret();
+        if (!platformSecret) {
+          return jsonResponse({ error: "Platform Paystack not configured" }, 503);
+        }
+
+        const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+          headers: { Authorization: `Bearer ${platformSecret}` },
+        });
+        const verifyData = await verifyRes.json();
+        if (!verifyData.status || verifyData.data?.status !== "success") {
+          return jsonResponse({ error: verifyData.message || "Payment not successful yet" }, 400);
+        }
+
+        const txn = verifyData.data;
+        const metadata = (txn.metadata as Record<string, unknown>) || {};
+        if (metadata.payment_context !== "platform_subscription") {
+          return jsonResponse({ error: "Invalid payment type" }, 400);
+        }
+
+        const { data: profile } = await supabase.from("profiles").select("school_id").eq("id", user.id).maybeSingle();
+        if (profile?.school_id && String(metadata.school_id) !== String(profile.school_id)) {
+          return jsonResponse({ error: "Payment does not belong to your organization" }, 403);
+        }
+
+        const result = await processPlatformSubscriptionCharge(admin, {
+          reference: String(txn.reference || reference),
+          amountSubunit: Number(txn.amount || 0),
+          metadata,
+          paystackTransactionId: txn.id != null ? String(txn.id) : null,
+        });
+
+        return jsonResponse({ ok: true, duplicate: result.duplicate });
+      } catch (confirmErr: unknown) {
+        const msg = confirmErr instanceof Error ? confirmErr.message : "Confirmation failed";
+        console.error("platform-subscription-confirm:", confirmErr);
         return jsonResponse({ error: msg }, 400);
       }
     }

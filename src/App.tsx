@@ -86,6 +86,9 @@ import PlatformDashboard from "./platform/pages/PlatformDashboard";
 import TenantManagement from "./platform/pages/TenantManagement";
 import TenantDetail from "./platform/pages/TenantDetail";
 import SubscriptionPlansPage from "./platform/pages/SubscriptionPlans";
+import OrganizationSubscriptionPage from "./subscription/pages/OrganizationSubscriptionPage";
+import OrganizationSubscriptionHistoryPage from "./subscription/pages/OrganizationSubscriptionHistoryPage";
+import OrganizationSupportPage from "./subscription/pages/OrganizationSupportPage";
 import PlatformOwnerLogin from "./platform/pages/PlatformOwnerLogin";
 import { PlatformOwnerRoute } from "./platform/components/PlatformOwnerRoute";
 import SchoolSettings from "./pages/admin/SchoolSettings";
@@ -141,6 +144,21 @@ function App() {
               <Route path="/admin" element={
                 <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
                   <AdminDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/subscription" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                  <OrganizationSubscriptionPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/subscription/history" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                  <OrganizationSubscriptionHistoryPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/support" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                  <OrganizationSupportPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/students" element={

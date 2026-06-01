@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +24,7 @@ import schoolPicture from "@/assets/School Picture.webp";
 
 const Auth = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { signIn, signUp, user } = useAuth();
   const { role } = useUserRole();
   const [isLoading, setIsLoading] = useState(false);
@@ -45,7 +46,6 @@ const Auth = () => {
   const [admissionPrefix, setAdmissionPrefix] = useState("");
   const [admissionPrefixManual, setAdmissionPrefixManual] = useState(false);
   const [schoolName, setSchoolName] = useState("");
-  const [adminKey, setAdminKey] = useState("");
   
   // Registration number for students/employees
   const [registrationNumber, setRegistrationNumber] = useState("");
@@ -63,7 +63,7 @@ const Auth = () => {
   const [resetEmail, setResetEmail] = useState("");
 
   useEffect(() => {
-    if (user && role) {
+    if (user && role && (location.pathname === "/auth" || location.pathname.startsWith("/auth?"))) {
       const roleRoutes: Record<string, string> = {
         admin: "/admin",
         super_admin: "/platform",
@@ -75,7 +75,7 @@ const Auth = () => {
       };
       navigate(roleRoutes[role] || "/admin");
     }
-  }, [user, role, navigate]);
+  }, [user, role, navigate, location.pathname]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -148,7 +148,7 @@ const Auth = () => {
     let regNumber = registrationNumber ? normalizeAdmissionNumber(registrationNumber) : "";
 
     if (signupRole === "admin") {
-      if (!adminKey || !schoolName || !schoolCode) {
+      if (!schoolName || !schoolCode || !signupPhone.trim()) {
         toast.error("Please complete all school administrator fields");
         setIsLoading(false);
         return;
@@ -254,7 +254,6 @@ const Auth = () => {
       role: signupRole,
       schoolCode: schoolCodeForMeta,
       schoolId: schoolId ?? undefined,
-      adminKey,
       schoolName,
       admissionPrefix:
         admissionPrefix.toUpperCase() ||
@@ -275,6 +274,20 @@ const Auth = () => {
           "Account setup failed on the server. Ask your admin to run fix-student-signup-500.sql in Supabase, then try again.";
       }
       toast.error(msg);
+      setIsLoading(false);
+      return;
+    }
+
+    if (signupRole === "admin") {
+      const { error: signInError } = await signIn(emailForAuth, signupPassword);
+      if (signInError) {
+        toast.error("Account created. Please sign in to choose your subscription plan.");
+        setActiveTab("login");
+        setIsLoading(false);
+        return;
+      }
+      toast.success("Account created! Choose a subscription plan to get started.");
+      navigate("/admin/subscription", { replace: true });
       setIsLoading(false);
       return;
     }
@@ -825,7 +838,7 @@ const Auth = () => {
                 </div>
               )}
 
-              {signupRole === "parent" && (
+              {(signupRole === "parent" || signupRole === "admin") && (
                 <div className="space-y-2 animate-fade-in">
                   <Label htmlFor="signup-phone" className="text-sm font-medium text-foreground">
                     Phone Number
@@ -926,30 +939,6 @@ const Auth = () => {
                       </Button>
                     )}
                   </div>
-                </div>
-              )}
-
-              {/* Admin Key — school administrators only */}
-              {signupRole === "admin" && (
-                <div className="space-y-2 animate-fade-in">
-                  <Label htmlFor="admin-key" className="text-sm font-medium text-foreground">
-                    Admin Key
-                  </Label>
-                  <div className="relative">
-                    <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input
-                      id="admin-key"
-                      type="password"
-                      placeholder="Enter admin key"
-                      className="pl-10 h-12 border-2 focus:border-primary"
-                      value={adminKey}
-                      onChange={e => setAdminKey(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    This key is required to create a school administrator account.
-                  </p>
                 </div>
               )}
 

@@ -145,6 +145,7 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
       { key: "staff_access", label: "Permission Management", path: "/admin/roles", actions: ["view", "manage"] },
       { key: "approvals", label: "Approvals", path: "/admin/approvals", actions: ["view", "approve", "manage"] },
       { key: "audit_logs", label: "Audit Logs", path: "/admin/audit-logs", actions: ["view", "export"] },
+      { key: "organization_subscription", label: "Subscription", path: "/admin/subscription", actions: ["view", "manage"] },
       { key: "account_settings", label: "Account Settings", path: "/settings", actions: ["view", "edit"] },
     ],
   },

@@ -42,6 +42,7 @@ export function usePortalAccess() {
         items: group.items.filter((item) => {
           const mod = moduleByPath(item.path);
           if (!mod) return true;
+          if (mod.key === "organization_subscription") return true;
           return enabledPortalKeys.has(mod.key);
         }),
       }))

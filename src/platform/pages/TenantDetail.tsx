@@ -21,12 +21,13 @@ export default function TenantDetail() {
   const { data: tenants } = usePlatformTenants();
   const { data: plans } = useSubscriptionPlans(false);
   const tenant = tenants?.find((t) => t.school_id === schoolId);
-  const { data: rows, isLoading, save, applyPlan } = useTenantEntitlementsEditor(schoolId!);
+  const { data: rows, isLoading, save, applyPlan, grantComplimentary } = useTenantEntitlementsEditor(schoolId!);
   const [matrix, setMatrix] = useState<ModuleEntitlementRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState("");
   const [subStatus, setSubStatus] = useState("active");
   const [expiresAt, setExpiresAt] = useState("");
+  const [compBillingCycle, setCompBillingCycle] = useState<"monthly" | "annual">("annual");
 
   useEffect(() => {
     if (rows) setMatrix(rows);
@@ -55,6 +56,26 @@ export default function TenantDetail() {
       toast.success("Plan applied — modules updated");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to apply plan");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleGrantComplimentary = async () => {
+    if (!selectedPlan) {
+      toast.error("Select a plan first");
+      return;
+    }
+    setSaving(true);
+    try {
+      await grantComplimentary(
+        selectedPlan,
+        compBillingCycle,
+        expiresAt ? new Date(expiresAt).toISOString() : null,
+      );
+      toast.success("Complimentary subscription granted — no payment required");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Grant failed");
     } finally {
       setSaving(false);
     }
@@ -139,9 +160,32 @@ export default function TenantDetail() {
                 <Label>Expiry date</Label>
                 <Input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
               </div>
+              <div className="space-y-2">
+                <Label>Complimentary billing cycle</Label>
+                <Select value={compBillingCycle} onValueChange={(v) => setCompBillingCycle(v as "monthly" | "annual")}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly (30 days)</SelectItem>
+                    <SelectItem value="annual">Yearly (365 days)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button className="w-full" onClick={() => void handleApplyPlan()} disabled={saving}>
                 Apply plan & modules
               </Button>
+              <Button
+                className="w-full"
+                variant="secondary"
+                onClick={() => void handleGrantComplimentary()}
+                disabled={saving}
+              >
+                Grant complimentary access (demo / comp)
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Complimentary grant activates the plan immediately without Paystack payment. Logged in audit trail.
+              </p>
             </CardContent>
           </Card>
 

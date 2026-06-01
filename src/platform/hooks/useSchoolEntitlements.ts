@@ -26,14 +26,16 @@ export function useSchoolEntitlements(schoolId?: string | null) {
     queryKey: [ENTITLEMENTS_KEY, sid],
     enabled: Boolean(sid),
     queryFn: async () => {
-      const [modsRes, entRes, subRes] = await Promise.all([
+      const [modsRes, entRes, subRes, accessRes] = await Promise.all([
         supabase.from("platform_modules").select("*").order("sort_order"),
         supabase.from("school_module_entitlements").select("*").eq("school_id", sid!),
         supabase.from("school_subscriptions").select("status, read_only_on_expiry, block_login_on_expiry, expires_at").eq("school_id", sid!).maybeSingle(),
+        supabase.rpc("get_organization_subscription_access", { p_school_id: sid! }),
       ]);
       if (modsRes.error) throw modsRes.error;
       if (entRes.error) throw entRes.error;
       if (subRes.error) throw subRes.error;
+      if (accessRes.error) throw accessRes.error;
 
       const entMap = new Map((entRes.data ?? []).map((e) => [e.module_key, e]));
       const rows: ModuleEntitlementRow[] = (modsRes.data ?? []).map((m) => {
@@ -55,6 +57,7 @@ export function useSchoolEntitlements(schoolId?: string | null) {
       return {
         rows,
         subscription: subRes.data,
+        access: accessRes.data,
         enforced: Boolean(subRes.data),
       };
     },
@@ -85,11 +88,15 @@ export function useSchoolEntitlements(schoolId?: string | null) {
 
   const isWritable = useMemo(() => {
     if (isSuperAdmin) return true;
+    const access = data?.access as { can_use_platform?: boolean; access_state?: string } | null | undefined;
+    if (access?.access_state && access.access_state !== "legacy") {
+      return Boolean(access.can_use_platform);
+    }
     if (!data?.subscription) return true;
     const st = data.subscription.status;
     if (st === "active" || st === "trial") return true;
     if (st === "expired" && data.subscription.read_only_on_expiry) return false;
-    return !["suspended", "expired", "cancelled"].includes(st);
+    return !["suspended", "expired", "cancelled", "locked", "pending"].includes(st);
   }, [data, isSuperAdmin]);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: [ENTITLEMENTS_KEY, sid] });
@@ -172,5 +179,24 @@ export function useTenantEntitlementsEditor(schoolId: string) {
     await queryClient.invalidateQueries({ queryKey: ["platform-tenants"] });
   };
 
-  return { ...query, save, applyPlan };
+  const grantComplimentary = async (
+    planId: string,
+    billingCycle: "monthly" | "annual" = "annual",
+    expiresAt?: string | null,
+  ) => {
+    const { data, error } = await supabase.rpc("grant_complimentary_subscription", {
+      p_school_id: schoolId,
+      p_plan_id: planId,
+      p_billing_cycle: billingCycle,
+      p_expires_at: expiresAt ?? null,
+    });
+    if (error) throw error;
+    const res = data as { ok?: boolean; error?: string };
+    if (!res?.ok) throw new Error(res?.error ?? "Complimentary grant failed");
+    await queryClient.invalidateQueries({ queryKey: [ENTITLEMENTS_KEY] });
+    await queryClient.invalidateQueries({ queryKey: ["platform-tenants"] });
+    await queryClient.invalidateQueries({ queryKey: ["organization-subscription-access"] });
+  };
+
+  return { ...query, save, applyPlan, grantComplimentary };
 }
