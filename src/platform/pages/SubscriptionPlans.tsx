@@ -1,26 +1,82 @@
 // @ts-nocheck
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, Check } from "lucide-react";
-import { useSubscriptionPlans } from "@/platform/hooks/usePlatformDashboard";
+import { Loader2, ArrowLeft, Check, Plus, Pencil } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  useSubscriptionPlans,
+  usePlatformModulesCatalog,
+} from "@/platform/hooks/usePlatformDashboard";
+import PlanEditorDialog, { planFormToRow, type PlanFormValues } from "@/platform/components/PlanEditorDialog";
+import type { SubscriptionPlan } from "@/platform/lib/types";
 
 export default function SubscriptionPlansPage() {
-  const { data: plans, isLoading } = useSubscriptionPlans();
+  const queryClient = useQueryClient();
+  const { data: plans, isLoading } = useSubscriptionPlans(true);
+  const { data: modules = [], isLoading: modulesLoading } = usePlatformModulesCatalog();
+
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const openCreate = () => {
+    setEditingPlan(null);
+    setEditorOpen(true);
+  };
+
+  const openEdit = (plan: SubscriptionPlan) => {
+    setEditingPlan(plan);
+    setEditorOpen(true);
+  };
+
+  const handleSave = async (values: PlanFormValues, planId?: string) => {
+    setSaving(true);
+    const row = planFormToRow(values);
+    try {
+      if (planId) {
+        const { error } = await supabase.from("subscription_plans").update(row).eq("id", planId);
+        if (error) throw error;
+        toast.success("Plan updated");
+      } else {
+        const { error } = await supabase.from("subscription_plans").insert({
+          ...row,
+          created_at: new Date().toISOString(),
+        });
+        if (error) throw error;
+        toast.success("Plan created");
+      }
+      await queryClient.invalidateQueries({ queryKey: ["subscription-plans"] });
+      setEditorOpen(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <DashboardLayout role="super_admin">
       <div className="space-y-6">
-        <div>
-          <Button variant="ghost" size="sm" className="mb-2 -ml-2" asChild>
-            <Link to="/platform">
-              <ArrowLeft className="mr-1 h-4 w-4" /> Platform
-            </Link>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <Button variant="ghost" size="sm" className="mb-2 -ml-2" asChild>
+              <Link to="/platform">
+                <ArrowLeft className="mr-1 h-4 w-4" /> Platform
+              </Link>
+            </Button>
+            <h1 className="text-3xl font-bold tracking-tight">Subscription plans</h1>
+            <p className="text-muted-foreground">Configurable packages for tenant organizations</p>
+          </div>
+          <Button onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create plan
           </Button>
-          <h1 className="text-3xl font-bold tracking-tight">Subscription plans</h1>
-          <p className="text-muted-foreground">Configurable packages for tenant organizations</p>
         </div>
 
         {isLoading ? (
@@ -32,11 +88,21 @@ export default function SubscriptionPlansPage() {
             {(plans ?? []).map((plan) => (
               <Card key={plan.id} className={plan.slug === "premium" ? "border-primary shadow-md" : ""}>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>{plan.name}</CardTitle>
-                    {plan.slug === "enterprise" ? (
-                      <Badge variant="secondary">Custom</Badge>
-                    ) : null}
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <CardTitle>{plan.name}</CardTitle>
+                      {!plan.is_active ? (
+                        <Badge variant="outline" className="mt-1">
+                          Inactive
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <div className="flex shrink-0 gap-1">
+                      {plan.is_custom ? <Badge variant="secondary">Custom</Badge> : null}
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(plan)} title="Edit plan">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   <CardDescription>{plan.description}</CardDescription>
                 </CardHeader>
@@ -66,7 +132,7 @@ export default function SubscriptionPlansPage() {
                       ) : (
                         (plan.default_modules as string[]).map((m) => (
                           <li key={m} className="flex items-center gap-1">
-                            <Check className="h-3 w-3 text-emerald-600" />
+                            <Check className="h-3 w-3 shrink-0 text-emerald-600" />
                             {m.replace(/_/g, " ")}
                           </li>
                         ))
@@ -78,6 +144,15 @@ export default function SubscriptionPlansPage() {
             ))}
           </div>
         )}
+
+        <PlanEditorDialog
+          open={editorOpen}
+          onOpenChange={setEditorOpen}
+          plan={editingPlan}
+          modules={modules}
+          saving={saving || modulesLoading}
+          onSave={handleSave}
+        />
       </div>
     </DashboardLayout>
   );

@@ -19,7 +19,7 @@ import type { ModuleEntitlementRow } from "@/platform/lib/types";
 export default function TenantDetail() {
   const { schoolId } = useParams<{ schoolId: string }>();
   const { data: tenants } = usePlatformTenants();
-  const { data: plans } = useSubscriptionPlans();
+  const { data: plans } = useSubscriptionPlans(false);
   const tenant = tenants?.find((t) => t.school_id === schoolId);
   const { data: rows, isLoading, save, applyPlan } = useTenantEntitlementsEditor(schoolId!);
   const [matrix, setMatrix] = useState<ModuleEntitlementRow[]>([]);

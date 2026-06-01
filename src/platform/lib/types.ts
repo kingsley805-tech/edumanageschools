@@ -21,6 +21,7 @@ export type SubscriptionPlan = {
   max_storage_gb: number | null;
   is_custom: boolean;
   is_active: boolean;
+  sort_order?: number;
   default_modules: string[];
 };
 

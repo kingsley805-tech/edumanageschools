@@ -47,15 +47,15 @@ export function usePlatformDashboardStats() {
   });
 }
 
-export function useSubscriptionPlans() {
+export function useSubscriptionPlans(includeInactive = true) {
   return useQuery({
-    queryKey: ["subscription-plans"],
+    queryKey: ["subscription-plans", includeInactive],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("subscription_plans")
-        .select("*")
-        .eq("is_active", true)
-        .order("sort_order");
+      let q = supabase.from("subscription_plans").select("*").order("sort_order");
+      if (!includeInactive) {
+        q = q.eq("is_active", true);
+      }
+      const { data, error } = await q;
       if (error) throw error;
       return (data ?? []).map((p) => ({
         ...p,
@@ -65,6 +65,20 @@ export function useSubscriptionPlans() {
             ? JSON.parse(p.default_modules)
             : [],
       }));
+    },
+  });
+}
+
+export function usePlatformModulesCatalog() {
+  return useQuery({
+    queryKey: ["platform-modules-catalog"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("platform_modules")
+        .select("module_key, category, label")
+        .order("sort_order");
+      if (error) throw error;
+      return data ?? [];
     },
   });
 }
