@@ -16,6 +16,7 @@ import {
   formatGateway,
   formatPaymentMethod,
   paymentDisplayDate,
+  resolvePaystackTxnId,
   type PaymentTransactionRow,
 } from "@/billing/lib/paymentTransactions";
 
@@ -113,9 +114,7 @@ export default function PaymentTransactionsTable({
                 <TableCell>{row.invoice_number ?? "—"}</TableCell>
                 <TruncatedMonoCell value={row.gateway_ref} />
                 <TruncatedMonoCell
-                  value={
-                    row.paystack_transaction_id || row.transaction_id || null
-                  }
+                  value={resolvePaystackTxnId(row)}
                 />
                 <TableCell>{formatGateway(row.gateway)}</TableCell>
                 <TableCell>{formatPaymentMethod(row.method)}</TableCell>

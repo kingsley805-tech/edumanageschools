@@ -82,6 +82,10 @@ import StudentPaymentHistory from "./pages/student/PaymentHistory";
 import ParentPaymentHistory from "./pages/parent/PaymentHistory";
 import ParentTimetable from "./pages/parent/Timetable";
 import SuperAdminManagement from "./pages/admin/SuperAdminManagement";
+import PlatformDashboard from "./platform/pages/PlatformDashboard";
+import TenantManagement from "./platform/pages/TenantManagement";
+import TenantDetail from "./platform/pages/TenantDetail";
+import SubscriptionPlansPage from "./platform/pages/SubscriptionPlans";
 import SchoolSettings from "./pages/admin/SchoolSettings";
 import PendingUsers from "./pages/admin/PendingUsers";
 import NumberGenerator from "./pages/admin/NumberGenerator";
@@ -339,6 +343,26 @@ function App() {
               <Route path="/admin/super-admin-management" element={
                 <ProtectedRoute allowedRoles={["super_admin"]}>
                   <SuperAdminManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="/platform" element={
+                <ProtectedRoute allowedRoles={["super_admin"]}>
+                  <PlatformDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/platform/tenants" element={
+                <ProtectedRoute allowedRoles={["super_admin"]}>
+                  <TenantManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="/platform/tenants/:schoolId" element={
+                <ProtectedRoute allowedRoles={["super_admin"]}>
+                  <TenantDetail />
+                </ProtectedRoute>
+              } />
+              <Route path="/platform/plans" element={
+                <ProtectedRoute allowedRoles={["super_admin"]}>
+                  <SubscriptionPlansPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/school-settings" element={

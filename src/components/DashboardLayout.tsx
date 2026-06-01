@@ -203,6 +203,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
             { icon: FileText, label: "Audit Logs", path: "/admin/audit-logs", permission: PERMISSIONS.admin.viewAudit },
             ...(isSuperAdmin
               ? [
+                  { icon: Building, label: "Platform Control", path: "/platform" },
                   { icon: Shield, label: "Super Admin", path: "/admin/super-admin-management" },
                   { icon: BarChart3, label: "Report Monitor", path: "/super-admin/reports" },
                 ]

@@ -23,6 +23,7 @@ export type PaymentTransactionRow = {
   gateway_ref: string | null;
   paystack_transaction_id?: string | null;
   transaction_id?: string | null;
+  metadata?: Record<string, unknown> | null;
   status: PaymentTransactionStatus | string;
   payer_name: string | null;
   payer_role: string | null;
@@ -81,12 +82,19 @@ export function paymentDisplayDate(row: PaymentTransactionRow): string {
   });
 }
 
+export function resolvePaystackTxnId(
+  row: Pick<PaymentTransactionRow, "paystack_transaction_id" | "transaction_id" | "metadata">,
+): string | null {
+  const meta = row.metadata as { paystack_transaction_id?: string } | null | undefined;
+  const id =
+    row.paystack_transaction_id?.trim() ||
+    row.transaction_id?.trim() ||
+    meta?.paystack_transaction_id?.trim();
+  return id || null;
+}
+
 export function txnId(row: PaymentTransactionRow): string {
-  return (
-    row.paystack_transaction_id ||
-    row.transaction_id ||
-    "—"
-  );
+  return resolvePaystackTxnId(row) || "—";
 }
 
 export type PaymentTransactionFilters = {

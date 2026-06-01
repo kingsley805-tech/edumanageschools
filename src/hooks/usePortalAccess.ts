@@ -2,9 +2,10 @@ import { useCallback, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useSchoolEntitlements } from "@/platform/hooks/useSchoolEntitlements";
 import { buildAdminNav, ensurePaymentGatewaysInNav } from "@/lib/rbac/adminNavConfig";
+import { moduleByPath, permissionCode, type PermissionAction } from "@/lib/rbac/permissionCatalog";
 import { requiredViewPermissionForPath } from "@/lib/rbac/routeGuards";
-import { permissionCode, type PermissionAction } from "@/lib/rbac/permissionCatalog";
 
 /** RBAC-aware access for admin portal shell (sidebar + route guards). */
 export function usePortalAccess() {
@@ -14,6 +15,8 @@ export function usePortalAccess() {
 
   const hasFullAccess = isSuperAdmin || role === "super_admin";
   const hasAdminNavAccess = hasFullAccess || isSchoolAdmin || role === "admin";
+  const { enabledPortalKeys, isModuleEnabledForPath, isWritable, enforced, subscription, loading: entitlementsLoading } =
+    useSchoolEntitlements();
 
   const can = useCallback(
     (code: string) => hasFullAccess || hasPermission(code),
@@ -28,15 +31,37 @@ export function usePortalAccess() {
 
   const navItems = useMemo(() => {
     if (!hasAdminNavAccess && loading) return [];
-    const built = buildAdminNav(can);
+    let built = buildAdminNav(can);
     if (hasAdminNavAccess || can(permissionCode("billing_payments", "view"))) {
-      return ensurePaymentGatewaysInNav(built);
+      built = ensurePaymentGatewaysInNav(built);
     }
-    return built;
-  }, [can, hasAdminNavAccess, loading]);
+    if (hasFullAccess || !enabledPortalKeys) return built;
+    return built
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => {
+          const mod = moduleByPath(item.path);
+          if (!mod) return true;
+          return enabledPortalKeys.has(mod.key);
+        }),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [can, hasAdminNavAccess, loading, hasFullAccess, enabledPortalKeys]);
 
   const canAccessCurrentRoute = useMemo(() => {
-    if (hasAdminNavAccess) return true;
+    if (hasFullAccess) return true;
+    if (!isModuleEnabledForPath(location.pathname)) return false;
+    if (!hasAdminNavAccess) {
+      const required = requiredViewPermissionForPath(location.pathname);
+      if (!required) return true;
+      if (
+        location.pathname.startsWith("/admin/billing/settings/payments") &&
+        can(permissionCode("billing_payments", "view"))
+      ) {
+        return true;
+      }
+      return can(required);
+    }
     const required = requiredViewPermissionForPath(location.pathname);
     if (!required) return true;
     if (
@@ -46,14 +71,17 @@ export function usePortalAccess() {
       return true;
     }
     return can(required);
-  }, [hasAdminNavAccess, location.pathname, can]);
+  }, [hasAdminNavAccess, hasFullAccess, location.pathname, can, isModuleEnabledForPath]);
 
   return {
-    loading,
+    loading: loading || entitlementsLoading,
     hasFullAccess,
     can,
     canModule,
     navItems,
     canAccessCurrentRoute,
+    subscriptionEnforced: enforced,
+    subscription,
+    isWritable,
   };
 }

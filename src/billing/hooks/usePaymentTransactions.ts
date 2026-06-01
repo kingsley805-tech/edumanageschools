@@ -46,7 +46,9 @@ function mapPaymentRow(
     method: String(row.method ?? ""),
     gateway: String(row.gateway ?? ""),
     gateway_ref: (row.gateway_ref as string) ?? null,
-    paystack_transaction_id: (row.paystack_transaction_id as string) ?? null,
+    paystack_transaction_id:
+      (row.paystack_transaction_id as string) ??
+      ((row.metadata as { paystack_transaction_id?: string })?.paystack_transaction_id ?? null),
     transaction_id:
       (row.paystack_transaction_id as string) ??
       ((row.metadata as { paystack_transaction_id?: string })?.paystack_transaction_id ?? null),
@@ -116,7 +118,7 @@ export function usePaymentTransactions(scope: Scope | null) {
           .select(
             `id, school_id, invoice_id, student_id, amount, currency, method, gateway, gateway_ref,
              paystack_transaction_id, status, payer_name, payer_role, notes, paid_at, created_at, payment_context, metadata,
-             billing_invoices ( invoice_number, student_id, students ( full_name ) )`,
+             billing_invoices ( invoice_number, student_id, students ( full_name, parents ( full_name ) ) )`,
           )
           .eq("school_id", current.schoolId)
           .order("created_at", { ascending: false })
@@ -128,7 +130,7 @@ export function usePaymentTransactions(scope: Scope | null) {
             .select(
               `id, school_id, invoice_id, amount, currency, method, gateway, gateway_ref,
                status, payer_name, payer_role, notes, paid_at, created_at, payment_context,
-               billing_invoices ( invoice_number, student_id, students ( full_name ) )`,
+               billing_invoices ( invoice_number, student_id, students ( full_name, parents ( full_name ) ) )`,
             )
             .eq("school_id", current.schoolId)
             .order("created_at", { ascending: false })
@@ -141,9 +143,11 @@ export function usePaymentTransactions(scope: Scope | null) {
         setRows(
           (data ?? []).map((row) => {
             const inv = invoiceEmbed(row as Record<string, unknown>);
+            const students = inv?.students as { full_name?: string; parents?: { full_name?: string } | null } | undefined;
             return mapPaymentRow(row as Record<string, unknown>, {
               invoice_number: inv?.invoice_number ?? null,
-              student_name: inv?.students?.full_name ?? null,
+              student_name: students?.full_name ?? null,
+              parent_name: students?.parents?.full_name ?? null,
             });
           }),
         );

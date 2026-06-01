@@ -1,5 +1,5 @@
 // @ts-nocheck
-﻿import { useState, useEffect } from "react";
+﻿import { useState, useEffect, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,8 @@ import { parseCsvLine } from "@/billing/lib/parseCsvLine";
 import { toast } from "sonner";
 import { useBillingPermissions } from "@/billing/hooks/useBillingPermissions";
 import { useBillingAuth } from "@/billing/hooks/useBillingAuth";
+import { usePaymentTransactions } from "@/billing/hooks/usePaymentTransactions";
+import { resolvePaystackTxnId, type PaymentTransactionRow } from "@/billing/lib/paymentTransactions";
 import {
   Dialog,
   DialogContent,
@@ -39,21 +41,7 @@ const statusMap: Record<string, { label: string; className: string }> = {
   disputed: { label: "Disputed", className: "bg-destructive/10 text-destructive border-destructive/20" },
 };
 
-interface Payment {
-  id: string;
-  amount: number;
-  method: string;
-  status: string;
-  paid_at: string | null;
-  created_at: string;
-  currency: string;
-  gateway: string;
-  gateway_ref: string | null;
-  paystack_transaction_id: string | null;
-  invoice_id: string;
-  invoice_number?: string | null;
-  student_name?: string | null;
-  parent_name?: string | null;
+interface Payment extends PaymentTransactionRow {
   payer_name: string | null;
   payer_role: string | null;
   payment_context: string;
@@ -108,9 +96,17 @@ export default function BillingPayments() {
   const canCreatePayments = permission.create || permission.manage;
   const canUpdatePayments = permission.update || permission.manage;
   const canManagePayments = permission.manage;
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const scope = useMemo(
+    () => (schoolId ? { mode: "school" as const, schoolId } : null),
+    [schoolId],
+  );
+  const {
+    rows: payments,
+    loading,
+    error: paymentsLoadError,
+    refetch: fetchPayments,
+  } = usePaymentTransactions(scope);
   const [webhookEvents, setWebhookEvents] = useState<WebhookEvent[]>([]);
-  const [loading, setLoading] = useState(true);
   const [importingCsv, setImportingCsv] = useState(false);
   const [runningWebhookRetry, setRunningWebhookRetry] = useState(false);
   const [runningTransferRecon, setRunningTransferRecon] = useState(false);
@@ -129,43 +125,6 @@ export default function BillingPayments() {
   const [detailPayment, setDetailPayment] = useState<PaymentDetailsPayload | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  const fetchPayments = async () => {
-    if (!schoolId) {
-      setPayments([]);
-      setLoading(false);
-      return;
-    }
-    const { data } = await supabase
-      .from("billing_payments")
-      .select(
-        `id, amount, method, status, paid_at, created_at, currency, gateway, gateway_ref, paystack_transaction_id,
-         invoice_id, payer_name, payer_role, payment_context, notes,
-         invoices ( invoice_number, students ( full_name, parents ( full_name ) ) )`,
-      )
-      .eq("school_id", schoolId)
-      .order("created_at", { ascending: false })
-      .limit(1000);
-    const raw = (data || []) as unknown as (Payment & {
-      invoices?: {
-        invoice_number: string;
-        students?: { full_name?: string; parents?: { full_name?: string } | null };
-      } | null;
-    })[];
-    setPayments(
-      raw.map((row) => {
-        const inv = row.invoices;
-        const { invoices: _i, ...rest } = row;
-        return {
-          ...rest,
-          invoice_number: inv?.invoice_number ?? null,
-          student_name: inv?.students?.full_name ?? null,
-          parent_name: inv?.students?.parents?.full_name ?? null,
-        };
-      }),
-    );
-    setLoading(false);
-  };
-
   const fetchWebhookEvents = async () => {
     if (!schoolId) {
       setWebhookEvents([]);
@@ -181,16 +140,13 @@ export default function BillingPayments() {
   };
 
   useEffect(() => {
-    setLoading(true);
-    fetchPayments();
     fetchWebhookEvents();
     const channel = supabase
-      .channel(`admin-payments-${schoolId || "no-org"}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "billing_payments" }, () => fetchPayments())
+      .channel(`admin-payments-webhooks-${schoolId || "no-org"}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "paystack_webhook_events" }, () => fetchWebhookEvents())
       .subscribe();
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [schoolId]);
 
@@ -537,14 +493,14 @@ export default function BillingPayments() {
       (payment.invoice_number || "").toLowerCase().includes(q) ||
       String(payment.amount).includes(search) ||
       (payment.gateway_ref || "").toLowerCase().includes(q) ||
-      (payment.paystack_transaction_id || "").toLowerCase().includes(q) ||
+      (resolvePaystackTxnId(payment) || "").toLowerCase().includes(q) ||
       (payment.payer_name || "").toLowerCase().includes(q);
     const refQ = refFilter.trim().toLowerCase();
     const matchesRef =
       !refQ || (payment.gateway_ref || "").toLowerCase().includes(refQ);
     const txnQ = txnFilter.trim().toLowerCase();
     const matchesTxn =
-      !txnQ || (payment.paystack_transaction_id || "").toLowerCase().includes(txnQ);
+      !txnQ || (resolvePaystackTxnId(payment) || "").toLowerCase().includes(txnQ);
     const matchesStatus = statusFilter === "all" || payment.status === statusFilter;
     const matchesMethod = methodFilter === "all" || payment.method === methodFilter;
     const matchesGateway = gatewayFilter === "all" || payment.gateway === gatewayFilter;
@@ -634,7 +590,7 @@ export default function BillingPayments() {
     payment.payer_name || (payment.payer_role ? payment.payer_role.replace("_", " ") : "--"),
     payment.invoice_number || payment.invoice_id,
     payment.gateway_ref || "--",
-    payment.paystack_transaction_id || "--",
+    resolvePaystackTxnId(payment) || "--",
     (statusMap[payment.status] || statusMap.pending).label,
     payment.notes || "",
     payment.paid_at ? new Date(payment.paid_at).toLocaleDateString() : new Date(payment.created_at).toLocaleDateString(),
@@ -670,6 +626,10 @@ export default function BillingPayments() {
           {canCreatePayments ? <PaySalaryDialog /> : null}
         </div>
       </div>
+
+      {paymentsLoadError ? (
+        <p className="text-sm text-destructive">{paymentsLoadError}</p>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-xl border bg-card p-4 shadow-sm">
@@ -818,7 +778,7 @@ export default function BillingPayments() {
                     <TruncatedMonoText value={payment.gateway_ref} emptyLabel="--" />
                   </td>
                   <td className="px-4 py-3.5">
-                    <TruncatedMonoText value={payment.paystack_transaction_id} emptyLabel="--" />
+                    <TruncatedMonoText value={resolvePaystackTxnId(payment)} emptyLabel="--" />
                   </td>
                   <td className="px-4 py-3.5">
                     <Badge variant="outline" className={cn("text-xs font-medium", (statusMap[payment.status] || statusMap.pending).className)}>
@@ -845,7 +805,7 @@ export default function BillingPayments() {
                           currency: payment.currency,
                           gateway: payment.gateway,
                           gateway_ref: payment.gateway_ref,
-                          paystack_transaction_id: payment.paystack_transaction_id,
+                          paystack_transaction_id: resolvePaystackTxnId(payment),
                           invoice_id: payment.invoice_id,
                           invoice_number: payment.invoice_number,
                           payer_name: payment.payer_name,
