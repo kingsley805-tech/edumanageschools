@@ -66,7 +66,7 @@ const Auth = () => {
     if (user && role) {
       const roleRoutes: Record<string, string> = {
         admin: "/admin",
-        super_admin: "/admin",
+        super_admin: "/platform",
         accountant: "/accountant",
         auditor: "/auditor",
         teacher: "/teacher",
@@ -147,13 +147,7 @@ const Auth = () => {
     let schoolId: string | null = null;
     let regNumber = registrationNumber ? normalizeAdmissionNumber(registrationNumber) : "";
 
-    if (signupRole === "super_admin") {
-      if (!adminKey) {
-        toast.error("Super Admin key is required");
-        setIsLoading(false);
-        return;
-      }
-    } else if (signupRole === "admin") {
+    if (signupRole === "admin") {
       if (!adminKey || !schoolName || !schoolCode) {
         toast.error("Please complete all school administrator fields");
         setIsLoading(false);
@@ -357,11 +351,6 @@ const Auth = () => {
   };
 
   const roleConfig = {
-    super_admin: {
-      icon: Shield,
-      label: "Super Admin",
-      description: "Multi-school management"
-    },
     admin: {
       icon: Shield,
       label: "Administrator",
@@ -719,15 +708,6 @@ const Auth = () => {
                 </Select>
               </div>
 
-              {/* Super Admin Info */}
-              {signupRole === "super_admin" && (
-                <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 animate-fade-in">
-                  <p className="text-sm text-muted-foreground">
-                    Super admins manage multiple schools. You'll be able to assign schools after account creation.
-                  </p>
-                </div>
-              )}
-
               {/* Admin - New School Creation */}
               {signupRole === "admin" && (
                 <div className="space-y-4 animate-fade-in">
@@ -949,18 +929,18 @@ const Auth = () => {
                 </div>
               )}
 
-              {/* Admin Key for Admin/Super Admin */}
-              {(signupRole === "admin" || signupRole === "super_admin") && (
+              {/* Admin Key — school administrators only */}
+              {signupRole === "admin" && (
                 <div className="space-y-2 animate-fade-in">
                   <Label htmlFor="admin-key" className="text-sm font-medium text-foreground">
-                    {signupRole === "super_admin" ? "Super Admin Key" : "Admin Key"}
+                    Admin Key
                   </Label>
                   <div className="relative">
                     <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                     <Input
                       id="admin-key"
                       type="password"
-                      placeholder={signupRole === "super_admin" ? "Enter super admin key" : "Enter admin key"}
+                      placeholder="Enter admin key"
                       className="pl-10 h-12 border-2 focus:border-primary"
                       value={adminKey}
                       onChange={e => setAdminKey(e.target.value)}
@@ -968,9 +948,7 @@ const Auth = () => {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {signupRole === "super_admin" 
-                      ? "This special key is required to create a super administrator account" 
-                      : "This special key is required to create an administrator account"}
+                    This key is required to create a school administrator account.
                   </p>
                 </div>
               )}

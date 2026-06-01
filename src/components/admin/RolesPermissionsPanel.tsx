@@ -24,6 +24,8 @@ export type RolesPermissionsPanelProps = {
   dirty?: boolean;
   saving?: boolean;
   onSave?: () => void;
+  /** When set, only these modules appear (subscription package). */
+  visibleModules?: PortalModuleDef[];
 };
 
 function MatrixCheckbox({
@@ -61,18 +63,20 @@ export function RolesPermissionsPanel({
   dirty,
   saving,
   onSave,
+  visibleModules,
 }: RolesPermissionsPanelProps) {
   const q = search.trim().toLowerCase();
+  const catalog = visibleModules ?? ALL_PORTAL_MODULES;
 
   const modules = useMemo(() => {
-    if (!q) return ALL_PORTAL_MODULES;
-    return ALL_PORTAL_MODULES.filter(
+    if (!q) return catalog;
+    return catalog.filter(
       (m) =>
         m.label.toLowerCase().includes(q) ||
         m.categoryLabel.toLowerCase().includes(q) ||
         m.key.toLowerCase().includes(q),
     );
-  }, [q]);
+  }, [q, catalog]);
 
   const toggle = (code: string | null) => {
     if (readOnly || !code) return;

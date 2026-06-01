@@ -86,6 +86,8 @@ import PlatformDashboard from "./platform/pages/PlatformDashboard";
 import TenantManagement from "./platform/pages/TenantManagement";
 import TenantDetail from "./platform/pages/TenantDetail";
 import SubscriptionPlansPage from "./platform/pages/SubscriptionPlans";
+import PlatformOwnerLogin from "./platform/pages/PlatformOwnerLogin";
+import { PlatformOwnerRoute } from "./platform/components/PlatformOwnerRoute";
 import SchoolSettings from "./pages/admin/SchoolSettings";
 import PendingUsers from "./pages/admin/PendingUsers";
 import NumberGenerator from "./pages/admin/NumberGenerator";
@@ -132,6 +134,7 @@ function App() {
               <Route path="/" element={<Loader />} />
               <Route path="/landing" element={<Landing />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/platform-admin/login" element={<PlatformOwnerLogin />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
@@ -346,24 +349,24 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/platform" element={
-                <ProtectedRoute allowedRoles={["super_admin"]}>
+                <PlatformOwnerRoute>
                   <PlatformDashboard />
-                </ProtectedRoute>
+                </PlatformOwnerRoute>
               } />
               <Route path="/platform/tenants" element={
-                <ProtectedRoute allowedRoles={["super_admin"]}>
+                <PlatformOwnerRoute>
                   <TenantManagement />
-                </ProtectedRoute>
+                </PlatformOwnerRoute>
               } />
               <Route path="/platform/tenants/:schoolId" element={
-                <ProtectedRoute allowedRoles={["super_admin"]}>
+                <PlatformOwnerRoute>
                   <TenantDetail />
-                </ProtectedRoute>
+                </PlatformOwnerRoute>
               } />
               <Route path="/platform/plans" element={
-                <ProtectedRoute allowedRoles={["super_admin"]}>
+                <PlatformOwnerRoute>
                   <SubscriptionPlansPage />
-                </ProtectedRoute>
+                </PlatformOwnerRoute>
               } />
               <Route path="/admin/school-settings" element={
                 <ProtectedRoute allowedRoles={["admin", "super_admin"]}>

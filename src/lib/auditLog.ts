@@ -56,3 +56,33 @@ export async function logLoginActivity(
     user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
   });
 }
+
+/** System owner portal login — separate from tenant /auth (audited). */
+export async function logPlatformOwnerLogin(
+  success: boolean,
+  email?: string,
+  failureReason?: string,
+) {
+  const { data: { user } } = await supabase.auth.getUser();
+  let ip: string | null = null;
+  try {
+    const res = await fetch("https://api.ipify.org?format=json", { signal: AbortSignal.timeout(3000) });
+    const json = (await res.json()) as { ip?: string };
+    ip = json.ip ?? null;
+  } catch {
+    /* optional */
+  }
+  await supabase.from("login_activity").insert({
+    user_id: user?.id ?? null,
+    school_id: null,
+    email: email ?? user?.email ?? null,
+    success,
+    failure_reason: failureReason
+      ? `[platform_owner] ${failureReason}`
+      : success
+        ? "[platform_owner] success"
+        : null,
+    ip_address: ip,
+    user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+  });
+}

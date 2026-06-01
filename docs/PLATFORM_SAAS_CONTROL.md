@@ -25,10 +25,24 @@ Multi-tenant subscription, licensing, and feature access for School Hub.
 - **Super admin**: bypasses all module restrictions.
 - **RPCs**: `school_has_platform_module`, `school_subscription_writable`, `apply_subscription_plan_to_school`, `save_school_module_entitlements`.
 
+## Ownership hierarchy
+
+| Level | Role | Portal |
+|-------|------|--------|
+| 1 | Software owner (Super Admin) | `/platform-admin/login` → `/platform/*` |
+| 2 | School Admin | `/auth` → `/admin` (assigned modules only) |
+| 3 | Staff | `/auth` → role portal |
+| 4–5 | Students / Parents | `/auth` → student/parent portals |
+
+- Super Admin is **not** on public `/auth` signup or role list.
+- School Admins only see modules in their subscription; permission matrix is filtered.
+- Unassigned modules are hidden from nav, routes, and RBAC UI.
+
 ## Super Admin UI
 
 | Route | Page |
 |-------|------|
+| `/platform-admin/login` | Hidden system-owner login (audited) |
 | `/platform` | Dashboard — org counts, expiring tenants |
 | `/platform/tenants` | Tenant management table |
 | `/platform/tenants/:schoolId` | Feature matrix + plan assignment |

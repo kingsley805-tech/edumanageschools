@@ -8,8 +8,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions, clearPermissionCache } from "@/hooks/usePermissions";
 import { writeAuditLog } from "@/lib/auditLog";
-import { ALL_PORTAL_MODULES } from "@/lib/rbac/permissionCatalog";
 import { modulePermissionCodes } from "@/lib/rbac/matrixColumns";
+import { useEntitledPortalModules } from "@/platform/hooks/useEntitledPortalModules";
+import {
+  partitionPermissionCodes,
+  SUBSCRIPTION_MODULE_DENIED,
+} from "@/platform/lib/portalModuleEntitlements";
 import {
   applyDefaultPermissionsForRole,
   assignRoleToUser,
@@ -80,6 +84,7 @@ export default function PermissionManagement() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { schoolId, hasPermission, invalidateCache, isSuperAdmin } = usePermissions();
+  const { entitledModules, enabledPortalKeys, enforced } = useEntitledPortalModules();
   const canManage = isSuperAdmin || hasPermission("portal.staff_access.manage");
 
   const [roles, setRoles] = useState<RoleRow[]>([]);
@@ -249,9 +254,21 @@ export default function PermissionManagement() {
 
   const handleSavePermissions = async () => {
     if (!selectedRole || !schoolId || !user || !canManage || isSuperAdminRole) return;
+    const { allowed, denied } = partitionPermissionCodes(
+      selectedCodes,
+      enabledPortalKeys,
+      isSuperAdmin,
+    );
+    if (denied.length > 0 && !isSuperAdmin) {
+      toast({
+        title: SUBSCRIPTION_MODULE_DENIED,
+        variant: "destructive",
+      });
+      return;
+    }
     setSaving(true);
     try {
-      const result = await saveRolePermissions(selectedRole.id, selectedCodes, permissionIdMap);
+      const result = await saveRolePermissions(selectedRole.id, allowed, permissionIdMap);
       try {
         await logPermissionChange({
           schoolId,
@@ -407,6 +424,15 @@ export default function PermissionManagement() {
               </Alert>
             )}
             {selectedRole ? (
+              {enforced && !isSuperAdmin ? (
+                <Alert className="mb-4 border-blue-500/30 bg-blue-500/5">
+                  <AlertTitle>Subscription package active</AlertTitle>
+                  <AlertDescription>
+                    You can only assign permissions for modules included in your organization&apos;s
+                    package. Contact the software owner to add more modules.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
               <RolesPermissionsPanel
                 selected={selectedCodes}
                 onChange={(next) => {
@@ -420,6 +446,7 @@ export default function PermissionManagement() {
                 roleControl={roleSelect}
                 dirty={dirty}
                 saving={saving}
+                visibleModules={entitledModules}
                 onSave={canManage && !isSuperAdminRole ? handleSavePermissions : undefined}
                 onFullAccess={matrixReadOnly ? undefined : handleFullAccess}
                 onRevokeFullAccess={matrixReadOnly ? undefined : handleRevokeFullAccess}
