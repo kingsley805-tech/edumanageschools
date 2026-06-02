@@ -1,0 +1,14 @@
+Run these scripts in the Supabase SQL Editor (Dashboard → SQL → New query), in order.
+After the last script, run: NOTIFY pgrst, 'reload schema';
+
+1. apply-platform-saas-control.sql
+2. apply-organization-subscription-billing.sql   ← creates get_organization_subscription_access RPC
+3. apply-admin-signup-no-admin-key.sql
+4. apply-subscription-reminders-and-comp-grant.sql
+
+Optional (fixes lesson_notes 404 on admin dashboard):
+5. apply-lesson-notes.sql
+6. apply-lesson-notes-nav.sql
+
+Until step 2 is applied, the app uses a legacy fallback (full access for schools without a subscription row).
+New admin signups require step 3 before they get a pending subscription row.

@@ -185,12 +185,14 @@ const AdminDashboard = () => {
         .single();
       if (!profileData?.school_id) return;
 
-      const { data: notes } = await supabase
+      const { data: notes, error } = await supabase
         .from("lesson_notes")
         .select("id, topic, teacher_name, status, updated_at")
         .eq("school_id", profileData.school_id)
         .order("updated_at", { ascending: false })
         .limit(50);
+
+      if (error) return;
 
       const rows = notes ?? [];
       setLessonNoteStats({

@@ -6,6 +6,8 @@ import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { ModuleEntitlementRow } from "@/platform/lib/types";
 import { moduleByPath } from "@/lib/rbac/permissionCatalog";
+import { isMissingSchemaError } from "@/subscription/lib/fetchOrganizationSubscriptionAccess";
+import { useOrganizationSubscription } from "@/subscription/hooks/useOrganizationSubscription";
 
 const ENTITLEMENTS_KEY = "school-module-entitlements";
 
@@ -21,21 +23,36 @@ export function useSchoolEntitlements(schoolId?: string | null) {
   const { isSuperAdmin } = usePermissions();
   const sid = schoolId ?? currentSchool?.id ?? null;
   const queryClient = useQueryClient();
+  const { access: subscriptionAccess, loading: subscriptionLoading } =
+    useOrganizationSubscription(sid);
 
   const { data, isLoading } = useQuery({
     queryKey: [ENTITLEMENTS_KEY, sid],
     enabled: Boolean(sid),
     queryFn: async () => {
-      const [modsRes, entRes, subRes, accessRes] = await Promise.all([
+      const [modsRes, entRes, subRes] = await Promise.all([
         supabase.from("platform_modules").select("*").order("sort_order"),
         supabase.from("school_module_entitlements").select("*").eq("school_id", sid!),
         supabase.from("school_subscriptions").select("status, read_only_on_expiry, block_login_on_expiry, expires_at").eq("school_id", sid!).maybeSingle(),
-        supabase.rpc("get_organization_subscription_access", { p_school_id: sid! }),
       ]);
-      if (modsRes.error) throw modsRes.error;
-      if (entRes.error) throw entRes.error;
-      if (subRes.error) throw subRes.error;
-      if (accessRes.error) throw accessRes.error;
+
+      const platformReady =
+        !modsRes.error &&
+        !entRes.error &&
+        !isMissingSchemaError(modsRes.error) &&
+        !isMissingSchemaError(entRes.error);
+
+      if (modsRes.error && !isMissingSchemaError(modsRes.error)) throw modsRes.error;
+      if (entRes.error && !isMissingSchemaError(entRes.error)) throw entRes.error;
+      if (subRes.error && !isMissingSchemaError(subRes.error)) throw subRes.error;
+
+      if (!platformReady || !subRes.data) {
+        return {
+          rows: [],
+          subscription: subRes.data ?? null,
+          enforced: false,
+        };
+      }
 
       const entMap = new Map((entRes.data ?? []).map((e) => [e.module_key, e]));
       const rows: ModuleEntitlementRow[] = (modsRes.data ?? []).map((m) => {
@@ -57,9 +74,13 @@ export function useSchoolEntitlements(schoolId?: string | null) {
       return {
         rows,
         subscription: subRes.data,
-        access: accessRes.data,
+        access,
         enforced: Boolean(subRes.data),
       };
+    },
+    retry: (failureCount, error) => {
+      if (isMissingSchemaError(error as { code?: string; message?: string })) return false;
+      return failureCount < 1;
     },
   });
 
@@ -88,7 +109,10 @@ export function useSchoolEntitlements(schoolId?: string | null) {
 
   const isWritable = useMemo(() => {
     if (isSuperAdmin) return true;
-    const access = data?.access as { can_use_platform?: boolean; access_state?: string } | null | undefined;
+    const access = subscriptionAccess as
+      | { can_use_platform?: boolean; access_state?: string }
+      | null
+      | undefined;
     if (access?.access_state && access.access_state !== "legacy") {
       return Boolean(access.can_use_platform);
     }
@@ -97,14 +121,15 @@ export function useSchoolEntitlements(schoolId?: string | null) {
     if (st === "active" || st === "trial") return true;
     if (st === "expired" && data.subscription.read_only_on_expiry) return false;
     return !["suspended", "expired", "cancelled", "locked", "pending"].includes(st);
-  }, [data, isSuperAdmin]);
+  }, [data, subscriptionAccess, isSuperAdmin]);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: [ENTITLEMENTS_KEY, sid] });
 
   return {
-    loading: isLoading,
+    loading: isLoading || subscriptionLoading,
     rows: data?.rows ?? [],
     subscription: data?.subscription ?? null,
+    access: subscriptionAccess,
     enforced: data?.enforced ?? false,
     enabledPortalKeys,
     isModuleEnabledForPath,
