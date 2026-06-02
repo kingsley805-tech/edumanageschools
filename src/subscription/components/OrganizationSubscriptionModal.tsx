@@ -1,7 +1,8 @@
 // @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, CreditCard, Loader2, Lock } from "lucide-react";
+import { Check, CreditCard, Loader2, Lock, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ export default function OrganizationSubscriptionModal({
   access: accessProp,
 }: Props) {
   const navigate = useNavigate();
+  const { signOut } = useAuth();
   const { access: hookAccess, invalidate, blocked } = useOrganizationSubscription();
   const access = accessProp ?? hookAccess;
   const { data: plans = [], isLoading: plansLoading } = useSubscriptionPlansPublic();
@@ -122,7 +124,9 @@ export default function OrganizationSubscriptionModal({
   const subtitle =
     access?.access_state === "locked"
       ? "Your organization is locked. Complete payment to restore full access. All your data is safe."
-      : "Select a plan and complete payment to unlock your school management dashboard.";
+      : access?.access_state === "pending_payment"
+        ? "Your account is active but system access is locked until you choose a plan and pay, or your platform owner activates you."
+        : "Select a plan and complete payment to unlock your school management dashboard.";
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/95 p-4 backdrop-blur-sm">
@@ -136,10 +140,27 @@ export default function OrganizationSubscriptionModal({
                 <CreditCard className="h-6 w-6 text-primary" />
               )}
             </div>
-            <div>
+            <div className="flex-1">
               <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
               <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+              {access?.access_state === "pending_payment" ? (
+                <p className="mt-2 text-xs font-medium text-amber-600 dark:text-amber-400">
+                  Status: Pending payment · Access: Locked
+                </p>
+              ) : null}
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              onClick={async () => {
+                await signOut();
+                navigate("/auth", { replace: true });
+              }}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Log out
+            </Button>
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <Tabs

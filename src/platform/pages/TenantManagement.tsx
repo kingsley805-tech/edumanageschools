@@ -13,13 +13,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Loader2, Settings2, Eye } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Search, Loader2, Settings2 } from "lucide-react";
 import { usePlatformTenants } from "@/platform/hooks/usePlatformDashboard";
+import { isTenantLockedOrPendingPayment } from "@/platform/lib/tenantSubscription";
+
+type TenantListFilter = "all" | "locked_pending";
 
 function statusBadge(status: string | null) {
   const map: Record<string, string> = {
     active: "bg-emerald-500/10 text-emerald-700",
     trial: "bg-blue-500/10 text-blue-700",
+    pending: "bg-orange-500/10 text-orange-800",
+    locked: "bg-red-500/10 text-red-700",
     suspended: "bg-amber-500/10 text-amber-800",
     expired: "bg-red-500/10 text-red-700",
     cancelled: "bg-muted text-muted-foreground",
@@ -41,17 +53,27 @@ function storagePct(used: number | null, limit: number | null) {
 export default function TenantManagement() {
   const { data: tenants, isLoading } = usePlatformTenants();
   const [search, setSearch] = useState("");
+  const [listFilter, setListFilter] = useState<TenantListFilter>("all");
+
+  const lockedPendingCount = useMemo(
+    () => (tenants ?? []).filter(isTenantLockedOrPendingPayment).length,
+    [tenants],
+  );
 
   const filtered = useMemo(() => {
+    let rows = tenants ?? [];
+    if (listFilter === "locked_pending") {
+      rows = rows.filter(isTenantLockedOrPendingPayment);
+    }
     const q = search.trim().toLowerCase();
-    if (!q) return tenants ?? [];
-    return (tenants ?? []).filter(
+    if (!q) return rows;
+    return rows.filter(
       (t) =>
         t.school_name.toLowerCase().includes(q) ||
         t.school_code.toLowerCase().includes(q) ||
         (t.plan_name ?? "").toLowerCase().includes(q),
     );
-  }, [tenants, search]);
+  }, [tenants, search, listFilter]);
 
   return (
     <DashboardLayout role="super_admin">
@@ -68,14 +90,31 @@ export default function TenantManagement() {
           </Button>
         </div>
 
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="pl-9"
-            placeholder="Search organization, code, plan…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[200px] max-w-md flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="pl-9"
+              placeholder="Search organization, code, plan…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Select
+            value={listFilter}
+            onValueChange={(v) => setListFilter(v as TenantListFilter)}
+          >
+            <SelectTrigger className="w-[260px]">
+              <SelectValue placeholder="Filter organizations" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All organizations</SelectItem>
+              <SelectItem value="locked_pending">
+                Locked / pending payment
+                {lockedPendingCount > 0 ? ` (${lockedPendingCount})` : ""}
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="overflow-x-auto rounded-lg border">

@@ -35,6 +35,21 @@ export function isSubscriptionAllowedPath(pathname: string): boolean {
   );
 }
 
+/** School portal routes that require an active organization subscription. */
+export const SUBSCRIPTION_GATED_PREFIXES = ["/admin", "/accountant", "/auditor"] as const;
+
+export function isSubscriptionGatedPortalPath(pathname: string): boolean {
+  return SUBSCRIPTION_GATED_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
+
+export const PORTAL_STAFF_ROLES = ["admin", "accountant", "auditor"] as const;
+
+export function isPortalStaffRole(roles: string[]): boolean {
+  return PORTAL_STAFF_ROLES.some((r) => roles.includes(r));
+}
+
 export function subscriptionRequiresPayment(access: OrganizationSubscriptionAccess | null | undefined): boolean {
   if (!access?.has_subscription_row) return false;
   return !access.can_use_platform;

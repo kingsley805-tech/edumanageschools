@@ -6,7 +6,12 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { PORTAL_ROLE_ROUTES } from "@/lib/permissions";
 import { requiredViewPermissionForPath } from "@/lib/rbac/routeGuards";
 import { useSchoolEntitlements } from "@/platform/hooks/useSchoolEntitlements";
-import { isSubscriptionAllowedPath } from "@/subscription/lib/subscriptionAccess";
+import {
+  isPortalStaffRole,
+  isSubscriptionAllowedPath,
+  isSubscriptionGatedPortalPath,
+} from "@/subscription/lib/subscriptionAccess";
+import SubscriptionLockScreen from "@/subscription/components/SubscriptionLockScreen";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ShieldAlert } from "lucide-react";
 
@@ -40,6 +45,8 @@ export const ProtectedRoute = ({
     isModuleEnabledForPath,
     loading: entLoading,
     subscriptionBlocked,
+    access: subscriptionAccess,
+    invalidate: invalidateSubscription,
   } = useSchoolEntitlements();
   const subSuperBypass = isSuperAdmin;
   const navigate = useNavigate();
@@ -57,19 +64,18 @@ export const ProtectedRoute = ({
     !skipPathGuard &&
     PORTAL_RBAC_PREFIXES.some((p) => location.pathname.startsWith(p));
 
-  const adminSubscriptionBlocked =
+  const portalStaff = isPortalStaffRole(roles);
+  const onSubscriptionAllowedPath = isSubscriptionAllowedPath(location.pathname);
+  const touchesGatedPortal =
+    isSubscriptionGatedPortalPath(location.pathname) ||
+    (location.pathname === "/settings" && portalStaff);
+
+  const orgSubscriptionLocked =
     !subSuperBypass &&
     !isSuperAdmin &&
-    usesPortalPathGuardEarly &&
-    location.pathname.startsWith("/admin") &&
+    portalStaff &&
     subscriptionBlocked &&
-    !isSubscriptionAllowedPath(location.pathname);
-
-  useEffect(() => {
-    if (adminSubscriptionBlocked) {
-      navigate("/admin/subscription", { replace: true });
-    }
-  }, [adminSubscriptionBlocked, navigate]);
+    touchesGatedPortal;
 
   useEffect(() => {
     if (roleLoading || !role) return;
@@ -125,11 +131,12 @@ export const ProtectedRoute = ({
     !skipPathGuard &&
     PORTAL_RBAC_PREFIXES.some((p) => location.pathname.startsWith(p));
 
-  if (adminSubscriptionBlocked) {
+  if (orgSubscriptionLocked && !onSubscriptionAllowedPath) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-      </div>
+      <SubscriptionLockScreen
+        access={subscriptionAccess}
+        onActivated={invalidateSubscription}
+      />
     );
   }
 

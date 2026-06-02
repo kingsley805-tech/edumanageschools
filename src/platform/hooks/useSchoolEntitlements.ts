@@ -126,7 +126,10 @@ export function useSchoolEntitlements(schoolId?: string | null) {
     return !["suspended", "expired", "cancelled", "locked", "pending"].includes(st);
   }, [data, subscriptionAccess, isSuperAdmin]);
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: [ENTITLEMENTS_KEY, sid] });
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: [ENTITLEMENTS_KEY, sid] });
+    queryClient.invalidateQueries({ queryKey: ["organization-subscription-access"] });
+  };
 
   return {
     loading: entitlementsInitialLoading || subscriptionInitialLoading,

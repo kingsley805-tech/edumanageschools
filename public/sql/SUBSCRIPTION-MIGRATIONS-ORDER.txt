@@ -13,3 +13,11 @@ Optional (fixes lesson_notes 404 on admin dashboard):
 
 Until step 2 is applied, the app uses a legacy fallback (full access for schools without a subscription row).
 New admin signups require step 3 before they get a pending subscription row.
+
+Mandatory admin lock after signup (step 3):
+- Creates school_subscriptions with status = pending
+- Admin can log in but cannot use /admin, /accountant, /auditor, or /settings until payment or Super Admin grant
+
+Super Admin unlock (step 4):
+- grant_complimentary_subscription on Tenant Detail
+- grant_all_school_module_entitlements (optional step 7)
