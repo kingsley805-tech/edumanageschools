@@ -21,7 +21,8 @@ export default function TenantDetail() {
   const { data: tenants } = usePlatformTenants();
   const { data: plans } = useSubscriptionPlans(false);
   const tenant = tenants?.find((t) => t.school_id === schoolId);
-  const { data: rows, isLoading, save, applyPlan, grantComplimentary } = useTenantEntitlementsEditor(schoolId!);
+  const { data: rows, isLoading, save, applyPlan, grantComplimentary, grantAllModules } =
+    useTenantEntitlementsEditor(schoolId!);
   const [matrix, setMatrix] = useState<ModuleEntitlementRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState("");
@@ -76,6 +77,29 @@ export default function TenantDetail() {
       toast.success("Complimentary subscription granted — no payment required");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Grant failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleGrantAllModules = async () => {
+    setSaving(true);
+    try {
+      await grantAllModules();
+      setMatrix((prev) =>
+        prev.map((row) => ({
+          ...row,
+          enabled: true,
+          can_read: true,
+          can_create: true,
+          can_edit: true,
+          can_delete: true,
+          can_export: true,
+        })),
+      );
+      toast.success("All modules enabled with full CRUD access");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to grant all modules");
     } finally {
       setSaving(false);
     }
@@ -186,6 +210,14 @@ export default function TenantDetail() {
               <p className="text-xs text-muted-foreground">
                 Complimentary grant activates the plan immediately without Paystack payment. Logged in audit trail.
               </p>
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={() => void handleGrantAllModules()}
+                disabled={saving}
+              >
+                Grant all modules (full access)
+              </Button>
             </CardContent>
           </Card>
 

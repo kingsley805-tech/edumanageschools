@@ -9,6 +9,7 @@ After the last script, run: NOTIFY pgrst, 'reload schema';
 Optional (fixes lesson_notes 404 on admin dashboard):
 5. apply-lesson-notes.sql
 6. apply-lesson-notes-nav.sql
+7. apply-grant-all-modules-rpc.sql (adds one-click "Grant all modules")
 
 Until step 2 is applied, the app uses a legacy fallback (full access for schools without a subscription row).
 New admin signups require step 3 before they get a pending subscription row.

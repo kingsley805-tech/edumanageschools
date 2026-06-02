@@ -74,7 +74,6 @@ export function useSchoolEntitlements(schoolId?: string | null) {
       return {
         rows,
         subscription: subRes.data,
-        access,
         enforced: Boolean(subRes.data),
       };
     },
@@ -223,5 +222,16 @@ export function useTenantEntitlementsEditor(schoolId: string) {
     await queryClient.invalidateQueries({ queryKey: ["organization-subscription-access"] });
   };
 
-  return { ...query, save, applyPlan, grantComplimentary };
+  const grantAllModules = async () => {
+    const { data, error } = await supabase.rpc("grant_all_school_module_entitlements", {
+      p_school_id: schoolId,
+    });
+    if (error) throw error;
+    const res = data as { ok?: boolean; error?: string };
+    if (!res?.ok) throw new Error(res?.error ?? "Grant all modules failed");
+    await queryClient.invalidateQueries({ queryKey: [ENTITLEMENTS_KEY] });
+    await queryClient.invalidateQueries({ queryKey: ["platform-tenants"] });
+  };
+
+  return { ...query, save, applyPlan, grantComplimentary, grantAllModules };
 }
