@@ -31,6 +31,8 @@ export type PortalModuleDef = {
   path: string;
   /** Actions enabled for this module in the permission matrix */
   actions: PermissionAction[];
+  categoryKey?: string;
+  categoryLabel?: string;
 };
 
 export type PortalCategoryDef = {
