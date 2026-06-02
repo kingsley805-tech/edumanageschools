@@ -16,10 +16,13 @@ export function isMissingSchemaError(error: SupabaseErrorLike): boolean {
   return (
     code === "PGRST202" ||
     code === "PGRST205" ||
+    code === "PGRST204" ||
     code === "42883" ||
     error.status === 404 ||
     msg.includes("could not find the function") ||
     msg.includes("could not find the table") ||
+    msg.includes("could not find the column") ||
+    msg.includes("column") && msg.includes("does not exist") ||
     msg.includes("does not exist") ||
     msg.includes("get_organization_subscription_access")
   );
@@ -161,7 +164,22 @@ async function loadAccessFromSubscriptionTable(
     .maybeSingle();
 
   if (subErr) {
-    if (isMissingSchemaError(subErr)) return LEGACY_SUBSCRIPTION_ACCESS;
+    // Schema may be partially applied (table exists, newer columns missing).
+    if (isMissingSchemaError(subErr)) {
+      const { data: subMinimal, error: minimalErr } = await supabase
+        .from("school_subscriptions")
+        .select("status, plan_id, expires_at, started_at")
+        .eq("school_id", schoolId)
+        .maybeSingle();
+
+      if (minimalErr) {
+        if (isMissingSchemaError(minimalErr)) return LEGACY_SUBSCRIPTION_ACCESS;
+        throw minimalErr;
+      }
+
+      if (!subMinimal) return LEGACY_SUBSCRIPTION_ACCESS;
+      return computeAccessFromRow(subMinimal);
+    }
     throw subErr;
   }
 

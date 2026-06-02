@@ -14,6 +14,8 @@ import {
   partitionPermissionCodes,
   SUBSCRIPTION_MODULE_DENIED,
 } from "@/platform/lib/portalModuleEntitlements";
+import * as permissionCatalog from "@/lib/rbac/permissionCatalog";
+import type { PortalModuleDef } from "@/lib/rbac/permissionCatalog";
 import {
   applyDefaultPermissionsForRole,
   assignRoleToUser,
@@ -80,6 +82,17 @@ interface StaffUser {
 
 const PROTECTED_SLUGS = new Set(["super_admin", "school_admin"]);
 
+/** Avoids hard crash if permissionCatalog export is missing after refactors. */
+function getPortalModulesCatalog(fallback: PortalModuleDef[] = []): PortalModuleDef[] {
+  try {
+    const mods = permissionCatalog.ALL_PORTAL_MODULES;
+    if (Array.isArray(mods) && mods.length > 0) return mods;
+  } catch {
+    /* broken or partial catalog module */
+  }
+  return fallback;
+}
+
 export default function PermissionManagement() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -120,17 +133,22 @@ export default function PermissionManagement() {
     [staff],
   );
 
+  const portalModules = useMemo(
+    () => getPortalModulesCatalog(entitledModules),
+    [entitledModules],
+  );
+
   const filteredModuleCodes = useMemo(() => {
     const q = moduleSearch.trim().toLowerCase();
     const mods = !q
-      ? ALL_PORTAL_MODULES
-      : ALL_PORTAL_MODULES.filter(
+      ? portalModules
+      : portalModules.filter(
           (m) =>
-            m.label.toLowerCase().includes(q) ||
-            m.categoryLabel.toLowerCase().includes(q),
+            (m.label ?? "").toLowerCase().includes(q) ||
+            (m.categoryLabel ?? "").toLowerCase().includes(q),
         );
     return mods.flatMap((m) => modulePermissionCodes(m));
-  }, [moduleSearch]);
+  }, [moduleSearch, portalModules]);
 
   const loadStaff = useCallback(async () => {
     if (!schoolId) return;
