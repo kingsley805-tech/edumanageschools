@@ -2170,6 +2170,85 @@ export type Database = {
           },
         ]
       }
+      organization_subscription_payments: {
+        Row: {
+          amount: number
+          billing_cycle: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          metadata: Json
+          paid_at: string | null
+          payment_reference: string
+          payment_status: string | null
+          paystack_transaction_id: string | null
+          period_end: string | null
+          period_start: string | null
+          plan_id: string
+          school_id: string
+          status: string
+        }
+        Insert: {
+          amount: number
+          billing_cycle: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          metadata?: Json
+          paid_at?: string | null
+          payment_reference: string
+          payment_status?: string | null
+          paystack_transaction_id?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          plan_id: string
+          school_id: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          billing_cycle?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          metadata?: Json
+          paid_at?: string | null
+          payment_reference?: string
+          payment_status?: string | null
+          paystack_transaction_id?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          plan_id?: string
+          school_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_subscription_payments_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_subscription_payments_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview_v"
+            referencedColumns: ["school_id"]
+          },
+          {
+            foreignKeyName: "organization_subscription_payments_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       parent_student_links: {
         Row: {
           created_at: string | null
@@ -2551,6 +2630,61 @@ export type Database = {
           sort_order?: number
         }
         Relationships: []
+      }
+      platform_subscription_checkouts: {
+        Row: {
+          amount: number
+          billing_cycle: string
+          consumed_at: string | null
+          created_at: string
+          created_by: string | null
+          plan_id: string
+          reference: string
+          school_id: string
+        }
+        Insert: {
+          amount: number
+          billing_cycle: string
+          consumed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          plan_id: string
+          reference: string
+          school_id: string
+        }
+        Update: {
+          amount?: number
+          billing_cycle?: string
+          consumed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          plan_id?: string
+          reference?: string
+          school_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_subscription_checkouts_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_subscription_checkouts_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview_v"
+            referencedColumns: ["school_id"]
+          },
+          {
+            foreignKeyName: "platform_subscription_checkouts_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -3313,14 +3447,21 @@ export type Database = {
       }
       school_subscriptions: {
         Row: {
+          amount_paid: number | null
+          billing_cycle: string | null
           block_login_on_expiry: boolean
           created_at: string
           expires_at: string | null
+          grace_period_ends_at: string | null
           id: string
+          locked_at: string | null
           monthly_revenue: number
           notes: string | null
+          payment_reference: string | null
+          paystack_transaction_id: string | null
           plan_id: string | null
           read_only_on_expiry: boolean
+          reminder_day: number
           renewed_at: string | null
           school_id: string
           started_at: string
@@ -3331,14 +3472,21 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          amount_paid?: number | null
+          billing_cycle?: string | null
           block_login_on_expiry?: boolean
           created_at?: string
           expires_at?: string | null
+          grace_period_ends_at?: string | null
           id?: string
+          locked_at?: string | null
           monthly_revenue?: number
           notes?: string | null
+          payment_reference?: string | null
+          paystack_transaction_id?: string | null
           plan_id?: string | null
           read_only_on_expiry?: boolean
+          reminder_day?: number
           renewed_at?: string | null
           school_id: string
           started_at?: string
@@ -3349,14 +3497,21 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          amount_paid?: number | null
+          billing_cycle?: string | null
           block_login_on_expiry?: boolean
           created_at?: string
           expires_at?: string | null
+          grace_period_ends_at?: string | null
           id?: string
+          locked_at?: string | null
           monthly_revenue?: number
           notes?: string | null
+          payment_reference?: string | null
+          paystack_transaction_id?: string | null
           plan_id?: string | null
           read_only_on_expiry?: boolean
+          reminder_day?: number
           renewed_at?: string | null
           school_id?: string
           started_at?: string
@@ -3753,6 +3908,51 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json
+          id: string
+          payment_reference: string | null
+          school_id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json
+          id?: string
+          payment_reference?: string | null
+          school_id: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          payment_reference?: string | null
+          school_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_audit_log_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview_v"
+            referencedColumns: ["school_id"]
+          },
+          {
+            foreignKeyName: "subscription_audit_log_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]
@@ -4516,6 +4716,15 @@ export type Database = {
       }
     }
     Functions: {
+      activate_organization_subscription: {
+        Args: {
+          p_amount?: number
+          p_payment_status?: string
+          p_paystack_transaction_id?: string
+          p_reference: string
+        }
+        Returns: Json
+      }
       apply_subscription_plan_to_school: {
         Args: {
           p_expires_at?: string
@@ -4524,6 +4733,10 @@ export type Database = {
           p_status?: Database["public"]["Enums"]["subscription_status"]
         }
         Returns: Json
+      }
+      apply_subscription_plan_to_school_internal: {
+        Args: { p_plan_id: string; p_school_id: string }
+        Returns: undefined
       }
       can_manage_role_permissions: {
         Args: { _school_id?: string; _user_id: string }
@@ -4547,6 +4760,10 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      get_organization_subscription_access: {
+        Args: { p_school_id: string }
+        Returns: Json
       }
       get_parent_children_user_ids: {
         Args: { _parent_user_id: string }
@@ -4589,6 +4806,15 @@ export type Database = {
         Args: { p_school_id: string }
         Returns: Json
       }
+      grant_complimentary_subscription: {
+        Args: {
+          p_billing_cycle?: string
+          p_expires_at?: string
+          p_plan_id: string
+          p_school_id: string
+        }
+        Returns: Json
+      }
       has_permission: {
         Args: {
           _permission_code: string
@@ -4618,9 +4844,28 @@ export type Database = {
         Args: { p_admission_numbers: string[] }
         Returns: Json
       }
+      log_subscription_audit: {
+        Args: {
+          p_action: string
+          p_details?: Json
+          p_payment_reference?: string
+          p_school_id: string
+          p_user_id?: string
+        }
+        Returns: undefined
+      }
       map_register_status_to_legacy: {
         Args: { p_status: string }
         Returns: string
+      }
+      notify_school_admins_subscription: {
+        Args: {
+          p_body: string
+          p_data?: Json
+          p_school_id: string
+          p_title: string
+        }
+        Returns: number
       }
       parent_can_view_teacher: {
         Args: { parent_user_id: string; teacher_id: string }
@@ -4664,6 +4909,7 @@ export type Database = {
         Args: { p_action: string; p_comment?: string; p_register_id: string }
         Returns: undefined
       }
+      run_subscription_lifecycle_batch: { Args: never; Returns: Json }
       save_role_permissions: {
         Args: { p_permission_codes: string[]; p_role_id: string }
         Returns: Json
@@ -4787,6 +5033,8 @@ export type Database = {
         | "suspended"
         | "expired"
         | "cancelled"
+        | "pending"
+        | "locked"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -4965,6 +5213,8 @@ export const Constants = {
         "suspended",
         "expired",
         "cancelled",
+        "pending",
+        "locked",
       ],
     },
   },
