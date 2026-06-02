@@ -6,6 +6,7 @@ import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { ModuleEntitlementRow } from "@/platform/lib/types";
 import { moduleByPath } from "@/lib/rbac/permissionCatalog";
+import { isPathGatedByPlatformPackage } from "@/platform/lib/portalModuleEntitlements";
 import { isMissingSchemaError } from "@/subscription/lib/fetchOrganizationSubscriptionAccess";
 import { useOrganizationSubscription } from "@/subscription/hooks/useOrganizationSubscription";
 
@@ -20,7 +21,7 @@ function portalKeysForPath(path: string): string[] {
 
 export function useSchoolEntitlements(schoolId?: string | null) {
   const { currentSchool } = useSchoolInfo();
-  const { isSuperAdmin } = usePermissions();
+  const { isSuperAdmin, isSchoolAdmin } = usePermissions();
   const sid = schoolId ?? currentSchool?.id ?? null;
   const queryClient = useQueryClient();
   const { access: subscriptionAccess, loading: subscriptionLoading, blocked: subscriptionBlocked } =
@@ -87,9 +88,18 @@ export function useSchoolEntitlements(schoolId?: string | null) {
   const entitlementsInitialLoading = Boolean(sid) && isPending && data === undefined;
   const subscriptionInitialLoading = subscriptionLoading && !subscriptionAccess;
 
+  const licensablePortalKeys = useMemo(() => {
+    if (!data?.rows?.length) return null;
+    const keys = new Set<string>();
+    for (const row of data.rows) {
+      if (row.portal_module_key) keys.add(row.portal_module_key);
+    }
+    return keys;
+  }, [data]);
+
   const enabledPortalKeys = useMemo(() => {
     if (!data?.rows) return null;
-    if (isSuperAdmin) return null;
+    if (isSuperAdmin || isSchoolAdmin) return null;
     if (!data.enforced) return null;
     const keys = new Set<string>();
     for (const row of data.rows) {
@@ -98,20 +108,21 @@ export function useSchoolEntitlements(schoolId?: string | null) {
       }
     }
     return keys;
-  }, [data, isSuperAdmin]);
+  }, [data, isSuperAdmin, isSchoolAdmin]);
 
   const isModuleEnabledForPath = useCallback(
     (path: string) => {
-      if (isSuperAdmin || !enabledPortalKeys) return true;
+      if (isSuperAdmin || isSchoolAdmin || !enabledPortalKeys) return true;
+      if (!isPathGatedByPlatformPackage(path, licensablePortalKeys)) return true;
       const portalKeys = portalKeysForPath(path);
       if (!portalKeys.length) return true;
       return portalKeys.some((k) => enabledPortalKeys.has(k));
     },
-    [enabledPortalKeys, isSuperAdmin],
+    [enabledPortalKeys, isSuperAdmin, isSchoolAdmin, licensablePortalKeys],
   );
 
   const isWritable = useMemo(() => {
-    if (isSuperAdmin) return true;
+    if (isSuperAdmin || isSchoolAdmin) return true;
     const access = subscriptionAccess as
       | { can_use_platform?: boolean; access_state?: string }
       | null
@@ -124,7 +135,7 @@ export function useSchoolEntitlements(schoolId?: string | null) {
     if (st === "active" || st === "trial") return true;
     if (st === "expired" && data.subscription.read_only_on_expiry) return false;
     return !["suspended", "expired", "cancelled", "locked", "pending"].includes(st);
-  }, [data, subscriptionAccess, isSuperAdmin]);
+  }, [data, subscriptionAccess, isSuperAdmin, isSchoolAdmin]);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: [ENTITLEMENTS_KEY, sid] });
@@ -140,6 +151,7 @@ export function useSchoolEntitlements(schoolId?: string | null) {
     subscriptionBlocked,
     enforced: data?.enforced ?? false,
     enabledPortalKeys,
+    licensablePortalKeys,
     isModuleEnabledForPath,
     isWritable,
     invalidate,

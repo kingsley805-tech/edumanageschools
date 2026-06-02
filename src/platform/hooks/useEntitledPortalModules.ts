@@ -6,12 +6,12 @@ import { useSchoolEntitlements } from "@/platform/hooks/useSchoolEntitlements";
 
 /** Portal modules visible to the current user for RBAC assignment UI. */
 export function useEntitledPortalModules() {
-  const { isSuperAdmin } = usePermissions();
+  const { isSuperAdmin, isSchoolAdmin } = usePermissions();
   const { enabledPortalKeys, enforced, loading } = useSchoolEntitlements();
 
   const entitledModules = useMemo(
-    () => filterPortalModulesByEntitlement(enabledPortalKeys, isSuperAdmin),
-    [enabledPortalKeys, isSuperAdmin],
+    () => filterPortalModulesByEntitlement(enabledPortalKeys, isSuperAdmin, isSchoolAdmin),
+    [enabledPortalKeys, isSuperAdmin, isSchoolAdmin],
   );
 
   return {

@@ -146,6 +146,7 @@ export const ProtectedRoute = ({
 
   const moduleNotLicensed =
     !isSuperAdmin &&
+    !isSchoolAdmin &&
     usesPortalPathGuard &&
     !isSubscriptionAllowedPath(location.pathname) &&
     !isModuleEnabledForPath(location.pathname);

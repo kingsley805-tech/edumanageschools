@@ -42,7 +42,7 @@ export function usePortalAccess() {
     if (hasAdminNavAccess || can(permissionCode("billing_payments", "view"))) {
       built = ensurePaymentGatewaysInNav(built);
     }
-    if (hasFullAccess || !enabledPortalKeys) return built;
+    if (hasFullAccess || isSchoolAdmin || !enabledPortalKeys) return built;
     return built
       .map((entry) => {
         if (!("items" in entry)) return entry;
@@ -57,7 +57,7 @@ export function usePortalAccess() {
         };
       })
       .filter((entry) => !("items" in entry) || entry.items.length > 0);
-  }, [can, hasAdminNavAccess, loading, hasFullAccess, enabledPortalKeys]);
+  }, [can, hasAdminNavAccess, loading, hasFullAccess, isSchoolAdmin, enabledPortalKeys]);
 
   const canAccessCurrentRoute = useMemo(() => {
     if (hasFullAccess) return true;
