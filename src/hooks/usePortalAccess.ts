@@ -37,16 +37,19 @@ export function usePortalAccess() {
     }
     if (hasFullAccess || !enabledPortalKeys) return built;
     return built
-      .map((group) => ({
-        ...group,
-        items: group.items.filter((item) => {
-          const mod = moduleByPath(item.path);
-          if (!mod) return true;
-          if (mod.key === "organization_subscription") return true;
-          return enabledPortalKeys.has(mod.key);
-        }),
-      }))
-      .filter((group) => group.items.length > 0);
+      .map((entry) => {
+        if (!("items" in entry)) return entry;
+        return {
+          ...entry,
+          items: entry.items.filter((item) => {
+            const mod = moduleByPath(item.path);
+            if (!mod) return true;
+            if (mod.key === "organization_subscription") return true;
+            return enabledPortalKeys.has(mod.key);
+          }),
+        };
+      })
+      .filter((entry) => !("items" in entry) || entry.items.length > 0);
   }, [can, hasAdminNavAccess, loading, hasFullAccess, enabledPortalKeys]);
 
   const canAccessCurrentRoute = useMemo(() => {
