@@ -23,10 +23,10 @@ export function useSchoolEntitlements(schoolId?: string | null) {
   const { isSuperAdmin } = usePermissions();
   const sid = schoolId ?? currentSchool?.id ?? null;
   const queryClient = useQueryClient();
-  const { access: subscriptionAccess, loading: subscriptionLoading } =
+  const { access: subscriptionAccess, loading: subscriptionLoading, blocked: subscriptionBlocked } =
     useOrganizationSubscription(sid);
 
-  const { data, isLoading } = useQuery({
+  const { data, isPending, isFetching } = useQuery({
     queryKey: [ENTITLEMENTS_KEY, sid],
     enabled: Boolean(sid),
     queryFn: async () => {
@@ -81,7 +81,11 @@ export function useSchoolEntitlements(schoolId?: string | null) {
       if (isMissingSchemaError(error as { code?: string; message?: string })) return false;
       return failureCount < 1;
     },
+    staleTime: 5 * 60 * 1000,
   });
+
+  const entitlementsInitialLoading = Boolean(sid) && isPending && data === undefined;
+  const subscriptionInitialLoading = subscriptionLoading && !subscriptionAccess;
 
   const enabledPortalKeys = useMemo(() => {
     if (!data?.rows) return null;
@@ -125,10 +129,12 @@ export function useSchoolEntitlements(schoolId?: string | null) {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: [ENTITLEMENTS_KEY, sid] });
 
   return {
-    loading: isLoading || subscriptionLoading,
+    loading: entitlementsInitialLoading || subscriptionInitialLoading,
+    isFetching,
     rows: data?.rows ?? [],
     subscription: data?.subscription ?? null,
     access: subscriptionAccess,
+    subscriptionBlocked,
     enforced: data?.enforced ?? false,
     enabledPortalKeys,
     isModuleEnabledForPath,

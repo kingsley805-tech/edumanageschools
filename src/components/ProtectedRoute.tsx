@@ -6,7 +6,6 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { PORTAL_ROLE_ROUTES } from "@/lib/permissions";
 import { requiredViewPermissionForPath } from "@/lib/rbac/routeGuards";
 import { useSchoolEntitlements } from "@/platform/hooks/useSchoolEntitlements";
-import { useOrganizationSubscription } from "@/subscription/hooks/useOrganizationSubscription";
 import { isSubscriptionAllowedPath } from "@/subscription/lib/subscriptionAccess";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ShieldAlert } from "lucide-react";
@@ -37,9 +36,12 @@ export const ProtectedRoute = ({
   const { role, roles, loading: roleLoading, isStudent } = useUserRole();
   const { hasPermission, hasAnyPermission, loading: permLoading, isSuperAdmin, isSchoolAdmin } =
     usePermissions();
-  const { isModuleEnabledForPath, loading: entLoading } = useSchoolEntitlements();
-  const { blocked: subscriptionBlocked, loading: subLoading, isSuperAdmin: subSuperBypass } =
-    useOrganizationSubscription();
+  const {
+    isModuleEnabledForPath,
+    loading: entLoading,
+    subscriptionBlocked,
+  } = useSchoolEntitlements();
+  const subSuperBypass = isSuperAdmin;
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -88,7 +90,8 @@ export const ProtectedRoute = ({
     }
   }, [role, roles, roleLoading, allowedRoles, navigate, isStudent, location.pathname]);
 
-  const loading = authLoading || roleLoading || permLoading || entLoading || subLoading;
+  /** Core auth/RBAC first; entitlements load once then stay cached (no spinner on every route). */
+  const loading = authLoading || roleLoading || permLoading || entLoading;
 
   if (loading) {
     return (

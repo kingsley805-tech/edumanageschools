@@ -15,7 +15,7 @@ export const usePermissions = () => {
   const { role: portalRole, loading: roleLoading, isStudent } = useUserRole();
   const [permissions, setPermissions] = useState<Set<string>>(new Set());
   const [schoolId, setSchoolId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => Boolean(user));
 
   const fetchPermissions = useCallback(async () => {
     if (!user) {

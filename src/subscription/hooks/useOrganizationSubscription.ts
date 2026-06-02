@@ -45,9 +45,12 @@ export function useOrganizationSubscription(schoolId?: string | null) {
   const access = query.data ?? null;
   const blocked = Boolean(access?.has_subscription_row && !access?.can_use_platform && !isSuperAdmin);
 
+  const initialLoading =
+    (schoolLoading && !sid) || (query.isPending && access === null && Boolean(sid) && !isSuperAdmin);
+
   return {
     ...query,
-    loading: schoolLoading || query.isLoading,
+    loading: initialLoading,
     access,
     blocked,
     invalidate,

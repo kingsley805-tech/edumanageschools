@@ -15,8 +15,15 @@ export function usePortalAccess() {
 
   const hasFullAccess = isSuperAdmin || role === "super_admin";
   const hasAdminNavAccess = hasFullAccess || isSchoolAdmin || role === "admin";
-  const { enabledPortalKeys, isModuleEnabledForPath, isWritable, enforced, subscription, loading: entitlementsLoading } =
-    useSchoolEntitlements();
+  const {
+    enabledPortalKeys,
+    isModuleEnabledForPath,
+    isWritable,
+    enforced,
+    subscription,
+    loading: entitlementsLoading,
+    rows: entitlementRows,
+  } = useSchoolEntitlements();
 
   const can = useCallback(
     (code: string) => hasFullAccess || hasPermission(code),
@@ -78,7 +85,7 @@ export function usePortalAccess() {
   }, [hasAdminNavAccess, hasFullAccess, location.pathname, can, isModuleEnabledForPath]);
 
   return {
-    loading: loading || entitlementsLoading,
+    loading: loading || (entitlementsLoading && entitlementRows.length === 0),
     hasFullAccess,
     can,
     canModule,

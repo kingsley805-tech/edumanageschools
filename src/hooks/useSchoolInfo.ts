@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchSchoolById, resolveUserSchoolId } from "@/lib/schoolFetch";
 
-interface School {
+export interface SchoolInfo {
   id: string;
   school_name: string;
   school_code: string;
@@ -12,46 +12,35 @@ interface School {
   theme_accent?: string | null;
 }
 
+export const SCHOOL_INFO_QUERY_KEY = "school-info";
+
 export const useSchoolInfo = () => {
   const { user } = useAuth();
-  const [currentSchool, setCurrentSchool] = useState<School | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (user) {
-      fetchSchoolInfo();
-    } else {
-      setCurrentSchool(null);
-      setLoading(false);
-    }
-  }, [user]);
-
-  const fetchSchoolInfo = async () => {
-    if (!user?.id) return;
-    try {
-      const schoolId = await resolveUserSchoolId(user.id);
-      if (!schoolId) {
-        setCurrentSchool(null);
-        return;
-      }
+  const query = useQuery({
+    queryKey: [SCHOOL_INFO_QUERY_KEY, user?.id],
+    enabled: Boolean(user?.id),
+    queryFn: async (): Promise<SchoolInfo | null> => {
+      const schoolId = await resolveUserSchoolId(user!.id);
+      if (!schoolId) return null;
       const school = await fetchSchoolById(schoolId);
-      if (school) {
-        setCurrentSchool({
-          id: school.id,
-          school_name: school.school_name,
-          school_code: school.school_code,
-          logo_url: school.logo_url,
-          theme_primary: school.theme_primary,
-          theme_secondary: school.theme_secondary,
-          theme_accent: school.theme_accent,
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching school info:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      if (!school) return null;
+      return {
+        id: school.id,
+        school_name: school.school_name,
+        school_code: school.school_code,
+        logo_url: school.logo_url,
+        theme_primary: school.theme_primary,
+        theme_secondary: school.theme_secondary,
+        theme_accent: school.theme_accent,
+      };
+    },
+    staleTime: 10 * 60 * 1000,
+  });
 
-  return { currentSchool, loading, refetch: fetchSchoolInfo };
+  return {
+    currentSchool: query.data ?? null,
+    loading: query.isPending && query.data === undefined,
+    refetch: query.refetch,
+  };
 };

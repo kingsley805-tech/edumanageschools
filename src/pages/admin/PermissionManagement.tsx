@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import DashboardLayout from "@/components/DashboardLayout";
 import { RolesPermissionsPanel } from "@/components/admin/RolesPermissionsPanel";
 import { Button } from "@/components/ui/button";
@@ -81,6 +82,7 @@ interface StaffUser {
 }
 
 const PROTECTED_SLUGS = new Set(["super_admin", "school_admin"]);
+const PERMISSION_MGMT_QUERY_KEY = "permission-management";
 
 /** Avoids hard crash if permissionCatalog export is missing after refactors. */
 function getPortalModulesCatalog(fallback: PortalModuleDef[] = []): PortalModuleDef[] {
@@ -105,7 +107,6 @@ export default function PermissionManagement() {
   const [selectedRoleId, setSelectedRoleId] = useState("");
   const [selectedCodes, setSelectedCodes] = useState<Set<string>>(new Set());
   const [dirty, setDirty] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [moduleSearch, setModuleSearch] = useState("");
   const [newRoleName, setNewRoleName] = useState("");
@@ -150,45 +151,6 @@ export default function PermissionManagement() {
     return mods.flatMap((m) => modulePermissionCodes(m));
   }, [moduleSearch, portalModules]);
 
-  const loadStaff = useCallback(async () => {
-    if (!schoolId) return;
-    const staffUsers = await fetchStaffPortalUsers(schoolId);
-    const staffIds = staffUsers.map((s) => s.id);
-    if (!staffIds.length) {
-      setStaff([]);
-      return;
-    }
-    let rbacMap = new Map<string, { roleId: string | null; roleName: string | null }>();
-    if (await isRbacAvailable()) {
-      const { data: assignments } = await supabase
-        .from("user_role_assignments")
-        .select("user_id, role_id, roles(id, name)")
-        .eq("school_id", schoolId)
-        .in("user_id", staffIds);
-      rbacMap = new Map(
-        (assignments ?? []).map((a) => [
-          a.user_id,
-          {
-            roleId: a.role_id ?? null,
-            roleName: (a.roles as { name: string } | null)?.name ?? null,
-          },
-        ]),
-      );
-    }
-    setStaff(
-      staffUsers.map((p) => ({
-        id: p.id,
-        full_name: p.full_name,
-        email: p.email,
-        portal_role: p.portal_role,
-        employee_no: p.employee_no,
-        avatar_url: p.avatar_url,
-        rbac_role_id: rbacMap.get(p.id)?.roleId ?? null,
-        rbac_role_name: rbacMap.get(p.id)?.roleName ?? null,
-      })),
-    );
-  }, [schoolId]);
-
   useEffect(() => {
     if (!teacherStaff.length) {
       setSelectedTeacherId("");
@@ -218,44 +180,110 @@ export default function PermissionManagement() {
     return roleRows;
   }, [schoolId]);
 
+  const bootstrapQuery = useQuery({
+    queryKey: [PERMISSION_MGMT_QUERY_KEY, "bootstrap", schoolId],
+    enabled: Boolean(schoolId) && rbacReady !== false,
+    queryFn: async () => {
+      const [roleRows, idMap] = await Promise.all([fetchRoles(schoolId!), fetchPermissionIdMap()]);
+      return { roleRows, idMap };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const staffQuery = useQuery({
+    queryKey: [PERMISSION_MGMT_QUERY_KEY, "staff", schoolId],
+    enabled: Boolean(schoolId),
+    queryFn: async () => {
+      if (!schoolId) return [] as StaffUser[];
+      const staffUsers = await fetchStaffPortalUsers(schoolId);
+      const staffIds = staffUsers.map((s) => s.id);
+      if (!staffIds.length) return [] as StaffUser[];
+
+      let rbacMap = new Map<string, { roleId: string | null; roleName: string | null }>();
+      if (await isRbacAvailable()) {
+        const { data: assignments } = await supabase
+          .from("user_role_assignments")
+          .select("user_id, role_id, roles(id, name)")
+          .eq("school_id", schoolId)
+          .in("user_id", staffIds);
+        rbacMap = new Map(
+          (assignments ?? []).map((a) => [
+            a.user_id,
+            {
+              roleId: a.role_id ?? null,
+              roleName: (a.roles as { name: string } | null)?.name ?? null,
+            },
+          ]),
+        );
+      }
+      return staffUsers.map((p) => ({
+        id: p.id,
+        full_name: p.full_name,
+        email: p.email,
+        portal_role: p.portal_role,
+        employee_no: p.employee_no,
+        avatar_url: p.avatar_url,
+        rbac_role_id: rbacMap.get(p.id)?.roleId ?? null,
+        rbac_role_name: rbacMap.get(p.id)?.roleName ?? null,
+      }));
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const loading =
+    rbacReady === null ||
+    (bootstrapQuery.isPending && !bootstrapQuery.data) ||
+    (staffQuery.isPending && staffQuery.data === undefined && Boolean(schoolId));
+
+  const loadStaff = useCallback(async () => {
+    const res = await staffQuery.refetch();
+    if (res.data) setStaff(res.data);
+  }, [staffQuery]);
+
   useEffect(() => {
     void isRbacAvailable().then(setRbacReady);
   }, []);
+
+  useEffect(() => {
+    if (!bootstrapQuery.data) return;
+    const { roleRows, idMap } = bootstrapQuery.data;
+    setRoles(roleRows);
+    setPermissionIdMap(idMap);
+    if (roleRows.length) {
+      setSelectedRoleId((current) => {
+        if (current && roleRows.some((r) => r.id === current)) return current;
+        const preferred =
+          roleRows.find((r) => r.slug === "accountant") ??
+          roleRows.find((r) => r.slug === "teacher") ??
+          roleRows[0];
+        return preferred.id;
+      });
+    }
+  }, [bootstrapQuery.data]);
+
+  useEffect(() => {
+    if (staffQuery.data) setStaff(staffQuery.data);
+  }, [staffQuery.data]);
+
+  useEffect(() => {
+    if (bootstrapQuery.isError) {
+      const message =
+        bootstrapQuery.error instanceof Error
+          ? bootstrapQuery.error.message
+          : "Failed to load permission data";
+      toast({ title: message, variant: "destructive" });
+    }
+  }, [bootstrapQuery.isError, bootstrapQuery.error, toast]);
 
   const handleRecheckRbac = useCallback(async () => {
     resetRbacAvailabilityProbe();
     const ok = await isRbacAvailable();
     setRbacReady(ok);
     if (ok) {
-      await loadRoles();
-      await loadStaff();
+      await bootstrapQuery.refetch();
+      await staffQuery.refetch();
     }
-  }, [loadRoles, loadStaff]);
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const roleRows = await loadRoles();
-        if (roleRows.length) {
-          setSelectedRoleId((current) => {
-            if (current && roleRows.some((r) => r.id === current)) return current;
-            const preferred =
-              roleRows.find((r) => r.slug === "accountant") ??
-              roleRows.find((r) => r.slug === "teacher") ??
-              roleRows[0];
-            return preferred.id;
-          });
-        }
-        await loadStaff();
-      } catch (e) {
-        const message = e instanceof Error ? e.message : "Failed to load permission data";
-        toast({ title: message, variant: "destructive" });
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [loadRoles, loadStaff, toast]);
+  }, [bootstrapQuery, staffQuery]);
 
   useEffect(() => {
     if (!selectedRoleId) return;
