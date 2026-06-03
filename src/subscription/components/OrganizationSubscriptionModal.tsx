@@ -4,11 +4,13 @@ import { useNavigate } from "react-router-dom";
 import { Check, CreditCard, Loader2, Lock, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { PaystackEdgeFunctionAlert } from "@/components/billing/PaystackEdgeFunctionAlert";
+import { invokeEdgeFunction, isEdgeFunctionUnreachable } from "@/lib/invokeEdgeFunction";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   useOrganizationSubscription,
   useSubscriptionPlansPublic,
@@ -19,12 +21,15 @@ type BillingCycle = "monthly" | "annual";
 
 type Props = {
   forceOpen?: boolean;
+  /** Render plan picker on the subscription page (not only in lock overlay). */
+  inline?: boolean;
   onActivated?: () => void;
   access?: OrganizationSubscriptionAccess | null;
 };
 
 export default function OrganizationSubscriptionModal({
   forceOpen = false,
+  inline = false,
   onActivated,
   access: accessProp,
 }: Props) {
@@ -32,14 +37,27 @@ export default function OrganizationSubscriptionModal({
   const { signOut } = useAuth();
   const { access: hookAccess, invalidate, blocked } = useOrganizationSubscription();
   const access = accessProp ?? hookAccess;
-  const { data: plans = [], isLoading: plansLoading } = useSubscriptionPlansPublic();
+  const {
+    data: plans = [],
+    isLoading: plansLoading,
+    isError: plansError,
+    error: plansErrorDetail,
+  } = useSubscriptionPlansPublic();
 
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [paystackDeployed, setPaystackDeployed] = useState<boolean | null>(null);
+  const [paystackProbeDetail, setPaystackProbeDetail] = useState<string | undefined>();
 
-  const visible = forceOpen || blocked || access?.access_state === "locked";
+  const visible =
+    inline || forceOpen || blocked || access?.access_state === "locked" || access?.access_state === "pending_payment";
+
+  const displayPlans = useMemo(
+    () => plans.filter((p) => !p.is_custom || Number(p.price_monthly) === 0),
+    [plans],
+  );
 
   const selectedPlan = useMemo(
     () => plans.find((p) => p.id === selectedPlanId) ?? null,
@@ -54,6 +72,31 @@ export default function OrganizationSubscriptionModal({
   }, [selectedPlan, billingCycle]);
 
   useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        await invokeEdgeFunction("paystack", { action: "gateway-list" });
+        if (!cancelled) {
+          setPaystackDeployed(true);
+          setPaystackProbeDetail(undefined);
+        }
+      } catch (e) {
+        if (cancelled) return;
+        if (isEdgeFunctionUnreachable(e)) {
+          setPaystackDeployed(false);
+          setPaystackProbeDetail(e instanceof Error ? e.message : undefined);
+        } else {
+          setPaystackDeployed(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [visible]);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const ref = params.get("reference") || params.get("trxref");
     if (!ref || !visible) return;
@@ -63,11 +106,10 @@ export default function OrganizationSubscriptionModal({
   const confirmPayment = async (reference: string) => {
     setVerifying(true);
     try {
-      const { data, error } = await supabase.functions.invoke("paystack", {
-        body: { action: "platform-subscription-confirm", reference },
+      const data = await invokeEdgeFunction<{ ok?: boolean; error?: string }>("paystack", {
+        action: "platform-subscription-confirm",
+        reference,
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
       if (data?.ok) {
         toast.success("Subscription activated! Welcome to your dashboard.");
         await invalidate();
@@ -90,22 +132,25 @@ export default function OrganizationSubscriptionModal({
     setPaying(true);
     try {
       const callbackUrl = `${window.location.origin}/admin/subscription`;
-      const { data, error } = await supabase.functions.invoke("paystack", {
-        body: {
-          action: "platform-subscription-init",
-          plan_id: selectedPlanId,
-          billing_cycle: billingCycle,
-          callback_url: callbackUrl,
-        },
+      const data = await invokeEdgeFunction<{
+        authorization_url?: string;
+        error?: string;
+      }>("paystack", {
+        action: "platform-subscription-init",
+        plan_id: selectedPlanId,
+        billing_cycle: billingCycle,
+        callback_url: callbackUrl,
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
       if (data?.authorization_url) {
         window.location.href = data.authorization_url;
         return;
       }
       throw new Error("Could not start payment");
     } catch (e) {
+      if (isEdgeFunctionUnreachable(e)) {
+        setPaystackDeployed(false);
+        setPaystackProbeDetail(e instanceof Error ? e.message : undefined);
+      }
       toast.error(e instanceof Error ? e.message : "Payment failed to start");
     } finally {
       setPaying(false);
@@ -113,6 +158,155 @@ export default function OrganizationSubscriptionModal({
   };
 
   if (!visible) return null;
+
+  const planGrid = (
+    <>
+      {plansLoading || verifying ? (
+        <div className="flex justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : plansError ? (
+        <Alert variant="destructive">
+          <AlertTitle>Could not load plans</AlertTitle>
+          <AlertDescription>
+            {plansErrorDetail instanceof Error
+              ? plansErrorDetail.message
+              : "Check your connection or ask the platform owner to enable subscription plans."}
+          </AlertDescription>
+        </Alert>
+      ) : displayPlans.length === 0 ? (
+        <Alert>
+          <AlertTitle>No plans available</AlertTitle>
+          <AlertDescription>
+            No active subscription plans are configured yet. Contact your platform administrator or
+            run the platform SaaS SQL migrations in Supabase.
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {displayPlans.map((plan) => {
+            const planPrice =
+              billingCycle === "annual"
+                ? Number(plan.price_annual)
+                : Number(plan.price_monthly);
+            const selected = selectedPlanId === plan.id;
+            return (
+              <Card
+                key={plan.id}
+                className={`cursor-pointer transition-all ${selected ? "border-primary ring-2 ring-primary/30" : "hover:border-primary/50"}`}
+                onClick={() => setSelectedPlanId(plan.id)}
+              >
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="text-lg">{plan.name}</CardTitle>
+                    {selected ? <Badge>Selected</Badge> : null}
+                  </div>
+                  <CardDescription className="line-clamp-2">{plan.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  <div>
+                    <span className="text-2xl font-bold">GHS {planPrice.toLocaleString()}</span>
+                    <span className="text-muted-foreground">
+                      {" "}
+                      / {billingCycle === "annual" ? "year" : "month"}
+                    </span>
+                  </div>
+                  <ul className="space-y-0.5 text-muted-foreground">
+                    <li>Students: {plan.max_students == null ? "Unlimited" : plan.max_students.toLocaleString()}</li>
+                    <li>Teachers: {plan.max_teachers == null ? "Unlimited" : plan.max_teachers.toLocaleString()}</li>
+                    <li>
+                      Storage:{" "}
+                      {plan.max_storage_gb == null ? "Unlimited" : `${plan.max_storage_gb} GB`}
+                    </li>
+                  </ul>
+                  <ul className="max-h-28 space-y-0.5 overflow-y-auto text-xs">
+                    {(plan.default_modules ?? []).slice(0, 8).map((m: string) => (
+                      <li key={m} className="flex items-center gap-1">
+                        <Check className="h-3 w-3 shrink-0 text-emerald-600" />
+                        {m.replace(/_/g, " ")}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+
+  const planFooter = (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t px-6 py-4">
+      <p className="text-sm text-muted-foreground">
+        {selectedPlan ? (
+          <>
+            <span className="font-medium text-foreground">{selectedPlan.name}</span>
+            {" — "}
+            GHS {price.toLocaleString()} ({billingCycle === "annual" ? "365 days" : "30 days"})
+          </>
+        ) : (
+          "Select a plan to continue"
+        )}
+      </p>
+      <Button
+        size="lg"
+        disabled={
+          !selectedPlanId ||
+          paying ||
+          verifying ||
+          plansLoading ||
+          displayPlans.length === 0 ||
+          paystackDeployed === false
+        }
+        onClick={startPayment}
+      >
+        {paying ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Redirecting to Paystack…
+          </>
+        ) : (
+          "Pay & activate"
+        )}
+      </Button>
+    </div>
+  );
+
+  const billingTabs = (
+    <div className="flex flex-wrap items-center gap-3">
+      <Tabs value={billingCycle} onValueChange={(v) => setBillingCycle(v as BillingCycle)}>
+        <TabsList>
+          <TabsTrigger value="monthly">Monthly (30 days)</TabsTrigger>
+          <TabsTrigger value="annual">Yearly (365 days)</TabsTrigger>
+        </TabsList>
+      </Tabs>
+      <Button variant="link" className="h-auto p-0" onClick={() => navigate("/admin/subscription/history")}>
+        Payment history
+      </Button>
+      <Button variant="link" className="h-auto p-0" onClick={() => navigate("/admin/support")}>
+        Contact support
+      </Button>
+    </div>
+  );
+
+  const paystackAlert =
+    paystackDeployed === false ? (
+      <div className={inline ? "px-6 pt-4" : "px-6 pt-4"}>
+        <PaystackEdgeFunctionAlert detail={paystackProbeDetail} forPlatformSubscription />
+      </div>
+    ) : null;
+
+  if (inline) {
+    return (
+      <div className="space-y-6 rounded-xl border bg-card">
+        {paystackAlert}
+        <div className="border-b px-6 py-4">{billingTabs}</div>
+        <div className="px-6 pb-2">{planGrid}</div>
+        <div className={displayPlans.length === 0 ? "hidden" : ""}>{planFooter}</div>
+      </div>
+    );
+  }
 
   const title =
     access?.access_state === "locked"
@@ -162,112 +356,14 @@ export default function OrganizationSubscriptionModal({
               Log out
             </Button>
           </div>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <Tabs
-              value={billingCycle}
-              onValueChange={(v) => setBillingCycle(v as BillingCycle)}
-            >
-              <TabsList>
-                <TabsTrigger value="monthly">Monthly (30 days)</TabsTrigger>
-                <TabsTrigger value="annual">Yearly (365 days)</TabsTrigger>
-              </TabsList>
-            </Tabs>
-            <Button variant="link" className="h-auto p-0" onClick={() => navigate("/admin/subscription/history")}>
-              Payment history
-            </Button>
-            <Button variant="link" className="h-auto p-0" onClick={() => navigate("/admin/support")}>
-              Contact support
-            </Button>
-          </div>
+          <div className="mt-4">{billingTabs}</div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          {plansLoading || verifying ? (
-            <div className="flex justify-center py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {plans
-                .filter((p) => !p.is_custom || Number(p.price_monthly) === 0)
-                .map((plan) => {
-                  const planPrice =
-                    billingCycle === "annual"
-                      ? Number(plan.price_annual)
-                      : Number(plan.price_monthly);
-                  const selected = selectedPlanId === plan.id;
-                  return (
-                    <Card
-                      key={plan.id}
-                      className={`cursor-pointer transition-all ${selected ? "border-primary ring-2 ring-primary/30" : "hover:border-primary/50"}`}
-                      onClick={() => setSelectedPlanId(plan.id)}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <CardTitle className="text-lg">{plan.name}</CardTitle>
-                          {selected ? <Badge>Selected</Badge> : null}
-                        </div>
-                        <CardDescription className="line-clamp-2">{plan.description}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-3 text-sm">
-                        <div>
-                          <span className="text-2xl font-bold">GHS {planPrice.toLocaleString()}</span>
-                          <span className="text-muted-foreground">
-                            {" "}
-                            / {billingCycle === "annual" ? "year" : "month"}
-                          </span>
-                        </div>
-                        <ul className="space-y-0.5 text-muted-foreground">
-                          <li>Students: {plan.max_students == null ? "Unlimited" : plan.max_students.toLocaleString()}</li>
-                          <li>Teachers: {plan.max_teachers == null ? "Unlimited" : plan.max_teachers.toLocaleString()}</li>
-                          <li>
-                            Storage:{" "}
-                            {plan.max_storage_gb == null ? "Unlimited" : `${plan.max_storage_gb} GB`}
-                          </li>
-                        </ul>
-                        <ul className="max-h-28 space-y-0.5 overflow-y-auto text-xs">
-                          {(plan.default_modules ?? []).slice(0, 8).map((m: string) => (
-                            <li key={m} className="flex items-center gap-1">
-                              <Check className="h-3 w-3 shrink-0 text-emerald-600" />
-                              {m.replace(/_/g, " ")}
-                            </li>
-                          ))}
-                        </ul>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-            </div>
-          )}
-        </div>
+        {paystackAlert}
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t px-6 py-4">
-          <p className="text-sm text-muted-foreground">
-            {selectedPlan ? (
-              <>
-                <span className="font-medium text-foreground">{selectedPlan.name}</span>
-                {" — "}
-                GHS {price.toLocaleString()} ({billingCycle === "annual" ? "365 days" : "30 days"})
-              </>
-            ) : (
-              "Select a plan to continue"
-            )}
-          </p>
-          <Button
-            size="lg"
-            disabled={!selectedPlanId || paying || verifying || plansLoading}
-            onClick={startPayment}
-          >
-            {paying ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Redirecting to Paystack…
-              </>
-            ) : (
-              "Pay & activate"
-            )}
-          </Button>
-        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-4">{planGrid}</div>
+
+        {planFooter}
       </div>
     </div>
   );

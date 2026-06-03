@@ -66,13 +66,26 @@ Then **Settings → API → Reload schema**.
 
 In **Dashboard → Edge Functions → paystack → Secrets**, set:
 
-- `PAYSTACK_SECRET_KEY` — your Paystack secret key  
+- `PAYSTACK_SECRET_KEY` — your Paystack secret key (school fee payments)  
 - `PAYMENT_SECRETS_ENCRYPTION_KEY` — same key used when saving gateway settings in the app (base64 32-byte)
 
 Or via CLI:
 
 ```bash
 supabase secrets set PAYSTACK_SECRET_KEY=sk_live_xxx
+```
+
+## Platform organization subscriptions (`/admin/subscription`)
+
+After deploying `paystack`, also set:
+
+- `PLATFORM_PAYSTACK_SECRET_KEY` — Paystack secret used for **organization** plan checkout (can be the same as `PAYSTACK_SECRET_KEY` for testing)
+- `PLATFORM_PAYSTACK_WEBHOOK_SECRET` — optional; defaults to platform secret
+
+Requires SQL step 2 (`apply-organization-subscription-billing.sql`) for `platform_subscription_checkouts` and related RPCs.
+
+```bash
+supabase secrets set PLATFORM_PAYSTACK_SECRET_KEY=sk_test_xxx --project-ref xbhhpjtwawfawifhpxbe
 ```
 
 ## Verify

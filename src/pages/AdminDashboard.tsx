@@ -192,7 +192,13 @@ const AdminDashboard = () => {
         .order("updated_at", { ascending: false })
         .limit(50);
 
-      if (error) return;
+      if (error) {
+        const code = (error as { code?: string }).code ?? "";
+        const msg = (error.message ?? "").toLowerCase();
+        if (code === "PGRST205" || code === "42P01" || msg.includes("lesson_notes")) return;
+        console.warn("lesson_notes dashboard:", error);
+        return;
+      }
 
       const rows = notes ?? [];
       setLessonNoteStats({

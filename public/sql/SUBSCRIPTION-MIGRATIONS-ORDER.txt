@@ -21,3 +21,8 @@ Mandatory admin lock after signup (step 3):
 Super Admin unlock (step 4):
 - grant_complimentary_subscription on Tenant Detail
 - grant_all_school_module_entitlements (optional step 7)
+
+Edge Functions (fixes paystack 404 on Pay & activate):
+- Deploy: supabase functions deploy paystack --project-ref xbhhpjtwawfawifhpxbe
+- Secrets: PLATFORM_PAYSTACK_SECRET_KEY, PAYMENT_SECRETS_ENCRYPTION_KEY
+- See: supabase/scripts/deploy-edge-functions.md

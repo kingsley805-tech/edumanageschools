@@ -13,9 +13,11 @@ supabase secrets set PAYMENT_SECRETS_ENCRYPTION_KEY=YOUR_BASE64_32_BYTE_KEY`;
 
 type Props = {
   detail?: string;
+  /** Organization SaaS billing (platform-subscription-init) */
+  forPlatformSubscription?: boolean;
 };
 
-export function PaystackEdgeFunctionAlert({ detail }: Props) {
+export function PaystackEdgeFunctionAlert({ detail, forPlatformSubscription }: Props) {
   const copyCommands = async () => {
     try {
       await navigator.clipboard.writeText(DEPLOY_COMMANDS);
@@ -31,8 +33,17 @@ export function PaystackEdgeFunctionAlert({ detail }: Props) {
       <AlertTitle>Deploy the Paystack Edge Function</AlertTitle>
       <AlertDescription className="space-y-3 text-sm">
         <p>
-          Saving keys, testing the connection, and decrypting secrets require the <strong>paystack</strong> Edge
-          Function on your Supabase project. Public settings may still display from the database.
+          {forPlatformSubscription ? (
+            <>
+              Subscription checkout calls the <strong>paystack</strong> Edge Function on your Supabase project.
+              Deploy it, then set platform billing secrets (see step 2).
+            </>
+          ) : (
+            <>
+              Saving keys, testing the connection, and decrypting secrets require the <strong>paystack</strong> Edge
+              Function on your Supabase project. Public settings may still display from the database.
+            </>
+          )}
         </p>
         {detail ? (
           <p className="rounded-md bg-background/60 px-2 py-1.5 font-mono text-xs text-muted-foreground">{detail}</p>
@@ -51,9 +62,21 @@ export function PaystackEdgeFunctionAlert({ detail }: Props) {
             and confirm <code className="text-xs">paystack</code> is deployed and active.
           </li>
           <li>
-            Under <strong>Secrets</strong>, set <code className="text-xs">PAYMENT_SECRETS_ENCRYPTION_KEY</code> (base64,
-            32 bytes). Generate one:{" "}
-            <code className="text-xs">node -e &quot;console.log(require(&apos;crypto&apos;).randomBytes(32).toString(&apos;base64&apos;))&quot;</code>
+            Under <strong>Secrets</strong>, set{" "}
+            {forPlatformSubscription ? (
+              <>
+                <code className="text-xs">PLATFORM_PAYSTACK_SECRET_KEY</code> (Paystack secret for org subscriptions),{" "}
+                <code className="text-xs">PAYMENT_SECRETS_ENCRYPTION_KEY</code> (base64, 32 bytes), and ensure{" "}
+                <code className="text-xs">SUPABASE_SERVICE_ROLE_KEY</code> is present.
+              </>
+            ) : (
+              <>
+                <code className="text-xs">PAYMENT_SECRETS_ENCRYPTION_KEY</code> (base64, 32 bytes). Generate one:{" "}
+                <code className="text-xs">
+                  node -e &quot;console.log(require(&apos;crypto&apos;).randomBytes(32).toString(&apos;base64&apos;))&quot;
+                </code>
+              </>
+            )}
           </li>
           <li>Or deploy from your machine with the Supabase CLI (commands below).</li>
         </ol>

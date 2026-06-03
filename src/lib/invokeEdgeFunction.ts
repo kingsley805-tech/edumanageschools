@@ -8,6 +8,37 @@ type InvokeOptions = {
 /**
  * PostgREST / Supabase client errors are plain objects — normalize for toasts.
  */
+export function isEdgeFunctionUnreachable(error: unknown): boolean {
+  if (error && typeof error === "object") {
+    const e = error as { message?: string; name?: string; context?: Response };
+    const msg = (e.message ?? "").trim();
+    if (
+      e.name === "FunctionsFetchError" ||
+      e.name === "FunctionsHttpError" ||
+      msg.includes("Failed to send a request to the Edge Function") ||
+      (msg.includes("Edge Function") && msg.includes("not found")) ||
+      msg.toLowerCase().includes("failed to fetch") ||
+      msg.includes("404") ||
+      msg.toLowerCase().includes("not reachable")
+    ) {
+      return true;
+    }
+    if (e.context && typeof e.context.status === "number" && e.context.status === 404) {
+      return true;
+    }
+  }
+  if (error instanceof Error) {
+    const msg = error.message;
+    return (
+      msg.includes("Failed to send a request to the Edge Function") ||
+      msg.includes("not reachable") ||
+      msg.includes("not found") ||
+      msg.includes("404")
+    );
+  }
+  return false;
+}
+
 export function formatEdgeFunctionError(error: unknown, functionName: string): string {
   if (error && typeof error === "object") {
     const e = error as { message?: string; name?: string; context?: unknown };
@@ -71,6 +102,10 @@ export async function invokeEdgeFunction<T = unknown>(
   const { data, error } = await supabase.functions.invoke(functionName, { body, headers });
 
   if (error) {
+    const errObj = error as { context?: Response; message?: string };
+    if (errObj.context?.status === 404) {
+      throw new Error(formatEdgeFunctionError(error, functionName));
+    }
     const httpDetail =
       error && typeof error === "object" && "context" in error
         ? await readFunctionsHttpError(error as { context?: Response })

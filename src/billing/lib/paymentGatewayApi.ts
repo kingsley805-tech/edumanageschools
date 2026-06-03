@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { supabase } from "@/integrations/supabase/client";
-import { invokeEdgeFunction, formatEdgeFunctionError } from "@/lib/invokeEdgeFunction";
+import { invokeEdgeFunction, formatEdgeFunctionError, isEdgeFunctionUnreachable } from "@/lib/invokeEdgeFunction";
 import { isMissingTableError } from "@/lib/billing/availability";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -17,33 +17,6 @@ export type FetchGatewayListResult = {
   edgeFunctionWarning?: string;
   dbSchemaMissing?: boolean;
 };
-
-function isEdgeFunctionUnreachable(error: unknown): boolean {
-  if (error && typeof error === "object") {
-    const e = error as { message?: string; name?: string };
-    const msg = (e.message ?? "").trim();
-    if (
-      e.name === "FunctionsFetchError" ||
-      msg.includes("Failed to send a request to the Edge Function") ||
-      msg.includes("FunctionsFetchError") ||
-      msg.includes("Edge Function") && msg.includes("not found") ||
-      msg.toLowerCase().includes("failed to fetch") ||
-      msg.includes("404") ||
-      msg.toLowerCase().includes("not reachable")
-    ) {
-      return true;
-    }
-  }
-  if (error instanceof Error) {
-    const msg = error.message;
-    return (
-      msg.includes("Failed to send a request to the Edge Function") ||
-      msg.includes("not reachable") ||
-      msg.includes("not found")
-    );
-  }
-  return false;
-}
 
 async function fetchGatewayListFromDb(schoolId: string): Promise<GatewayConfigRow[]> {
   const { data, error } = await supabase

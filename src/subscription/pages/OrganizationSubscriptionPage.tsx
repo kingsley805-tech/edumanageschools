@@ -31,7 +31,7 @@ export default function OrganizationSubscriptionPage() {
           . To change plans or renew early, select a plan below.
         </p>
         <OrganizationSubscriptionModal
-          forceOpen={access?.access_state === "locked"}
+          inline
           access={access}
           onActivated={invalidate}
         />
