@@ -1866,7 +1866,11 @@ serve(async (req) => {
         const reference = typeof jsonBody.reference === "string" ? jsonBody.reference.trim() : "";
         if (!reference) return jsonResponse({ error: "Missing reference" }, 400);
 
-        const platformSecret = getPlatformPaystackSecret();
+        let platformSecret = getPlatformPaystackSecret();
+        if (!platformSecret) {
+          const dbCfg = await getPlatformPaystackSecretFromDb(admin);
+          platformSecret = dbCfg.secret || "";
+        }
         if (!platformSecret) {
           return jsonResponse({ error: "Platform Paystack not configured" }, 503);
         }
