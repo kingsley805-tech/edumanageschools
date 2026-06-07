@@ -2631,6 +2631,39 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_payment_gateway: {
+        Row: {
+          is_enabled: boolean
+          is_test_mode: boolean
+          provider: string
+          public_key: string | null
+          secret_key: string | null
+          updated_at: string
+          updated_by: string | null
+          webhook_secret: string | null
+        }
+        Insert: {
+          is_enabled?: boolean
+          is_test_mode?: boolean
+          provider: string
+          public_key?: string | null
+          secret_key?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          webhook_secret?: string | null
+        }
+        Update: {
+          is_enabled?: boolean
+          is_test_mode?: boolean
+          provider?: string
+          public_key?: string | null
+          secret_key?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          webhook_secret?: string | null
+        }
+        Relationships: []
+      }
       platform_subscription_checkouts: {
         Row: {
           amount: number
@@ -4777,6 +4810,7 @@ export type Database = {
         Args: { p_invoice_id: string }
         Returns: Json
       }
+      get_platform_paystack_config: { Args: never; Returns: Json }
       get_school_teacher_user_ids: {
         Args: { _teacher_user_id: string }
         Returns: string[]
