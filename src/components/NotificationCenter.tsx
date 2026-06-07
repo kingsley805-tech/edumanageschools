@@ -181,6 +181,7 @@ export const NotificationCenter = () => {
             notifications.map((notification) => (
               <DropdownMenuItem
                 key={notification.id}
+                textValue={notification.title}
                 className={`px-4 py-3 cursor-pointer ${
                   !notification.read ? "bg-accent/50" : ""
                 }`}

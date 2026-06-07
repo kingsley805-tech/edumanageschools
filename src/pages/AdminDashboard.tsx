@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchSchoolAttendanceStats } from "@/lib/attendance-queries";
+import { isLessonNotesAvailable, isLessonNotesMissingError } from "@/lib/lessonNotesAvailability";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -176,6 +177,8 @@ const AdminDashboard = () => {
     };
 
     const fetchLessonNotes = async () => {
+      if (!(await isLessonNotesAvailable())) return;
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data: profileData } = await supabase
@@ -193,9 +196,7 @@ const AdminDashboard = () => {
         .limit(50);
 
       if (error) {
-        const code = (error as { code?: string }).code ?? "";
-        const msg = (error.message ?? "").toLowerCase();
-        if (code === "PGRST205" || code === "42P01" || msg.includes("lesson_notes")) return;
+        if (isLessonNotesMissingError(error as { code?: string; message?: string; status?: number })) return;
         console.warn("lesson_notes dashboard:", error);
         return;
       }
