@@ -388,6 +388,11 @@ function App() {
                   <SubscriptionPlansPage />
                 </PlatformOwnerRoute>
               } />
+              <Route path="/platform/payment-gateway" element={
+                <PlatformOwnerRoute>
+                  <PlatformPaymentGateway />
+                </PlatformOwnerRoute>
+              } />
               <Route path="/admin/school-settings" element={
                 <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
                 <SchoolSettings />
