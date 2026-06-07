@@ -429,6 +429,17 @@ const applySuccessfulCharge = async (
   return { duplicate: false };
 };
 
+const getPlatformPaystackSecretFromDb = async (admin: SupabaseAdmin): Promise<{ secret?: string; webhook?: string }> => {
+  try {
+    const { data } = await admin.rpc("get_platform_paystack_config");
+    const cfg = (data ?? {}) as { secret_key?: string; webhook_secret?: string; is_enabled?: boolean };
+    if (cfg && cfg.is_enabled !== false) {
+      return { secret: cfg.secret_key?.trim() || undefined, webhook: cfg.webhook_secret?.trim() || undefined };
+    }
+  } catch (_) { /* ignore */ }
+  return {};
+};
+
 const getPlatformPaystackSecret = () =>
   Deno.env.get("PLATFORM_PAYSTACK_SECRET_KEY")?.trim() ||
   Deno.env.get("PAYSTACK_SECRET_KEY")?.trim() ||
