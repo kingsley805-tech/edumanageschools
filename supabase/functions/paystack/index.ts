@@ -1765,11 +1765,15 @@ serve(async (req) => {
           return jsonResponse({ error: "Invalid plan price" }, 400);
         }
 
-        const platformSecret = getPlatformPaystackSecret();
+        let platformSecret = getPlatformPaystackSecret();
+        if (!platformSecret) {
+          const dbCfg = await getPlatformPaystackSecretFromDb(admin);
+          platformSecret = dbCfg.secret || "";
+        }
         if (!platformSecret) {
           return jsonResponse({
             error:
-              "Platform Paystack is not configured. Set PLATFORM_PAYSTACK_SECRET_KEY in Edge Function secrets.",
+              "Platform Paystack is not configured. Super Admin: Platform → Payment gateway → save Secret key.",
           }, 503);
         }
 
