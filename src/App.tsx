@@ -87,6 +87,7 @@ import PlatformDashboard from "./platform/pages/PlatformDashboard";
 import TenantManagement from "./platform/pages/TenantManagement";
 import TenantDetail from "./platform/pages/TenantDetail";
 import SubscriptionPlansPage from "./platform/pages/SubscriptionPlans";
+import PlatformPaymentGateway from "./platform/pages/PlatformPaymentGateway";
 import OrganizationSubscriptionPage from "./subscription/pages/OrganizationSubscriptionPage";
 import OrganizationSubscriptionHistoryPage from "./subscription/pages/OrganizationSubscriptionHistoryPage";
 import OrganizationSupportPage from "./subscription/pages/OrganizationSupportPage";
