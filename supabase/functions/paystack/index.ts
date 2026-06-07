@@ -429,6 +429,17 @@ const applySuccessfulCharge = async (
   return { duplicate: false };
 };
 
+const getPlatformPaystackSecretFromDb = async (admin: SupabaseAdmin): Promise<{ secret?: string; webhook?: string }> => {
+  try {
+    const { data } = await admin.rpc("get_platform_paystack_config");
+    const cfg = (data ?? {}) as { secret_key?: string; webhook_secret?: string; is_enabled?: boolean };
+    if (cfg && cfg.is_enabled !== false) {
+      return { secret: cfg.secret_key?.trim() || undefined, webhook: cfg.webhook_secret?.trim() || undefined };
+    }
+  } catch (_) { /* ignore */ }
+  return {};
+};
+
 const getPlatformPaystackSecret = () =>
   Deno.env.get("PLATFORM_PAYSTACK_SECRET_KEY")?.trim() ||
   Deno.env.get("PAYSTACK_SECRET_KEY")?.trim() ||
@@ -1754,11 +1765,15 @@ serve(async (req) => {
           return jsonResponse({ error: "Invalid plan price" }, 400);
         }
 
-        const platformSecret = getPlatformPaystackSecret();
+        let platformSecret = getPlatformPaystackSecret();
+        if (!platformSecret) {
+          const dbCfg = await getPlatformPaystackSecretFromDb(admin);
+          platformSecret = dbCfg.secret || "";
+        }
         if (!platformSecret) {
           return jsonResponse({
             error:
-              "Platform Paystack is not configured. Set PLATFORM_PAYSTACK_SECRET_KEY in Edge Function secrets.",
+              "Platform Paystack is not configured. Super Admin: Platform → Payment gateway → save Secret key.",
           }, 503);
         }
 
@@ -1851,7 +1866,11 @@ serve(async (req) => {
         const reference = typeof jsonBody.reference === "string" ? jsonBody.reference.trim() : "";
         if (!reference) return jsonResponse({ error: "Missing reference" }, 400);
 
-        const platformSecret = getPlatformPaystackSecret();
+        let platformSecret = getPlatformPaystackSecret();
+        if (!platformSecret) {
+          const dbCfg = await getPlatformPaystackSecretFromDb(admin);
+          platformSecret = dbCfg.secret || "";
+        }
         if (!platformSecret) {
           return jsonResponse({ error: "Platform Paystack not configured" }, 503);
         }

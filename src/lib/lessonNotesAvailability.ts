@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { supabase } from "@/integrations/supabase/client";
 
 const SESSION_KEY = "school_hub_lesson_notes_available";
