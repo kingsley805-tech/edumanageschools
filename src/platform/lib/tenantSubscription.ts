@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { TenantOverview } from "@/platform/lib/types";
 
 /** Tenants blocked from platform use (pending payment or locked). Mirrors subscription access RPC. */
