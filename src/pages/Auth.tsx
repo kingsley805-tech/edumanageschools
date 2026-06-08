@@ -786,25 +786,29 @@ const Auth = () => {
             </form>
           )}
 
-          {/* Forgot Password Form */}
-          {activeTab === "forgot-password" && (
-            <form onSubmit={handleForgotPassword} className="space-y-5 animate-fade-in">
-              <div className="text-center py-1">
+          {/* Forgot Password — OTP Flow */}
+          {activeTab === "forgot-password" && resetStep === "request" && (
+            <form onSubmit={handleRequestOtp} className="space-y-5 animate-fade-in">
+              <div className="text-center py-1 space-y-2">
+                <p className="text-sm font-semibold text-slate-200">Reset your password</p>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Enter your admission number or email. Students should use their admission number.
+                  Enter your registered email. We'll send an 8-digit code to your email and phone.
+                </p>
+                <p className="text-[11px] text-amber-300/80 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                  Students: please contact your school administrator to recover your password.
                 </p>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="reset-email" className="text-xs font-semibold text-slate-300">
-                  Admission number or email
+                  Registered email or staff number
                 </Label>
                 <div className="relative group">
-                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
                   <Input
                     id="reset-email"
                     type="text"
-                    placeholder="MINGO-Stu-2026-001"
+                    placeholder="you@school.edu"
                     className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl"
                     value={resetEmail}
                     onChange={e => setResetEmail(e.target.value)}
@@ -818,28 +822,113 @@ const Auth = () => {
                 className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-slate-950 font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-500/15 flex items-center justify-center gap-2 group"
                 disabled={isLoading}
               >
-                {isLoading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="h-4 w-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                    Sending...
-                  </div>
-                ) : (
-                  <>
-                    Send Reset Link
-                    <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-                  </>
-                )}
+                {isLoading ? "Sending code..." : (<>Send OTP code <ArrowRight className="h-4 w-4" /></>)}
               </Button>
 
               <button
                 type="button"
                 className="w-full text-xs font-semibold text-slate-400 hover:text-white transition-colors py-1"
-                onClick={() => setActiveTab("login")}
+                onClick={() => { resetReset(); setActiveTab("login"); }}
               >
                 Back to Login
               </button>
             </form>
           )}
+
+          {activeTab === "forgot-password" && resetStep === "verify" && (
+            <form onSubmit={handleVerifyAndReset} className="space-y-4 animate-fade-in">
+              <div className="text-center space-y-1">
+                <p className="text-sm font-semibold text-slate-200">Enter your code</p>
+                <p className="text-[11px] text-slate-400">
+                  Sent to {resetMaskedEmail ?? "your email"}{resetMaskedPhone ? ` and ${resetMaskedPhone}` : ""}. Expires in 15 minutes.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="reset-otp" className="text-xs font-semibold text-slate-300">8-digit code</Label>
+                <Input
+                  id="reset-otp"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="\d{8}"
+                  maxLength={8}
+                  placeholder="••••••••"
+                  className="h-12 text-center tracking-[0.6em] text-lg font-mono border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white rounded-xl"
+                  value={resetOtp}
+                  onChange={e => setResetOtp(e.target.value.replace(/\D/g, ""))}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="reset-new" className="text-xs font-semibold text-slate-300">New password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
+                  <Input
+                    id="reset-new"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="At least 8 characters"
+                    className="pl-10 pr-12 h-12 border-slate-800 bg-slate-950/40 text-white rounded-xl"
+                    value={resetNewPassword}
+                    onChange={e => setResetNewPassword(e.target.value)}
+                    minLength={8}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="reset-confirm" className="text-xs font-semibold text-slate-300">Confirm password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
+                  <Input
+                    id="reset-confirm"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Re-enter password"
+                    className="pl-10 h-12 border-slate-800 bg-slate-950/40 text-white rounded-xl"
+                    value={resetConfirmPassword}
+                    onChange={e => setResetConfirmPassword(e.target.value)}
+                    minLength={8}
+                    required
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-slate-950 font-bold text-sm rounded-xl flex items-center justify-center gap-2"
+                disabled={isLoading}
+              >
+                {isLoading ? "Verifying..." : "Verify & Reset Password"}
+              </Button>
+
+              <div className="flex items-center justify-between text-xs pt-1">
+                <button
+                  type="button"
+                  className="font-semibold text-slate-400 hover:text-white"
+                  onClick={() => { setResetStep("request"); setResetOtp(""); }}
+                >
+                  ← Change email
+                </button>
+                <button
+                  type="button"
+                  disabled={resetCooldown > 0 || isLoading}
+                  className="font-semibold text-emerald-400 hover:underline disabled:text-slate-600 disabled:no-underline"
+                  onClick={handleResendOtp}
+                >
+                  {resetCooldown > 0 ? `Resend in ${resetCooldown}s` : "Resend code"}
+                </button>
+              </div>
+            </form>
+          )}
+
 
           {/* Signup Form */}
           {activeTab === "signup" && (
