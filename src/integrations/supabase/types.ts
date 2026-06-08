@@ -2343,6 +2343,54 @@ export type Database = {
           },
         ]
       }
+      password_reset_otps: {
+        Row: {
+          attempts: number
+          code_hash: string
+          consumed_at: string | null
+          created_at: string
+          delivery: Json
+          expires_at: string
+          id: string
+          identifier: string
+          ip_address: string | null
+          max_attempts: number
+          user_agent: string | null
+          user_id: string
+          verified_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          consumed_at?: string | null
+          created_at?: string
+          delivery?: Json
+          expires_at: string
+          id?: string
+          identifier: string
+          ip_address?: string | null
+          max_attempts?: number
+          user_agent?: string | null
+          user_id: string
+          verified_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          consumed_at?: string | null
+          created_at?: string
+          delivery?: Json
+          expires_at?: string
+          id?: string
+          identifier?: string
+          ip_address?: string | null
+          max_attempts?: number
+          user_agent?: string | null
+          user_id?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       payment_checkout_sessions: {
         Row: {
           created_at: string

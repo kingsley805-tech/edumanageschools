@@ -102,6 +102,7 @@ import AccountantDashboard from "./pages/admin/AccountantDashboard";
 import AuditorDashboard from "./pages/admin/AuditorDashboard";
 import AuditLogs from "./pages/admin/AuditLogs";
 import ApprovalRequests from "./pages/admin/ApprovalRequests";
+import StudentPasswordRecovery from "./pages/admin/StudentPasswordRecovery";
 import { PERMISSIONS } from "./lib/permissions";
 import {
   BillingDashboardPage,
@@ -256,6 +257,11 @@ function App() {
               <Route path="/admin/approvals" element={
                 <ProtectedRoute allowedRoles={["admin", "super_admin"]} requiredAnyPermission={[PERMISSIONS.admin.approveRequests, PERMISSIONS.admin.viewAudit]}>
                   <ApprovalRequests />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/student-password-recovery" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                  <StudentPasswordRecovery />
                 </ProtectedRoute>
               } />
               <Route path="/accountant" element={

@@ -204,6 +204,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
             { icon: Shield, label: "Permission Management", path: "/admin/roles", permission: "portal.staff_access.view" },
             { icon: FileText, label: "Approvals", path: "/admin/approvals", permission: PERMISSIONS.admin.approveRequests },
             { icon: FileText, label: "Audit Logs", path: "/admin/audit-logs", permission: PERMISSIONS.admin.viewAudit },
+            { icon: Shield, label: "Student Password Recovery", path: "/admin/student-password-recovery" },
             ...(isSuperAdmin
               ? [
                   { icon: Building, label: "Platform Control", path: "/platform" },

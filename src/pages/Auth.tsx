@@ -178,8 +178,21 @@ const Auth = () => {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [parentSchoolId, setParentSchoolId] = useState<string | null>(null);
   
-  // Reset password
+  // Reset password (OTP flow)
   const [resetEmail, setResetEmail] = useState("");
+  const [resetStep, setResetStep] = useState<"request" | "verify">("request");
+  const [resetOtp, setResetOtp] = useState("");
+  const [resetNewPassword, setResetNewPassword] = useState("");
+  const [resetConfirmPassword, setResetConfirmPassword] = useState("");
+  const [resetMaskedEmail, setResetMaskedEmail] = useState<string | null>(null);
+  const [resetMaskedPhone, setResetMaskedPhone] = useState<string | null>(null);
+  const [resetCooldown, setResetCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resetCooldown <= 0) return;
+    const t = setTimeout(() => setResetCooldown((c) => Math.max(0, c - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [resetCooldown]);
 
   useEffect(() => {
     if (user && role && (location.pathname === "/auth" || location.pathname.startsWith("/auth?"))) {
@@ -432,34 +445,101 @@ const Auth = () => {
     setIsLoading(false);
   };
 
-  const handleForgotPassword = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsLoading(true);
+  const resetReset = () => {
+    setResetEmail("");
+    setResetOtp("");
+    setResetNewPassword("");
+    setResetConfirmPassword("");
+    setResetMaskedEmail(null);
+    setResetMaskedPhone(null);
+    setResetStep("request");
+    setResetCooldown(0);
+  };
 
-    const resolved = await resolveLoginIdentifier(resetEmail);
-    if (!resolved.ok || !resolved.email) {
-      toast.error(resolved.error ?? "Could not find an account with that admission number or email.");
-      setIsLoading(false);
+  const invokeOtp = async (payload: Record<string, unknown>) => {
+    const { data, error } = await supabase.functions.invoke("password-reset-otp", { body: payload });
+    if (error) {
+      return { ok: false, message: error.message } as { ok: boolean; message?: string } & Record<string, any>;
+    }
+    return data as { ok: boolean; message?: string } & Record<string, any>;
+  };
+
+  const handleRequestOtp = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!resetEmail.trim()) return;
+    setIsLoading(true);
+    const res = await invokeOtp({ action: "request", identifier: resetEmail.trim() });
+    setIsLoading(false);
+    if (res.student) {
+      toast.error("Students cannot self-reset. Please contact your school administrator.");
       return;
     }
-
-    const { error } = await supabase.auth.resetPasswordForEmail(resolved.email, {
-      redirectTo: `${window.location.origin}/auth?tab=reset-password`,
-    });
-
-    if (error) {
-      toast.error(error.message);
-    } else if (resolved.email.includes("@student.portal")) {
-      toast.success(
-        "If your school enabled email recovery, check your inbox. Otherwise ask your administrator to reset your password."
-      );
-    } else {
-      toast.success("Password reset link sent to your email!");
+    if (res.cooldown) {
+      toast.error(res.message ?? "Please wait before requesting another code.");
+      setResetCooldown(res.retry_in_seconds ?? 90);
+      return;
     }
-    setResetEmail("");
-    setActiveTab("login");
-    setIsLoading(false);
+    if (res.rate_limited) {
+      toast.error(res.message ?? "Too many requests. Try later.");
+      return;
+    }
+    if (!res.ok && !res.sent) {
+      toast.error(res.message ?? "Could not send code.");
+      return;
+    }
+    setResetMaskedEmail(res.masked_email ?? null);
+    setResetMaskedPhone(res.masked_phone ?? null);
+    setResetStep("verify");
+    setResetCooldown(90);
+    toast.success(res.message ?? "Code sent.");
   };
+
+  const handleResendOtp = async () => {
+    if (resetCooldown > 0 || !resetEmail) return;
+    setIsLoading(true);
+    const res = await invokeOtp({ action: "request", identifier: resetEmail.trim() });
+    setIsLoading(false);
+    if (res.cooldown) {
+      setResetCooldown(res.retry_in_seconds ?? 90);
+      toast.error(res.message ?? "Please wait.");
+      return;
+    }
+    if (res.ok && res.sent) {
+      setResetCooldown(90);
+      toast.success("New code sent.");
+    } else {
+      toast.error(res.message ?? "Could not resend.");
+    }
+  };
+
+  const handleVerifyAndReset = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (resetNewPassword.length < 8) {
+      toast.error("Password must be at least 8 characters.");
+      return;
+    }
+    if (resetNewPassword !== resetConfirmPassword) {
+      toast.error("Passwords do not match.");
+      return;
+    }
+    setIsLoading(true);
+    const res = await invokeOtp({
+      action: "reset",
+      identifier: resetEmail.trim(),
+      code: resetOtp.trim(),
+      new_password: resetNewPassword,
+    });
+    setIsLoading(false);
+    if (!res.ok) {
+      toast.error(res.message ?? "Could not reset password.");
+      return;
+    }
+    toast.success("Password updated. Please sign in.");
+    resetReset();
+    setActiveTab("login");
+  };
+
+
 
   const addChildNumberField = () => {
     if (childStudentNumbers.length < 10) {
@@ -706,25 +786,29 @@ const Auth = () => {
             </form>
           )}
 
-          {/* Forgot Password Form */}
-          {activeTab === "forgot-password" && (
-            <form onSubmit={handleForgotPassword} className="space-y-5 animate-fade-in">
-              <div className="text-center py-1">
+          {/* Forgot Password — OTP Flow */}
+          {activeTab === "forgot-password" && resetStep === "request" && (
+            <form onSubmit={handleRequestOtp} className="space-y-5 animate-fade-in">
+              <div className="text-center py-1 space-y-2">
+                <p className="text-sm font-semibold text-slate-200">Reset your password</p>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Enter your admission number or email. Students should use their admission number.
+                  Enter your registered email. We'll send an 8-digit code to your email and phone.
+                </p>
+                <p className="text-[11px] text-amber-300/80 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                  Students: please contact your school administrator to recover your password.
                 </p>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="reset-email" className="text-xs font-semibold text-slate-300">
-                  Admission number or email
+                  Registered email or staff number
                 </Label>
                 <div className="relative group">
-                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
                   <Input
                     id="reset-email"
                     type="text"
-                    placeholder="MINGO-Stu-2026-001"
+                    placeholder="you@school.edu"
                     className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl"
                     value={resetEmail}
                     onChange={e => setResetEmail(e.target.value)}
@@ -738,28 +822,113 @@ const Auth = () => {
                 className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-slate-950 font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-500/15 flex items-center justify-center gap-2 group"
                 disabled={isLoading}
               >
-                {isLoading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="h-4 w-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                    Sending...
-                  </div>
-                ) : (
-                  <>
-                    Send Reset Link
-                    <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-                  </>
-                )}
+                {isLoading ? "Sending code..." : (<>Send OTP code <ArrowRight className="h-4 w-4" /></>)}
               </Button>
 
               <button
                 type="button"
                 className="w-full text-xs font-semibold text-slate-400 hover:text-white transition-colors py-1"
-                onClick={() => setActiveTab("login")}
+                onClick={() => { resetReset(); setActiveTab("login"); }}
               >
                 Back to Login
               </button>
             </form>
           )}
+
+          {activeTab === "forgot-password" && resetStep === "verify" && (
+            <form onSubmit={handleVerifyAndReset} className="space-y-4 animate-fade-in">
+              <div className="text-center space-y-1">
+                <p className="text-sm font-semibold text-slate-200">Enter your code</p>
+                <p className="text-[11px] text-slate-400">
+                  Sent to {resetMaskedEmail ?? "your email"}{resetMaskedPhone ? ` and ${resetMaskedPhone}` : ""}. Expires in 15 minutes.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="reset-otp" className="text-xs font-semibold text-slate-300">8-digit code</Label>
+                <Input
+                  id="reset-otp"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="\d{8}"
+                  maxLength={8}
+                  placeholder="••••••••"
+                  className="h-12 text-center tracking-[0.6em] text-lg font-mono border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white rounded-xl"
+                  value={resetOtp}
+                  onChange={e => setResetOtp(e.target.value.replace(/\D/g, ""))}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="reset-new" className="text-xs font-semibold text-slate-300">New password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
+                  <Input
+                    id="reset-new"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="At least 8 characters"
+                    className="pl-10 pr-12 h-12 border-slate-800 bg-slate-950/40 text-white rounded-xl"
+                    value={resetNewPassword}
+                    onChange={e => setResetNewPassword(e.target.value)}
+                    minLength={8}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="reset-confirm" className="text-xs font-semibold text-slate-300">Confirm password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
+                  <Input
+                    id="reset-confirm"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Re-enter password"
+                    className="pl-10 h-12 border-slate-800 bg-slate-950/40 text-white rounded-xl"
+                    value={resetConfirmPassword}
+                    onChange={e => setResetConfirmPassword(e.target.value)}
+                    minLength={8}
+                    required
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-slate-950 font-bold text-sm rounded-xl flex items-center justify-center gap-2"
+                disabled={isLoading}
+              >
+                {isLoading ? "Verifying..." : "Verify & Reset Password"}
+              </Button>
+
+              <div className="flex items-center justify-between text-xs pt-1">
+                <button
+                  type="button"
+                  className="font-semibold text-slate-400 hover:text-white"
+                  onClick={() => { setResetStep("request"); setResetOtp(""); }}
+                >
+                  ← Change email
+                </button>
+                <button
+                  type="button"
+                  disabled={resetCooldown > 0 || isLoading}
+                  className="font-semibold text-emerald-400 hover:underline disabled:text-slate-600 disabled:no-underline"
+                  onClick={handleResendOtp}
+                >
+                  {resetCooldown > 0 ? `Resend in ${resetCooldown}s` : "Resend code"}
+                </button>
+              </div>
+            </form>
+          )}
+
 
           {/* Signup Form */}
           {activeTab === "signup" && (
