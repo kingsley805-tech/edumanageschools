@@ -178,8 +178,21 @@ const Auth = () => {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [parentSchoolId, setParentSchoolId] = useState<string | null>(null);
   
-  // Reset password
+  // Reset password (OTP flow)
   const [resetEmail, setResetEmail] = useState("");
+  const [resetStep, setResetStep] = useState<"request" | "verify">("request");
+  const [resetOtp, setResetOtp] = useState("");
+  const [resetNewPassword, setResetNewPassword] = useState("");
+  const [resetConfirmPassword, setResetConfirmPassword] = useState("");
+  const [resetMaskedEmail, setResetMaskedEmail] = useState<string | null>(null);
+  const [resetMaskedPhone, setResetMaskedPhone] = useState<string | null>(null);
+  const [resetCooldown, setResetCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resetCooldown <= 0) return;
+    const t = setTimeout(() => setResetCooldown((c) => Math.max(0, c - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [resetCooldown]);
 
   useEffect(() => {
     if (user && role && (location.pathname === "/auth" || location.pathname.startsWith("/auth?"))) {
