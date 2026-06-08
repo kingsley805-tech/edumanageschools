@@ -445,34 +445,101 @@ const Auth = () => {
     setIsLoading(false);
   };
 
-  const handleForgotPassword = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsLoading(true);
+  const resetReset = () => {
+    setResetEmail("");
+    setResetOtp("");
+    setResetNewPassword("");
+    setResetConfirmPassword("");
+    setResetMaskedEmail(null);
+    setResetMaskedPhone(null);
+    setResetStep("request");
+    setResetCooldown(0);
+  };
 
-    const resolved = await resolveLoginIdentifier(resetEmail);
-    if (!resolved.ok || !resolved.email) {
-      toast.error(resolved.error ?? "Could not find an account with that admission number or email.");
-      setIsLoading(false);
+  const invokeOtp = async (payload: Record<string, unknown>) => {
+    const { data, error } = await supabase.functions.invoke("password-reset-otp", { body: payload });
+    if (error) {
+      return { ok: false, message: error.message } as { ok: boolean; message?: string } & Record<string, any>;
+    }
+    return data as { ok: boolean; message?: string } & Record<string, any>;
+  };
+
+  const handleRequestOtp = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!resetEmail.trim()) return;
+    setIsLoading(true);
+    const res = await invokeOtp({ action: "request", identifier: resetEmail.trim() });
+    setIsLoading(false);
+    if (res.student) {
+      toast.error("Students cannot self-reset. Please contact your school administrator.");
       return;
     }
-
-    const { error } = await supabase.auth.resetPasswordForEmail(resolved.email, {
-      redirectTo: `${window.location.origin}/auth?tab=reset-password`,
-    });
-
-    if (error) {
-      toast.error(error.message);
-    } else if (resolved.email.includes("@student.portal")) {
-      toast.success(
-        "If your school enabled email recovery, check your inbox. Otherwise ask your administrator to reset your password."
-      );
-    } else {
-      toast.success("Password reset link sent to your email!");
+    if (res.cooldown) {
+      toast.error(res.message ?? "Please wait before requesting another code.");
+      setResetCooldown(res.retry_in_seconds ?? 90);
+      return;
     }
-    setResetEmail("");
-    setActiveTab("login");
-    setIsLoading(false);
+    if (res.rate_limited) {
+      toast.error(res.message ?? "Too many requests. Try later.");
+      return;
+    }
+    if (!res.ok && !res.sent) {
+      toast.error(res.message ?? "Could not send code.");
+      return;
+    }
+    setResetMaskedEmail(res.masked_email ?? null);
+    setResetMaskedPhone(res.masked_phone ?? null);
+    setResetStep("verify");
+    setResetCooldown(90);
+    toast.success(res.message ?? "Code sent.");
   };
+
+  const handleResendOtp = async () => {
+    if (resetCooldown > 0 || !resetEmail) return;
+    setIsLoading(true);
+    const res = await invokeOtp({ action: "request", identifier: resetEmail.trim() });
+    setIsLoading(false);
+    if (res.cooldown) {
+      setResetCooldown(res.retry_in_seconds ?? 90);
+      toast.error(res.message ?? "Please wait.");
+      return;
+    }
+    if (res.ok && res.sent) {
+      setResetCooldown(90);
+      toast.success("New code sent.");
+    } else {
+      toast.error(res.message ?? "Could not resend.");
+    }
+  };
+
+  const handleVerifyAndReset = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (resetNewPassword.length < 8) {
+      toast.error("Password must be at least 8 characters.");
+      return;
+    }
+    if (resetNewPassword !== resetConfirmPassword) {
+      toast.error("Passwords do not match.");
+      return;
+    }
+    setIsLoading(true);
+    const res = await invokeOtp({
+      action: "reset",
+      identifier: resetEmail.trim(),
+      code: resetOtp.trim(),
+      new_password: resetNewPassword,
+    });
+    setIsLoading(false);
+    if (!res.ok) {
+      toast.error(res.message ?? "Could not reset password.");
+      return;
+    }
+    toast.success("Password updated. Please sign in.");
+    resetReset();
+    setActiveTab("login");
+  };
+
+
 
   const addChildNumberField = () => {
     if (childStudentNumbers.length < 10) {
