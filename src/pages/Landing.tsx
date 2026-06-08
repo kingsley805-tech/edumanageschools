@@ -9,16 +9,16 @@ import LandingNavbar from "@/components/landing/LandingNavbar";
 
 const trustStats = [
   { value: 500, suffix: "+", label: "Schools" },
-  { value: 98, suffix: "%", label: "Uptime" },
-  { value: 50, suffix: "k+", label: "Students" },
+  { value: 150, suffix: "k+", label: "Students" },
+  { value: 99.9, suffix: "%", label: "Uptime" },
 ];
 
-const fadeUp: import("framer-motion").Variants = {
+const fadeUp = {
   hidden: { opacity: 0, y: 24 },
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: 0.15 + i * 0.1, duration: 0.7, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
+    transition: { delay: 0.15 + i * 0.1, duration: 0.7, ease: [0.22, 1, 0.36, 1] },
   }),
 };
 
@@ -41,6 +41,7 @@ export default function Landing() {
 
       <main className="relative z-10 flex min-h-0 flex-1 flex-col px-4 pb-2 sm:px-6 lg:px-8">
         <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col justify-center gap-6 py-2 lg:flex-row lg:items-center lg:gap-10">
+          {/* Left — copy & CTAs */}
           <div className="flex shrink-0 flex-col justify-center lg:w-[48%] xl:w-[46%]">
             <motion.div
               custom={0}
@@ -51,7 +52,7 @@ export default function Landing() {
             >
               <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
               <span className="text-[11px] font-medium text-emerald-200/90 sm:text-xs">
-                Trusted by schools across Africa
+                All-in-One School Operations & Academics
               </span>
             </motion.div>
 
@@ -62,9 +63,9 @@ export default function Landing() {
               animate="visible"
               className="text-[1.65rem] font-extrabold leading-[1.12] tracking-tight text-white sm:text-4xl lg:text-[2.65rem] xl:text-5xl"
             >
-              Smart School Management{" "}
+              The Modern, Complete{" "}
               <span className="bg-gradient-to-r from-emerald-300 via-teal-200 to-cyan-300 bg-clip-text text-transparent">
-                Made Simple
+                School Management System
               </span>
             </motion.h1>
 
@@ -75,9 +76,7 @@ export default function Landing() {
               animate="visible"
               className="mt-3 max-w-lg text-sm leading-relaxed text-white/60 sm:mt-4 sm:text-base"
             >
-              EduManage brings students, teachers, parents, and administrators together — manage
-              academics, timetables, fees, report cards, lesson notes, and attendance from one
-              secure platform.
+              Empower administrators, teachers, students, and parents with a unified platform. Streamline class registers, lesson notes, timetabling, report cards, smart billing, SMS notifications, and school operations in real-time.
             </motion.p>
 
             <motion.div
@@ -100,13 +99,13 @@ export default function Landing() {
                   transition={{ duration: 0.5 }}
                 />
               </Link>
-              <Link
-                to="/auth"
+              <button
+                type="button"
                 className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white/90 backdrop-blur-sm transition-all hover:border-white/25 hover:bg-white/10"
               >
                 <Play className="h-4 w-4 fill-white/80 text-white/80" />
-                Sign in
-              </Link>
+                Watch Demo
+              </button>
             </motion.div>
 
             <motion.div
@@ -126,31 +125,26 @@ export default function Landing() {
               ))}
               <div className="hidden items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 sm:flex">
                 <Shield className="h-3.5 w-3.5 text-emerald-400" />
-                <span className="text-[10px] font-medium text-white/60">Role-based security</span>
+                <span className="text-[10px] font-medium text-white/60">Academics & Grading</span>
               </div>
               <div className="hidden items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 sm:flex">
                 <Zap className="h-3.5 w-3.5 text-amber-400" />
-                <span className="text-[10px] font-medium text-white/60">Real-time updates</span>
+                <span className="text-[10px] font-medium text-white/60">Finance & Operations</span>
               </div>
             </motion.div>
           </div>
 
-          <motion.div
+          {/* Right — dashboard mockup */}
+          <div
             id="features"
-            custom={5}
-            variants={fadeUp}
-            initial="hidden"
-            animate="visible"
             className="relative flex min-h-0 flex-1 items-center justify-center lg:w-[52%] xl:w-[54%]"
           >
-            <div className="pointer-events-none origin-top scale-[0.72] opacity-85 xl:scale-[0.78]">
-              <DashboardMockup />
-            </div>
-          </motion.div>
+            <DashboardMockup />
+          </div>
         </div>
       </main>
 
-      <footer className="relative z-10 shrink-0 px-4 pb-3 text-center sm:px-6">
+      <footer id="pricing" className="relative z-10 shrink-0 px-4 pb-3 text-center sm:px-6">
         <p className="text-[10px] text-white/35 sm:text-[11px]">
           © {new Date().getFullYear()} EduManage · School Management System ·{" "}
           <Link to="/privacy" className="underline-offset-2 hover:text-white/50 hover:underline">
@@ -161,3 +155,4 @@ export default function Landing() {
     </div>
   );
 }
+

@@ -1,11 +1,11 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { GraduationCap, Lock, Mail, User, Eye, EyeOff, Shield, BookOpen, Users, ArrowRight, Hash, Plus, X } from "lucide-react";
+import { GraduationCap, Lock, Mail, User, Eye, EyeOff, Shield, BookOpen, Users, ArrowRight, Hash, Plus, X, Sparkles, CheckCircle2, TrendingUp, Bell, MessageSquare, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -21,6 +21,125 @@ import {
   type StudentAdmissionPreview,
 } from "@/lib/auth-api";
 import schoolPicture from "@/assets/School Picture.webp";
+import { motion, AnimatePresence } from "framer-motion";
+
+const EducationHubAnimation = () => {
+  return (
+    <div className="relative w-full max-w-[320px] aspect-square flex items-center justify-center scale-95 sm:scale-100">
+      {/* Background glow in center */}
+      <div className="absolute w-40 h-40 rounded-full bg-emerald-500/15 blur-3xl opacity-60 pointer-events-none" />
+
+      {/* Orbit 3 (Outer) */}
+      <motion.div 
+        className="absolute w-[300px] h-[300px] rounded-full border border-dashed border-slate-800/80"
+        animate={{ rotate: 360 }}
+        transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+      />
+
+      {/* Orbit 2 (Middle) */}
+      <motion.div 
+        className="absolute w-[220px] h-[220px] rounded-full border border-dashed border-emerald-500/10"
+        animate={{ rotate: -360 }}
+        transition={{ duration: 28, repeat: Infinity, ease: "linear" }}
+      />
+
+      {/* Orbit 1 (Inner) */}
+      <motion.div 
+        className="absolute w-[140px] h-[140px] rounded-full border border-dashed border-teal-500/5"
+        animate={{ rotate: 360 }}
+        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+      />
+
+      {/* Center Cap */}
+      <div className="absolute z-20 flex flex-col items-center">
+        <motion.div 
+          className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-400 shadow-xl shadow-emerald-500/20 border border-white/20 relative"
+          animate={{ y: [0, -4, 0] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <GraduationCap className="h-8 w-8 text-slate-950" />
+          
+          {/* Pulsing rings */}
+          <motion.div 
+            className="absolute -inset-3 rounded-2xl border border-emerald-500/30 pointer-events-none"
+            animate={{ scale: [0.9, 1.2, 0.9], opacity: [0.8, 0, 0.8] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.div 
+            className="absolute -inset-6 rounded-[1.5rem] border border-teal-500/15 pointer-events-none"
+            animate={{ scale: [0.9, 1.3, 0.9], opacity: [0.5, 0, 0.5] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+          />
+        </motion.div>
+      </div>
+
+      {/* Icon 1: Academics (BookOpen) - Top Left */}
+      <motion.div 
+        className="absolute top-2 left-6 z-10"
+        animate={{ y: [0, -8, 0], x: [0, 4, 0] }}
+        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900/80 border border-slate-800/80 backdrop-blur-md shadow-xl relative group">
+          <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 opacity-0 group-hover:opacity-100 blur-[2px] transition-opacity" />
+          <div className="absolute w-5 h-5 rounded-full bg-emerald-500/25 blur-md pointer-events-none" />
+          <BookOpen className="h-5 w-5 text-emerald-400 relative z-10" />
+        </div>
+      </motion.div>
+
+      {/* Icon 2: Administration (Shield) - Bottom Left */}
+      <motion.div 
+        className="absolute bottom-6 left-8 z-10"
+        animate={{ y: [0, 6, 0], x: [0, -4, 0] }}
+        transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+      >
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900/80 border border-slate-800/80 backdrop-blur-md shadow-xl relative group">
+          <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 opacity-0 group-hover:opacity-100 blur-[2px] transition-opacity" />
+          <div className="absolute w-5 h-5 rounded-full bg-indigo-500/25 blur-md pointer-events-none" />
+          <Shield className="h-5 w-5 text-indigo-400 relative z-10" />
+        </div>
+      </motion.div>
+
+      {/* Icon 3: Communication (MessageSquare) - Top Right */}
+      <motion.div 
+        className="absolute top-8 right-6 z-10"
+        animate={{ y: [0, -6, 0], x: [0, -6, 0] }}
+        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+      >
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900/80 border border-slate-800/80 backdrop-blur-md shadow-xl relative group">
+          <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 opacity-0 group-hover:opacity-100 blur-[2px] transition-opacity" />
+          <div className="absolute w-5 h-5 rounded-full bg-teal-500/25 blur-md pointer-events-none" />
+          <MessageSquare className="h-5 w-5 text-teal-400 relative z-10" />
+        </div>
+      </motion.div>
+
+      {/* Icon 4: Analytics (TrendingUp) - Bottom Right */}
+      <motion.div 
+        className="absolute bottom-10 right-8 z-10"
+        animate={{ y: [0, 8, 0], x: [0, 4, 0] }}
+        transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+      >
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900/80 border border-slate-800/80 backdrop-blur-md shadow-xl relative group">
+          <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 opacity-0 group-hover:opacity-100 blur-[2px] transition-opacity" />
+          <div className="absolute w-5 h-5 rounded-full bg-amber-500/25 blur-md pointer-events-none" />
+          <TrendingUp className="h-5 w-5 text-amber-400 relative z-10" />
+        </div>
+      </motion.div>
+
+      {/* Icon 5: Calendar (Calendar) - Top Center (offset) */}
+      <motion.div 
+        className="absolute -top-6 left-1/2 -translate-x-1/2 z-10"
+        animate={{ y: [0, -10, 0] }}
+        transition={{ duration: 5.2, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+      >
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900/80 border border-slate-800/80 backdrop-blur-md shadow-xl relative group">
+          <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 opacity-0 group-hover:opacity-100 blur-[2px] transition-opacity" />
+          <div className="absolute w-5 h-5 rounded-full bg-violet-500/25 blur-md pointer-events-none" />
+          <Calendar className="h-5 w-5 text-violet-400 relative z-10" />
+        </div>
+      </motion.div>
+    </div>
+  );
+};
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -387,55 +506,64 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-[hsl(200,25%,18%)]">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-[#030712] text-slate-100 font-sans relative overflow-hidden">
+      {/* Background Mesh Glow Effects */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-500/10 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-teal-500/10 blur-[120px] pointer-events-none" />
+      <div className="absolute top-[30%] left-[40%] w-[40%] h-[40%] rounded-full bg-indigo-500/5 blur-[150px] pointer-events-none" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-25 pointer-events-none" />
+
       {/* Left Panel - Hero Section */}
-      <div className="relative lg:w-1/2 min-h-[280px] lg:min-h-screen flex flex-col overflow-hidden">
+      <div className="relative lg:w-1/2 min-h-[360px] lg:min-h-screen flex flex-col justify-between p-8 lg:p-12 overflow-hidden border-b lg:border-b-0 lg:border-r border-slate-800/40 z-10">
         <div
-          className="absolute inset-0 bg-cover bg-center opacity-40"
+          className="absolute inset-0 bg-cover bg-center opacity-[0.07] mix-blend-overlay pointer-events-none"
           style={{ backgroundImage: `url(${schoolPicture})` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(200,30%,14%)] via-[hsl(200,25%,18%)] to-[hsl(200,35%,22%)]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900/90 to-slate-950 pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col h-full p-6 lg:p-10">
+        <div className="relative z-20 flex flex-col h-full justify-between gap-12">
           {/* Logo & Title */}
-          <div className="flex items-center gap-3 mb-8">
-            <div className="flex h-10 w-10 lg:h-12 lg:w-12 items-center justify-center rounded-xl bg-accent/20 backdrop-blur-sm">
-              <GraduationCap className="h-5 w-5 lg:h-6 lg:w-6 text-accent" />
+          <Link to="/" className="flex items-center gap-3.5 group w-fit">
+            <div className="flex h-11 w-11 lg:h-13 lg:w-13 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 shadow-md ring-1 ring-white/10 transition-transform group-hover:scale-105 duration-300">
+              <GraduationCap className="h-6 w-6 text-white" />
             </div>
             <div>
-              <span className="text-xs lg:text-sm font-medium tracking-widest text-accent uppercase">
+              <span className="text-[10px] tracking-[4px] font-bold text-emerald-400 block uppercase font-mono">
                 EDUMANAGE
               </span>
-              <h1 className="text-xl lg:text-2xl font-bold text-white">
+              <h1 className="text-lg lg:text-xl font-bold text-white tracking-tight">
                 Your school, organized.
               </h1>
             </div>
-          </div>
+          </Link>
           
-          <div className="flex flex-1 items-end justify-center min-h-[200px] lg:min-h-0">
-            <img
-              src="/image.png"
-              alt="Student welcoming you to the school portal"
-              className="w-full max-w-[240px] object-contain object-bottom drop-shadow-2xl sm:max-w-xs lg:max-h-[min(72vh,640px)] lg:max-w-md xl:max-w-lg"
-            />
+          {/* Center Animation */}
+          <div className="flex flex-1 items-center justify-center min-h-[300px] lg:min-h-0 relative">
+            <EducationHubAnimation />
           </div>
           
           {/* Feature Badges */}
-          <div className="flex flex-wrap gap-3 mt-auto">
-            <div className="flex-1 min-w-[140px] bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-              <span className="text-[10px] lg:text-xs font-medium tracking-widest text-accent uppercase block mb-1">
+          <div className="grid grid-cols-2 gap-4 mt-auto">
+            <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-2xl p-4 lg:p-5 hover:border-emerald-500/20 transition-colors duration-300">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 mb-3 border border-emerald-500/20">
+                <Shield className="h-4.5 w-4.5 text-emerald-400" />
+              </div>
+              <span className="text-[9px] font-bold tracking-[2px] text-emerald-400 uppercase block mb-1 font-mono">
                 SECURE ACCESS
               </span>
-              <span className="text-sm lg:text-base font-semibold text-white">
+              <span className="text-xs lg:text-sm font-semibold text-slate-200">
                 Role-based dashboards
               </span>
             </div>
-            <div className="flex-1 min-w-[140px] bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-              <span className="text-[10px] lg:text-xs font-medium tracking-widest text-accent uppercase block mb-1">
+            <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-2xl p-4 lg:p-5 hover:border-teal-500/20 transition-colors duration-300">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/10 mb-3 border border-teal-500/20">
+                <CheckCircle2 className="h-4.5 w-4.5 text-teal-400" />
+              </div>
+              <span className="text-[9px] font-bold tracking-[2px] text-teal-400 uppercase block mb-1 font-mono">
                 SCHOOLS
               </span>
-              <span className="text-sm lg:text-base font-semibold text-white">
-                Smart admission-based access
+              <span className="text-xs lg:text-sm font-semibold text-slate-200">
+                Admission-based access
               </span>
             </div>
           </div>
@@ -443,93 +571,101 @@ const Auth = () => {
       </div>
 
       {/* Right Panel - Auth Form */}
-      <div className="lg:w-1/2 flex items-center justify-center p-4 lg:p-8 bg-background">
-        <div className="w-full max-w-md space-y-6 bg-card rounded-2xl p-6 shadow-md border border-border">
+      <div className="lg:w-1/2 flex items-center justify-center p-6 lg:p-12 relative z-10">
+        <div className="w-full max-w-lg space-y-6 bg-slate-900/30 border border-slate-800/80 backdrop-blur-xl rounded-3xl p-6 lg:p-8 shadow-2xl relative">
+          <div className="absolute top-0 left-10 right-10 h-[2px] bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent blur-[1px]" />
+          
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
+              <span className="text-[10px] tracking-[2px] font-bold text-emerald-400 uppercase block font-mono">
                 WELCOME TO EDUMANAGE
               </span>
-              <h2 className="text-2xl lg:text-3xl font-bold text-foreground mt-1">
+              <h2 className="text-xl lg:text-2xl font-bold text-white tracking-tight mt-1">
                 Access your school portal
               </h2>
             </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-muted">
-              <GraduationCap className="h-5 w-5 text-muted-foreground" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-850 border border-slate-800">
+              <GraduationCap className="h-5 w-5 text-emerald-400" />
             </div>
           </div>
 
           {/* Tab Toggle */}
           {activeTab !== "forgot-password" && (
-            <div className="flex bg-muted rounded-full p-1">
+            <div className="flex bg-slate-950/60 border border-slate-800/60 rounded-xl p-1 relative">
               <button
                 type="button"
                 onClick={() => setActiveTab("login")}
-                className={`flex-1 py-2.5 px-4 rounded-full text-sm font-medium transition-all duration-200 ${
-                  activeTab === "login"
-                    ? "bg-[hsl(200,35%,20%)] text-white shadow-md"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className="flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold relative z-10 transition-colors duration-200"
+                style={{ color: activeTab === "login" ? "#0f172a" : "#94a3b8" }}
               >
                 Login
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab("signup")}
-                className={`flex-1 py-2.5 px-4 rounded-full text-sm font-medium transition-all duration-200 ${
-                  activeTab === "signup"
-                    ? "bg-[hsl(200,35%,20%)] text-white shadow-md"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className="flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold relative z-10 transition-colors duration-200"
+                style={{ color: activeTab === "signup" ? "#0f172a" : "#94a3b8" }}
               >
                 Create Account
               </button>
+              
+              {/* Sliding active tab indicator */}
+              <motion.div
+                className="absolute top-1 bottom-1 rounded-lg bg-gradient-to-r from-emerald-400 to-teal-400 shadow-md"
+                layout
+                initial={false}
+                animate={{
+                  left: activeTab === "login" ? "4px" : "50%",
+                  right: activeTab === "login" ? "50%" : "4px"
+                }}
+                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+              />
             </div>
           )}
 
           {/* Login Form */}
           {activeTab === "login" && (
-            <form onSubmit={handleLogin} className="space-y-4 animate-fade-in">
+            <form onSubmit={handleLogin} className="space-y-5 animate-fade-in">
               <div className="space-y-2">
-                <Label htmlFor="login-identifier" className="text-sm font-medium text-foreground">
+                <Label htmlFor="login-identifier" className="text-xs font-semibold text-slate-300">
                   Admission number or email
                 </Label>
-                <div className="relative">
-                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <div className="relative group">
+                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
                   <Input
                     id="login-identifier"
                     type="text"
                     placeholder="MINGO-Stu-2026-001"
-                    className="pl-10 h-12 border-2 focus:border-primary"
+                    className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl"
                     value={loginIdentifier}
                     onChange={(e) => setLoginIdentifier(e.target.value)}
                     required
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[11px] text-slate-500 leading-normal">
                   Students: use your admission number and password. Staff and parents may use email.
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="login-password" className="text-sm font-medium text-foreground">
+                <Label htmlFor="login-password" className="text-xs font-semibold text-slate-300">
                   Password
                 </Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <div className="relative group">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
                   <Input
                     id="login-password"
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
-                    className="pl-10 pr-12 h-12 border-2 focus:border-primary"
+                    className="pl-10 pr-12 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl"
                     value={loginPassword}
                     onChange={e => setLoginPassword(e.target.value)}
                     required
                   />
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -539,31 +675,31 @@ const Auth = () => {
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-[hsl(200,35%,20%)] hover:bg-[hsl(200,35%,25%)] text-white font-semibold text-base group"
+                className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-slate-950 font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-500/15 flex items-center justify-center gap-2 group"
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <div className="flex items-center gap-2">
-                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="h-4 w-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
                     Signing in...
                   </div>
                 ) : (
                   <>
                     Sign In
-                    <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
                   </>
                 )}
               </Button>
 
-              <div className="text-center space-y-2">
+              <div className="text-center space-y-3 pt-2">
                 <button
                   type="button"
-                  className="text-sm font-medium text-[hsl(200,35%,25%)] hover:underline"
+                  className="text-xs font-bold text-emerald-400 hover:underline transition-all"
                   onClick={() => setActiveTab("forgot-password")}
                 >
                   Forgot your password?
                 </button>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[10px] text-slate-500 leading-normal max-w-sm mx-auto">
                   Having trouble? The account may exist but be incomplete. Try password reset or contact support.
                 </p>
               </div>
@@ -572,24 +708,24 @@ const Auth = () => {
 
           {/* Forgot Password Form */}
           {activeTab === "forgot-password" && (
-            <form onSubmit={handleForgotPassword} className="space-y-4 animate-fade-in">
-              <div className="text-center mb-4">
-                <p className="text-sm text-muted-foreground">
+            <form onSubmit={handleForgotPassword} className="space-y-5 animate-fade-in">
+              <div className="text-center py-1">
+                <p className="text-xs text-slate-400 leading-relaxed">
                   Enter your admission number or email. Students should use their admission number.
                 </p>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="reset-email" className="text-sm font-medium text-foreground">
+                <Label htmlFor="reset-email" className="text-xs font-semibold text-slate-300">
                   Admission number or email
                 </Label>
-                <div className="relative">
-                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <div className="relative group">
+                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
                   <Input
                     id="reset-email"
                     type="text"
                     placeholder="MINGO-Stu-2026-001"
-                    className="pl-10 h-12 border-2 focus:border-primary"
+                    className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl"
                     value={resetEmail}
                     onChange={e => setResetEmail(e.target.value)}
                     required
@@ -599,25 +735,25 @@ const Auth = () => {
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-[hsl(200,35%,20%)] hover:bg-[hsl(200,35%,25%)] text-white font-semibold text-base group"
+                className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-slate-950 font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-500/15 flex items-center justify-center gap-2 group"
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <div className="flex items-center gap-2">
-                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="h-4 w-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
                     Sending...
                   </div>
                 ) : (
                   <>
                     Send Reset Link
-                    <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
                   </>
                 )}
               </Button>
 
               <button
                 type="button"
-                className="w-full text-sm font-medium text-muted-foreground hover:text-foreground"
+                className="w-full text-xs font-semibold text-slate-400 hover:text-white transition-colors py-1"
                 onClick={() => setActiveTab("login")}
               >
                 Back to Login
@@ -627,18 +763,18 @@ const Auth = () => {
 
           {/* Signup Form */}
           {activeTab === "signup" && (
-            <form onSubmit={handleSignup} className="space-y-4 animate-fade-in max-h-[64vh] overflow-y-auto pr-3 pb-2 custom-scrollbar">
+            <form onSubmit={handleSignup} className="space-y-4 animate-fade-in max-h-[60vh] overflow-y-auto pr-2 pb-2 scrollbar-thin scrollbar-thumb-slate-800">
               <div className="space-y-2">
-                <Label htmlFor="signup-name" className="text-sm font-medium text-foreground">
+                <Label htmlFor="signup-name" className="text-xs font-semibold text-slate-300">
                   Full Name
                 </Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <div className="relative group">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
                   <Input
                     id="signup-name"
                     type="text"
                     placeholder="John Doe"
-                    className="pl-10 h-12 border-2 focus:border-primary"
+                    className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl"
                     value={signupFullName}
                     onChange={e => setSignupFullName(e.target.value)}
                     required
@@ -648,16 +784,16 @@ const Auth = () => {
 
               {signupRole !== "student" && (
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email" className="text-sm font-medium text-foreground">
+                  <Label htmlFor="signup-email" className="text-xs font-semibold text-slate-300">
                     Email Address
                   </Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <div className="relative group">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
                     <Input
                       id="signup-email"
                       type="email"
                       placeholder="you@school.edu"
-                      className="pl-10 h-12 border-2 focus:border-primary"
+                      className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl"
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
                       required={signupRole !== "" && signupRole !== "student"}
@@ -667,23 +803,23 @@ const Auth = () => {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="signup-password" className="text-sm font-medium text-foreground">
+                <Label htmlFor="signup-password" className="text-xs font-semibold text-slate-300">
                   Password
                 </Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <div className="relative group">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
                   <Input
                     id="signup-password"
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
-                    className="pl-10 pr-12 h-12 border-2 focus:border-primary"
+                    className="pl-10 pr-12 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl"
                     value={signupPassword}
                     onChange={e => setSignupPassword(e.target.value)}
                     required
                   />
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -693,25 +829,25 @@ const Auth = () => {
 
               {/* Account Type Selection */}
               <div className="space-y-2">
-                <Label htmlFor="signup-role" className="text-sm font-medium text-foreground">
+                <Label htmlFor="signup-role" className="text-xs font-semibold text-slate-300">
                   Account Type
                 </Label>
                 <Select value={signupRole} onValueChange={setSignupRole} required>
-                  <SelectTrigger id="signup-role" className="h-12 border-2 focus:border-primary">
+                  <SelectTrigger id="signup-role" className="h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white rounded-xl">
                     <SelectValue placeholder="Select your role" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-slate-900 border-slate-800 text-white">
                     {Object.entries(roleConfig).map(([key, config]) => {
                       const IconComponent = config.icon;
                       return (
-                        <SelectItem key={key} value={key} className="py-3">
+                        <SelectItem key={key} value={key} className="py-2.5 hover:bg-slate-800 text-white focus:bg-slate-800 focus:text-white rounded-lg">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                              <IconComponent className="h-4 w-4 text-primary" />
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                              <IconComponent className="h-4 w-4 text-emerald-400" />
                             </div>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{config.label}</span>
-                              <span className="text-xs text-muted-foreground">{config.description}</span>
+                            <div className="flex flex-col text-left">
+                              <span className="font-semibold text-xs text-slate-200">{config.label}</span>
+                              <span className="text-[10px] text-slate-500">{config.description}</span>
                             </div>
                           </div>
                         </SelectItem>
@@ -723,18 +859,18 @@ const Auth = () => {
 
               {/* Admin - New School Creation */}
               {signupRole === "admin" && (
-                <div className="space-y-4 animate-fade-in">
+                <div className="space-y-4 animate-fade-in border-t border-slate-800/60 pt-4 mt-2">
                   <div className="space-y-2">
-                    <Label htmlFor="school-name" className="text-sm font-medium text-foreground">
+                    <Label htmlFor="school-name" className="text-xs font-semibold text-slate-300">
                       School Name
                     </Label>
-                    <div className="relative">
-                      <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <div className="relative group">
+                      <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
                       <Input
                         id="school-name"
                         type="text"
                         placeholder="Enter your school name"
-                        className="pl-10 h-12 border-2 focus:border-primary"
+                        className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl"
                         value={schoolName}
                         onChange={(e) => {
                           const name = e.target.value;
@@ -748,16 +884,16 @@ const Auth = () => {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="school-code" className="text-sm font-medium text-foreground">
+                    <Label htmlFor="school-code" className="text-xs font-semibold text-slate-300">
                       School Code (login)
                     </Label>
-                    <div className="relative">
-                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <div className="relative group">
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
                       <Input
                         id="school-code"
                         type="text"
                         placeholder="Create a unique school code"
-                        className="pl-10 h-12 border-2 focus:border-primary uppercase"
+                        className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl uppercase"
                         value={schoolCode}
                         onChange={(e) => setSchoolCode(e.target.value.toUpperCase())}
                         required
@@ -765,16 +901,16 @@ const Auth = () => {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="admission-prefix" className="text-sm font-medium text-foreground">
+                    <Label htmlFor="admission-prefix" className="text-xs font-semibold text-slate-300">
                       Admission number prefix
                     </Label>
-                    <div className="relative">
-                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <div className="relative group">
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
                       <Input
                         id="admission-prefix"
                         type="text"
                         placeholder="MINGO"
-                        className="pl-10 h-12 border-2 focus:border-primary uppercase"
+                        className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl uppercase"
                         value={admissionPrefix}
                         onChange={(e) => {
                           setAdmissionPrefixManual(true);
@@ -785,7 +921,7 @@ const Auth = () => {
                         required
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-[10px] text-slate-500 leading-normal">
                       Auto-filled from school name (first 3 letters), not school code. Example:{" "}
                       {admissionPrefix || derivePrefixFromSchoolName(schoolName) || "MIN"}-Stu-2026-001
                     </p>
@@ -795,24 +931,24 @@ const Auth = () => {
 
               {/* Teacher/Student — admission number only (school auto-detected) */}
               {(signupRole === "teacher" || signupRole === "student") && (
-                <div className="space-y-4 animate-fade-in">
+                <div className="space-y-4 animate-fade-in border-t border-slate-800/60 pt-4 mt-2">
                   <div className="space-y-2">
-                    <Label htmlFor="reg-number" className="text-sm font-medium text-foreground">
+                    <Label htmlFor="reg-number" className="text-xs font-semibold text-slate-300">
                       {signupRole === "student" ? "Admission Number" : "Employee Number"}
                     </Label>
-                    <div className="relative">
-                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <div className="relative group">
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
                       <Input
                         id="reg-number"
                         type="text"
                         placeholder={`Enter your ${signupRole === "student" ? "student" : "employee"} number`}
-                        className="pl-10 h-12 border-2 focus:border-primary uppercase"
+                        className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl uppercase"
                         value={registrationNumber}
                         onChange={e => setRegistrationNumber(e.target.value.toUpperCase())}
                         required
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-[10px] text-slate-500 leading-normal">
                       {signupRole === "student"
                         ? "This is your login ID. You will sign in with this number and your password — no personal email."
                         : "Format: SCHOOL-Stu-2026-001 — school is detected from your number"}
@@ -821,16 +957,16 @@ const Auth = () => {
                   
                   {signupRole === "student" && (
                     <div className="space-y-2">
-                      <Label htmlFor="gender" className="text-sm font-medium text-foreground">
+                      <Label htmlFor="gender" className="text-xs font-semibold text-slate-300">
                         Gender
                       </Label>
                       <Select value={gender} onValueChange={setGender} required>
-                        <SelectTrigger id="gender" className="h-12 border-2 focus:border-primary">
+                        <SelectTrigger id="gender" className="h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white rounded-xl">
                           <SelectValue placeholder="Select your gender" />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="male">Male</SelectItem>
-                          <SelectItem value="female">Female</SelectItem>
+                        <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                          <SelectItem value="male" className="hover:bg-slate-800 text-white focus:bg-slate-800 focus:text-white rounded-lg">Male</SelectItem>
+                          <SelectItem value="female" className="hover:bg-slate-800 text-white focus:bg-slate-800 focus:text-white rounded-lg">Female</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -840,14 +976,14 @@ const Auth = () => {
 
               {(signupRole === "parent" || signupRole === "admin") && (
                 <div className="space-y-2 animate-fade-in">
-                  <Label htmlFor="signup-phone" className="text-sm font-medium text-foreground">
+                  <Label htmlFor="signup-phone" className="text-xs font-semibold text-slate-300">
                     Phone Number
                   </Label>
                   <Input
                     id="signup-phone"
                     type="tel"
                     placeholder="+233..."
-                    className="h-12 border-2"
+                    className="h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl"
                     value={signupPhone}
                     onChange={(e) => setSignupPhone(e.target.value)}
                     required
@@ -856,16 +992,16 @@ const Auth = () => {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="signup-confirm-password" className="text-sm font-medium text-foreground">
+                <Label htmlFor="signup-confirm-password" className="text-xs font-semibold text-slate-300">
                   Confirm Password
                 </Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <div className="relative group">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
                   <Input
                     id="signup-confirm-password"
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
-                    className="pl-10 h-12 border-2 focus:border-primary"
+                    className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl"
                     value={signupConfirmPassword}
                     onChange={(e) => setSignupConfirmPassword(e.target.value)}
                     required
@@ -875,38 +1011,38 @@ const Auth = () => {
 
               {/* Parent — admission number links child & school */}
               {signupRole === "parent" && (
-                <div className="space-y-4 animate-fade-in">
+                <div className="space-y-4 animate-fade-in border-t border-slate-800/60 pt-4 mt-2">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-foreground">
+                    <Label className="text-xs font-semibold text-slate-300">
                       Child&apos;s admission number
                     </Label>
-                    <p className="text-xs text-muted-foreground mb-2">
+                    <p className="text-[10px] text-slate-500 leading-normal mb-2">
                       Enter your child&apos;s admission number — school and class are detected automatically
                     </p>
 
                     {previewLoading && (
-                      <p className="text-sm text-muted-foreground">Verifying admission number…</p>
+                      <p className="text-[11px] text-slate-400">Verifying admission number…</p>
                     )}
                     {childPreview?.valid && (
-                      <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm space-y-1">
-                        <p className="font-semibold text-foreground">{childPreview.student_name}</p>
-                        <p className="text-muted-foreground">School: {childPreview.school_name}</p>
-                        <p className="text-muted-foreground">Class: {childPreview.class_name}</p>
-                        <p className="font-mono text-xs">{childPreview.admission_number}</p>
+                      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-xs space-y-1 animate-fade-in">
+                        <p className="font-semibold text-emerald-400">{childPreview.student_name}</p>
+                        <p className="text-slate-400">School: {childPreview.school_name}</p>
+                        <p className="text-slate-400">Class: {childPreview.class_name}</p>
+                        <p className="font-mono text-[10px] text-slate-500">{childPreview.admission_number}</p>
                       </div>
                     )}
                     {childPreview && !childPreview.valid && !previewLoading && (
-                      <p className="text-sm text-destructive">{childPreview.error}</p>
+                      <p className="text-xs text-red-400 bg-red-500/5 border border-red-500/20 rounded-xl p-3">{childPreview.error}</p>
                     )}
                     
                     {childStudentNumbers.map((num, index) => (
                       <div key={index} className="flex gap-2">
-                        <div className="relative flex-1">
-                          <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <div className="relative flex-1 group">
+                          <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
                           <Input
                             type="text"
                             placeholder={`Child ${index + 1} student number`}
-                            className="pl-10 h-12 border-2 focus:border-primary uppercase"
+                            className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl uppercase"
                             value={num}
                             onChange={e => updateChildNumber(index, e.target.value)}
                             required={index === 0}
@@ -917,7 +1053,7 @@ const Auth = () => {
                             type="button"
                             variant="outline"
                             size="icon"
-                            className="h-12 w-12"
+                            className="h-12 w-12 border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl shrink-0"
                             onClick={() => removeChildNumberField(index)}
                           >
                             <X className="h-4 w-4" />
@@ -932,9 +1068,9 @@ const Auth = () => {
                         variant="outline"
                         size="sm"
                         onClick={addChildNumberField}
-                        className="w-full h-10"
+                        className="w-full h-11 border-dashed border-slate-850 hover:bg-slate-950/60 hover:text-white rounded-xl text-slate-400 mt-2 flex items-center justify-center gap-1.5"
                       >
-                        <Plus className="h-4 w-4 mr-2" />
+                        <Plus className="h-4 w-4" />
                         Add Another Child
                       </Button>
                     )}
@@ -944,12 +1080,12 @@ const Auth = () => {
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-[hsl(200,35%,20%)] hover:bg-[hsl(200,35%,25%)] text-white font-semibold text-base"
+                className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-slate-950 font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-500/15 flex items-center justify-center gap-2 group mt-2"
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <div className="flex items-center gap-2">
-                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="h-4 w-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
                     Creating account...
                   </div>
                 ) : "Create Account"}
