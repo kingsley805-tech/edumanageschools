@@ -197,6 +197,7 @@ serve(async (req) => {
 
       let parent: {
         id: string;
+        user_id?: string | null;
         phone?: string | null;
         emergency_contact?: string | null;
         profiles?: { full_name?: string };
@@ -205,20 +206,58 @@ serve(async (req) => {
       if (student?.guardian_id) {
         const { data: pRow } = await supabaseAdmin
           .from("parents")
-          .select("id, phone, emergency_contact, profiles:user_id(full_name)")
+          .select("id, user_id, phone, emergency_contact, profiles:user_id(full_name)")
           .eq("id", student.guardian_id)
           .maybeSingle();
         parent = pRow as typeof parent;
       }
+
+      const parentName = parent?.profiles?.full_name ?? "Parent";
+      const salutation = parentName.includes(" ") ? `Mr/Mrs ${parentName.split(" ").pop()}` : "Parent";
+      const dayLabel = new Date(reg.register_date as string).toLocaleDateString("en-GB", { weekday: "long" });
+      const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+      const inAppBody = `Attendance Update: Your child, ${studentName}, has been marked ${statusLabel} at ${schoolName} on ${dayLabel}, ${dateLabel}.`;
+
+      // In-app notification (always, when parent user is linked)
+      if (parent?.user_id) {
+        await supabaseAdmin.from("notifications").insert({
+          user_id: parent.user_id,
+          title: "Attendance Update",
+          body: inAppBody,
+          data: {
+            type: "attendance",
+            student_id: student?.id ?? entry.student_id,
+            register_id: registerId,
+            status,
+            date: reg.register_date,
+            day: dayLabel,
+            school_name: schoolName,
+          },
+          read: false,
+        });
+      }
+
+      // Audit log
+      await supabaseAdmin.from("audit_logs").insert({
+        school_id: schoolId,
+        user_id: parent?.user_id ?? null,
+        action: "attendance_notification",
+        entity_type: "class_register",
+        entity_id: registerId,
+        details: {
+          student_id: student?.id ?? entry.student_id,
+          status,
+          date: reg.register_date,
+          day: dayLabel,
+        },
+      });
+
       const phoneRaw = parent?.phone ?? parent?.emergency_contact ?? "";
       const phone = normalizePhone(phoneRaw);
       if (!phone) {
         skipped++;
         continue;
       }
-
-      const parentName = parent?.profiles?.full_name ?? "Parent";
-      const salutation = parentName.includes(" ") ? `Mr/Mrs ${parentName.split(" ").pop()}` : "Parent";
 
       const message = buildMessage({
         parentSalutation: salutation,
