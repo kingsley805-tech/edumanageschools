@@ -215,63 +215,24 @@ export async function createRegister(input: {
   periodLabel: string;
   createdBy?: string;
 }): Promise<string> {
-  const day = new Date(input.registerDate).getDay();
-
-  const { data, error } = await supabase
-    .from("class_registers")
-    .upsert(
-      {
-        school_id: input.schoolId,
-        class_id: input.classId,
-        subject_id: input.subjectId,
-        teacher_id: input.teacherId,
-        term_id: input.termId ?? null,
-        academic_year_id: input.academicYearId ?? null,
-        session_label: input.sessionLabel ?? null,
-        register_date: input.registerDate,
-        period_label: input.periodLabel,
-        day_of_week: day,
-        status: "draft",
-        created_by: input.createdBy ?? null,
-      },
-      {
-        onConflict: "school_id,class_id,subject_id,register_date,period_label,term_id",
-      }
-    )
-    .select("id")
-    .single();
+  const { data, error } = await supabase.rpc("create_or_get_class_register", {
+    p_school_id: input.schoolId,
+    p_class_id: input.classId,
+    p_subject_id: input.subjectId,
+    p_teacher_id: input.teacherId,
+    p_term_id: input.termId ?? null,
+    p_academic_year_id: input.academicYearId ?? null,
+    p_session_label: input.sessionLabel ?? null,
+    p_register_date: input.registerDate,
+    p_period_label: input.periodLabel,
+    p_created_by: input.createdBy ?? null,
+  });
 
   if (error) {
-    // If upsert fails with 23505, fall back to querying for existing
-    if ((error as { code?: string }).code === "23505") {
-      // First try with term_id
-      let dupQ = supabase
-        .from("class_registers")
-        .select("id")
-        .eq("school_id", input.schoolId)
-        .eq("class_id", input.classId)
-        .eq("subject_id", input.subjectId)
-        .eq("register_date", input.registerDate)
-        .eq("period_label", input.periodLabel);
-      dupQ = input.termId ? dupQ.eq("term_id", input.termId) : dupQ.is("term_id", null);
-      let { data: dup } = await dupQ.maybeSingle();
-      if (dup?.id) return dup.id as string;
-      
-      // If that fails, try without term_id filter
-      const { data: fallbackDup } = await supabase
-        .from("class_registers")
-        .select("id")
-        .eq("school_id", input.schoolId)
-        .eq("class_id", input.classId)
-        .eq("subject_id", input.subjectId)
-        .eq("register_date", input.registerDate)
-        .eq("period_label", input.periodLabel)
-        .maybeSingle();
-      if (fallbackDup?.id) return fallbackDup.id as string;
-    }
     throw toError(error, "Could not create register");
   }
-  return data.id as string;
+
+  return data as string;
 }
 
 export async function saveRegisterHeader(
