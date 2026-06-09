@@ -216,6 +216,20 @@ export async function createRegister(input: {
   createdBy?: string;
 }): Promise<string> {
   const day = new Date(input.registerDate).getDay();
+
+  // Reuse existing slot if present (idempotent open)
+  let existingQ = supabase
+    .from("class_registers")
+    .select("id")
+    .eq("school_id", input.schoolId)
+    .eq("class_id", input.classId)
+    .eq("subject_id", input.subjectId)
+    .eq("register_date", input.registerDate)
+    .eq("period_label", input.periodLabel);
+  existingQ = input.termId ? existingQ.eq("term_id", input.termId) : existingQ.is("term_id", null);
+  const { data: existing } = await existingQ.maybeSingle();
+  if (existing?.id) return existing.id as string;
+
   const { data, error } = await supabase
     .from("class_registers")
     .insert({
@@ -234,7 +248,22 @@ export async function createRegister(input: {
     })
     .select("id")
     .single();
-  if (error) throw toError(error, "Could not create register");
+  if (error) {
+    if ((error as { code?: string }).code === "23505") {
+      let dupQ = supabase
+        .from("class_registers")
+        .select("id")
+        .eq("school_id", input.schoolId)
+        .eq("class_id", input.classId)
+        .eq("subject_id", input.subjectId)
+        .eq("register_date", input.registerDate)
+        .eq("period_label", input.periodLabel);
+      dupQ = input.termId ? dupQ.eq("term_id", input.termId) : dupQ.is("term_id", null);
+      const { data: dup } = await dupQ.maybeSingle();
+      if (dup?.id) return dup.id as string;
+    }
+    throw toError(error, "Could not create register");
+  }
   return data.id as string;
 }
 
