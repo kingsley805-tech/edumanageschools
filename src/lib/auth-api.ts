@@ -234,7 +234,7 @@ export async function ensureParentChildrenLinked(
       return linkParentToStudents(parent.id, null, nums);
     }
 
-    await new Promise((r) => setTimeout(r, 800));
+    await new Promise((r) => setTimeout(r, 150));
   }
 
   return {

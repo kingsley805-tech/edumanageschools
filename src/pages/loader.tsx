@@ -8,7 +8,7 @@ export default function SchoolLoader() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Complete progress bar in 10 seconds (10000ms / 100 = 100ms per percent)
+    // Complete progress bar in 800ms (800ms / 100 = 8ms per percent)
     const progressInterval = setInterval(() => {
       setProgress(prev => {
         if (prev >= 100) {
@@ -17,14 +17,14 @@ export default function SchoolLoader() {
         }
         return prev + 1;
       });
-    }, 100);
+    }, 8);
 
     return () => clearInterval(progressInterval);
   }, []);
 
-  // Show loader for exactly 10 seconds, then navigate to Landing
+  // Show loader for exactly 800ms, then navigate to Landing
   useEffect(() => {
-    const t = setTimeout(() => setLoaded(true), 10000);
+    const t = setTimeout(() => setLoaded(true), 800);
     return () => clearTimeout(t);
   }, []);
 

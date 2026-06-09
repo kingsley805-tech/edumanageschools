@@ -59,6 +59,7 @@ export default function TeacherRegisterEditor() {
   const [lessonSummary, setLessonSummary] = useState("");
   const [homework, setHomework] = useState("");
   const [saving, setSaving] = useState(false);
+  const isPersistingRef = useRef(false);
 
   const [classId, setClassId] = useState(searchParams.get("classId") ?? "");
   const [subjectId, setSubjectId] = useState(searchParams.get("subjectId") ?? "");
@@ -165,38 +166,44 @@ export default function TeacherRegisterEditor() {
 
   const persistDraft = useCallback(
     async (silent = false) => {
+      if (isPersistingRef.current) return;
       if (!schoolId || !effectiveTeacherId || readOnly) return;
       if (isNew && (!classId || !subjectId)) return;
 
-      let registerId = registerIdRef.current ?? register?.id;
-      if (!registerId && isNew) {
-        const term = terms.find((t) => t.id === termId);
-        registerId = await createRegister({
-          schoolId,
-          classId,
-          subjectId,
-          teacherId: effectiveTeacherId,
-          termId: termId || null,
-          academicYearId: term?.academic_year_id ?? null,
-          registerDate,
-          periodLabel,
-          createdBy: user?.id,
-        });
-        registerIdRef.current = registerId;
-        if (!silent) navigate(`${registerBase}/${registerId}`, { replace: true });
-      }
-      if (!registerId) return;
+      isPersistingRef.current = true;
+      try {
+        let registerId = registerIdRef.current ?? register?.id;
+        if (!registerId && isNew) {
+          const term = terms.find((t) => t.id === termId);
+          registerId = await createRegister({
+            schoolId,
+            classId,
+            subjectId,
+            teacherId: effectiveTeacherId,
+            termId: termId || null,
+            academicYearId: term?.academic_year_id ?? null,
+            registerDate,
+            periodLabel,
+            createdBy: user?.id,
+          });
+          registerIdRef.current = registerId;
+          if (!silent) navigate(`${registerBase}/${registerId}`, { replace: true });
+        }
+        if (!registerId) return;
 
-      await saveRegisterHeader(registerId, { lesson_summary: lessonSummary, homework });
-      const entryRows = Object.entries(lines).map(([student_id, v]) => ({
-        student_id,
-        attendance_status: (v as { attendance_status: string }).attendance_status,
-        time_in: (v as { time_in: string }).time_in || null,
-        participation: (v as { participation: string }).participation || null,
-        remarks: (v as { remarks: string }).remarks || null,
-      }));
-      if (entryRows.length) await saveRegisterEntries(registerId, entryRows);
-      if (!silent) toast.success("Draft saved");
+        await saveRegisterHeader(registerId, { lesson_summary: lessonSummary, homework });
+        const entryRows = Object.entries(lines).map(([student_id, v]) => ({
+          student_id,
+          attendance_status: (v as { attendance_status: string }).attendance_status,
+          time_in: (v as { time_in: string }).time_in || null,
+          participation: (v as { participation: string }).participation || null,
+          remarks: (v as { remarks: string }).remarks || null,
+        }));
+        if (entryRows.length) await saveRegisterEntries(registerId, entryRows);
+        if (!silent) toast.success("Draft saved");
+      } finally {
+        isPersistingRef.current = false;
+      }
     },
     [
       schoolId,

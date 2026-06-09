@@ -176,7 +176,7 @@ const Children = () => {
       const result = await resolveStudentByAdmissionNumber(num);
       setPreview(result);
       setPreviewLoading(false);
-    }, 400);
+    }, 150);
 
     return () => clearTimeout(timer);
   }, [admissionInput]);
