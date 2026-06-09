@@ -337,21 +337,30 @@ export async function saveRegisterEntries(
     behavior_remark?: string | null;
   }[],
 ) {
-  for (const row of entries) {
-    const { error } = await supabase.from("register_student_entries").upsert(
-      {
-        register_id: registerId,
-        student_id: row.student_id,
-        attendance_status: row.attendance_status,
-        time_in: row.time_in || null,
-        participation: row.participation || null,
-        remarks: row.remarks || null,
-        behavior_remark: row.behavior_remark || null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "register_id,student_id" },
-    );
-    if (error) throw toError(error, "Could not save attendance");
+  const payload = entries.map((row) => ({
+    student_id: row.student_id,
+    attendance_status: row.attendance_status,
+    time_in: row.time_in || null,
+    participation: row.participation || null,
+    remarks: row.remarks || null,
+    behavior_remark: row.behavior_remark || null,
+  }));
+
+  const { error } = await supabase.rpc("upsert_register_entries", {
+    p_register_id: registerId,
+    p_entries: payload as unknown as never,
+  });
+  if (!error) return;
+
+  // Fallback for older deployments without the RPC
+  for (const row of payload) {
+    const { error: rowError } = await supabase
+      .from("register_student_entries")
+      .upsert(
+        { register_id: registerId, ...row, updated_at: new Date().toISOString() },
+        { onConflict: "register_id,student_id" },
+      );
+    if (rowError) throw toError(rowError, "Could not save attendance");
   }
 }
 

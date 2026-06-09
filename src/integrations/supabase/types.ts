@@ -14,6 +14,90 @@ export type Database = {
   }
   public: {
     Tables: {
+      academic_recommendations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          recommendation_type: string
+          school_id: string
+          strengths: string | null
+          student_id: string
+          suggestions: string
+          teacher_id: string | null
+          term_id: string | null
+          threshold_alert: boolean
+          updated_at: string
+          weaknesses: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          recommendation_type?: string
+          school_id: string
+          strengths?: string | null
+          student_id: string
+          suggestions?: string
+          teacher_id?: string | null
+          term_id?: string | null
+          threshold_alert?: boolean
+          updated_at?: string
+          weaknesses?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          recommendation_type?: string
+          school_id?: string
+          strengths?: string | null
+          student_id?: string
+          suggestions?: string
+          teacher_id?: string | null
+          term_id?: string | null
+          threshold_alert?: boolean
+          updated_at?: string
+          weaknesses?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_recommendations_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "platform_tenant_overview_v"
+            referencedColumns: ["school_id"]
+          },
+          {
+            foreignKeyName: "academic_recommendations_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_recommendations_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_recommendations_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_recommendations_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       academic_years: {
         Row: {
           created_at: string
@@ -1072,6 +1156,7 @@ export type Database = {
       }
       classes: {
         Row: {
+          class_teacher_id: string | null
           created_at: string | null
           id: string
           level: string | null
@@ -1079,6 +1164,7 @@ export type Database = {
           school_id: string | null
         }
         Insert: {
+          class_teacher_id?: string | null
           created_at?: string | null
           id?: string
           level?: string | null
@@ -1086,6 +1172,7 @@ export type Database = {
           school_id?: string | null
         }
         Update: {
+          class_teacher_id?: string | null
           created_at?: string | null
           id?: string
           level?: string | null
@@ -1093,6 +1180,13 @@ export type Database = {
           school_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "classes_class_teacher_id_fkey"
+            columns: ["class_teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "classes_school_id_fkey"
             columns: ["school_id"]
@@ -5047,6 +5141,10 @@ export type Database = {
       teacher_teaches_class: {
         Args: { p_class_id: string; p_teacher_id: string }
         Returns: boolean
+      }
+      upsert_register_entries: {
+        Args: { p_entries: Json; p_register_id: string }
+        Returns: undefined
       }
       upsert_term_report_card: { Args: { p_row: Json }; Returns: Json }
       user_can_access_school: {
