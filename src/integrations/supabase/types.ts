@@ -5048,6 +5048,10 @@ export type Database = {
         Args: { p_class_id: string; p_teacher_id: string }
         Returns: boolean
       }
+      upsert_register_entries: {
+        Args: { p_entries: Json; p_register_id: string }
+        Returns: undefined
+      }
       upsert_term_report_card: { Args: { p_row: Json }; Returns: Json }
       user_can_access_school: {
         Args: { _school_id: string; _user_id: string }
