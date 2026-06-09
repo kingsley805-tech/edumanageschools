@@ -25,6 +25,7 @@ const Classes = () => {
   const [open, setOpen] = useState(false);
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [classes, setClasses] = useState<any[]>([]);
+  const [teachers, setTeachers] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [enrolledStudents, setEnrolledStudents] = useState<any[]>([]);
   const [availableStudents, setAvailableStudents] = useState<any[]>([]);
@@ -45,6 +46,40 @@ const Classes = () => {
     }
   }, [selectedClass]);
 
+  const fetchTeachers = async (schoolId: string) => {
+    const { data, error } = await supabase
+      .from("teachers")
+      .select("id, employee_no, profiles(full_name)")
+      .eq("school_id", schoolId);
+    if (!error && data) {
+      setTeachers(data);
+    }
+  };
+
+  const handleAssignClassTeacher = async (classId: string, teacherId: string) => {
+    try {
+      const updateValue = teacherId === "unassigned" ? null : teacherId;
+      const { error } = await supabase
+        .from("classes")
+        .update({ class_teacher_id: updateValue })
+        .eq("id", classId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Class teacher updated successfully",
+      });
+      fetchClasses();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const fetchClasses = async () => {
     // Get current user's school_id for filtering
     const { data: { user } } = await supabase.auth.getUser();
@@ -61,11 +96,17 @@ const Classes = () => {
       return;
     }
 
+    fetchTeachers(profileData.school_id);
+
     const { data, error } = await supabase
       .from("classes")
       .select(`
         *,
-        students(count)
+        students(count),
+        class_teacher:teachers!class_teacher_id(
+          id,
+          profiles(full_name)
+        )
       `)
       .eq("school_id", profileData.school_id)
       .order("name");
@@ -287,6 +328,25 @@ const Classes = () => {
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Users className="h-4 w-4" />
                   <span>{cls.students?.[0]?.count || 0} Students</span>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Class Teacher</Label>
+                  <Select
+                    value={cls.class_teacher_id || "unassigned"}
+                    onValueChange={(val) => handleAssignClassTeacher(cls.id, val)}
+                  >
+                    <SelectTrigger className="w-full text-xs h-9">
+                      <SelectValue placeholder="Assign teacher" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {teachers.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.profiles?.full_name ?? "Teacher"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <Button 
                   variant="outline" 

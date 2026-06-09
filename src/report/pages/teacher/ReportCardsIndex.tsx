@@ -46,11 +46,19 @@ import { fetchTeacherAssignedClasses } from "@/report/lib/teacher-assignments";
 function TeacherReportCards() {
   const { user, profile } = useAuth();
   const { data: term } = useCurrentTerm();
-  const [classId, setClassId] = useState("");
-  const [studentId, setStudentId] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [classId, setClassId] = useState(searchParams.get("classId") || "");
+  const [studentId, setStudentId] = useState(searchParams.get("studentId") || "");
   const [submitOpen, setSubmitOpen] = useState(false);
   const [positionsRevealed, setPositionsRevealed] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    const cid = searchParams.get("classId");
+    const sid = searchParams.get("studentId");
+    if (cid) setClassId(cid);
+    if (sid) setStudentId(sid);
+  }, [searchParams]);
 
   // Reset only when class or term changes — not when switching students after Generate Positions.
   useEffect(() => {

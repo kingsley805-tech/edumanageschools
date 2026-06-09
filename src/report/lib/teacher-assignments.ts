@@ -18,17 +18,30 @@ export async function fetchTeacherAssignedClasses(userId: string): Promise<Teach
   const teacherRecordId = await fetchTeacherRecordId(userId);
   if (!teacherRecordId) return [];
 
-  const { data, error } = await supabase
+  // Query subject teaching assignments
+  const { data: subjectData, error: subjectError } = await supabase
     .from("class_subjects")
     .select("class_id, classes(id, name)")
     .eq("teacher_id", teacherRecordId);
-  if (error) throw error;
+  if (subjectError) throw subjectError;
+
+  // Query class teacher assignments
+  const { data: ctData, error: ctError } = await supabase
+    .from("classes")
+    .select("id, name")
+    .eq("class_teacher_id", teacherRecordId);
+  if (ctError) throw ctError;
 
   const map = new Map<string, TeacherClassOption>();
-  for (const row of data ?? []) {
+  for (const row of subjectData ?? []) {
     const c = row.classes as { id: string; name: string } | null;
     if (c?.id) map.set(c.id, { id: c.id, name: c.name });
   }
+
+  for (const c of ctData ?? []) {
+    if (c?.id) map.set(c.id, { id: c.id, name: c.name });
+  }
+
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 

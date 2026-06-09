@@ -51,23 +51,67 @@ const Classes = () => {
         `)
         .eq("teacher_id", teacher.id);
 
+      const { data: managedClasses } = await supabase
+        .from("classes")
+        .select("id, name, level")
+        .eq("class_teacher_id", teacher.id);
+
+      const classMap = new Map<string, ClassData>();
+
       if (classSubjects) {
-        const classesWithStudents = await Promise.all(
-          classSubjects.map(async (cs) => {
-            const { count } = await supabase
-              .from("students")
-              .select("id", { count: "exact", head: true })
-              .eq("class_id", cs.class.id);
-
-            return {
-              ...cs,
-              studentCount: count || 0
-            };
-          })
-        );
-
-        setClasses(classesWithStudents);
+        for (const cs of classSubjects) {
+          if (cs.class) {
+            classMap.set(cs.class.id, {
+              id: cs.id,
+              class: {
+                id: cs.class.id,
+                name: cs.class.name,
+                level: cs.class.level
+              },
+              subject: {
+                id: cs.subject?.id || "",
+                name: cs.subject?.name || "N/A"
+              }
+            });
+          }
+        }
       }
+
+      if (managedClasses) {
+        for (const mc of managedClasses) {
+          if (!classMap.has(mc.id)) {
+            classMap.set(mc.id, {
+              id: `managed-${mc.id}`,
+              class: {
+                id: mc.id,
+                name: mc.name,
+                level: mc.level
+              },
+              subject: {
+                id: "class_teacher",
+                name: "Class Teacher (No subject)"
+              }
+            });
+          }
+        }
+      }
+
+      const mergedClasses = Array.from(classMap.values());
+      const classesWithStudents = await Promise.all(
+        mergedClasses.map(async (cData) => {
+          const { count } = await supabase
+            .from("students")
+            .select("id", { count: "exact", head: true })
+            .eq("class_id", cData.class.id);
+
+          return {
+            ...cData,
+            studentCount: count || 0
+          };
+        })
+      );
+
+      setClasses(classesWithStudents);
     } catch (error) {
       console.error("Error fetching classes:", error);
     } finally {

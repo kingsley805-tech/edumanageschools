@@ -7,14 +7,14 @@ import { ShepherdReportCard } from "@/report/components/shepherd-report-card";
 import { useGradingFormat } from "@/report/hooks/use-school-data";
 import { fetchPublishedTermReport, fetchPublishedTermReports, rowToFormWithTermDates } from "@/report/lib/term-report";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useEffect, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { useEffect, useState, useMemo } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, AlertTriangle, AlertCircle, GraduationCap } from "lucide-react";
 import { ReportMetaPanel } from "@/report/components/report-meta-panel";
-import { useMemo } from "react";
 import { useReportSignatures } from "@/report/hooks/use-report-signatures";
+import { Badge } from "@/components/ui/badge";
 
 function ParentReports() {
   const { user } = useAuth();
@@ -80,6 +80,58 @@ function ParentReports() {
     enabled: !!report,
     queryFn: () => rowToFormWithTermDates(report!, gradingFormat),
   });
+
+  // Query academic recommendations for active child and term
+  const { data: parentRecommendations } = useQuery({
+    queryKey: ["parent-academic-recommendations", activeStudentId, report?.term_id],
+    enabled: !!activeStudentId && !!report?.term_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("academic_recommendations")
+        .select(`
+          id,
+          recommendation_type,
+          suggestions,
+          strengths,
+          weaknesses,
+          threshold_alert,
+          created_at,
+          teacher:teachers(
+            profiles(
+              full_name
+            )
+          )
+        `)
+        .eq("student_id", activeStudentId!)
+        .eq("term_id", report!.term_id!);
+      if (error) throw error;
+      return data ?? [];
+    }
+  });
+
+  // Query student attendance records for active child and class
+  const { data: studentAttendance } = useQuery({
+    queryKey: ["parent-student-attendance", activeStudentId, report?.class_id],
+    enabled: !!activeStudentId && !!report?.class_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("attendance")
+        .select("status")
+        .eq("student_id", activeStudentId!)
+        .eq("class_id", report!.class_id!);
+      if (error) throw error;
+      return data ?? [];
+    }
+  });
+
+  // Calculate student attendance rate
+  const studentAttendanceRate = useMemo(() => {
+    if (!studentAttendance || studentAttendance.length === 0) return 100;
+    const attended = studentAttendance.filter(r => 
+      r.status === "present" || r.status === "late" || r.status === "excused"
+    ).length;
+    return Math.round((attended / studentAttendance.length) * 100);
+  }, [studentAttendance]);
 
   const isLoading = reportLoading || formLoading;
 
@@ -173,7 +225,41 @@ function ParentReports() {
         {isLoading ? (
           <Skeleton className="h-[800px] w-full max-w-[860px] mx-auto" />
         ) : form && report ? (
-          <div className="space-y-4 max-w-[860px] mx-auto">
+          <div className="space-y-6 max-w-[860px] mx-auto">
+            {/* Warning Banners Section */}
+            {(studentAttendanceRate < 80 || (report.total_score != null && report.total_score < 50) || parentRecommendations?.some(r => r.threshold_alert)) && (
+              <div className="space-y-3 no-print">
+                {studentAttendanceRate < 80 && (
+                  <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3.5 rounded-xl flex items-start gap-3 shadow-sm">
+                    <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-sm">Attendance Warning Flagged</p>
+                      <p className="text-xs opacity-90">{form.studentName} has a term attendance rate of {studentAttendanceRate}%, which is below the minimum required 80% threshold.</p>
+                    </div>
+                  </div>
+                )}
+                {report.total_score != null && report.total_score < 50 && (
+                  <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3.5 rounded-xl flex items-start gap-3 shadow-sm">
+                    <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-sm">Performance Alert Flagged</p>
+                      <p className="text-xs opacity-90">{form.studentName}'s term aggregate score is {report.total_score}%, indicating they are struggling academically this term.</p>
+                    </div>
+                  </div>
+                )}
+                {parentRecommendations?.some(r => r.threshold_alert) && (
+                  <div className="bg-red-100 border border-red-300 text-red-900 px-4 py-3.5 rounded-xl flex items-start gap-3 shadow-sm">
+                    <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5 animate-bounce" />
+                    <div>
+                      <p className="font-bold text-sm">Urgent Teacher Intervention Alert</p>
+                      <p className="text-xs opacity-95">The class advisor has flagged one or more urgent academic recommendations. Please review the advisor recommendations below.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Official Report Card */}
             <ReportMetaPanel
               report={report}
               sentBy={
@@ -193,6 +279,69 @@ function ParentReports() {
               teacherSignatureUrl={teacherSignatureUrl}
               headSignatureUrl={headSignatureUrl}
             />
+
+            {/* Academic Recommendations Cards Section */}
+            {parentRecommendations && parentRecommendations.length > 0 && (
+              <Card className="no-print border border-primary/20 bg-gradient-to-br from-primary/5 to-transparent shadow-md">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2 text-primary font-bold">
+                    <GraduationCap className="h-5 w-5" />
+                    Class Advisor Recommendations & Interventions
+                  </CardTitle>
+                  <CardDescription>
+                    Tailored study plans and suggestions sent by the class teacher to help support your child's learning.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {parentRecommendations.map((rec) => {
+                    const teacherName = (rec.teacher as any)?.profiles?.full_name || "Class Teacher";
+                    return (
+                      <div key={rec.id} className="p-4 rounded-xl border bg-background hover:shadow-md transition-all space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="px-2.5 py-0.5 font-semibold">
+                              {rec.recommendation_type.replace("_", " ").toUpperCase()}
+                            </Badge>
+                            {rec.threshold_alert && (
+                              <Badge variant="destructive" className="flex items-center gap-1 animate-pulse">
+                                <AlertTriangle className="h-3 w-3" /> URGENT ALERT
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            Sent by {teacherName} on {new Date(rec.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        
+                        <div className="space-y-2 text-sm">
+                          <div>
+                            <span className="font-semibold block text-xs uppercase tracking-wider text-muted-foreground mb-1">Teacher Suggestions & study plans:</span>
+                            <p className="text-foreground mt-1 whitespace-pre-line font-medium">{rec.suggestions}</p>
+                          </div>
+                          
+                          {(rec.strengths || rec.weaknesses) && (
+                            <div className="grid md:grid-cols-2 gap-4 pt-3 border-t text-xs">
+                              {rec.strengths && (
+                                <div>
+                                  <span className="font-bold text-green-600 block mb-1">Key Strengths:</span>
+                                  <p className="text-muted-foreground font-medium">{rec.strengths}</p>
+                                </div>
+                              )}
+                              {rec.weaknesses && (
+                                <div>
+                                  <span className="font-bold text-red-600 block mb-1">Weaknesses / Areas of Improvement:</span>
+                                  <p className="text-muted-foreground font-medium">{rec.weaknesses}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
           </div>
         ) : (
           <Card>

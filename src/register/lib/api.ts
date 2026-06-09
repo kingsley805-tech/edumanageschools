@@ -203,6 +203,69 @@ export function studentDisplayName(
   return student.full_name?.trim() || profile?.full_name?.trim() || "—";
 }
 
+async function createRegisterClientFallback(input: {
+  schoolId: string;
+  classId: string;
+  subjectId: string;
+  teacherId: string;
+  termId?: string | null;
+  academicYearId?: string | null;
+  sessionLabel?: string;
+  registerDate: string;
+  periodLabel: string;
+  createdBy?: string;
+}): Promise<string> {
+  const registerDate = new Date(input.registerDate);
+  const dayOfWeek = registerDate.getDay();
+
+  // Try insert
+  const { data: inserted, error: insertErr } = await supabase
+    .from("class_registers")
+    .insert({
+      school_id: input.schoolId,
+      class_id: input.classId,
+      subject_id: input.subjectId,
+      teacher_id: input.teacherId,
+      term_id: input.termId || null,
+      academic_year_id: input.academicYearId || null,
+      session_label: input.sessionLabel || null,
+      register_date: input.registerDate,
+      period_label: input.periodLabel,
+      day_of_week: dayOfWeek,
+      status: "draft",
+      created_by: input.createdBy || null,
+    })
+    .select("id")
+    .maybeSingle();
+
+  if (!insertErr && inserted?.id) {
+    return inserted.id;
+  }
+
+  // If insert failed (e.g. duplicate constraint), query the existing record
+  const query = supabase
+    .from("class_registers")
+    .select("id")
+    .eq("school_id", input.schoolId)
+    .eq("class_id", input.classId)
+    .eq("subject_id", input.subjectId)
+    .eq("register_date", input.registerDate)
+    .eq("period_label", input.periodLabel);
+
+  if (input.termId) {
+    query.eq("term_id", input.termId);
+  } else {
+    query.is("term_id", null);
+  }
+
+  const { data: existing, error: selectErr } = await query.maybeSingle();
+  if (selectErr) throw selectErr;
+  if (!existing?.id) {
+    throw new Error("Could not find or create class register");
+  }
+  return existing.id;
+}
+
 export async function createRegister(input: {
   schoolId: string;
   classId: string;
@@ -215,24 +278,34 @@ export async function createRegister(input: {
   periodLabel: string;
   createdBy?: string;
 }): Promise<string> {
-  const { data, error } = await supabase.rpc("create_or_get_class_register", {
-    p_school_id: input.schoolId,
-    p_class_id: input.classId,
-    p_subject_id: input.subjectId,
-    p_teacher_id: input.teacherId,
-    p_term_id: input.termId ?? null,
-    p_academic_year_id: input.academicYearId ?? null,
-    p_session_label: input.sessionLabel ?? null,
-    p_register_date: input.registerDate,
-    p_period_label: input.periodLabel,
-    p_created_by: input.createdBy ?? null,
-  });
+  try {
+    const { data, error } = await supabase.rpc("create_or_get_class_register", {
+      p_school_id: input.schoolId,
+      p_class_id: input.classId,
+      p_subject_id: input.subjectId,
+      p_teacher_id: input.teacherId,
+      p_term_id: input.termId ?? null,
+      p_academic_year_id: input.academicYearId ?? null,
+      p_session_label: input.sessionLabel ?? null,
+      p_register_date: input.registerDate,
+      p_period_label: input.periodLabel,
+      p_created_by: input.createdBy ?? null,
+    });
 
-  if (error) {
-    throw toError(error, "Could not create register");
+    if (error) {
+      if (isSchemaError(error)) {
+        return await createRegisterClientFallback(input);
+      }
+      throw toError(error, "Could not create register");
+    }
+
+    return data as string;
+  } catch (err) {
+    if (err instanceof Error && (err.message.includes("schema cache") || err.message.includes("does not exist"))) {
+      return await createRegisterClientFallback(input);
+    }
+    throw err;
   }
-
-  return data as string;
 }
 
 export async function saveRegisterHeader(
