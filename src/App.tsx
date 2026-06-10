@@ -103,6 +103,9 @@ import AuditorDashboard from "./pages/admin/AuditorDashboard";
 import AuditLogs from "./pages/admin/AuditLogs";
 import ApprovalRequests from "./pages/admin/ApprovalRequests";
 import StudentPasswordRecovery from "./pages/admin/StudentPasswordRecovery";
+import TeacherMyClass from "./pages/teacher/MyClass";
+import ParentRecommendations from "./pages/parent/Recommendations";
+import ClassTeacherActivity from "./pages/admin/ClassTeacherActivity";
 import { PERMISSIONS } from "./lib/permissions";
 import {
   BillingDashboardPage,
