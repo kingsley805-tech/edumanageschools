@@ -3280,6 +3280,8 @@ CREATE POLICY "register entries delete" ON public.register_student_entries
 
 -- ========== supabase/migrations/20260610013110_ab57ad5f-27ad-47ac-a974-972e71c17795.sql ==========
 
+ALTER TABLE public.classes
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 
 -- 1. Helper: is the given user the class teacher of the given class?
 CREATE OR REPLACE FUNCTION public.is_class_teacher_of(_user_id uuid, _class_id uuid)
