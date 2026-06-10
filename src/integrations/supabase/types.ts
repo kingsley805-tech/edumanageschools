@@ -4913,6 +4913,10 @@ export type Database = {
         Args: { p_plan_id: string; p_school_id: string }
         Returns: undefined
       }
+      assign_class_teacher: {
+        Args: { p_class_id: string; p_teacher_id: string }
+        Returns: undefined
+      }
       can_manage_role_permissions: {
         Args: { _school_id?: string; _user_id: string }
         Returns: boolean
@@ -4926,7 +4930,34 @@ export type Database = {
         }
         Returns: boolean
       }
+      class_teacher_student_overview: {
+        Args: { p_class_id: string }
+        Returns: {
+          admission_no: string
+          alert_low_attendance: boolean
+          alert_low_performance: boolean
+          attendance_percent: number
+          average_score: number
+          failing_subjects: number
+          full_name: string
+          present_days: number
+          student_id: string
+          total_days: number
+        }[]
+      }
       confirm_paystack_payment: { Args: { p_reference: string }; Returns: Json }
+      create_academic_recommendation: {
+        Args: {
+          p_recommendation_type: string
+          p_strengths?: string
+          p_student_id: string
+          p_suggestions: string
+          p_term_id?: string
+          p_threshold_alert?: boolean
+          p_weaknesses?: string
+        }
+        Returns: string
+      }
       create_notification: {
         Args: {
           p_body: string
@@ -5008,6 +5039,10 @@ export type Database = {
       }
       has_role_slug: {
         Args: { _school_id?: string; _slug: string; _user_id: string }
+        Returns: boolean
+      }
+      is_class_teacher_of: {
+        Args: { _class_id: string; _user_id: string }
         Returns: boolean
       }
       is_platform_super_admin: { Args: { p_uid?: string }; Returns: boolean }
