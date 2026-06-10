@@ -352,7 +352,11 @@ export async function saveRegisterEntries(
   });
   if (!error) return;
 
-  // Fallback for older deployments without the RPC
+  // Only fall back to direct upsert if the RPC itself is missing on the server.
+  if (!isSchemaError(error)) {
+    throw toError(error, "Could not save attendance");
+  }
+
   for (const row of payload) {
     const { error: rowError } = await supabase
       .from("register_student_entries")
