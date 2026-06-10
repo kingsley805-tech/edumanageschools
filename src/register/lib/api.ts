@@ -337,14 +337,16 @@ export async function saveRegisterEntries(
     behavior_remark?: string | null;
   }[],
 ) {
-  const payload = entries.map((row) => ({
-    student_id: row.student_id,
-    attendance_status: row.attendance_status,
-    time_in: row.time_in || null,
-    participation: row.participation || null,
-    remarks: row.remarks || null,
-    behavior_remark: row.behavior_remark || null,
-  }));
+  const payload = entries
+    .filter((row) => Boolean(row.student_id?.trim()))
+    .map((row) => ({
+      student_id: row.student_id.trim(),
+      attendance_status: (row.attendance_status?.trim() || "present").toLowerCase(),
+      time_in: row.time_in?.trim() || null,
+      participation: row.participation?.trim() || null,
+      remarks: row.remarks?.trim() || null,
+      behavior_remark: row.behavior_remark?.trim() || null,
+    }));
 
   const { error } = await supabase.rpc("upsert_register_entries", {
     p_register_id: registerId,

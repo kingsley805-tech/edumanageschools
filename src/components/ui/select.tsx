@@ -99,13 +99,23 @@ const SelectLabel = React.forwardRef<
 ));
 SelectLabel.displayName = SelectPrimitive.Label.displayName;
 
+function resolveSelectTextValue(
+  textValue: string | undefined,
+  children: React.ReactNode,
+  value: string,
+): string {
+  const resolved = (textValue ?? textFromReactNode(children)).trim();
+  return resolved || value;
+}
+
 const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
->(({ className, children, textValue, ...props }, ref) => (
+>(({ className, children, textValue, value, ...props }, ref) => (
   <SelectPrimitive.Item
     ref={ref}
-    textValue={textValue ?? textFromReactNode(children)}
+    value={value}
+    textValue={resolveSelectTextValue(textValue, children, value)}
     className={cn(
       "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 focus:bg-accent focus:text-accent-foreground",
       className,

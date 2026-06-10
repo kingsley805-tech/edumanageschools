@@ -194,13 +194,17 @@ export default function TeacherRegisterEditor() {
         await saveRegisterHeader(registerId, { lesson_summary: lessonSummary, homework });
         const entryRows = Object.entries(lines).map(([student_id, v]) => ({
           student_id,
-          attendance_status: (v as { attendance_status: string }).attendance_status,
+          attendance_status: (v as { attendance_status: string }).attendance_status || "present",
           time_in: (v as { time_in: string }).time_in || null,
           participation: (v as { participation: string }).participation || null,
           remarks: (v as { remarks: string }).remarks || null,
         }));
         if (entryRows.length) await saveRegisterEntries(registerId, entryRows);
         if (!silent) toast.success("Draft saved");
+      } catch (e) {
+        const message = e instanceof Error ? e.message : "Could not save attendance";
+        if (!silent) throw e;
+        console.warn("Register autosave failed:", message);
       } finally {
         isPersistingRef.current = false;
       }

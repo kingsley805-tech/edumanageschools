@@ -172,7 +172,7 @@ export function DailyRegisterTable({
                           </SelectTrigger>
                           <SelectContent>
                             {statusTypes.map((st) => (
-                              <SelectItem key={st.code} value={st.code}>
+                              <SelectItem key={st.code} value={st.code} textValue={st.label}>
                                 <span className="flex items-center gap-2">
                                   <span
                                     className="h-2 w-2 rounded-full"
