@@ -46,7 +46,7 @@ import { SchoolSwitcher } from "./SchoolSwitcher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SidebarMenuGroup } from "@/components/SidebarMenuGroup";
 import { DynamicAdminSidebarNav } from "@/components/layout/DynamicAdminSidebarNav";
-import { ensurePaymentGatewaysInNav } from "@/lib/rbac/adminNavConfig";
+import { ensurePaymentGatewaysInNav, ensureClassTeacherActivityInNav } from "@/lib/rbac/adminNavConfig";
 import { usePortalAccess } from "@/hooks/usePortalAccess";
 import { ADMIN_SHELL_ROLES } from "@/lib/rbac/routeGuards";
 import { toast } from "sonner";
@@ -302,6 +302,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           icon: BookOpen,
           items: [
             { icon: BookOpen, label: "My Classes", path: "/teacher/classes" },
+            { icon: UserCheck, label: "My Class (Class Teacher)", path: "/teacher/my-class" },
             { icon: Clock, label: "Timetable", path: "/teacher/timetable" },
             { icon: ClipboardList, label: "Class Registers", path: "/teacher/register" },
             { icon: Calendar, label: "Attendance", path: "/teacher/attendance" },
@@ -354,6 +355,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
             { icon: Calendar, label: "Attendance", path: "/parent/attendance" },
             { icon: Award, label: "Grades", path: "/parent/grades" },
             { icon: FileText, label: "Report Cards", path: "/parent/reports" },
+            { icon: MessageSquare, label: "Recommendations", path: "/parent/recommendations" },
             { icon: Clock, label: "Timetable", path: "/parent/timetable" },
           ],
         },
@@ -504,7 +506,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           <nav className="flex-1 space-y-0.5 px-2 py-3 overflow-y-auto overflow-x-hidden custom-scrollbar">
             {usesDynamicAdminNav ? (
               <DynamicAdminSidebarNav
-                items={ensurePaymentGatewaysInNav(dynamicNavItems)}
+                items={ensureClassTeacherActivityInNav(ensurePaymentGatewaysInNav(dynamicNavItems))}
                 unreadMessages={unreadMessages}
                 navLinkBase={navLinkBase}
                 navLinkActive={navLinkActive}

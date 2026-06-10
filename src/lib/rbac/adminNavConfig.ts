@@ -129,6 +129,37 @@ export function ensurePaymentGatewaysInNav(
   });
 }
 
+const CLASS_TEACHER_ACTIVITY_PATH = "/admin/class-teacher-activity";
+const CLASS_TEACHER_ACTIVITY_ITEM: AdminNavItem = {
+  label: "Class Teacher Activity",
+  path: CLASS_TEACHER_ACTIVITY_PATH,
+  icon: UserCheck,
+  viewPermission: permissionCode("audit_logs", "view"),
+};
+
+/** Always shows the Class Teacher activity link inside the Administration group for admins. */
+export function ensureClassTeacherActivityInNav(
+  nav: (AdminNavItem | AdminNavGroup)[],
+): (AdminNavItem | AdminNavGroup)[] {
+  let inserted = false;
+  const next = nav.map((entry) => {
+    if (!("items" in entry)) return entry;
+    if (entry.items.some((i) => i.path === CLASS_TEACHER_ACTIVITY_PATH)) {
+      inserted = true;
+      return entry;
+    }
+    if (entry.label === "Administration") {
+      inserted = true;
+      return { ...entry, items: [...entry.items, CLASS_TEACHER_ACTIVITY_ITEM] };
+    }
+    return entry;
+  });
+  if (!inserted) {
+    next.push({ label: "Administration", icon: Shield, items: [CLASS_TEACHER_ACTIVITY_ITEM] });
+  }
+  return next;
+}
+
 export function buildAdminNav(hasPermission: (code: string) => boolean): (AdminNavItem | AdminNavGroup)[] {
   const result: (AdminNavItem | AdminNavGroup)[] = [];
 

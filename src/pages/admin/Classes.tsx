@@ -58,17 +58,15 @@ const Classes = () => {
 
   const handleAssignClassTeacher = async (classId: string, teacherId: string) => {
     try {
-      const updateValue = teacherId === "unassigned" ? null : teacherId;
-      const { error } = await supabase
-        .from("classes")
-        .update({ class_teacher_id: updateValue })
-        .eq("id", classId);
-
+      const newTeacher = teacherId === "unassigned" ? null : teacherId;
+      const { error } = await supabase.rpc("assign_class_teacher", {
+        p_class_id: classId,
+        p_teacher_id: newTeacher,
+      });
       if (error) throw error;
-
       toast({
         title: "Success",
-        description: "Class teacher updated successfully",
+        description: newTeacher ? "Class teacher assigned." : "Class teacher removed.",
       });
       fetchClasses();
     } catch (error: any) {
