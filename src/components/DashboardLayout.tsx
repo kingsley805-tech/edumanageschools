@@ -506,7 +506,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           <nav className="flex-1 space-y-0.5 px-2 py-3 overflow-y-auto overflow-x-hidden custom-scrollbar">
             {usesDynamicAdminNav ? (
               <DynamicAdminSidebarNav
-                items={ensurePaymentGatewaysInNav(dynamicNavItems)}
+                items={ensureClassTeacherActivityInNav(ensurePaymentGatewaysInNav(dynamicNavItems))}
                 unreadMessages={unreadMessages}
                 navLinkBase={navLinkBase}
                 navLinkActive={navLinkActive}
