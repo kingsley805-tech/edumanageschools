@@ -15,6 +15,7 @@ import { DailyRegisterTable } from "@/register/components/DailyRegisterTable";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   createRegister,
+  isRegisterEditable,
   fetchAttendanceStatusTypes,
   fetchClassStudents,
   fetchClassSubjectsForClass,
@@ -60,6 +61,7 @@ export default function TeacherRegisterEditor() {
   const [homework, setHomework] = useState("");
   const [saving, setSaving] = useState(false);
   const isPersistingRef = useRef(false);
+  const registerIdRef = useRef<string | null>(null);
 
   const [classId, setClassId] = useState(searchParams.get("classId") ?? "");
   const [subjectId, setSubjectId] = useState(searchParams.get("subjectId") ?? "");
@@ -124,6 +126,12 @@ export default function TeacherRegisterEditor() {
   }, [id, isNew]);
 
   useEffect(() => {
+    if (!isNew) return;
+    registerIdRef.current = null;
+    setRegister(null);
+  }, [isNew, classId, subjectId, registerDate, periodLabel, termId]);
+
+  useEffect(() => {
     if (!classId || !isNew) return;
     void fetchClassStudents(classId).then((students) => {
       setClassStudents(students);
@@ -161,8 +169,26 @@ export default function TeacherRegisterEditor() {
     assignments.find((a) => a.subject_id === subjectId)?.subjects?.name ??
     "";
 
-  const registerIdRef = useRef<string | null>(register?.id ?? null);
   registerIdRef.current = register?.id ?? registerIdRef.current;
+
+  const hydrateRegister = useCallback(async (registerId: string) => {
+    const reg = await getRegister(registerId);
+    if (!reg) return null;
+    setRegister(reg);
+    setLessonSummary(reg.lesson_summary ?? "");
+    setHomework(reg.homework ?? "");
+    const map = {};
+    for (const e of reg.entries) {
+      map[e.student_id] = {
+        attendance_status: e.attendance_status,
+        time_in: e.time_in?.slice(0, 5) ?? "",
+        participation: e.participation ?? "",
+        remarks: e.remarks ?? "",
+      };
+    }
+    setLines((prev) => ({ ...map, ...prev }));
+    return reg;
+  }, []);
 
   const persistDraft = useCallback(
     async (silent = false) => {
@@ -173,6 +199,8 @@ export default function TeacherRegisterEditor() {
       isPersistingRef.current = true;
       try {
         let registerId = registerIdRef.current ?? register?.id;
+        let activeRegister = register;
+
         if (!registerId && isNew) {
           const term = terms.find((t) => t.id === termId);
           registerId = await createRegister({
@@ -185,11 +213,25 @@ export default function TeacherRegisterEditor() {
             registerDate,
             periodLabel,
             createdBy: user?.id,
+            allowExistingSubmitted: isAdminRoute,
           });
           registerIdRef.current = registerId;
+          activeRegister = await hydrateRegister(registerId);
           if (!silent) navigate(`${registerBase}/${registerId}`, { replace: true });
+        } else if (registerId && !activeRegister) {
+          activeRegister = await hydrateRegister(registerId);
         }
+
         if (!registerId) return;
+
+        if (activeRegister && !isRegisterEditable(activeRegister, { isAdmin: isAdminRoute })) {
+          const msg =
+            activeRegister.status === "submitted"
+              ? "This register was already submitted. Open it from your register list to view it."
+              : "This register cannot be edited.";
+          if (!silent) toast.error(msg);
+          return;
+        }
 
         await saveRegisterHeader(registerId, { lesson_summary: lessonSummary, homework });
         const entryRows = Object.entries(lines).map(([student_id, v]) => ({
@@ -227,6 +269,8 @@ export default function TeacherRegisterEditor() {
       lines,
       navigate,
       registerBase,
+      isAdminRoute,
+      hydrateRegister,
     ],
   );
 
@@ -275,6 +319,16 @@ export default function TeacherRegisterEditor() {
       if (!registerId) throw new Error("Could not save register");
 
       if (submit) {
+        const current = register ?? (await getRegister(registerId));
+        if (current?.status === "submitted") {
+          toast.info("This register was already submitted.");
+          navigate(registerBase);
+          return;
+        }
+        if (current && !isRegisterEditable(current, { isAdmin: isAdminRoute })) {
+          toast.error("This register cannot be submitted in its current state.");
+          return;
+        }
         await submitRegister(registerId, schoolId);
         const full = await getRegister(registerId);
         if (full) await syncLegacyAttendance(full);

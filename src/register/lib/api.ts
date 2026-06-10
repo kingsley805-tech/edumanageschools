@@ -35,6 +35,19 @@ function toError(error: { message?: string } | null, fallback: string): Error {
   return new Error(error?.message?.trim() || fallback);
 }
 
+export function isRegisterEditable(
+  reg: Pick<ClassRegister, "locked" | "status">,
+  opts?: { isAdmin?: boolean },
+): boolean {
+  if (reg.locked) return false;
+  if (reg.status === "approved") return false;
+  if (reg.status === "submitted" && !opts?.isAdmin) return false;
+  return true;
+}
+
+const REGISTER_SLOT_EXISTS_MSG =
+  "A register for this class, subject, date and period was already submitted. Open it from your register list.";
+
 export async function fetchSchoolId(userId: string): Promise<string | null> {
   const { data } = await supabase.from("profiles").select("school_id").eq("id", userId).maybeSingle();
   return data?.school_id ?? null;
@@ -203,6 +216,31 @@ export function studentDisplayName(
   return student.full_name?.trim() || profile?.full_name?.trim() || "—";
 }
 
+function applyRegisterSlotFilters(
+  query: ReturnType<typeof supabase.from>,
+  input: {
+    schoolId: string;
+    classId: string;
+    subjectId: string;
+    registerDate: string;
+    periodLabel: string;
+    termId?: string | null;
+  },
+) {
+  query
+    .eq("school_id", input.schoolId)
+    .eq("class_id", input.classId)
+    .eq("subject_id", input.subjectId)
+    .eq("register_date", input.registerDate)
+    .eq("period_label", input.periodLabel);
+  if (input.termId) {
+    query.eq("term_id", input.termId);
+  } else {
+    query.is("term_id", null);
+  }
+  return query;
+}
+
 async function createRegisterClientFallback(input: {
   schoolId: string;
   classId: string;
@@ -214,6 +252,7 @@ async function createRegisterClientFallback(input: {
   registerDate: string;
   periodLabel: string;
   createdBy?: string;
+  allowExistingSubmitted?: boolean;
 }): Promise<string> {
   const registerDate = new Date(input.registerDate);
   const dayOfWeek = registerDate.getDay();
@@ -242,28 +281,29 @@ async function createRegisterClientFallback(input: {
     return inserted.id;
   }
 
-  // If insert failed (e.g. duplicate constraint), query the existing record
-  const query = supabase
-    .from("class_registers")
-    .select("id")
-    .eq("school_id", input.schoolId)
-    .eq("class_id", input.classId)
-    .eq("subject_id", input.subjectId)
-    .eq("register_date", input.registerDate)
-    .eq("period_label", input.periodLabel);
+  const slotQuery = applyRegisterSlotFilters(
+    supabase.from("class_registers").select("id, status"),
+    input,
+  );
 
-  if (input.termId) {
-    query.eq("term_id", input.termId);
-  } else {
-    query.is("term_id", null);
+  if (!input.allowExistingSubmitted) {
+    slotQuery.in("status", ["draft", "rejected"]);
   }
 
-  const { data: existing, error: selectErr } = await query.maybeSingle();
+  const { data: existing, error: selectErr } = await slotQuery.maybeSingle();
   if (selectErr) throw selectErr;
-  if (!existing?.id) {
-    throw new Error("Could not find or create class register");
+  if (existing?.id) return existing.id;
+
+  if (!input.allowExistingSubmitted) {
+    const { data: blocked, error: blockedErr } = await applyRegisterSlotFilters(
+      supabase.from("class_registers").select("id"),
+      input,
+    ).maybeSingle();
+    if (blockedErr) throw blockedErr;
+    if (blocked?.id) throw new Error(REGISTER_SLOT_EXISTS_MSG);
   }
-  return existing.id;
+
+  throw new Error("Could not find or create class register");
 }
 
 export async function createRegister(input: {
@@ -277,6 +317,8 @@ export async function createRegister(input: {
   registerDate: string;
   periodLabel: string;
   createdBy?: string;
+  /** Admins may reopen an existing submitted register for the same slot. */
+  allowExistingSubmitted?: boolean;
 }): Promise<string> {
   try {
     const { data, error } = await supabase.rpc("create_or_get_class_register", {
