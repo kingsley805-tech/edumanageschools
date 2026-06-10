@@ -1261,13 +1261,13 @@ SET search_path = public
 AS $$
 BEGIN
   INSERT INTO public.fee_categories (school_id, code, name, default_priority, description)
-  SELECT p_school_id, v.code, v.name, v.prio, v.desc
+  SELECT p_school_id, v.code, v.name, v.prio, v.description
   FROM (VALUES
     ('TUITION', 'Tuition', 1, 'School tuition fees'),
     ('BOOKS', 'Books', 2, 'Books and learning materials'),
     ('PTA', 'PTA', 3, 'Parent-Teacher Association levy'),
     ('TRANSPORT', 'Bus / Transport', 4, 'Transportation fees')
-  ) AS v(code, name, prio, desc)
+  ) AS v(code, name, prio, description)
   WHERE NOT EXISTS (
     SELECT 1 FROM public.fee_categories fc
     WHERE fc.school_id = p_school_id AND fc.name = v.name
@@ -2150,10 +2150,10 @@ CREATE OR REPLACE FUNCTION public.create_or_get_class_register(
   p_class_id uuid,
   p_subject_id uuid,
   p_teacher_id uuid,
+  p_register_date date,
   p_term_id uuid DEFAULT NULL,
   p_academic_year_id uuid DEFAULT NULL,
   p_session_label text DEFAULT NULL,
-  p_register_date date,
   p_period_label text DEFAULT 'Period 1',
   p_created_by uuid DEFAULT NULL
 )
@@ -2201,7 +2201,7 @@ END;
 $$;
 
 -- Grant execute to authenticated users
-GRANT EXECUTE ON FUNCTION public.create_or_get_class_register(uuid, uuid, uuid, uuid, uuid, uuid, text, date, text, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.create_or_get_class_register(uuid, uuid, uuid, uuid, date, uuid, uuid, text, text, uuid) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
 
