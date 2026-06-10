@@ -537,6 +537,21 @@ function App() {
                   <ParentTimetable />
                 </ProtectedRoute>
               } />
+              <Route path="/parent/recommendations" element={
+                <ProtectedRoute allowedRoles={["parent"]}>
+                  <ParentRecommendations />
+                </ProtectedRoute>
+              } />
+              <Route path="/teacher/my-class" element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <TeacherMyClass />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/class-teacher-activity" element={
+                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                  <ClassTeacherActivity />
+                </ProtectedRoute>
+              } />
               <Route path="/teacher/exams" element={
                 <ProtectedRoute allowedRoles={["teacher"]}>
                   <TeacherExams />
