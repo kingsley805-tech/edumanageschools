@@ -31,8 +31,22 @@ function isSchemaError(error: { code?: string; message?: string } | null): boole
   );
 }
 
-function toError(error: { message?: string } | null, fallback: string): Error {
-  return new Error(error?.message?.trim() || fallback);
+function toError(
+  error: { message?: string; details?: string; hint?: string } | null,
+  fallback: string,
+): Error {
+  if (!error) return new Error(fallback);
+  const msg = [error.message, error.details, error.hint].filter(Boolean).join(" — ").trim();
+  return new Error(msg || fallback);
+}
+
+export function formatRegisterSaveError(error: unknown, fallback = "Save failed"): string {
+  if (error instanceof Error) return error.message.trim() || fallback;
+  if (error && typeof error === "object" && "message" in error) {
+    const msg = String((error as { message: unknown }).message ?? "").trim();
+    if (msg) return msg;
+  }
+  return fallback;
 }
 
 export function isRegisterEditable(
@@ -361,6 +375,21 @@ export async function saveRegisterHeader(
     teacher_signature: string;
   }>,
 ) {
+  const { error: rpcError } = await supabase.rpc("update_class_register_header", {
+    p_register_id: registerId,
+    p_lesson_summary: patch.lesson_summary ?? null,
+    p_homework: patch.homework ?? null,
+    p_lesson_objectives: patch.lesson_objectives ?? null,
+    p_teaching_methods: patch.teaching_methods ?? null,
+    p_participation_summary: patch.participation_summary ?? null,
+    p_teacher_signature: patch.teacher_signature ?? null,
+  });
+  if (!rpcError) return;
+
+  if (!isSchemaError(rpcError)) {
+    throw toError(rpcError, "Could not save register");
+  }
+
   const { error } = await supabase
     .from("class_registers")
     .update({ ...patch, updated_at: new Date().toISOString() })
@@ -396,11 +425,7 @@ export async function saveRegisterEntries(
   });
   if (!error) return;
 
-  // Only fall back to direct upsert if the RPC itself is missing on the server.
-  if (!isSchemaError(error)) {
-    throw toError(error, "Could not save attendance");
-  }
-
+  // Fall back to direct upsert when RPC is missing or rejects the request.
   for (const row of payload) {
     const { error: rowError } = await supabase
       .from("register_student_entries")

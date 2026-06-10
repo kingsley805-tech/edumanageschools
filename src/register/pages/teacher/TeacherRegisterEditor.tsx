@@ -15,6 +15,7 @@ import { DailyRegisterTable } from "@/register/components/DailyRegisterTable";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   createRegister,
+  formatRegisterSaveError,
   isRegisterEditable,
   fetchAttendanceStatusTypes,
   fetchClassStudents,
@@ -125,11 +126,12 @@ export default function TeacherRegisterEditor() {
     });
   }, [id, isNew]);
 
+  // Reset cached register when the user changes slot fields (not when term auto-loads).
   useEffect(() => {
     if (!isNew) return;
     registerIdRef.current = null;
     setRegister(null);
-  }, [isNew, classId, subjectId, registerDate, periodLabel, termId]);
+  }, [isNew, classId, subjectId, registerDate, periodLabel]);
 
   useEffect(() => {
     if (!classId || !isNew) return;
@@ -191,12 +193,21 @@ export default function TeacherRegisterEditor() {
   }, []);
 
   const persistDraft = useCallback(
-    async (silent = false) => {
-      if (isPersistingRef.current) return;
-      if (!schoolId || !effectiveTeacherId || readOnly) return;
-      if (isNew && (!classId || !subjectId)) return;
+    async (silent = false): Promise<string | null> => {
+      if (isPersistingRef.current) return registerIdRef.current ?? register?.id ?? null;
+      if (!schoolId || !effectiveTeacherId) return null;
+      if (readOnly) {
+        const msg =
+          register?.status === "submitted"
+            ? "This register was already submitted. Open it from your register list to view it."
+            : "This register cannot be edited.";
+        if (!silent) throw new Error(msg);
+        return registerIdRef.current ?? register?.id ?? null;
+      }
+      if (isNew && (!classId || !subjectId)) return null;
 
       isPersistingRef.current = true;
+      let navigateAfterSave: string | null = null;
       try {
         let registerId = registerIdRef.current ?? register?.id;
         let activeRegister = register;
@@ -217,20 +228,23 @@ export default function TeacherRegisterEditor() {
           });
           registerIdRef.current = registerId;
           activeRegister = await hydrateRegister(registerId);
-          if (!silent) navigate(`${registerBase}/${registerId}`, { replace: true });
+          if (!silent) navigateAfterSave = registerId;
         } else if (registerId && !activeRegister) {
           activeRegister = await hydrateRegister(registerId);
         }
 
-        if (!registerId) return;
+        if (!registerId) {
+          if (!silent) throw new Error("Could not create register — select class and subject, then try again.");
+          return null;
+        }
 
         if (activeRegister && !isRegisterEditable(activeRegister, { isAdmin: isAdminRoute })) {
           const msg =
             activeRegister.status === "submitted"
               ? "This register was already submitted. Open it from your register list to view it."
               : "This register cannot be edited.";
-          if (!silent) toast.error(msg);
-          return;
+          if (!silent) throw new Error(msg);
+          return registerId;
         }
 
         await saveRegisterHeader(registerId, { lesson_summary: lessonSummary, homework });
@@ -242,11 +256,16 @@ export default function TeacherRegisterEditor() {
           remarks: (v as { remarks: string }).remarks || null,
         }));
         if (entryRows.length) await saveRegisterEntries(registerId, entryRows);
+        if (navigateAfterSave) {
+          navigate(`${registerBase}/${navigateAfterSave}`, { replace: true });
+        }
         if (!silent) toast.success("Draft saved");
+        return registerId;
       } catch (e) {
         const message = e instanceof Error ? e.message : "Could not save attendance";
         if (!silent) throw e;
         console.warn("Register autosave failed:", message);
+        return registerIdRef.current ?? register?.id ?? null;
       } finally {
         isPersistingRef.current = false;
       }
@@ -314,9 +333,13 @@ export default function TeacherRegisterEditor() {
     }
     setSaving(true);
     try {
-      await persistDraft(true);
-      let registerId = registerIdRef.current ?? register?.id;
-      if (!registerId) throw new Error("Could not save register");
+      let waitMs = 0;
+      while (isPersistingRef.current && waitMs < 5000) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        waitMs += 100;
+      }
+      const registerId = await persistDraft(false);
+      if (!registerId) throw new Error("Could not save register — select class and subject, then try again.");
 
       if (submit) {
         const current = register ?? (await getRegister(registerId));
@@ -339,11 +362,9 @@ export default function TeacherRegisterEditor() {
           toast.success("Attendance submitted — parents notified when phone numbers are linked");
         }
         navigate(registerBase);
-      } else {
-        toast.success("Draft saved");
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Save failed");
+      toast.error(formatRegisterSaveError(e));
     } finally {
       setSaving(false);
     }
