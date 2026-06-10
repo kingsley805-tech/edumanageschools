@@ -4914,7 +4914,7 @@ export type Database = {
         Returns: undefined
       }
       assign_class_teacher: {
-        Args: { p_class_id: string; p_teacher_id: string }
+        Args: { p_class_id: string; p_teacher_id?: string | null }
         Returns: undefined
       }
       can_manage_role_permissions: {
