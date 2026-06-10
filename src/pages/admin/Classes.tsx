@@ -10,6 +10,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveUserSchoolId } from "@/lib/schoolFetch";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -56,9 +57,16 @@ const Classes = () => {
     }
   };
 
-  const handleAssignClassTeacher = async (classId: string, teacherId: string) => {
+  const handleAssignClassTeacher = async (
+    classId: string,
+    teacherId: string,
+    currentTeacherId?: string | null,
+  ) => {
+    const newTeacher = teacherId === "unassigned" ? null : teacherId;
+    const current = currentTeacherId ?? null;
+    if (newTeacher === current) return;
+
     try {
-      const newTeacher = teacherId === "unassigned" ? null : teacherId;
       const { error } = await supabase.rpc("assign_class_teacher", {
         p_class_id: classId,
         p_teacher_id: newTeacher,
@@ -83,18 +91,13 @@ const Classes = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("school_id")
-      .eq("id", user.id)
-      .single();
-
-    if (!profileData?.school_id) {
+    const schoolId = await resolveUserSchoolId(user.id);
+    if (!schoolId) {
       console.error("School not found for user");
       return;
     }
 
-    fetchTeachers(profileData.school_id);
+    fetchTeachers(schoolId);
 
     const { data, error } = await supabase
       .from("classes")
@@ -106,7 +109,7 @@ const Classes = () => {
           profiles(full_name)
         )
       `)
-      .eq("school_id", profileData.school_id)
+      .eq("school_id", schoolId)
       .order("name");
     
     if (!error && data) {
@@ -137,13 +140,8 @@ const Classes = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("school_id")
-      .eq("id", user.id)
-      .single();
-
-    if (!profileData?.school_id) return;
+    const schoolId = await resolveUserSchoolId(user.id);
+    if (!schoolId) return;
 
     const { data: allStudents } = await supabase
       .from("students")
@@ -152,7 +150,7 @@ const Classes = () => {
         admission_no,
         profiles(full_name)
       `)
-      .eq("school_id", profileData.school_id);
+      .eq("school_id", schoolId);
 
     const { data: enrolledIds } = await supabase
       .from("enrollments")
@@ -172,20 +170,15 @@ const Classes = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("school_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profileData?.school_id) throw new Error("School not found");
+      const schoolId = await resolveUserSchoolId(user.id);
+      if (!schoolId) throw new Error("School not found");
 
       const { error } = await supabase
         .from("classes")
         .insert([{
           name: data.name,
           level: data.level,
-          school_id: profileData.school_id,
+          school_id: schoolId,
         }]);
 
       if (error) throw error;
@@ -331,7 +324,9 @@ const Classes = () => {
                   <Label className="text-xs text-muted-foreground">Class Teacher</Label>
                   <Select
                     value={cls.class_teacher_id || "unassigned"}
-                    onValueChange={(val) => handleAssignClassTeacher(cls.id, val)}
+                    onValueChange={(val) =>
+                      handleAssignClassTeacher(cls.id, val, cls.class_teacher_id)
+                    }
                   >
                     <SelectTrigger className="w-full text-xs h-9">
                       <SelectValue placeholder="Assign teacher" />

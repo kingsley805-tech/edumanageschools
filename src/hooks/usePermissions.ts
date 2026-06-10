@@ -29,7 +29,7 @@ export const usePermissions = () => {
       .from("profiles")
       .select("school_id")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
     const sid = profile?.school_id ?? null;
     setSchoolId(sid);

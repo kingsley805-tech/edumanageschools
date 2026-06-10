@@ -54,7 +54,7 @@ export const SchoolThemeProvider = ({ children }: { children: ReactNode }) => {
         .from("profiles")
         .select("school_id")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       if (!profile?.school_id) {
         setSchoolId(null);
