@@ -46,7 +46,7 @@ import { SchoolSwitcher } from "./SchoolSwitcher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SidebarMenuGroup } from "@/components/SidebarMenuGroup";
 import { DynamicAdminSidebarNav } from "@/components/layout/DynamicAdminSidebarNav";
-import { ensurePaymentGatewaysInNav } from "@/lib/rbac/adminNavConfig";
+import { ensurePaymentGatewaysInNav, ensureClassTeacherActivityInNav } from "@/lib/rbac/adminNavConfig";
 import { usePortalAccess } from "@/hooks/usePortalAccess";
 import { ADMIN_SHELL_ROLES } from "@/lib/rbac/routeGuards";
 import { toast } from "sonner";
