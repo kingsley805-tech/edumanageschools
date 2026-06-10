@@ -302,6 +302,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           icon: BookOpen,
           items: [
             { icon: BookOpen, label: "My Classes", path: "/teacher/classes" },
+            { icon: UserCheck, label: "My Class (Class Teacher)", path: "/teacher/my-class" },
             { icon: Clock, label: "Timetable", path: "/teacher/timetable" },
             { icon: ClipboardList, label: "Class Registers", path: "/teacher/register" },
             { icon: Calendar, label: "Attendance", path: "/teacher/attendance" },
