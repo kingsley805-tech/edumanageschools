@@ -202,7 +202,7 @@ export async function getRegister(registerId: string): Promise<RegisterWithEntri
 
   const { data: entries, error: entErr } = await supabase
     .from("register_student_entries")
-    .select("*, students(id, admission_no, profiles(full_name))")
+    .select("*, students(id, admission_no, full_name, profiles:profile_id(full_name))")
     .eq("register_id", registerId)
     .order("created_at");
   if (entErr) throw entErr;
