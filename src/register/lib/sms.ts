@@ -68,7 +68,7 @@ export async function sendAttendanceSmsNotifications(registerId: string) {
 export async function listSmsLogs(schoolId: string, limit = 50) {
   const { data, error } = await supabase
     .from("sms_logs")
-    .select("id, phone_number, message, sms_status, sent_at, students(profiles(full_name))")
+    .select("id, phone_number, message, sms_status, sent_at, students(full_name, profiles:profile_id(full_name))")
     .eq("school_id", schoolId)
     .order("sent_at", { ascending: false })
     .limit(limit);
