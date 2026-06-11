@@ -333,7 +333,23 @@ const Settings = () => {
             </CardContent>
           </Card>
 
-          
+          {(role === "admin" || role === "super_admin") && (
+            <Card className="md:col-span-2">
+              <CardHeader className="p-4 md:p-6">
+                <CardTitle className="text-lg md:text-xl flex items-center gap-2">
+                  <Coins className="h-5 w-5" /> Currency & Billing
+                </CardTitle>
+                <CardDescription className="text-sm md:text-base">
+                  Set your school's display currency, invoice prefix, and receipt footer used across invoices and reports.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 md:p-6 pt-0">
+                <Button asChild>
+                  <Link to="/admin/billing/settings">Open billing settings</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </DashboardLayout>
