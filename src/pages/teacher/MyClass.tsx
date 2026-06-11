@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, BookOpen, ClipboardList, FileText, MessageCircle, Users } from "lucide-react";
+import { AlertTriangle, BookOpen, CalendarDays, ClipboardList, FileText, MessageCircle, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 
 type ClassRow = { id: string; name: string; level: string | null };
