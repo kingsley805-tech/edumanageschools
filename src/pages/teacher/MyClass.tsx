@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, BookOpen, ClipboardList, FileText, MessageCircle, Users } from "lucide-react";
+import { AlertTriangle, BookOpen, CalendarDays, ClipboardList, FileText, MessageCircle, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 
 type ClassRow = { id: string; name: string; level: string | null };
@@ -210,6 +210,41 @@ const TeacherMyClass = () => {
             </Select>
           ) : null}
         </div>
+
+        {classId ? (
+          <Card className="border-primary/30 bg-gradient-to-br from-primary/10 via-background to-background">
+            <CardContent className="flex flex-col gap-3 p-5 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="rounded-lg bg-primary/15 p-2 text-primary">
+                  <CalendarDays className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Daily attendance
+                  </p>
+                  <p className="text-lg font-bold leading-tight">
+                    {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Mark Present, Absent, Late, or Excused for {currentClass?.name ?? "your class"}.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild>
+                  <Link to={`/teacher/register/new?classId=${classId}&date=${new Date().toISOString().slice(0, 10)}`}>
+                    <ClipboardList className="mr-2 h-4 w-4" /> Mark today's attendance
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link to={`/teacher/register/new?classId=${classId}&date=${new Date().toISOString().slice(0, 10)}&mode=subject`}>
+                    <BookOpen className="mr-2 h-4 w-4" /> Subject attendance
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
 
         <div className="grid gap-4 md:grid-cols-4">
           <StatCard icon={Users} label="Students" value={stats.total.toString()} />
