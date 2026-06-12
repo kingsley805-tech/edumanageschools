@@ -336,7 +336,7 @@ function FeeCreationSection({ schoolId, permission }: { schoolId: string; permis
 
   const { data: categories = [] } = useQuery({ queryKey: ["fee-categories", schoolId], queryFn: async () => { const { data, error } = await supabase.from("fee_categories").select("*").eq("school_id", schoolId).order("sort_order"); if (error) throw error; return (data ?? []) as FeeCategoryRow[]; } });
   const { data: terms = [] } = useQuery({ queryKey: ["terms", schoolId], queryFn: async () => { const { data, error } = await supabase.from("terms").select("*, academic_years(name)").eq("school_id", schoolId).order("start_date", { ascending: false }); if (error) throw error; return (data ?? []) as TermRow[]; } });
-  const { data: orgCurrency = "GHS" } = useQuery({ queryKey: ["org-currency", schoolId], queryFn: async () => { const { data, error } = await supabase.from("schools").select("school_name, name").eq("id", schoolId).maybeSingle(); if (error) throw error; return "GHS" ?? "GHS"; } });
+  const { data: orgCurrency = "GHS" } = useQuery({ queryKey: ["org-currency", schoolId], queryFn: async () => { const { data, error } = await supabase.from("schools").select("currency").eq("id", schoolId).maybeSingle(); if (error) throw error; return data?.currency?.trim() || "GHS"; } });
 
   const { data: createdFees = [], isLoading } = useQuery({
     queryKey: ["created-fees", schoolId],

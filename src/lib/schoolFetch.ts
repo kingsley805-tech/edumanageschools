@@ -18,6 +18,7 @@ export type SchoolRow = {
   email?: string | null;
   principal_name?: string | null;
   stamp_url?: string | null;
+  currency?: string | null;
 };
 
 /** Resolve the current user's school id from profile, roles, or super-admin assignments. */
@@ -75,7 +76,7 @@ function isMissingColumnError(error: { message?: string; code?: string; details?
 /** Load school row with fallback when optional theme/branding columns are not migrated yet. */
 export async function fetchSchoolById(schoolId: string): Promise<SchoolRow | null> {
   const fullSelect =
-    "id, school_name, school_code, admission_prefix, logo_url, theme_primary, theme_secondary, theme_accent, name, motto, address, phone, email, principal_name, stamp_url";
+    "id, school_name, school_code, admission_prefix, logo_url, theme_primary, theme_secondary, theme_accent, name, motto, address, phone, email, principal_name, stamp_url, currency";
 
   let result = await supabase.from("schools").select(fullSelect).eq("id", schoolId).maybeSingle();
 

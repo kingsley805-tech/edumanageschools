@@ -34,7 +34,6 @@ BEGIN
   END IF;
 
   v_allowed := v_is_admin
-            OR public.has_role(v_uid, 'staff'::app_role)
             OR EXISTS (
                  SELECT 1 FROM public.teachers t
                  WHERE t.user_id = v_uid

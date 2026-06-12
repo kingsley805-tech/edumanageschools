@@ -10,6 +10,7 @@ export interface SchoolInfo {
   theme_primary?: string | null;
   theme_secondary?: string | null;
   theme_accent?: string | null;
+  currency?: string | null;
 }
 
 export const SCHOOL_INFO_QUERY_KEY = "school-info";
@@ -33,6 +34,7 @@ export const useSchoolInfo = () => {
         theme_primary: school.theme_primary,
         theme_secondary: school.theme_secondary,
         theme_accent: school.theme_accent,
+        currency: school.currency || "GHS",
       };
     },
     staleTime: 10 * 60 * 1000,

@@ -29,7 +29,6 @@ BEGIN
 
   v_allowed := public.has_role(v_uid, 'admin'::app_role)
             OR public.has_role(v_uid, 'super_admin'::app_role)
-            OR public.has_role(v_uid, 'staff'::app_role)
             OR EXISTS (
                  SELECT 1 FROM public.teachers t
                  WHERE t.user_id = v_uid
