@@ -1,6 +1,8 @@
 // @ts-nocheck
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   GraduationCap,
@@ -33,6 +35,7 @@ import {
   UserCog,
   PenLine,
   CreditCard,
+  Palette,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { NotificationCenter } from "./NotificationCenter";
@@ -53,6 +56,36 @@ import { toast } from "sonner";
 import { ParentAdmissionNav } from "@/components/parent/ParentAdmissionNav";
 import SubscriptionExpiryBanner from "@/subscription/components/SubscriptionExpiryBanner";
 import { useOrganizationSubscription } from "@/subscription/hooks/useOrganizationSubscription";
+import { PortalSidebarSearch } from "@/components/PortalSidebarSearch";
+import { useTheme } from "@/contexts/ThemeContext";
+import {
+  PORTAL_ROLE_META,
+  portalNavLinkActive,
+  portalNavLinkBase,
+  portalNavSubLinkBase,
+} from "@/lib/portalNavStyles";
+import type { AdminNavGroup, AdminNavItem } from "@/lib/rbac/adminNavConfig";
+
+const SIDEBAR_WIDTH_KEY = "portal-sidebar-width";
+const SIDEBAR_OPEN_KEY = "portal-sidebar-open";
+const SIDEBAR_MIN = 220;
+const SIDEBAR_MAX = 400;
+const SIDEBAR_DEFAULT = 280;
+
+function readSidebarOpen(): boolean {
+  if (typeof window === "undefined") return true;
+  const saved = localStorage.getItem(SIDEBAR_OPEN_KEY);
+  if (saved !== null) return saved === "true";
+  return window.innerWidth >= 1024;
+}
+
+function readSidebarWidth(): number {
+  if (typeof window === "undefined") return SIDEBAR_DEFAULT;
+  const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
+  const n = saved ? parseInt(saved, 10) : SIDEBAR_DEFAULT;
+  if (!Number.isFinite(n)) return SIDEBAR_DEFAULT;
+  return Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, n));
+}
 
 type MenuLinkDef = {
   icon: typeof LayoutDashboard;
@@ -72,10 +105,49 @@ interface DashboardLayoutProps {
   hideSidebar?: boolean;
 }
 
+function navMatchesQuery(label: string, query: string) {
+  return label.toLowerCase().includes(query);
+}
+
+function filterStaticMenu(items: MenuItemDef[], query: string): MenuItemDef[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return items;
+  return items
+    .map((item) => {
+      if (item.type === "group") {
+        const childMatches = item.items.filter((sub) => navMatchesQuery(sub.label, q));
+        if (childMatches.length) return { ...item, items: childMatches };
+        if (navMatchesQuery(item.label, q)) return item;
+        return null;
+      }
+      return navMatchesQuery(item.label, q) ? item : null;
+    })
+    .filter(Boolean) as MenuItemDef[];
+}
+
+function filterDynamicNav(items: (AdminNavItem | AdminNavGroup)[], query: string) {
+  const q = query.trim().toLowerCase();
+  if (!q) return items;
+  return items
+    .map((item) => {
+      if ("items" in item) {
+        const childMatches = item.items.filter((sub) => navMatchesQuery(sub.label, q));
+        if (childMatches.length) return { ...item, items: childMatches };
+        if (navMatchesQuery(item.label, q)) return item;
+        return null;
+      }
+      return navMatchesQuery(item.label, q) ? item : null;
+    })
+    .filter(Boolean) as (AdminNavItem | AdminNavGroup)[];
+}
+
 const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayoutProps) => {
-  const { signOut, user } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false); // Start closed on mobile
+  const { signOut } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(readSidebarOpen);
+  const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
+  const [navQuery, setNavQuery] = useState("");
   const [schoolCodeCopied, setSchoolCodeCopied] = useState(false);
+  const sidebarResizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
   const unreadMessages = useUnreadMessages();
   const { currentSchool } = useSchoolInfo();
   const { role: userRole } = useUserRole();
@@ -83,6 +155,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
   const isSuperAdmin = userRole === "super_admin" || isSuperAdminPerm;
   const { navItems: dynamicNavItems } = usePortalAccess();
   const { access: subscriptionAccess } = useOrganizationSubscription();
+  const { resetPersonalTheme } = useTheme();
   const usesDynamicAdminNav = (ADMIN_SHELL_ROLES as readonly string[]).includes(role);
 
   const canShow = (permission?: string) =>
@@ -99,25 +172,52 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
       })
       .filter(Boolean) as MenuItemDef[];
 
-  // Initialize sidebar state based on screen size
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen((open) => {
+      const next = !open;
+      localStorage.setItem(SIDEBAR_OPEN_KEY, String(next));
+      return next;
+    });
+  }, []);
+
+  const handleResizeStart = useCallback(
+    (event: React.MouseEvent) => {
+      event.preventDefault();
+      sidebarResizeRef.current = { startX: event.clientX, startWidth: sidebarWidth };
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    },
+    [sidebarWidth],
+  );
+
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 1024) {
-        // On desktop, keep sidebar state as is (don't auto-open/close)
-        // User can toggle with hamburger menu
-      } else {
-        // On mobile, close sidebar when resizing to mobile
-        setSidebarOpen(false);
-      }
+    const onMove = (event: MouseEvent) => {
+      if (!sidebarResizeRef.current) return;
+      const delta = event.clientX - sidebarResizeRef.current.startX;
+      const next = Math.min(
+        SIDEBAR_MAX,
+        Math.max(SIDEBAR_MIN, sidebarResizeRef.current.startWidth + delta),
+      );
+      setSidebarWidth(next);
     };
-    
-    // Set initial state: open on desktop, closed on mobile
-    if (window.innerWidth >= 1024) {
-      setSidebarOpen(true);
-    }
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+
+    const onUp = () => {
+      if (!sidebarResizeRef.current) return;
+      sidebarResizeRef.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      setSidebarWidth((width) => {
+        localStorage.setItem(SIDEBAR_WIDTH_KEY, String(width));
+        return width;
+      });
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
   }, []);
 
   const roleConfig = {
@@ -443,6 +543,20 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
       ? { ...baseConfig, menuItems: filterMenu(baseConfig.menuItems as MenuItemDef[]) }
       : undefined;
 
+  const roleMeta = PORTAL_ROLE_META[role] ?? PORTAL_ROLE_META.admin;
+  const filteredDynamicNav = useMemo(
+    () =>
+      filterDynamicNav(
+        ensureClassTeacherActivityInNav(ensurePaymentGatewaysInNav(dynamicNavItems)),
+        navQuery,
+      ),
+    [dynamicNavItems, navQuery],
+  );
+  const filteredStaticMenu = useMemo(
+    () => (config?.menuItems ? filterStaticMenu(config.menuItems, navQuery) : []),
+    [config?.menuItems, navQuery],
+  );
+
   const handleLogout = async () => {
     await signOut();
   };
@@ -460,13 +574,11 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
     }
   };
 
-  /** Flat sidebar nav — no pill backgrounds */
-  const navLinkBase =
-    "group flex items-center gap-3 border-l-2 border-transparent py-2.5 pl-3 pr-2 text-sm text-sidebar-foreground/85 transition-colors hover:text-sidebar-foreground";
-  const navLinkActive =
-    "border-[hsl(var(--sidebar-primary))] text-sidebar-foreground font-medium !bg-transparent";
-  const navSubLinkBase =
-    "group flex items-center gap-2.5 border-l-2 border-transparent py-2 pl-8 pr-2 text-sm text-sidebar-foreground/85 transition-colors hover:text-sidebar-foreground";
+  /** Sidebar nav — shared portal design tokens */
+  const navLinkBase = portalNavLinkBase;
+  const navLinkActive = portalNavLinkActive;
+  const navSubLinkBase = portalNavSubLinkBase;
+
   // Guard against invalid or missing role
   if (!config) {
     return (
@@ -477,43 +589,69 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
   }
 
   return (
-    <div className="min-h-screen bg-background relative" data-portal-layout>
-      {/* Mobile overlay */}
-      {sidebarOpen && !hideSidebar && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-      
-      {/* Sidebar - hidden when hideSidebar is true */}
+    <div
+      className={cn("flex h-screen max-h-screen w-full overflow-hidden bg-background", roleMeta.accentClass)}
+      data-portal-layout
+      data-portal-role={role}
+      style={{ "--portal-sidebar-width": `${sidebarWidth}px` }}
+    >
+      {/* Sidebar — fixed height; nav scrolls inside sidebar only */}
       {!hideSidebar && (
-        <aside 
-          className={`fixed left-0 top-0 z-40 h-screen transition-transform ${
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          } w-64 border-r bg-sidebar text-sidebar-foreground border-sidebar-border`}
+        <aside
+          className={cn(
+            "flex h-full max-h-screen shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-300 ease-out",
+            !sidebarOpen && "w-0 border-r-0",
+          )}
+          style={sidebarOpen ? { width: sidebarWidth } : undefined}
+          aria-hidden={!sidebarOpen}
         >
-        <div className="flex h-full flex-col">
-          {/* Logo */}
-          <div className="flex h-14 items-center gap-2.5 border-b border-sidebar-border px-5">
-            <GraduationCap className="h-6 w-6 text-[hsl(var(--sidebar-primary))]" />
-            <span className="text-base font-semibold tracking-tight text-sidebar-foreground">
-              EduManage
+          <div className="flex h-full min-h-0 flex-col" style={{ width: sidebarWidth }}>
+            {/* Brand + role */}
+            <div className="portal-sidebar-brand flex flex-col gap-3 border-b border-sidebar-border px-4 py-4">
+            <div className="flex items-center gap-3">
+              {currentSchool?.logo_url ? (
+                <Avatar className="h-10 w-10 border border-sidebar-border">
+                  <AvatarImage src={currentSchool.logo_url} alt={currentSchool.school_name} />
+                  <AvatarFallback className="bg-sidebar-accent text-sidebar-foreground text-xs font-semibold">
+                    {currentSchool.school_name.substring(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar-accent text-sidebar-foreground">
+                  <GraduationCap className="h-5 w-5" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-sidebar-foreground">
+                  {currentSchool?.school_name ?? "EduManage"}
+                </p>
+                <p className="text-xs text-sidebar-foreground/65">School portal</p>
+              </div>
+            </div>
+            <span className="portal-role-badge inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide">
+              {roleMeta.label}
             </span>
           </div>
 
+          <PortalSidebarSearch value={navQuery} onChange={setNavQuery} />
+
           {/* Menu Items */}
-          <nav className="flex-1 space-y-0.5 px-2 py-3 overflow-y-auto overflow-x-hidden custom-scrollbar">
+          <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-2 pb-2 pt-1 custom-scrollbar">
             {usesDynamicAdminNav ? (
               <DynamicAdminSidebarNav
-                items={ensureClassTeacherActivityInNav(ensurePaymentGatewaysInNav(dynamicNavItems))}
+                items={filteredDynamicNav}
                 unreadMessages={unreadMessages}
                 navLinkBase={navLinkBase}
                 navLinkActive={navLinkActive}
                 navSubLinkBase={navSubLinkBase}
+                emptyMessage={
+                  navQuery.trim()
+                    ? "No menu items match your search."
+                    : "No modules assigned. Contact your administrator."
+                }
               />
             ) : (
-              config.menuItems.map((item: MenuItemDef, index: number) => {
+              filteredStaticMenu.map((item: MenuItemDef, index: number) => {
                 if (item.type === "group") {
                   return (
                     <SidebarMenuGroup
@@ -536,7 +674,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
                     className={navLinkBase}
                     activeClassName={navLinkActive}
                   >
-                    <item.icon className="h-[18px] w-[18px] flex-shrink-0 opacity-70 group-hover:opacity-100" />
+                    <item.icon className="h-[18px] w-[18px] shrink-0 text-sidebar-foreground/70" />
                     <span className="flex-1 truncate">{item.label}</span>
                     {item.showBadge && unreadMessages > 0 && (
                       <Badge
@@ -550,38 +688,50 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
                 );
               })
             )}
+            {!usesDynamicAdminNav && filteredStaticMenu.length === 0 && navQuery.trim() ? (
+              <p className="px-3 py-6 text-center text-xs text-sidebar-foreground/60">No menu items match your search.</p>
+            ) : null}
           </nav>
 
-          {/* User Section */}
-          <div className="border-t border-sidebar-border px-2 py-3">
+          {/* Sidebar footer */}
+          <div className="border-t border-sidebar-border px-2 py-3 space-y-1">
             {role === "parent" && <ParentAdmissionNav variant="sidebar" />}
             <button
               type="button"
               onClick={handleLogout}
-              className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground/55 transition-colors hover:text-sidebar-foreground"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive/90 transition-colors hover:bg-destructive/10 hover:text-destructive"
             >
               <LogOut className="h-[18px] w-[18px]" />
-              Logout
+              Sign out
             </button>
           </div>
-        </div>
-      </aside>
+          </div>
+
+          {/* Drag handle to resize sidebar */}
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize sidebar"
+            title="Drag to resize sidebar"
+            onMouseDown={handleResizeStart}
+            className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize bg-transparent transition-colors hover:bg-sidebar-border active:bg-sidebar-border/80"
+          />
+        </aside>
       )}
 
-      {/* Main Content */}
-      <div
-        className={`transition-all bg-background ${!hideSidebar && sidebarOpen ? "lg:ml-64" : "lg:ml-0"} relative z-10`}
-      >
+      {/* Main content — only this column scrolls vertically */}
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
         {/* Top Bar */}
-        <header className={`sticky top-0 z-30 flex h-14 md:h-16 items-center gap-2 md:gap-4 border-b bg-background/95 backdrop-blur px-3 md:px-6 ${hideSidebar ? "justify-end" : ""}`}>
+        <header className={`z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border/80 bg-background/95 backdrop-blur-md px-3 shadow-sm md:h-16 md:gap-4 md:px-6 ${hideSidebar ? "justify-end" : ""}`}>
           {!hideSidebar && (
             <div className="flex items-center gap-2 flex-shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
+                onClick={toggleSidebar}
                 className="h-9 w-9 rounded-lg bg-muted/50 hover:bg-muted border border-border/60"
-                aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+                aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+                title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
               >
                 {sidebarOpen ? (
                   <PanelRight className="h-[18px] w-[18px] text-foreground/80" />
@@ -619,42 +769,45 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           )}
           
           {!hideSidebar && (
-            <div className="flex-1 flex items-center gap-2 md:gap-4 min-w-0">
+            <div className="flex-1 flex items-center gap-2 md:gap-3 min-w-0">
               {isSuperAdmin ? (
                 <SchoolSwitcher />
               ) : currentSchool ? (
                 <>
-                  {currentSchool.logo_url && (
-                    <Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-primary/20 shadow-sm flex-shrink-0">
-                      <AvatarImage src={currentSchool.logo_url} alt={currentSchool.school_name} />
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-bold text-xs md:text-sm">
-                        {currentSchool.school_name.substring(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-                  <div className="flex items-center gap-1 md:gap-2 min-w-0">
-                    <h1 className="text-base md:text-xl font-bold truncate">{currentSchool.school_name}</h1>
+                  <div className="hidden sm:flex min-w-0 flex-col">
+                    <h1 className="truncate text-base font-bold md:text-lg">{currentSchool.school_name}</h1>
+                    <p className="truncate text-xs text-muted-foreground md:text-sm">{roleMeta.label}</p>
                   </div>
-                  <span className="text-muted-foreground hidden sm:inline">-</span>
-                  <h2 className="text-sm md:text-lg font-semibold hidden sm:block">
-                    {role === "admin" || role === "super_admin" ? "Admin" : config.title}
-                  </h2>
                 </>
               ) : (
-                <h2 className="text-sm md:text-lg font-semibold">
-                  {role === "admin" || role === "super_admin" ? "Admin" : config.title}
-                </h2>
+                <div className="min-w-0">
+                  <h2 className="text-sm font-bold md:text-lg">{config.title}</h2>
+                  <p className="text-xs text-muted-foreground">{roleMeta.label}</p>
+                </div>
               )}
             </div>
           )}
 
-          <div className="ml-auto flex items-center gap-2 md:gap-3 flex-shrink-0">
+          <div className="ml-auto flex items-center gap-1.5 md:gap-2 flex-shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-1.5"
+              onClick={() => {
+                resetPersonalTheme();
+                toast.success("Default black & white theme applied");
+              }}
+              title="Reset to default black & white theme"
+            >
+              <Palette className="h-4 w-4" />
+              <span className="hidden sm:inline">Theme</span>
+            </Button>
             <Button
               variant="ghost"
               size="icon"
               onClick={handleLogout}
               className="h-9 w-9 md:h-10 md:w-10"
-              title="Logout"
+              title="Sign out"
             >
               <LogOut className="h-4 w-4 md:h-5 md:w-5" />
             </Button>
@@ -663,11 +816,11 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
         </header>
 
         {/* Page Content */}
-        <main className="p-3 md:p-6 relative z-10 bg-background min-h-[calc(100vh-4rem)]">
+        <main className="portal-main-scroll relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-background p-3 md:p-6 lg:p-8">
           {role === "admin" && subscriptionAccess?.can_use_platform ? (
             <SubscriptionExpiryBanner access={subscriptionAccess} />
           ) : null}
-          {children}
+          <div className="mx-auto w-full min-w-0 max-w-[1400px]">{children}</div>
         </main>
       </div>
     </div>

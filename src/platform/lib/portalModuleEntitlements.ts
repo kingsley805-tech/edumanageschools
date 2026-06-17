@@ -15,9 +15,8 @@ const PACKAGE_EXEMPT_PORTAL_KEYS = new Set(["organization_subscription"]);
 export function filterPortalModulesByEntitlement(
   portalKeys: Set<string> | null,
   isSuperAdmin: boolean,
-  isSchoolAdmin = false,
 ): typeof ALL_PORTAL_MODULES {
-  if (isSuperAdmin || isSchoolAdmin || !portalKeys) return ALL_PORTAL_MODULES;
+  if (isSuperAdmin || !portalKeys) return ALL_PORTAL_MODULES;
   return ALL_PORTAL_MODULES.filter((m) => portalKeys.has(m.key));
 }
 

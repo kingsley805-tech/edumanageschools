@@ -5,11 +5,12 @@ After the last script, run: NOTIFY pgrst, 'reload schema';
 2. apply-organization-subscription-billing.sql   ← creates get_organization_subscription_access RPC
 3. apply-admin-signup-no-admin-key.sql
 4. apply-subscription-reminders-and-comp-grant.sql
+5. apply-subscription-package-permissions.sql   ← module catalog, RBAC sync, plan reapply RPC
 
 Optional (fixes lesson_notes 404 on admin dashboard):
-5. apply-lesson-notes.sql
-6. apply-lesson-notes-nav.sql
-7. apply-grant-all-modules-rpc.sql (adds one-click "Grant all modules")
+6. apply-lesson-notes.sql
+7. apply-lesson-notes-nav.sql
+8. apply-grant-all-modules-rpc.sql (adds one-click "Grant all modules")
 
 Until step 2 is applied, the app uses a legacy fallback (full access for schools without a subscription row).
 New admin signups require step 3 before they get a pending subscription row.

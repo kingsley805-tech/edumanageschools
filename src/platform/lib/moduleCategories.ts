@@ -3,6 +3,8 @@ export const PLATFORM_MODULE_CATEGORIES: { key: string; label: string }[] = [
   { key: "academic", label: "Academic Modules" },
   { key: "financial", label: "Financial Modules" },
   { key: "communication", label: "Communication Modules" },
+  { key: "registration", label: "Registration & Linking" },
+  { key: "administration", label: "Administration" },
   { key: "hr", label: "HR Modules" },
   { key: "library", label: "Library Modules" },
   { key: "transport", label: "Transport Modules" },

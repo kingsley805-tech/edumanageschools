@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
+import { PortalPageHeader } from "@/components/PortalPageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, Users, ClipboardCheck, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -78,10 +79,14 @@ const TeacherDashboard = () => {
   return (
     <DashboardLayout role="teacher">
       <div className="space-y-6">
+        <PortalPageHeader
+          title="Teacher dashboard"
+          description="Your classes, assignments, registers, and reports in one place."
+        />
         {/* Stats */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat, index) => (
-            <Card key={index} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
+            <Card key={index} className="portal-stat-card animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
                   {stat.title}

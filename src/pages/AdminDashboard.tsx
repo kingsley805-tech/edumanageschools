@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
+import { PortalPageHeader } from "@/components/PortalPageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, GraduationCap, DollarSign, TrendingUp, Calendar, BookOpen, NotebookPen } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -218,10 +219,14 @@ const AdminDashboard = () => {
   return (
     <DashboardLayout role="admin">
       <div className="space-y-4 md:space-y-6">
+        <PortalPageHeader
+          title="Admin dashboard"
+          description="Overview of students, staff, fees, and attendance at your school."
+        />
         {/* Stats Grid */}
         <div className="grid gap-4 md:gap-6 grid-cols-2 lg:grid-cols-4">
           {stats.map((stat, index) => (
-            <Card key={index} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
+            <Card key={index} className="portal-stat-card animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
               <CardHeader className="flex flex-row items-center justify-between pb-2 p-4 md:p-6">
                 <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
                   {stat.title}

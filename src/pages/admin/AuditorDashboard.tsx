@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { PortalPageHeader } from "@/components/PortalPageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Eye, Download, FileText } from "lucide-react";
@@ -40,22 +41,24 @@ const AuditorDashboard = () => {
     <PermissionGate permission={PERMISSIONS.admin.viewAudit} showDenied>
       <DashboardLayout role="auditor">
         <div className="space-y-6">
-          <h1 className="text-3xl font-bold">Auditor Portal</h1>
-          <p className="text-muted-foreground">Read-only financial and compliance overview</p>
+          <PortalPageHeader
+            title="Auditor portal"
+            description="Read-only financial and compliance overview for your school."
+          />
           <div className="grid md:grid-cols-3 gap-4">
-            <Card>
+            <Card className="portal-stat-card">
               <CardHeader>
                 <CardTitle className="text-sm">Invoices on record</CardTitle>
               </CardHeader>
               <CardContent className="text-2xl font-bold">{summary.invoiceCount}</CardContent>
             </Card>
-            <Card>
+            <Card className="portal-stat-card">
               <CardHeader>
                 <CardTitle className="text-sm">Payment transactions</CardTitle>
               </CardHeader>
               <CardContent className="text-2xl font-bold">{summary.paymentCount}</CardContent>
             </Card>
-            <Card>
+            <Card className="portal-stat-card">
               <CardHeader>
                 <CardTitle className="text-sm">Audit log entries</CardTitle>
               </CardHeader>

@@ -40,10 +40,17 @@ export const SchoolThemeProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const refreshSchoolTheme = useCallback(async () => {
+    const preferPlatform =
+      typeof window !== "undefined" && localStorage.getItem("preferPlatformTheme") === "true";
+
     if (!user) {
       setSchoolId(null);
       setBrandColors({ ...BRAND_DEFAULTS });
-      applyBrandTheme(BRAND_DEFAULTS);
+      if (!preferPlatform) {
+        applyBrandTheme(BRAND_DEFAULTS);
+      } else {
+        clearBrandTheme();
+      }
       setLoading(false);
       return;
     }
@@ -58,11 +65,21 @@ export const SchoolThemeProvider = ({ children }: { children: ReactNode }) => {
 
       if (!profile?.school_id) {
         setSchoolId(null);
-        applyColors({ ...BRAND_DEFAULTS });
+        if (preferPlatform) {
+          clearBrandTheme();
+        } else {
+          applyColors({ ...BRAND_DEFAULTS });
+        }
         return;
       }
 
       setSchoolId(profile.school_id);
+
+      if (preferPlatform) {
+        setBrandColors({ ...BRAND_DEFAULTS });
+        clearBrandTheme();
+        return;
+      }
 
       const { data: school } = await supabase
         .from("schools")
@@ -74,7 +91,11 @@ export const SchoolThemeProvider = ({ children }: { children: ReactNode }) => {
       applyColors(colors);
     } catch (e) {
       console.error("School theme load failed:", e);
-      applyColors({ ...BRAND_DEFAULTS });
+      if (preferPlatform) {
+        clearBrandTheme();
+      } else {
+        applyColors({ ...BRAND_DEFAULTS });
+      }
     } finally {
       setLoading(false);
     }

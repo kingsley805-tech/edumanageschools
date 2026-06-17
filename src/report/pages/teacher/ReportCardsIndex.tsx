@@ -160,7 +160,7 @@ function TeacherReportCards() {
         }
       />
 
-      <div className="p-6 md:p-8 space-y-6">
+      <div className="min-w-0 space-y-6 p-4 md:p-6">
         <ActiveTermBanner />
         <Card className="no-print">
           <CardContent className="grid gap-4 p-6 md:grid-cols-3">
@@ -312,6 +312,7 @@ function TeacherReportCards() {
               </p>
             )}
 
+            <div className="min-w-0 w-full max-w-full overflow-x-auto">
             <ShepherdReportCard
               data={editor.form}
               academicYear={editor.form.academicYear}
@@ -327,6 +328,7 @@ function TeacherReportCards() {
               teacherSignatureUrl={teacherSignatureUrl}
               headSignatureUrl={headSignatureUrl}
             />
+            </div>
           </>
         )}
       </div>

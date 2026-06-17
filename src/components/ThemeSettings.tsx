@@ -5,23 +5,19 @@ import { Palette, Check } from "lucide-react";
 import { useState, useEffect } from "react";
 import { GradientColorPicker } from "./GradientColorPicker";
 import { toast } from "sonner";
+import { PERSONAL_DEFAULT_COLORS } from "@/lib/personalThemeDefaults";
 
 const themes = [
-  { id: "default", name: "Green / Black / White", colors: "bg-gradient-to-br from-green-600 via-neutral-900 to-white border border-border" },
-  { id: "green", name: "Forest Green", colors: "bg-gradient-to-br from-green-700 to-green-500" },
-  { id: "dark", name: "Dark Mode", colors: "bg-gradient-to-br from-neutral-900 to-black" },
-  { id: "custom", name: "Custom", colors: "bg-gradient-to-br from-green-500 via-black to-white" },
+  { id: "default", name: "Black & White", colors: "bg-gradient-to-br from-white via-neutral-800 to-black border border-border" },
+  { id: "green", name: "Light Green", colors: "bg-gradient-to-br from-green-600 to-emerald-400" },
+  { id: "blue", name: "Ocean Blue", colors: "bg-gradient-to-br from-blue-600 to-sky-400" },
+  { id: "purple", name: "Royal Purple", colors: "bg-gradient-to-br from-purple-600 to-violet-400" },
+  { id: "dark", name: "Midnight", colors: "bg-gradient-to-br from-slate-800 to-black" },
+  { id: "custom", name: "Custom", colors: "bg-gradient-to-br from-white via-neutral-700 to-black" },
 ];
 
-const defaultCustomColors = {
-  primary: "142 71% 38%",
-  accent: "142 71% 38%",
-  background: "0 0% 100%",
-  foreground: "0 0% 4%",
-};
-
 export default function ThemeSettings() {
-  const { theme, setTheme, customColors, setCustomColors } = useTheme();
+  const { theme, setTheme, customColors, setCustomColors, resetPersonalTheme } = useTheme();
   const [primaryHSL, setPrimaryHSL] = useState(customColors.primary);
   const [accentHSL, setAccentHSL] = useState(customColors.accent);
   const [backgroundHSL, setBackgroundHSL] = useState(customColors.background);
@@ -64,7 +60,13 @@ export default function ThemeSettings() {
             {themes.map((t) => (
               <button
                 key={t.id}
-                onClick={() => setTheme(t.id as any)}
+                onClick={() => {
+                  if (t.id === "default") {
+                    resetPersonalTheme();
+                  } else {
+                    setTheme(t.id as typeof theme);
+                  }
+                }}
                 className={`relative flex flex-col items-center gap-2 md:gap-3 p-3 md:p-4 rounded-lg border-2 transition-all hover:scale-105 ${
                   theme === t.id ? "border-primary shadow-lg" : "border-border hover:border-muted-foreground"
                 }`}
@@ -120,10 +122,10 @@ export default function ThemeSettings() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  setPrimaryHSL(defaultCustomColors.primary);
-                  setAccentHSL(defaultCustomColors.accent);
-                  setBackgroundHSL(defaultCustomColors.background);
-                  setForegroundHSL(defaultCustomColors.foreground);
+                  setPrimaryHSL(PERSONAL_DEFAULT_COLORS.primary);
+                  setAccentHSL(PERSONAL_DEFAULT_COLORS.accent);
+                  setBackgroundHSL(PERSONAL_DEFAULT_COLORS.background);
+                  setForegroundHSL(PERSONAL_DEFAULT_COLORS.foreground);
                 }}
                 className="w-full sm:w-auto"
               >

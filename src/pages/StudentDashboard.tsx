@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { PortalPageHeader } from "@/components/PortalPageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, Calendar, ClipboardCheck, Award } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -61,12 +62,10 @@ const StudentDashboard = () => {
   return (
     <DashboardLayout role="student">
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Student portal</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Choose a section to view your school work, exams, fees, and account.
-          </p>
-        </div>
+        <PortalPageHeader
+          title="Student portal"
+          description="View your timetable, assignments, grades, fees, and exams."
+        />
 
         <StudentPortalSections />
 

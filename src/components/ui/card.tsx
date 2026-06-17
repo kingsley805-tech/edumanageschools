@@ -7,7 +7,7 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
     ref={ref} 
     data-card
     className={cn(
-      "rounded-lg border text-card-foreground shadow-sm bg-card overflow-hidden",
+      "rounded-xl border border-border/80 text-card-foreground shadow-sm bg-card overflow-hidden",
       className
     )} 
     {...props} 

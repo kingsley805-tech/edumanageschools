@@ -130,8 +130,8 @@ export function buildReportCardCss(c: ReportBrandColors): string {
   const light = c.primaryLight;
   const pageBg = "#000000";
   return `
-.rc-page-shell{background:${pageBg};width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw)}
-.rc-page{background:transparent;min-height:100vh;padding:24px 16px 48px;display:flex;flex-direction:column;align-items:center;gap:16px;font-family:'Manrope',sans-serif;color:${c.white};color-scheme:dark;forced-color-adjust:none}
+.rc-page-shell{background:${pageBg};width:100%;max-width:100%;margin:0;box-sizing:border-box;border-radius:12px;overflow:hidden}
+.rc-page{background:transparent;min-height:auto;padding:16px 12px 32px;display:flex;flex-direction:column;align-items:center;gap:16px;font-family:'Manrope',sans-serif;color:${c.white};color-scheme:dark;forced-color-adjust:none;width:100%;max-width:100%;box-sizing:border-box}
 .rc-toolbar{width:100%;max-width:860px;background:${dark};border-radius:10px;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;border:1px solid ${dark}}
 .rc-toolbar-title{color:${c.white};font-family:'Manrope',sans-serif;font-size:14px;display:block;font-weight:700}
 .rc-status-row{display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap}

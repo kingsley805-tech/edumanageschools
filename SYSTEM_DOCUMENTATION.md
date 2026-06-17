@@ -864,10 +864,10 @@ STRIPE_WEBHOOK_SECRET=your_webhook_secret
 
 Migrations are located in `supabase/migrations/` and are applied in chronological order. Key migrations:
 
-- `20251130163531_*` - Initial schema
-- `20251201233358_*` - Multi-tenancy (schools table)
-- `20251201235839_*` - Updated handle_new_user function
-- `20251202174919_*` - Online exam system
+- `20251130163531_initial_schema.sql` - Initial schema
+- `20251201233358_schools_multi_tenancy.sql` - Multi-tenancy (schools table)
+- `20251201235839_handle_new_user_role_records.sql` - Updated handle_new_user function
+- `20251202174919_online_exam_system.sql` - Online exam system
 
 ---
 

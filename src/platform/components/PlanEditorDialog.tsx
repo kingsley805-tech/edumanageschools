@@ -15,8 +15,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { categoryLabel } from "@/platform/lib/moduleCategories";
+import { buildPackagePermissionSummary } from "@/platform/lib/packagePermissionSummary";
 import type { SubscriptionPlan } from "@/platform/lib/types";
 
 export type PlanFormValues = {
@@ -38,6 +40,7 @@ type PlatformModule = {
   module_key: string;
   category: string;
   label: string;
+  portal_module_key?: string | null;
 };
 
 function slugify(name: string): string {
@@ -129,6 +132,13 @@ export default function PlanEditorDialog({
     }
     return map;
   }, [modules]);
+
+  const permissionSummary = useMemo(
+    () => buildPackagePermissionSummary(form.default_modules, modules),
+    [form.default_modules, modules],
+  );
+
+  const selectedCount = form.default_modules.length;
 
   const toggleModule = (key: string) => {
     setForm((f) => {
@@ -258,7 +268,7 @@ export default function PlanEditorDialog({
 
             <div>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <Label>Included modules</Label>
+                <Label>Included pages &amp; modules</Label>
                 <div className="flex gap-1">
                   <Button
                     type="button"
@@ -271,7 +281,7 @@ export default function PlanEditorDialog({
                       }))
                     }
                   >
-                    Select all
+                    All modules
                   </Button>
                   <Button
                     type="button"
@@ -283,6 +293,9 @@ export default function PlanEditorDialog({
                   </Button>
                 </div>
               </div>
+              <p className="mb-2 text-xs text-muted-foreground">
+                Schools assigned this package will only see the selected portal pages. Subscription and account settings are always available.
+              </p>
               <div className="rounded-lg border p-3 space-y-4 max-h-64 overflow-y-auto">
                 {Object.entries(byCategory).map(([cat, mods]) => (
                   <div key={cat}>
@@ -291,18 +304,65 @@ export default function PlanEditorDialog({
                     </p>
                     <div className="grid gap-2 sm:grid-cols-2">
                       {mods.map((m) => (
-                        <label key={m.module_key} className="flex items-center gap-2 text-sm">
+                        <label key={m.module_key} className="flex items-start gap-2 text-sm">
                           <Checkbox
+                            className="mt-0.5"
                             checked={form.default_modules.includes(m.module_key)}
                             onCheckedChange={() => toggleModule(m.module_key)}
                           />
-                          {m.label}
+                          <span>
+                            <span className="block">{m.label}</span>
+                            {m.portal_module_key ? (
+                              <span className="text-xs text-muted-foreground">
+                                Portal: {m.portal_module_key.replace(/_/g, " ")}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">Platform feature</span>
+                            )}
+                          </span>
                         </label>
                       ))}
                     </div>
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <Label className="text-base">Permission summary</Label>
+                <Badge variant="secondary">
+                  {selectedCount} module{selectedCount === 1 ? "" : "s"} selected
+                </Badge>
+              </div>
+              {selectedCount === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No modules selected. Schools on this plan will have no portal access except subscription management.
+                </p>
+              ) : (
+                <div className="space-y-3 max-h-48 overflow-y-auto">
+                  {permissionSummary.map((group) => (
+                    <div key={group.category}>
+                      <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
+                        {group.categoryLabel}
+                      </p>
+                      <ul className="space-y-1">
+                        {group.items.map((item) => (
+                          <li key={item.moduleKey} className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                            <span className="font-medium">{item.label}</span>
+                            {item.portalPage && item.portalPage !== item.label ? (
+                              <span className="text-xs text-muted-foreground">→ {item.portalPage}</span>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="mt-3 text-xs text-muted-foreground">
+                Saving applies these permissions automatically when a school purchases, is assigned, or changes to this package.
+              </p>
             </div>
           </div>
         </ScrollArea>

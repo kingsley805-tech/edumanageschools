@@ -21,7 +21,7 @@ function portalKeysForPath(path: string): string[] {
 
 export function useSchoolEntitlements(schoolId?: string | null) {
   const { currentSchool } = useSchoolInfo();
-  const { isSuperAdmin, isSchoolAdmin } = usePermissions();
+  const { isSuperAdmin } = usePermissions();
   const sid = schoolId ?? currentSchool?.id ?? null;
   const queryClient = useQueryClient();
   const { access: subscriptionAccess, loading: subscriptionLoading, blocked: subscriptionBlocked } =
@@ -99,7 +99,7 @@ export function useSchoolEntitlements(schoolId?: string | null) {
 
   const enabledPortalKeys = useMemo(() => {
     if (!data?.rows) return null;
-    if (isSuperAdmin || isSchoolAdmin) return null;
+    if (isSuperAdmin) return null;
     if (!data.enforced) return null;
     const keys = new Set<string>();
     for (const row of data.rows) {
@@ -108,21 +108,21 @@ export function useSchoolEntitlements(schoolId?: string | null) {
       }
     }
     return keys;
-  }, [data, isSuperAdmin, isSchoolAdmin]);
+  }, [data, isSuperAdmin]);
 
   const isModuleEnabledForPath = useCallback(
     (path: string) => {
-      if (isSuperAdmin || isSchoolAdmin || !enabledPortalKeys) return true;
+      if (isSuperAdmin || !enabledPortalKeys) return true;
       if (!isPathGatedByPlatformPackage(path, licensablePortalKeys)) return true;
       const portalKeys = portalKeysForPath(path);
       if (!portalKeys.length) return true;
       return portalKeys.some((k) => enabledPortalKeys.has(k));
     },
-    [enabledPortalKeys, isSuperAdmin, isSchoolAdmin, licensablePortalKeys],
+    [enabledPortalKeys, isSuperAdmin, licensablePortalKeys],
   );
 
   const isWritable = useMemo(() => {
-    if (isSuperAdmin || isSchoolAdmin) return true;
+    if (isSuperAdmin) return true;
     const access = subscriptionAccess as
       | { can_use_platform?: boolean; access_state?: string }
       | null
@@ -135,7 +135,7 @@ export function useSchoolEntitlements(schoolId?: string | null) {
     if (st === "active" || st === "trial") return true;
     if (st === "expired" && data.subscription.read_only_on_expiry) return false;
     return !["suspended", "expired", "cancelled", "locked", "pending"].includes(st);
-  }, [data, subscriptionAccess, isSuperAdmin, isSchoolAdmin]);
+  }, [data, subscriptionAccess, isSuperAdmin]);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: [ENTITLEMENTS_KEY, sid] });

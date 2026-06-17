@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
+import { PortalPageHeader } from "@/components/PortalPageHeader";
 import { Button } from "@/components/ui/button";
 import { useBillingDashboardData } from "@/billing/hooks/useBillingDashboardData";
 import AdminKpiCard from "@/billing/components/dashboard/AdminKpiCard";
@@ -31,18 +32,18 @@ const AccountantDashboard = () => {
     >
       <DashboardLayout role="accountant">
         <div className="space-y-8">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Finance dashboard</h1>
-              <p className="text-muted-foreground mt-1">{schoolName} · live billing summary</p>
-            </div>
-            <Button asChild>
-              <Link to="/admin/billing">
-                Open billing overview
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
+          <PortalPageHeader
+            title="Finance dashboard"
+            description={`${schoolName} · live billing summary`}
+            actions={
+              <Button asChild>
+                <Link to="/admin/billing">
+                  Open billing overview
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            }
+          />
 
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
             <AdminKpiCard

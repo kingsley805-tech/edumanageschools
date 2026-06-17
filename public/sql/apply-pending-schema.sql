@@ -3278,7 +3278,7 @@ CREATE POLICY "register entries delete" ON public.register_student_entries
   );
 
 
--- ========== supabase/migrations/20260610013110_ab57ad5f-27ad-47ac-a974-972e71c17795.sql ==========
+-- ========== supabase/migrations/20260610013110_class_teacher_helpers_rls.sql ==========
 
 ALTER TABLE public.classes
   ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();

@@ -75,7 +75,7 @@ export function usePlatformModulesCatalog() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("platform_modules")
-        .select("module_key, category, label")
+        .select("module_key, category, label, portal_module_key")
         .order("sort_order");
       if (error) throw error;
       return data ?? [];

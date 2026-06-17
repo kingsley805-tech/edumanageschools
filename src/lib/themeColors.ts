@@ -1,6 +1,6 @@
-/** Platform default: green actions on dark portal canvas (#0a0a0a) */
+/** Platform default: black & white portal canvas */
 export const BRAND_DEFAULTS = {
-  primary: "#16a34a",
+  primary: "#fafafa",
   secondary: "#0a0a0a",
   accent: "#141414",
 } as const;
@@ -104,7 +104,7 @@ export function applyBrandTheme(colors: BrandColors): void {
   root.style.setProperty("--secondary", "0 0% 12%");
   root.style.setProperty("--secondary-foreground", "0 0% 98%");
   root.style.setProperty("--muted", "0 0% 14%");
-  root.style.setProperty("--muted-foreground", "0 0% 64%");
+  root.style.setProperty("--muted-foreground", "0 0% 72%");
   root.style.setProperty("--accent", primary);
   root.style.setProperty("--accent-foreground", contrastForeground(colors.primary));
   root.style.setProperty("--border", hslString(PORTAL_BORDER));

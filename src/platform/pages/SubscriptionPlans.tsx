@@ -14,6 +14,7 @@ import {
   usePlatformModulesCatalog,
 } from "@/platform/hooks/usePlatformDashboard";
 import PlanEditorDialog, { planFormToRow, type PlanFormValues } from "@/platform/components/PlanEditorDialog";
+import { moduleLabelsForPlan } from "@/platform/lib/packagePermissionSummary";
 import type { SubscriptionPlan } from "@/platform/lib/types";
 
 export default function SubscriptionPlansPage() {
@@ -42,7 +43,20 @@ export default function SubscriptionPlansPage() {
       if (planId) {
         const { error } = await supabase.from("subscription_plans").update(row).eq("id", planId);
         if (error) throw error;
-        toast.success("Plan updated");
+
+        const { data: reapplyData, error: reapplyError } = await supabase.rpc(
+          "reapply_subscription_plan_modules",
+          { p_plan_id: planId },
+        );
+        if (reapplyError && !reapplyError.message?.includes("reapply_subscription_plan_modules")) {
+          throw reapplyError;
+        }
+        const reapply = reapplyData as { ok?: boolean; schools_updated?: number; error?: string } | null;
+        if (reapply?.ok && (reapply.schools_updated ?? 0) > 0) {
+          toast.success(`Plan updated — permissions synced for ${reapply.schools_updated} school(s)`);
+        } else {
+          toast.success("Plan updated");
+        }
       } else {
         const { error } = await supabase.from("subscription_plans").insert({
           ...row,
@@ -52,6 +66,7 @@ export default function SubscriptionPlansPage() {
         toast.success("Plan created");
       }
       await queryClient.invalidateQueries({ queryKey: ["subscription-plans"] });
+      await queryClient.invalidateQueries({ queryKey: ["school-module-entitlements"] });
       setEditorOpen(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
@@ -125,17 +140,21 @@ export default function SubscriptionPlansPage() {
                     </li>
                   </ul>
                   <div className="border-t pt-3">
-                    <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">Included modules</p>
+                    <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">Included pages</p>
                     <ul className="max-h-40 space-y-1 overflow-y-auto text-xs">
                       {(plan.default_modules ?? []).length === 0 ? (
-                        <li className="italic">Custom configuration</li>
+                        <li className="italic text-muted-foreground">No modules configured</li>
                       ) : (
-                        (plan.default_modules as string[]).map((m) => (
-                          <li key={m} className="flex items-center gap-1">
-                            <Check className="h-3 w-3 shrink-0 text-emerald-600" />
-                            {m.replace(/_/g, " ")}
-                          </li>
-                        ))
+                        (plan.default_modules as string[]).map((moduleKey) => {
+                          const label =
+                            moduleLabelsForPlan([moduleKey], modules)[0] ?? moduleKey.replace(/_/g, " ");
+                          return (
+                            <li key={moduleKey} className="flex items-center gap-1">
+                              <Check className="h-3 w-3 shrink-0 text-emerald-600" />
+                              {label}
+                            </li>
+                          );
+                        })
                       )}
                     </ul>
                   </div>

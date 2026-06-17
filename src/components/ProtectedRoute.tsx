@@ -39,8 +39,7 @@ export const ProtectedRoute = ({
 }: ProtectedRouteProps) => {
   const { user, loading: authLoading } = useAuth();
   const { role, roles, loading: roleLoading, isStudent } = useUserRole();
-  const { hasPermission, hasAnyPermission, loading: permLoading, isSuperAdmin, isSchoolAdmin } =
-    usePermissions();
+  const { hasPermission, hasAnyPermission, loading: permLoading, isSuperAdmin } = usePermissions();
   const {
     isModuleEnabledForPath,
     loading: entLoading,
@@ -146,14 +145,12 @@ export const ProtectedRoute = ({
 
   const moduleNotLicensed =
     !isSuperAdmin &&
-    !isSchoolAdmin &&
     usesPortalPathGuard &&
     !isSubscriptionAllowedPath(location.pathname) &&
     !isModuleEnabledForPath(location.pathname);
 
   const permissionDenied =
     !isSuperAdmin &&
-    !isSchoolAdmin &&
     ((pathViewPermission && !hasPermission(pathViewPermission)) ||
       (requiredPermission && !hasPermission(requiredPermission)) ||
       (requiredAnyPermission?.length && !hasAnyPermission(requiredAnyPermission)));

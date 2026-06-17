@@ -2,6 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { PortalPageHeader } from "@/components/PortalPageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserCircle, BookOpen, Calendar, DollarSign, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -101,6 +102,10 @@ const ParentDashboard = () => {
   return (
     <DashboardLayout role="parent">
       <div className="space-y-6">
+        <PortalPageHeader
+          title="Parent dashboard"
+          description="Track your children's attendance, grades, fees, and school updates."
+        />
         {/* Child Overview */}
         <Card className="animate-fade-in">
           <CardHeader>

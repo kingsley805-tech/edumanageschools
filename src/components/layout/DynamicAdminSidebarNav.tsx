@@ -9,6 +9,7 @@ type Props = {
   navLinkBase: string;
   navLinkActive: string;
   navSubLinkBase: string;
+  emptyMessage?: string;
 };
 
 function isGroup(item: AdminNavItem | AdminNavGroup): item is AdminNavGroup {
@@ -21,6 +22,7 @@ export function DynamicAdminSidebarNav({
   navLinkBase,
   navLinkActive,
   navSubLinkBase,
+  emptyMessage = "No modules assigned. Contact your administrator.",
 }: Props) {
   return (
     <>
@@ -51,15 +53,13 @@ export function DynamicAdminSidebarNav({
             className={navLinkBase}
             activeClassName={navLinkActive}
           >
-            <item.icon className="h-[18px] w-[18px] flex-shrink-0 opacity-70 group-hover:opacity-100" />
+            <item.icon className="h-[18px] w-[18px] shrink-0 text-sidebar-foreground/70" />
             <span className="flex-1 truncate">{item.label}</span>
           </NavLink>
         );
       })}
       {items.length === 0 && (
-        <p className="px-3 py-4 text-xs text-sidebar-foreground/60">
-          No modules assigned. Contact your administrator.
-        </p>
+        <p className="px-3 py-4 text-center text-xs text-sidebar-foreground/70">{emptyMessage}</p>
       )}
     </>
   );
