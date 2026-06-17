@@ -147,7 +147,7 @@ export default function SubscriptionPlansPage() {
                     </li>
                   </ul>
                   <div className="border-t pt-3">
-                    <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">Included pages</p>
+                    <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">Sidebar menu</p>
                     <ul className="max-h-40 space-y-1 overflow-y-auto text-xs">
                       {(plan.default_modules ?? []).length === 0 ? (
                         <li className="italic text-muted-foreground">No pages configured</li>

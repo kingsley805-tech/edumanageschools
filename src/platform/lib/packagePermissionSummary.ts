@@ -5,6 +5,11 @@ import {
   portalPageLabel,
   type PlatformModuleRef,
 } from "@/platform/lib/packagePortalPages";
+import {
+  allPackageSidebarPortalKeys,
+  buildSidebarPermissionSummary,
+  sidebarLabelForPortalKey,
+} from "@/platform/lib/packageSidebarMenu";
 
 export type PackagePermissionItem = {
   moduleKey: string;
@@ -19,20 +24,19 @@ export type PackagePermissionGroup = {
   items: PackagePermissionItem[];
 };
 
-/** Group selected package modules for summary display (permission-catalog based). */
+/** Group selected sidebar items for summary display. */
 export function buildPackagePermissionSummary(
   selectedModuleKeys: string[],
   platformModules: PlatformModuleRef[],
 ): PackagePermissionGroup[] {
   const portalKeys = portalKeysFromPlatformModuleKeys(selectedModuleKeys, platformModules);
-  return buildPortalPermissionSummary(portalKeys).map((group) => ({
-    category: group.categoryLabel,
-    categoryLabel: group.categoryLabel,
+  return buildSidebarPermissionSummary(portalKeys).map((group) => ({
+    category: group.groupLabel,
+    categoryLabel: group.groupLabel,
     items: group.items.map((item) => ({
-      moduleKey: item.viewPermission,
+      moduleKey: item.path,
       label: item.label,
       path: item.path,
-      viewPermission: item.viewPermission,
     })),
   }));
 }
@@ -45,7 +49,7 @@ export function moduleLabelsForPlan(
   return moduleKeys.map((key) => portalPageLabel(key, platformModules));
 }
 
-/** Unique portal page labels for a plan (dedupes legacy duplicate module keys). */
+/** Unique sidebar labels for a plan (dedupes legacy duplicate module keys). */
 export function uniquePortalLabelsForPlan(
   moduleKeys: string[],
   platformModules: PlatformModuleRef[],
@@ -56,7 +60,7 @@ export function uniquePortalLabelsForPlan(
   for (const key of portalKeys) {
     if (seen.has(key)) continue;
     seen.add(key);
-    labels.push(portalPageLabel(key, platformModules));
+    labels.push(sidebarLabelForPortalKey(key));
   }
   return labels;
 }

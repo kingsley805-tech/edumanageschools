@@ -19,13 +19,16 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { buildPackagePermissionSummary } from "@/platform/lib/packagePermissionSummary";
 import {
-  allPackagePortalPages,
-  buildPackagePortalCategories,
   portalKeysFromPlatformModuleKeys,
   platformModuleKeysFromPortalKeys,
+  type PlatformModuleRef,
 } from "@/platform/lib/packagePortalPages";
-import type { PlatformModuleRef } from "@/platform/lib/packagePortalPages";
+import {
+  allPackageSidebarPortalKeys,
+  buildPackageSidebarMenu,
+} from "@/platform/lib/packageSidebarMenu";
 import type { SubscriptionPlan } from "@/platform/lib/types";
+import { cn } from "@/lib/utils";
 
 export type PlanFormValues = {
   slug: string;
@@ -132,12 +135,7 @@ export default function PlanEditorDialog({
     }
   }, [open, plan]);
 
-  const portalCategories = useMemo(
-    () => buildPackagePortalCategories(modules),
-    [modules],
-  );
-
-  const allPortalPages = useMemo(() => allPackagePortalPages(modules), [modules]);
+  const sidebarMenu = useMemo(() => buildPackageSidebarMenu(), []);
 
   const selectedPortalKeys = useMemo(
     () => portalKeysFromPlatformModuleKeys(form.default_modules, modules),
@@ -163,14 +161,55 @@ export default function PlanEditorDialog({
     });
   };
 
-  const selectAllPortalPages = () => {
+  const selectAllSidebarItems = () => {
     setForm((f) => ({
       ...f,
-      default_modules: platformModuleKeysFromPortalKeys(
-        allPortalPages.map((p) => p.portalKey),
-        modules,
-      ),
+      default_modules: platformModuleKeysFromPortalKeys(allPackageSidebarPortalKeys(), modules),
     }));
+  };
+
+  const toggleSidebarGroup = (portalKeys: string[], select: boolean) => {
+    setForm((f) => {
+      const keys = new Set(portalKeysFromPlatformModuleKeys(f.default_modules, modules));
+      for (const key of portalKeys) {
+        if (select) keys.add(key);
+        else keys.delete(key);
+      }
+      return {
+        ...f,
+        default_modules: platformModuleKeysFromPortalKeys([...keys], modules),
+      };
+    });
+  };
+
+  const renderSidebarItem = (item: {
+    portalKey: string;
+    label: string;
+    path: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }) => {
+    const Icon = item.icon;
+    const checked = selectedPortalKeys.includes(item.portalKey);
+    return (
+      <label
+        key={`${item.path}-${item.portalKey}`}
+        className={cn(
+          "flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors hover:bg-muted/60",
+          checked && "bg-muted/40",
+        )}
+      >
+        <Checkbox
+          className="shrink-0"
+          checked={checked}
+          onCheckedChange={() => togglePortalPage(item.portalKey)}
+        />
+        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <span className="min-w-0 flex-1">
+          <span className="block font-medium leading-tight">{item.label}</span>
+          <span className="block truncate text-xs text-muted-foreground">{item.path}</span>
+        </span>
+      </label>
+    );
   };
 
   const handleNameChange = (name: string) => {
@@ -192,7 +231,7 @@ export default function PlanEditorDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit subscription plan" : "Create subscription plan"}</DialogTitle>
           <DialogDescription>
-            Define pricing, limits, and which portal pages (RBAC permissions) are included when this plan is applied to a school.
+            Define pricing, limits, and which sidebar menu items schools can access on this plan.
           </DialogDescription>
         </DialogHeader>
 
@@ -319,10 +358,10 @@ export default function PlanEditorDialog({
 
             <div>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <Label>Portal pages &amp; permissions</Label>
+                <Label>Sidebar menu items</Label>
                 <div className="flex gap-1">
-                  <Button type="button" variant="ghost" size="sm" onClick={selectAllPortalPages}>
-                    All pages
+                  <Button type="button" variant="ghost" size="sm" onClick={selectAllSidebarItems}>
+                    Select all
                   </Button>
                   <Button
                     type="button"
@@ -335,47 +374,53 @@ export default function PlanEditorDialog({
                 </div>
               </div>
               <p className="mb-2 text-xs text-muted-foreground">
-                Select admin portal pages from the permission catalog. Schools on this plan only get access to checked pages. Subscription and account settings are always included.
+                Choose the same pages that appear in the school admin sidebar. Subscription and account settings are always included and cannot be removed.
               </p>
-              <div className="rounded-lg border p-3 space-y-4 max-h-72 overflow-y-auto">
-                {portalCategories.map((cat) => (
-                  <div key={cat.categoryKey}>
-                    <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
-                      {cat.categoryLabel}
-                    </p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {cat.pages.map((page) => (
-                        <label key={page.portalKey} className="flex items-start gap-2 text-sm">
-                          <Checkbox
-                            className="mt-0.5"
-                            checked={selectedPortalKeys.includes(page.portalKey)}
-                            onCheckedChange={() => togglePortalPage(page.portalKey)}
-                          />
-                          <span className="min-w-0">
-                            <span className="block font-medium">{page.label}</span>
-                            <span className="block truncate text-xs text-muted-foreground">{page.path}</span>
-                            <span className="block font-mono text-[10px] text-muted-foreground/80">
-                              {page.viewPermission}
-                            </span>
+              <div className="rounded-lg border bg-sidebar/30 p-2 space-y-3 max-h-80 overflow-y-auto">
+                {sidebarMenu.standalone.map((item) => renderSidebarItem(item))}
+
+                {sidebarMenu.groups.map((group) => {
+                  const groupKeys = group.items.map((i) => i.portalKey);
+                  const allSelected = groupKeys.every((k) => selectedPortalKeys.includes(k));
+                  const someSelected = groupKeys.some((k) => selectedPortalKeys.includes(k));
+                  const GroupIcon = group.icon;
+
+                  return (
+                    <div key={group.label} className="rounded-md border border-border/60 bg-background/80">
+                      <div className="flex items-center justify-between gap-2 border-b border-border/60 px-2 py-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <GroupIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            {group.label}
                           </span>
-                        </label>
-                      ))}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => toggleSidebarGroup(groupKeys, !allSelected)}
+                        >
+                          {allSelected ? "Clear group" : someSelected ? "Select all in group" : "Select group"}
+                        </Button>
+                      </div>
+                      <div className="py-1">{group.items.map((item) => renderSidebarItem(item))}</div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
             <div className="rounded-lg border bg-muted/30 p-4">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <Label className="text-base">Permission summary</Label>
+                <Label className="text-base">Sidebar summary</Label>
                 <Badge variant="secondary">
-                  {selectedCount} page{selectedCount === 1 ? "" : "s"} selected
+                  {selectedCount} item{selectedCount === 1 ? "" : "s"} selected
                 </Badge>
               </div>
               {selectedCount === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No pages selected. Schools on this plan will have no portal access except subscription management.
+                  No sidebar items selected. Schools on this plan will only see subscription management until you add menu items.
                 </p>
               ) : (
                 <div className="space-y-3 max-h-48 overflow-y-auto">
@@ -386,7 +431,7 @@ export default function PlanEditorDialog({
                       </p>
                       <ul className="space-y-1">
                         {group.items.map((item) => (
-                          <li key={item.viewPermission ?? item.label} className="text-sm">
+                          <li key={item.path ?? item.label} className="text-sm">
                             <span className="font-medium">{item.label}</span>
                             {item.path ? (
                               <span className="ml-2 text-xs text-muted-foreground">{item.path}</span>
@@ -399,7 +444,7 @@ export default function PlanEditorDialog({
                 </div>
               )}
               <p className="mt-3 text-xs text-muted-foreground">
-                Saving applies these permissions automatically when a school purchases, is assigned, or changes to this package.
+                Saving applies these sidebar permissions automatically when a school purchases, is assigned, or changes to this package.
               </p>
             </div>
           </div>
