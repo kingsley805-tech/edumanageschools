@@ -31,6 +31,14 @@ function isSchemaError(error: { code?: string; message?: string } | null): boole
   );
 }
 
+/** RPC failed in a way we can recover from via direct table writes (e.g. broken staff::app_role on remote). */
+function isRegisterRpcFallbackError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  if (isSchemaError(error)) return true;
+  const msg = (error.message ?? "").toLowerCase();
+  return msg.includes("enum app_role") && msg.includes("staff");
+}
+
 function toError(
   error: { message?: string; details?: string; hint?: string } | null,
   fallback: string,
@@ -48,8 +56,8 @@ export function formatRegisterSaveError(error: unknown, fallback = "Save failed"
         ? String((error as { message: unknown }).message ?? "")
         : "";
   const msg = raw.trim();
-  if (msg.toLowerCase().includes('enum app_role') && msg.toLowerCase().includes("staff")) {
-    return "Register save failed: database still uses an invalid staff role. Run public/sql/apply-fix-app-role-staff.sql in Supabase SQL Editor, then reload the API schema.";
+  if (msg.toLowerCase().includes("enum app_role") && msg.toLowerCase().includes("staff")) {
+    return "Register save failed: ask your admin to run public/sql/apply-fix-app-role-staff.sql in Supabase SQL Editor.";
   }
   return msg || fallback;
 }
@@ -391,7 +399,7 @@ export async function saveRegisterHeader(
   });
   if (!rpcError) return;
 
-  if (!isSchemaError(rpcError)) {
+  if (!isRegisterRpcFallbackError(rpcError)) {
     throw toError(rpcError, "Could not save register");
   }
 
