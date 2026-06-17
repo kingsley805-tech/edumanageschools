@@ -105,7 +105,9 @@ function resolveSelectTextValue(
   value: string,
 ): string {
   const resolved = (textValue ?? textFromReactNode(children)).trim();
-  return resolved || value;
+  if (resolved) return resolved;
+  if (value) return String(value);
+  return " ";
 }
 
 const SelectItem = React.forwardRef<

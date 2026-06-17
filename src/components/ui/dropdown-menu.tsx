@@ -5,6 +5,11 @@ import { Check, ChevronRight, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { textFromReactNode } from "@/lib/reactNodeText";
 
+function resolveMenuTextValue(textValue: string | undefined, children: React.ReactNode): string {
+  const resolved = (textValue ?? textFromReactNode(children)).trim();
+  return resolved || " ";
+}
+
 const DropdownMenu = DropdownMenuPrimitive.Root;
 
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
@@ -22,9 +27,10 @@ const DropdownMenuSubTrigger = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.SubTrigger> & {
     inset?: boolean;
   }
->(({ className, inset, children, ...props }, ref) => (
+>(({ className, inset, children, textValue, ...props }, ref) => (
   <DropdownMenuPrimitive.SubTrigger
     ref={ref}
+    textValue={resolveMenuTextValue(textValue, children)}
     className={cn(
       "flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none data-[state=open]:bg-accent focus:bg-accent",
       inset && "pl-8",
@@ -79,7 +85,7 @@ const DropdownMenuItem = React.forwardRef<
 >(({ className, inset, children, textValue, ...props }, ref) => (
   <DropdownMenuPrimitive.Item
     ref={ref}
-    textValue={textValue ?? textFromReactNode(children)}
+    textValue={resolveMenuTextValue(textValue, children)}
     className={cn(
       "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-50 focus:bg-accent focus:text-accent-foreground",
       inset && "pl-8",
@@ -98,7 +104,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
 >(({ className, children, checked, textValue, ...props }, ref) => (
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
-    textValue={textValue ?? textFromReactNode(children)}
+    textValue={resolveMenuTextValue(textValue, children)}
     className={cn(
       "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-50 focus:bg-accent focus:text-accent-foreground",
       className,
@@ -122,7 +128,7 @@ const DropdownMenuRadioItem = React.forwardRef<
 >(({ className, children, textValue, ...props }, ref) => (
   <DropdownMenuPrimitive.RadioItem
     ref={ref}
-    textValue={textValue ?? textFromReactNode(children)}
+    textValue={resolveMenuTextValue(textValue, children)}
     className={cn(
       "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-50 focus:bg-accent focus:text-accent-foreground",
       className,

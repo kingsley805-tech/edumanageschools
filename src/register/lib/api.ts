@@ -41,12 +41,17 @@ function toError(
 }
 
 export function formatRegisterSaveError(error: unknown, fallback = "Save failed"): string {
-  if (error instanceof Error) return error.message.trim() || fallback;
-  if (error && typeof error === "object" && "message" in error) {
-    const msg = String((error as { message: unknown }).message ?? "").trim();
-    if (msg) return msg;
+  const raw =
+    error instanceof Error
+      ? error.message
+      : error && typeof error === "object" && "message" in error
+        ? String((error as { message: unknown }).message ?? "")
+        : "";
+  const msg = raw.trim();
+  if (msg.toLowerCase().includes('enum app_role') && msg.toLowerCase().includes("staff")) {
+    return "Register save failed: database still uses an invalid staff role. Run public/sql/apply-fix-app-role-staff.sql in Supabase SQL Editor, then reload the API schema.";
   }
-  return fallback;
+  return msg || fallback;
 }
 
 export function isRegisterEditable(

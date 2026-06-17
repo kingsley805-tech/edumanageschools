@@ -383,14 +383,12 @@ export default function TeacherRegisterEditor() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">{title}</h1>
-            <p className="text-sm text-muted-foreground">
-              {registerDate} · {periodLabel}
-              {register ? (
-                <span className="ml-2">
-                  <RegisterStatusBadge status={register.status} />
-                </span>
-              ) : null}
-            </p>
+            <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-1 gap-y-1">
+              <span>
+                {registerDate} · {periodLabel}
+              </span>
+              {register ? <RegisterStatusBadge status={register.status} /> : null}
+            </div>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => window.print()}>
@@ -442,14 +440,14 @@ export default function TeacherRegisterEditor() {
                   <SelectContent>
                     {isAdminRoute
                       ? adminClasses.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
+                          <SelectItem key={c.id} value={c.id} textValue={c.name}>
                             {c.name}
                           </SelectItem>
                         ))
                       : [...new Map(assignments.map((a) => [a.classes?.id, a.classes])).values()]
                           .filter(Boolean)
                           .map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
+                            <SelectItem key={c.id} value={c.id} textValue={c.name}>
                               {c.name}
                             </SelectItem>
                           ))}
@@ -474,14 +472,22 @@ export default function TeacherRegisterEditor() {
                   <SelectContent>
                     {isAdminRoute
                       ? classSubjects.map((a) => (
-                          <SelectItem key={a.subject_id} value={a.subject_id}>
+                          <SelectItem
+                            key={a.subject_id}
+                            value={a.subject_id}
+                            textValue={a.subjects?.name ?? "Subject"}
+                          >
                             {a.subjects?.name}
                           </SelectItem>
                         ))
                       : assignments
                           .filter((a) => !classId || a.class_id === classId)
                           .map((a) => (
-                            <SelectItem key={a.subject_id} value={a.subject_id}>
+                            <SelectItem
+                              key={a.subject_id}
+                              value={a.subject_id}
+                              textValue={a.subjects?.name ?? "Subject"}
+                            >
                               {a.subjects?.name}
                             </SelectItem>
                           ))}
@@ -497,7 +503,11 @@ export default function TeacherRegisterEditor() {
                     </SelectTrigger>
                     <SelectContent>
                       {schoolTeachers.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>
+                        <SelectItem
+                          key={t.id}
+                          value={t.id}
+                          textValue={t.profiles?.full_name ?? "Teacher"}
+                        >
                           {t.profiles?.full_name ?? "Teacher"}
                         </SelectItem>
                       ))}
