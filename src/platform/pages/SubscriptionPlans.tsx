@@ -14,7 +14,7 @@ import {
   usePlatformModulesCatalog,
 } from "@/platform/hooks/usePlatformDashboard";
 import PlanEditorDialog, { planFormToRow, type PlanFormValues } from "@/platform/components/PlanEditorDialog";
-import { moduleLabelsForPlan } from "@/platform/lib/packagePermissionSummary";
+import { uniquePortalLabelsForPlan } from "@/platform/lib/packagePermissionSummary";
 import type { SubscriptionPlan } from "@/platform/lib/types";
 
 export default function SubscriptionPlansPage() {
@@ -150,18 +150,14 @@ export default function SubscriptionPlansPage() {
                     <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">Included pages</p>
                     <ul className="max-h-40 space-y-1 overflow-y-auto text-xs">
                       {(plan.default_modules ?? []).length === 0 ? (
-                        <li className="italic text-muted-foreground">No modules configured</li>
+                        <li className="italic text-muted-foreground">No pages configured</li>
                       ) : (
-                        (plan.default_modules as string[]).map((moduleKey) => {
-                          const label =
-                            moduleLabelsForPlan([moduleKey], modules)[0] ?? moduleKey.replace(/_/g, " ");
-                          return (
-                            <li key={moduleKey} className="flex items-center gap-1">
-                              <Check className="h-3 w-3 shrink-0 text-emerald-600" />
-                              {label}
-                            </li>
-                          );
-                        })
+                        uniquePortalLabelsForPlan(plan.default_modules as string[], modules).map((label) => (
+                          <li key={label} className="flex items-center gap-1">
+                            <Check className="h-3 w-3 shrink-0 text-emerald-600" />
+                            {label}
+                          </li>
+                        ))
                       )}
                     </ul>
                   </div>

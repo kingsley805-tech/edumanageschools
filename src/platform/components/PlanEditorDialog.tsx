@@ -17,8 +17,14 @@ import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
-import { categoryLabel } from "@/platform/lib/moduleCategories";
 import { buildPackagePermissionSummary } from "@/platform/lib/packagePermissionSummary";
+import {
+  allPackagePortalPages,
+  buildPackagePortalCategories,
+  portalKeysFromPlatformModuleKeys,
+  platformModuleKeysFromPortalKeys,
+} from "@/platform/lib/packagePortalPages";
+import type { PlatformModuleRef } from "@/platform/lib/packagePortalPages";
 import type { SubscriptionPlan } from "@/platform/lib/types";
 
 export type PlanFormValues = {
@@ -38,12 +44,7 @@ export type PlanFormValues = {
   default_modules: string[];
 };
 
-type PlatformModule = {
-  module_key: string;
-  category: string;
-  label: string;
-  portal_module_key?: string | null;
-};
+type PlatformModule = PlatformModuleRef;
 
 function slugify(name: string): string {
   return name
@@ -131,28 +132,45 @@ export default function PlanEditorDialog({
     }
   }, [open, plan]);
 
-  const byCategory = useMemo(() => {
-    const map: Record<string, PlatformModule[]> = {};
-    for (const m of modules) {
-      (map[m.category] ??= []).push(m);
-    }
-    return map;
-  }, [modules]);
+  const portalCategories = useMemo(
+    () => buildPackagePortalCategories(modules),
+    [modules],
+  );
+
+  const allPortalPages = useMemo(() => allPackagePortalPages(modules), [modules]);
+
+  const selectedPortalKeys = useMemo(
+    () => portalKeysFromPlatformModuleKeys(form.default_modules, modules),
+    [form.default_modules, modules],
+  );
 
   const permissionSummary = useMemo(
     () => buildPackagePermissionSummary(form.default_modules, modules),
     [form.default_modules, modules],
   );
 
-  const selectedCount = form.default_modules.length;
+  const selectedCount = selectedPortalKeys.length;
 
-  const toggleModule = (key: string) => {
+  const togglePortalPage = (portalKey: string) => {
     setForm((f) => {
-      const set = new Set(f.default_modules);
-      if (set.has(key)) set.delete(key);
-      else set.add(key);
-      return { ...f, default_modules: [...set] };
+      const keys = new Set(portalKeysFromPlatformModuleKeys(f.default_modules, modules));
+      if (keys.has(portalKey)) keys.delete(portalKey);
+      else keys.add(portalKey);
+      return {
+        ...f,
+        default_modules: platformModuleKeysFromPortalKeys([...keys], modules),
+      };
     });
+  };
+
+  const selectAllPortalPages = () => {
+    setForm((f) => ({
+      ...f,
+      default_modules: platformModuleKeysFromPortalKeys(
+        allPortalPages.map((p) => p.portalKey),
+        modules,
+      ),
+    }));
   };
 
   const handleNameChange = (name: string) => {
@@ -174,7 +192,7 @@ export default function PlanEditorDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit subscription plan" : "Create subscription plan"}</DialogTitle>
           <DialogDescription>
-            Define pricing, limits, and which modules are included when this plan is applied to a school.
+            Define pricing, limits, and which portal pages (RBAC permissions) are included when this plan is applied to a school.
           </DialogDescription>
         </DialogHeader>
 
@@ -301,20 +319,10 @@ export default function PlanEditorDialog({
 
             <div>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <Label>Included pages &amp; modules</Label>
+                <Label>Portal pages &amp; permissions</Label>
                 <div className="flex gap-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      setForm((f) => ({
-                        ...f,
-                        default_modules: modules.map((m) => m.module_key),
-                      }))
-                    }
-                  >
-                    All modules
+                  <Button type="button" variant="ghost" size="sm" onClick={selectAllPortalPages}>
+                    All pages
                   </Button>
                   <Button
                     type="button"
@@ -327,31 +335,28 @@ export default function PlanEditorDialog({
                 </div>
               </div>
               <p className="mb-2 text-xs text-muted-foreground">
-                Schools assigned this package will only see the selected portal pages. Subscription and account settings are always available.
+                Select admin portal pages from the permission catalog. Schools on this plan only get access to checked pages. Subscription and account settings are always included.
               </p>
-              <div className="rounded-lg border p-3 space-y-4 max-h-64 overflow-y-auto">
-                {Object.entries(byCategory).map(([cat, mods]) => (
-                  <div key={cat}>
+              <div className="rounded-lg border p-3 space-y-4 max-h-72 overflow-y-auto">
+                {portalCategories.map((cat) => (
+                  <div key={cat.categoryKey}>
                     <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
-                      {categoryLabel(cat)}
+                      {cat.categoryLabel}
                     </p>
                     <div className="grid gap-2 sm:grid-cols-2">
-                      {mods.map((m) => (
-                        <label key={m.module_key} className="flex items-start gap-2 text-sm">
+                      {cat.pages.map((page) => (
+                        <label key={page.portalKey} className="flex items-start gap-2 text-sm">
                           <Checkbox
                             className="mt-0.5"
-                            checked={form.default_modules.includes(m.module_key)}
-                            onCheckedChange={() => toggleModule(m.module_key)}
+                            checked={selectedPortalKeys.includes(page.portalKey)}
+                            onCheckedChange={() => togglePortalPage(page.portalKey)}
                           />
-                          <span>
-                            <span className="block">{m.label}</span>
-                            {m.portal_module_key ? (
-                              <span className="text-xs text-muted-foreground">
-                                Portal: {m.portal_module_key.replace(/_/g, " ")}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-muted-foreground italic">Platform feature</span>
-                            )}
+                          <span className="min-w-0">
+                            <span className="block font-medium">{page.label}</span>
+                            <span className="block truncate text-xs text-muted-foreground">{page.path}</span>
+                            <span className="block font-mono text-[10px] text-muted-foreground/80">
+                              {page.viewPermission}
+                            </span>
                           </span>
                         </label>
                       ))}
@@ -365,26 +370,26 @@ export default function PlanEditorDialog({
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <Label className="text-base">Permission summary</Label>
                 <Badge variant="secondary">
-                  {selectedCount} module{selectedCount === 1 ? "" : "s"} selected
+                  {selectedCount} page{selectedCount === 1 ? "" : "s"} selected
                 </Badge>
               </div>
               {selectedCount === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No modules selected. Schools on this plan will have no portal access except subscription management.
+                  No pages selected. Schools on this plan will have no portal access except subscription management.
                 </p>
               ) : (
                 <div className="space-y-3 max-h-48 overflow-y-auto">
                   {permissionSummary.map((group) => (
-                    <div key={group.category}>
+                    <div key={group.categoryLabel}>
                       <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
                         {group.categoryLabel}
                       </p>
                       <ul className="space-y-1">
                         {group.items.map((item) => (
-                          <li key={item.moduleKey} className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                          <li key={item.viewPermission ?? item.label} className="text-sm">
                             <span className="font-medium">{item.label}</span>
-                            {item.portalPage && item.portalPage !== item.label ? (
-                              <span className="text-xs text-muted-foreground">→ {item.portalPage}</span>
+                            {item.path ? (
+                              <span className="ml-2 text-xs text-muted-foreground">{item.path}</span>
                             ) : null}
                           </li>
                         ))}
