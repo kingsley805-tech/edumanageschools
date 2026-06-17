@@ -27,6 +27,8 @@ export type PlanFormValues = {
   description: string;
   price_monthly: number;
   price_annual: number;
+  sms_addon_fee_monthly: number;
+  sms_addon_fee_annual: number;
   max_students: string;
   max_teachers: string;
   max_storage_gb: string;
@@ -59,6 +61,8 @@ function emptyForm(): PlanFormValues {
     description: "",
     price_monthly: 0,
     price_annual: 0,
+    sms_addon_fee_monthly: 0,
+    sms_addon_fee_annual: 0,
     max_students: "",
     max_teachers: "",
     max_storage_gb: "",
@@ -76,6 +80,8 @@ function planToForm(plan: SubscriptionPlan): PlanFormValues {
     description: plan.description ?? "",
     price_monthly: Number(plan.price_monthly),
     price_annual: Number(plan.price_annual),
+    sms_addon_fee_monthly: Number(plan.sms_addon_fee_monthly ?? 0),
+    sms_addon_fee_annual: Number(plan.sms_addon_fee_annual ?? 0),
     max_students: plan.max_students != null ? String(plan.max_students) : "",
     max_teachers: plan.max_teachers != null ? String(plan.max_teachers) : "",
     max_storage_gb: plan.max_storage_gb != null ? String(plan.max_storage_gb) : "",
@@ -229,6 +235,33 @@ export default function PlanEditorDialog({
                   onChange={(e) => setForm((f) => ({ ...f, price_annual: Number(e.target.value) || 0 }))}
                 />
               </div>
+              <div className="space-y-2">
+                <Label>SMS add-on — monthly (GHS)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={form.sms_addon_fee_monthly}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, sms_addon_fee_monthly: Number(e.target.value) || 0 }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>SMS add-on — annual (GHS)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={form.sms_addon_fee_annual}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, sms_addon_fee_annual: Number(e.target.value) || 0 }))
+                  }
+                />
+              </div>
+              <p className="text-xs text-muted-foreground sm:col-span-2">
+                Optional parent SMS notification fee added at checkout when schools enable SMS during purchase or renewal.
+              </p>
               <div className="space-y-2">
                 <Label>Max students (empty = unlimited)</Label>
                 <Input
@@ -388,6 +421,8 @@ export function planFormToRow(values: PlanFormValues) {
     description: values.description.trim() || null,
     price_monthly: values.price_monthly,
     price_annual: values.price_annual,
+    sms_addon_fee_monthly: values.sms_addon_fee_monthly,
+    sms_addon_fee_annual: values.sms_addon_fee_annual,
     max_students: parseLimit(values.max_students),
     max_teachers: parseLimit(values.max_teachers),
     max_storage_gb: parseLimit(values.max_storage_gb),

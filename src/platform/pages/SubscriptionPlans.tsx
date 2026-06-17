@@ -128,6 +128,13 @@ export default function SubscriptionPlansPage() {
                     </span>
                     <span className="text-sm text-muted-foreground"> / month</span>
                   </div>
+                  {(Number(plan.sms_addon_fee_monthly ?? 0) > 0 ||
+                    Number(plan.sms_addon_fee_annual ?? 0) > 0) && (
+                    <p className="text-xs text-muted-foreground">
+                      SMS add-on: GHS {Number(plan.sms_addon_fee_monthly ?? 0).toLocaleString()}/mo · GHS{" "}
+                      {Number(plan.sms_addon_fee_annual ?? 0).toLocaleString()}/yr
+                    </p>
+                  )}
                   <ul className="space-y-1 text-sm text-muted-foreground">
                     <li>
                       Students: {plan.max_students == null ? "Unlimited" : plan.max_students.toLocaleString()}

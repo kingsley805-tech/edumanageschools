@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, CreditCard, Loader2, Lock, LogOut } from "lucide-react";
+import { Check, CreditCard, Loader2, Lock, LogOut, MessageSquare } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   useOrganizationSubscription,
   useSubscriptionPlansPublic,
@@ -46,6 +48,7 @@ export default function OrganizationSubscriptionModal({
 
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [enableSms, setEnableSms] = useState(false);
   const [paying, setPaying] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [paystackDeployed, setPaystackDeployed] = useState<boolean | null>(null);
@@ -64,12 +67,34 @@ export default function OrganizationSubscriptionModal({
     [plans, selectedPlanId],
   );
 
-  const price = useMemo(() => {
+  const packageAmount = useMemo(() => {
     if (!selectedPlan) return 0;
     return billingCycle === "annual"
       ? Number(selectedPlan.price_annual)
       : Number(selectedPlan.price_monthly);
   }, [selectedPlan, billingCycle]);
+
+  const smsAmount = useMemo(() => {
+    if (!selectedPlan || !enableSms) return 0;
+    return billingCycle === "annual"
+      ? Number(selectedPlan.sms_addon_fee_annual ?? 0)
+      : Number(selectedPlan.sms_addon_fee_monthly ?? 0);
+  }, [selectedPlan, billingCycle, enableSms]);
+
+  const price = useMemo(() => packageAmount + smsAmount, [packageAmount, smsAmount]);
+
+  const smsAvailable = useMemo(() => {
+    if (!selectedPlan) return false;
+    const fee =
+      billingCycle === "annual"
+        ? Number(selectedPlan.sms_addon_fee_annual ?? 0)
+        : Number(selectedPlan.sms_addon_fee_monthly ?? 0);
+    return fee > 0 || (selectedPlan.default_modules ?? []).includes("sms");
+  }, [selectedPlan, billingCycle]);
+
+  useEffect(() => {
+    if (!smsAvailable) setEnableSms(false);
+  }, [smsAvailable, selectedPlanId, billingCycle]);
 
   useEffect(() => {
     if (!visible) return;
@@ -139,6 +164,7 @@ export default function OrganizationSubscriptionModal({
         action: "platform-subscription-init",
         plan_id: selectedPlanId,
         billing_cycle: billingCycle,
+        enable_sms: enableSms,
         callback_url: callbackUrl,
       });
       if (data?.authorization_url) {
@@ -237,39 +263,78 @@ export default function OrganizationSubscriptionModal({
   );
 
   const planFooter = (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t px-6 py-4">
-      <p className="text-sm text-muted-foreground">
-        {selectedPlan ? (
-          <>
-            <span className="font-medium text-foreground">{selectedPlan.name}</span>
-            {" — "}
-            GHS {price.toLocaleString()} ({billingCycle === "annual" ? "365 days" : "30 days"})
-          </>
-        ) : (
-          "Select a plan to continue"
-        )}
-      </p>
-      <Button
-        size="lg"
-        disabled={
-          !selectedPlanId ||
-          paying ||
-          verifying ||
-          plansLoading ||
-          displayPlans.length === 0 ||
-          paystackDeployed === false
-        }
-        onClick={startPayment}
-      >
-        {paying ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Redirecting to Paystack…
-          </>
-        ) : (
-          "Pay & activate"
-        )}
-      </Button>
+    <div className="space-y-4 border-t px-6 py-4">
+      {selectedPlan && smsAvailable ? (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border bg-muted/30 p-4">
+          <div className="flex items-start gap-3">
+            <MessageSquare className="mt-0.5 h-5 w-5 text-primary" />
+            <div>
+              <Label htmlFor="enable-sms" className="text-base font-medium">
+                Enable Parent SMS Notifications
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Parents receive SMS when attendance/register is marked Present or Absent (per school settings).
+              </p>
+            </div>
+          </div>
+          <Switch id="enable-sms" checked={enableSms} onCheckedChange={setEnableSms} />
+        </div>
+      ) : null}
+
+      {selectedPlan ? (
+        <div className="rounded-lg border p-4 text-sm">
+          <div className="flex justify-between py-1">
+            <span className="text-muted-foreground">Package amount</span>
+            <span className="font-medium">GHS {packageAmount.toLocaleString()}</span>
+          </div>
+          {enableSms ? (
+            <div className="flex justify-between py-1">
+              <span className="text-muted-foreground">SMS service fee</span>
+              <span className="font-medium">GHS {smsAmount.toLocaleString()}</span>
+            </div>
+          ) : null}
+          <div className="mt-2 flex justify-between border-t pt-2 font-semibold">
+            <span>Total amount</span>
+            <span>GHS {price.toLocaleString()}</span>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          {selectedPlan ? (
+            <>
+              <span className="font-medium text-foreground">{selectedPlan.name}</span>
+              {" — "}
+              GHS {price.toLocaleString()} ({billingCycle === "annual" ? "365 days" : "30 days"})
+              {enableSms ? " · SMS included" : ""}
+            </>
+          ) : (
+            "Select a plan to continue"
+          )}
+        </p>
+        <Button
+          size="lg"
+          disabled={
+            !selectedPlanId ||
+            paying ||
+            verifying ||
+            plansLoading ||
+            displayPlans.length === 0 ||
+            paystackDeployed === false
+          }
+          onClick={startPayment}
+        >
+          {paying ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Redirecting to Paystack…
+            </>
+          ) : (
+            "Pay & activate"
+          )}
+        </Button>
+      </div>
     </div>
   );
 

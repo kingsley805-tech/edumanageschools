@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { PlatformDashboardStats, TenantOverview } from "@/platform/lib/types";
+import type { PlatformDashboardStats, PlatformSchoolSmsOverview, TenantOverview } from "@/platform/lib/types";
 
 export function usePlatformTenants() {
   return useQuery({
@@ -79,6 +79,25 @@ export function usePlatformModulesCatalog() {
         .order("sort_order");
       if (error) throw error;
       return data ?? [];
+    },
+  });
+}
+
+export function usePlatformSchoolSmsOverview() {
+  return useQuery({
+    queryKey: ["platform-school-sms-overview"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("platform_school_sms_overview_v")
+        .select("*")
+        .order("school_name");
+      if (error) {
+        if (error.code === "42P01" || error.message?.includes("platform_school_sms_overview_v")) {
+          return [] as PlatformSchoolSmsOverview[];
+        }
+        throw error;
+      }
+      return (data ?? []) as PlatformSchoolSmsOverview[];
     },
   });
 }

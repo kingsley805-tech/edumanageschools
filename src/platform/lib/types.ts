@@ -16,6 +16,8 @@ export type SubscriptionPlan = {
   description: string | null;
   price_monthly: number;
   price_annual: number;
+  sms_addon_fee_monthly?: number;
+  sms_addon_fee_annual?: number;
   max_students: number | null;
   max_teachers: number | null;
   max_storage_gb: number | null;
@@ -23,6 +25,21 @@ export type SubscriptionPlan = {
   is_active: boolean;
   sort_order?: number;
   default_modules: string[];
+};
+
+export type PlatformSchoolSmsOverview = {
+  school_id: string;
+  school_name: string;
+  school_code: string | null;
+  subscription_status: string | null;
+  plan_name: string | null;
+  sms_enabled: boolean;
+  sms_admin_override: boolean;
+  sms_enabled_at: string | null;
+  subscription_expires_at: string | null;
+  sms_sent_30d: number;
+  sms_sent_total: number;
+  last_sms_at: string | null;
 };
 
 export type TenantOverview = {

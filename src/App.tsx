@@ -88,6 +88,7 @@ import TenantManagement from "./platform/pages/TenantManagement";
 import TenantDetail from "./platform/pages/TenantDetail";
 import SubscriptionPlansPage from "./platform/pages/SubscriptionPlans";
 import PlatformPaymentGateway from "./platform/pages/PlatformPaymentGateway";
+import PlatformSmsManagement from "./platform/pages/PlatformSmsManagement";
 import OrganizationSubscriptionPage from "./subscription/pages/OrganizationSubscriptionPage";
 import OrganizationSubscriptionHistoryPage from "./subscription/pages/OrganizationSubscriptionHistoryPage";
 import OrganizationSupportPage from "./subscription/pages/OrganizationSupportPage";
@@ -400,6 +401,11 @@ function App() {
               <Route path="/platform/payment-gateway" element={
                 <PlatformOwnerRoute>
                   <PlatformPaymentGateway />
+                </PlatformOwnerRoute>
+              } />
+              <Route path="/platform/sms" element={
+                <PlatformOwnerRoute>
+                  <PlatformSmsManagement />
                 </PlatformOwnerRoute>
               } />
               <Route path="/admin/school-settings" element={

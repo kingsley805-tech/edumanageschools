@@ -1750,19 +1750,31 @@ serve(async (req) => {
 
         const planId = typeof jsonBody.plan_id === "string" ? jsonBody.plan_id.trim() : "";
         const billingCycle = jsonBody.billing_cycle === "annual" ? "annual" : "monthly";
+        const enableSms = jsonBody.enable_sms === true;
         if (!planId) return jsonResponse({ error: "Missing plan_id" }, 400);
 
         const { data: plan, error: planErr } = await admin
           .from("subscription_plans")
-          .select("id, name, price_monthly, price_annual, is_active")
+          .select(
+            "id, name, price_monthly, price_annual, sms_addon_fee_monthly, sms_addon_fee_annual, is_active",
+          )
           .eq("id", planId)
           .maybeSingle();
         if (planErr || !plan || !plan.is_active) return jsonResponse({ error: "Plan not found" }, 404);
 
-        const amount =
+        const packageAmount =
           billingCycle === "annual" ? Number(plan.price_annual) : Number(plan.price_monthly);
-        if (!Number.isFinite(amount) || amount < 0) {
+        const smsAmount = enableSms
+          ? billingCycle === "annual"
+            ? Number(plan.sms_addon_fee_annual ?? 0)
+            : Number(plan.sms_addon_fee_monthly ?? 0)
+          : 0;
+        const amount = packageAmount + smsAmount;
+        if (!Number.isFinite(packageAmount) || packageAmount < 0) {
           return jsonResponse({ error: "Invalid plan price" }, 400);
+        }
+        if (!Number.isFinite(smsAmount) || smsAmount < 0) {
+          return jsonResponse({ error: "Invalid SMS add-on price" }, 400);
         }
 
         let platformSecret = getPlatformPaystackSecret();
@@ -1802,6 +1814,9 @@ serve(async (req) => {
           plan_id: planId,
           billing_cycle: billingCycle,
           amount,
+          package_amount: packageAmount,
+          sms_amount: smsAmount,
+          enable_sms: enableSms,
           created_by: user.id,
         });
         if (checkoutErr) return jsonResponse({ error: checkoutErr.message }, 400);
@@ -1823,6 +1838,9 @@ serve(async (req) => {
               school_id: profile.school_id,
               plan_id: planId,
               billing_cycle: billingCycle,
+              enable_sms: enableSms,
+              package_amount: packageAmount,
+              sms_amount: smsAmount,
               payer_user_id: user.id,
               payer_name: profile.full_name || email,
             },
@@ -1837,6 +1855,10 @@ serve(async (req) => {
         return jsonResponse({
           authorization_url: paystackData.data.authorization_url,
           reference: paystackData.data.reference,
+          package_amount: packageAmount,
+          sms_amount: smsAmount,
+          total_amount: amount,
+          enable_sms: enableSms,
         });
       } catch (initErr: unknown) {
         const msg = initErr instanceof Error ? initErr.message : "Subscription payment failed";

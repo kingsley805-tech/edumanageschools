@@ -61,6 +61,9 @@ export default function PlatformDashboard() {
             <Button variant="outline" asChild>
               <Link to="/platform/payment-gateway">Payment gateway</Link>
             </Button>
+            <Button variant="outline" asChild>
+              <Link to="/platform/sms">SMS management</Link>
+            </Button>
             <Button asChild>
               <Link to="/platform/plans">Subscription plans</Link>
             </Button>

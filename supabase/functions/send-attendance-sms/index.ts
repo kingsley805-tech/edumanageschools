@@ -145,6 +145,25 @@ serve(async (req) => {
     const schoolRow = reg.schools as { name?: string; school_name?: string } | null;
     const schoolName = schoolRow?.name ?? schoolRow?.school_name ?? "School";
 
+    const { data: smsActive, error: smsActiveErr } = await supabaseAdmin.rpc(
+      "school_sms_service_active",
+      { p_school_id: schoolId },
+    );
+    if (smsActiveErr) {
+      console.error("school_sms_service_active:", smsActiveErr);
+    }
+    if (smsActive === false) {
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          sent: 0,
+          skipped: 0,
+          message: "SMS notifications are not enabled for this school",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const { data: settings } = await supabaseAdmin
       .from("school_settings")
       .select("sms_sender_id, sms_notify_absent, sms_notify_late, sms_notify_present")
