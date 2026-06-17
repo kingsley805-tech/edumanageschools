@@ -306,6 +306,23 @@ serve(async (req) => {
       const { data: logInsert } = await supabaseAdmin.from("sms_logs").insert(logRow).select("id").single();
 
       try {
+        const { data: credit, error: creditErr } = await supabaseAdmin.rpc("consume_school_sms_credit", {
+          p_school_id: schoolId,
+          p_count: 1,
+        });
+        if (creditErr) {
+          console.error("consume_school_sms_credit:", creditErr);
+        } else if (credit && credit.ok === false) {
+          errors.push(`${studentName}: ${credit.error ?? "Insufficient SMS balance"}`);
+          if (logInsert?.id) {
+            await supabaseAdmin
+              .from("sms_logs")
+              .update({ sms_status: "failed", provider_response: credit })
+              .eq("id", logInsert.id);
+          }
+          continue;
+        }
+
         const res = await fetch(ARKESEL_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json", "api-key": apiKey },

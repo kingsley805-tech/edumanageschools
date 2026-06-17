@@ -18,6 +18,7 @@ import {
   useSubscriptionPlansPublic,
 } from "@/subscription/hooks/useOrganizationSubscription";
 import type { OrganizationSubscriptionAccess } from "@/subscription/lib/subscriptionAccess";
+import { sidebarLabelsFromPlanModules } from "@/platform/lib/planSidebarLabels";
 
 type BillingCycle = "monthly" | "annual";
 
@@ -89,7 +90,11 @@ export default function OrganizationSubscriptionModal({
       billingCycle === "annual"
         ? Number(selectedPlan.sms_addon_fee_annual ?? 0)
         : Number(selectedPlan.sms_addon_fee_monthly ?? 0);
-    return fee > 0 || (selectedPlan.default_modules ?? []).includes("sms");
+    return (
+      fee > 0 ||
+      (selectedPlan.sms_included_quantity ?? 0) > 0 ||
+      (selectedPlan.default_modules ?? []).includes("sms")
+    );
   }, [selectedPlan, billingCycle]);
 
   useEffect(() => {
@@ -246,13 +251,18 @@ export default function OrganizationSubscriptionModal({
                     </li>
                   </ul>
                   <ul className="max-h-28 space-y-0.5 overflow-y-auto text-xs">
-                    {(plan.default_modules ?? []).slice(0, 8).map((m: string) => (
-                      <li key={m} className="flex items-center gap-1">
+                    {sidebarLabelsFromPlanModules(plan.default_modules as string[]).slice(0, 10).map((label) => (
+                      <li key={label} className="flex items-center gap-1">
                         <Check className="h-3 w-3 shrink-0 text-emerald-600" />
-                        {m.replace(/_/g, " ")}
+                        {label}
                       </li>
                     ))}
                   </ul>
+                  {(plan.sms_included_quantity ?? 0) > 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      Includes {Number(plan.sms_included_quantity).toLocaleString()} SMS credits
+                    </p>
+                  ) : null}
                 </CardContent>
               </Card>
             );
@@ -273,7 +283,10 @@ export default function OrganizationSubscriptionModal({
                 Enable Parent SMS Notifications
               </Label>
               <p className="text-xs text-muted-foreground">
-                Parents receive SMS when attendance/register is marked Present or Absent (per school settings).
+                Parents receive SMS when attendance/register is marked. Adds GHS {smsAmount.toLocaleString()} to your first payment.
+                {(selectedPlan.sms_included_quantity ?? 0) > 0
+                  ? ` Plan includes ${Number(selectedPlan.sms_included_quantity).toLocaleString()} SMS credits.`
+                  : ""}
               </p>
             </div>
           </div>

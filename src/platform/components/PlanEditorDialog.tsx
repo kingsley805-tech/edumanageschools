@@ -38,6 +38,8 @@ export type PlanFormValues = {
   price_annual: number;
   sms_addon_fee_monthly: number;
   sms_addon_fee_annual: number;
+  sms_included_quantity: number;
+  sms_price_per_message: number;
   max_students: string;
   max_teachers: string;
   max_storage_gb: string;
@@ -67,6 +69,8 @@ function emptyForm(): PlanFormValues {
     price_annual: 0,
     sms_addon_fee_monthly: 0,
     sms_addon_fee_annual: 0,
+    sms_included_quantity: 0,
+    sms_price_per_message: 0,
     max_students: "",
     max_teachers: "",
     max_storage_gb: "",
@@ -86,6 +90,8 @@ function planToForm(plan: SubscriptionPlan): PlanFormValues {
     price_annual: Number(plan.price_annual),
     sms_addon_fee_monthly: Number(plan.sms_addon_fee_monthly ?? 0),
     sms_addon_fee_annual: Number(plan.sms_addon_fee_annual ?? 0),
+    sms_included_quantity: Number(plan.sms_included_quantity ?? 0),
+    sms_price_per_message: Number(plan.sms_price_per_message ?? 0),
     max_students: plan.max_students != null ? String(plan.max_students) : "",
     max_teachers: plan.max_teachers != null ? String(plan.max_teachers) : "",
     max_storage_gb: plan.max_storage_gb != null ? String(plan.max_storage_gb) : "",
@@ -123,14 +129,24 @@ export default function PlanEditorDialog({
   const isEdit = Boolean(plan);
   const [form, setForm] = useState<PlanFormValues>(emptyForm);
   const [slugManual, setSlugManual] = useState(false);
+  const [unlimitedStudents, setUnlimitedStudents] = useState(true);
+  const [unlimitedTeachers, setUnlimitedTeachers] = useState(true);
+  const [unlimitedStorage, setUnlimitedStorage] = useState(true);
 
   useEffect(() => {
     if (!open) return;
     if (plan) {
-      setForm(planToForm(plan));
+      const next = planToForm(plan);
+      setForm(next);
+      setUnlimitedStudents(plan.max_students == null);
+      setUnlimitedTeachers(plan.max_teachers == null);
+      setUnlimitedStorage(plan.max_storage_gb == null);
       setSlugManual(true);
     } else {
       setForm(emptyForm());
+      setUnlimitedStudents(true);
+      setUnlimitedTeachers(true);
+      setUnlimitedStorage(true);
       setSlugManual(false);
     }
   }, [open, plan]);
@@ -237,10 +253,12 @@ export default function PlanEditorDialog({
 
         <ScrollArea className="flex-1 pr-4">
           <div className="space-y-4 pb-4">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-lg border p-4 space-y-4">
+              <p className="text-sm font-semibold">Package information</p>
+              <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2 sm:col-span-2">
                 <Label>Plan name</Label>
-                <Input value={form.name} onChange={(e) => handleNameChange(e.target.value)} placeholder="e.g. Standard Plan" />
+                <Input value={form.name} onChange={(e) => handleNameChange(e.target.value)} placeholder="e.g. Premium Plan" />
               </div>
               <div className="space-y-2">
                 <Label>Slug (unique)</Label>
@@ -267,10 +285,17 @@ export default function PlanEditorDialog({
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                   rows={2}
+                  placeholder="e.g. Full ERP — all modules for large schools"
                 />
+              </div>
               </div>
             </div>
 
+            <div className="rounded-lg border p-4 space-y-4">
+              <p className="text-sm font-semibold">Billing</p>
+              <p className="text-xs text-muted-foreground">
+                Schools choose monthly or annual billing at checkout. Set both prices here.
+              </p>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Monthly price (GHS)</Label>
@@ -292,8 +317,115 @@ export default function PlanEditorDialog({
                   onChange={(e) => setForm((f) => ({ ...f, price_annual: Number(e.target.value) || 0 }))}
                 />
               </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border p-4 space-y-4">
+              <p className="text-sm font-semibold">User limits</p>
+              <p className="text-xs text-muted-foreground">
+                Caps enforced when schools add students or teachers. Toggle unlimited to remove a cap.
+              </p>
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>SMS add-on — monthly (GHS)</Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label>Max students</Label>
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Checkbox
+                      checked={unlimitedStudents}
+                      onCheckedChange={(v) => {
+                        setUnlimitedStudents(Boolean(v));
+                        if (v) setForm((f) => ({ ...f, max_students: "" }));
+                      }}
+                    />
+                    Unlimited
+                  </label>
+                </div>
+                <Input
+                  value={form.max_students}
+                  disabled={unlimitedStudents}
+                  onChange={(e) => setForm((f) => ({ ...f, max_students: e.target.value }))}
+                  placeholder="500"
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label>Max teachers</Label>
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Checkbox
+                      checked={unlimitedTeachers}
+                      onCheckedChange={(v) => {
+                        setUnlimitedTeachers(Boolean(v));
+                        if (v) setForm((f) => ({ ...f, max_teachers: "" }));
+                      }}
+                    />
+                    Unlimited
+                  </label>
+                </div>
+                <Input
+                  value={form.max_teachers}
+                  disabled={unlimitedTeachers}
+                  onChange={(e) => setForm((f) => ({ ...f, max_teachers: e.target.value }))}
+                  placeholder="20"
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label>Max storage (GB)</Label>
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Checkbox
+                      checked={unlimitedStorage}
+                      onCheckedChange={(v) => {
+                        setUnlimitedStorage(Boolean(v));
+                        if (v) setForm((f) => ({ ...f, max_storage_gb: "" }));
+                      }}
+                    />
+                    Unlimited
+                  </label>
+                </div>
+                <Input
+                  value={form.max_storage_gb}
+                  disabled={unlimitedStorage}
+                  onChange={(e) => setForm((f) => ({ ...f, max_storage_gb: e.target.value }))}
+                  placeholder="5"
+                />
+              </div>
+            </div>
+            </div>
+
+            <div className="rounded-lg border p-4 space-y-4">
+              <p className="text-sm font-semibold">SMS configuration</p>
+              <p className="text-xs text-muted-foreground">
+                Included SMS credits are added on purchase. Optional SMS service fee is charged at checkout when schools enable notifications.
+              </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Included SMS messages (per billing period)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={form.sms_included_quantity}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, sms_included_quantity: Number(e.target.value) || 0 }))
+                  }
+                  placeholder="500"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>SMS price per message (GHS)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.0001}
+                  value={form.sms_price_per_message}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, sms_price_per_message: Number(e.target.value) || 0 }))
+                  }
+                  placeholder="0.05"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Extra SMS service fee — monthly (GHS)</Label>
                 <Input
                   type="number"
                   min={0}
@@ -305,7 +437,7 @@ export default function PlanEditorDialog({
                 />
               </div>
               <div className="space-y-2">
-                <Label>SMS add-on — annual (GHS)</Label>
+                <Label>Extra SMS service fee — annual (GHS)</Label>
                 <Input
                   type="number"
                   min={0}
@@ -316,36 +448,10 @@ export default function PlanEditorDialog({
                   }
                 />
               </div>
-              <p className="text-xs text-muted-foreground sm:col-span-2">
-                Optional parent SMS notification fee added at checkout when schools enable SMS during purchase or renewal.
-              </p>
-              <div className="space-y-2">
-                <Label>Max students (empty = unlimited)</Label>
-                <Input
-                  value={form.max_students}
-                  onChange={(e) => setForm((f) => ({ ...f, max_students: e.target.value }))}
-                  placeholder="500"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Max teachers (empty = unlimited)</Label>
-                <Input
-                  value={form.max_teachers}
-                  onChange={(e) => setForm((f) => ({ ...f, max_teachers: e.target.value }))}
-                  placeholder="20"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Max storage GB (empty = unlimited)</Label>
-                <Input
-                  value={form.max_storage_gb}
-                  onChange={(e) => setForm((f) => ({ ...f, max_storage_gb: e.target.value }))}
-                  placeholder="5"
-                />
-              </div>
+            </div>
             </div>
 
-            <div className="flex flex-wrap gap-6">
+            <div className="flex flex-wrap gap-6 px-1">
               <div className="flex items-center gap-2">
                 <Switch checked={form.is_active} onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))} />
                 <Label>Active</Label>
@@ -356,9 +462,9 @@ export default function PlanEditorDialog({
               </div>
             </div>
 
-            <div>
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <Label>Sidebar menu items</Label>
+            <div className="rounded-lg border p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold">Sidebar menu items</p>
                 <div className="flex gap-1">
                   <Button type="button" variant="ghost" size="sm" onClick={selectAllSidebarItems}>
                     Select all
@@ -373,7 +479,7 @@ export default function PlanEditorDialog({
                   </Button>
                 </div>
               </div>
-              <p className="mb-2 text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Choose the same pages that appear in the school admin sidebar. Subscription and account settings are always included and cannot be removed.
               </p>
               <div className="rounded-lg border bg-sidebar/30 p-2 space-y-3 max-h-80 overflow-y-auto">
@@ -473,6 +579,8 @@ export function planFormToRow(values: PlanFormValues) {
     price_annual: values.price_annual,
     sms_addon_fee_monthly: values.sms_addon_fee_monthly,
     sms_addon_fee_annual: values.sms_addon_fee_annual,
+    sms_included_quantity: values.sms_included_quantity,
+    sms_price_per_message: values.sms_price_per_message,
     max_students: parseLimit(values.max_students),
     max_teachers: parseLimit(values.max_teachers),
     max_storage_gb: parseLimit(values.max_storage_gb),

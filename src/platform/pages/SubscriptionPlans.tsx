@@ -15,6 +15,7 @@ import {
 } from "@/platform/hooks/usePlatformDashboard";
 import PlanEditorDialog, { planFormToRow, type PlanFormValues } from "@/platform/components/PlanEditorDialog";
 import { uniquePortalLabelsForPlan } from "@/platform/lib/packagePermissionSummary";
+import { sidebarLabelsFromPlanModules } from "@/platform/lib/planSidebarLabels";
 import type { SubscriptionPlan } from "@/platform/lib/types";
 
 export default function SubscriptionPlansPage() {
@@ -128,11 +129,22 @@ export default function SubscriptionPlansPage() {
                     </span>
                     <span className="text-sm text-muted-foreground"> / month</span>
                   </div>
-                  {(Number(plan.sms_addon_fee_monthly ?? 0) > 0 ||
+                  {(Number(plan.sms_included_quantity ?? 0) > 0 ||
+                    Number(plan.sms_price_per_message ?? 0) > 0 ||
+                    Number(plan.sms_addon_fee_monthly ?? 0) > 0 ||
                     Number(plan.sms_addon_fee_annual ?? 0) > 0) && (
                     <p className="text-xs text-muted-foreground">
-                      SMS add-on: GHS {Number(plan.sms_addon_fee_monthly ?? 0).toLocaleString()}/mo · GHS{" "}
-                      {Number(plan.sms_addon_fee_annual ?? 0).toLocaleString()}/yr
+                      SMS: {Number(plan.sms_included_quantity ?? 0).toLocaleString()} included
+                      {Number(plan.sms_price_per_message ?? 0) > 0
+                        ? ` · GHS ${Number(plan.sms_price_per_message).toLocaleString()}/msg`
+                        : ""}
+                      {(Number(plan.sms_addon_fee_monthly ?? 0) > 0 ||
+                        Number(plan.sms_addon_fee_annual ?? 0) > 0) && (
+                        <>
+                          {" "}
+                          · Service add-on GHS {Number(plan.sms_addon_fee_monthly ?? 0).toLocaleString()}/mo
+                        </>
+                      )}
                     </p>
                   )}
                   <ul className="space-y-1 text-sm text-muted-foreground">
@@ -152,7 +164,10 @@ export default function SubscriptionPlansPage() {
                       {(plan.default_modules ?? []).length === 0 ? (
                         <li className="italic text-muted-foreground">No pages configured</li>
                       ) : (
-                        uniquePortalLabelsForPlan(plan.default_modules as string[], modules).map((label) => (
+                        (modules.length
+                          ? uniquePortalLabelsForPlan(plan.default_modules as string[], modules)
+                          : sidebarLabelsFromPlanModules(plan.default_modules as string[])
+                        ).map((label) => (
                           <li key={label} className="flex items-center gap-1">
                             <Check className="h-3 w-3 shrink-0 text-emerald-600" />
                             {label}

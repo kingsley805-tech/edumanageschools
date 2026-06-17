@@ -18,6 +18,8 @@ export type SubscriptionPlan = {
   price_annual: number;
   sms_addon_fee_monthly?: number;
   sms_addon_fee_annual?: number;
+  sms_included_quantity?: number;
+  sms_price_per_message?: number;
   max_students: number | null;
   max_teachers: number | null;
   max_storage_gb: number | null;
