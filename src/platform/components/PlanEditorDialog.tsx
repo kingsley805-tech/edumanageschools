@@ -14,10 +14,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
-import { buildPackagePermissionSummary } from "@/platform/lib/packagePermissionSummary";
 import {
   portalKeysFromPlatformModuleKeys,
   platformModuleKeysFromPortalKeys,
@@ -26,6 +24,7 @@ import {
 import {
   allPackageSidebarPortalKeys,
   buildPackageSidebarMenu,
+  buildSidebarPermissionSummary,
 } from "@/platform/lib/packageSidebarMenu";
 import type { SubscriptionPlan } from "@/platform/lib/types";
 import { cn } from "@/lib/utils";
@@ -159,8 +158,8 @@ export default function PlanEditorDialog({
   );
 
   const permissionSummary = useMemo(
-    () => buildPackagePermissionSummary(form.default_modules, modules),
-    [form.default_modules, modules],
+    () => buildSidebarPermissionSummary(selectedPortalKeys),
+    [selectedPortalKeys],
   );
 
   const selectedCount = selectedPortalKeys.length;
@@ -243,16 +242,16 @@ export default function PlanEditorDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-hidden flex flex-col">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[min(90vh,900px)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+        <DialogHeader className="shrink-0 border-b px-6 pb-4 pt-6">
           <DialogTitle>{isEdit ? "Edit subscription plan" : "Create subscription plan"}</DialogTitle>
           <DialogDescription>
             Define pricing, limits, and which sidebar menu items schools can access on this plan.
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-4">
-          <div className="space-y-4 pb-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+          <div className="space-y-4">
             <div className="rounded-lg border p-4 space-y-4">
               <p className="text-sm font-semibold">Package information</p>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -288,6 +287,93 @@ export default function PlanEditorDialog({
                   placeholder="e.g. Full ERP — all modules for large schools"
                 />
               </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold">Sidebar menu items</p>
+                <div className="flex gap-1">
+                  <Button type="button" variant="ghost" size="sm" onClick={selectAllSidebarItems}>
+                    Select all
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setForm((f) => ({ ...f, default_modules: [] }))}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Choose the pages that appear in the school admin sidebar. Subscription and account settings are always included.
+              </p>
+              <div className="max-h-80 space-y-3 overflow-y-auto rounded-lg border bg-sidebar/30 p-2">
+                {sidebarMenu.standalone.map((item) => renderSidebarItem(item))}
+
+                {sidebarMenu.groups.map((group) => {
+                  const groupKeys = group.items.map((i) => i.portalKey);
+                  const allSelected = groupKeys.every((k) => selectedPortalKeys.includes(k));
+                  const someSelected = groupKeys.some((k) => selectedPortalKeys.includes(k));
+                  const GroupIcon = group.icon;
+
+                  return (
+                    <div key={group.label} className="rounded-md border border-border/60 bg-background/80">
+                      <div className="flex items-center justify-between gap-2 border-b border-border/60 px-2 py-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <GroupIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            {group.label}
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => toggleSidebarGroup(groupKeys, !allSelected)}
+                        >
+                          {allSelected ? "Clear group" : someSelected ? "Select all in group" : "Select group"}
+                        </Button>
+                      </div>
+                      <div className="py-1">{group.items.map((item) => renderSidebarItem(item))}</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <Label className="text-sm">Selected sidebar items</Label>
+                  <Badge variant="secondary">
+                    {selectedCount} item{selectedCount === 1 ? "" : "s"}
+                  </Badge>
+                </div>
+                {selectedCount === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No items selected yet. Schools on this plan will only see subscription management.
+                  </p>
+                ) : (
+                  <div className="max-h-36 space-y-2 overflow-y-auto">
+                    {permissionSummary.map((group) => (
+                      <div key={group.groupLabel}>
+                        <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
+                          {group.groupLabel}
+                        </p>
+                        <ul className="space-y-0.5">
+                          {group.items.map((item) => (
+                            <li key={item.path} className="text-sm">
+                              <span className="font-medium">{item.label}</span>
+                              <span className="ml-2 text-xs text-muted-foreground">{item.path}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -462,101 +548,10 @@ export default function PlanEditorDialog({
               </div>
             </div>
 
-            <div className="rounded-lg border p-4 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold">Sidebar menu items</p>
-                <div className="flex gap-1">
-                  <Button type="button" variant="ghost" size="sm" onClick={selectAllSidebarItems}>
-                    Select all
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setForm((f) => ({ ...f, default_modules: [] }))}
-                  >
-                    Clear
-                  </Button>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Choose the same pages that appear in the school admin sidebar. Subscription and account settings are always included and cannot be removed.
-              </p>
-              <div className="rounded-lg border bg-sidebar/30 p-2 space-y-3 max-h-80 overflow-y-auto">
-                {sidebarMenu.standalone.map((item) => renderSidebarItem(item))}
-
-                {sidebarMenu.groups.map((group) => {
-                  const groupKeys = group.items.map((i) => i.portalKey);
-                  const allSelected = groupKeys.every((k) => selectedPortalKeys.includes(k));
-                  const someSelected = groupKeys.some((k) => selectedPortalKeys.includes(k));
-                  const GroupIcon = group.icon;
-
-                  return (
-                    <div key={group.label} className="rounded-md border border-border/60 bg-background/80">
-                      <div className="flex items-center justify-between gap-2 border-b border-border/60 px-2 py-2">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <GroupIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            {group.label}
-                          </span>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => toggleSidebarGroup(groupKeys, !allSelected)}
-                        >
-                          {allSelected ? "Clear group" : someSelected ? "Select all in group" : "Select group"}
-                        </Button>
-                      </div>
-                      <div className="py-1">{group.items.map((item) => renderSidebarItem(item))}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="rounded-lg border bg-muted/30 p-4">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <Label className="text-base">Sidebar summary</Label>
-                <Badge variant="secondary">
-                  {selectedCount} item{selectedCount === 1 ? "" : "s"} selected
-                </Badge>
-              </div>
-              {selectedCount === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No sidebar items selected. Schools on this plan will only see subscription management until you add menu items.
-                </p>
-              ) : (
-                <div className="space-y-3 max-h-48 overflow-y-auto">
-                  {permissionSummary.map((group) => (
-                    <div key={group.categoryLabel}>
-                      <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
-                        {group.categoryLabel}
-                      </p>
-                      <ul className="space-y-1">
-                        {group.items.map((item) => (
-                          <li key={item.path ?? item.label} className="text-sm">
-                            <span className="font-medium">{item.label}</span>
-                            {item.path ? (
-                              <span className="ml-2 text-xs text-muted-foreground">{item.path}</span>
-                            ) : null}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <p className="mt-3 text-xs text-muted-foreground">
-                Saving applies these sidebar permissions automatically when a school purchases, is assigned, or changes to this package.
-              </p>
-            </div>
           </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0 border-t px-6 py-4">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
