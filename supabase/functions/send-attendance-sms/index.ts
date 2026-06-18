@@ -7,7 +7,42 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const ARKESEL_URL = "https://sms.arkesel.com/api/v2/sms/send";
+const ARKESEL_V1_URL = "https://sms.arkesel.com/sms/api";
+
+function normalizePhone(raw: string): string | null {
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return null;
+  if (digits.startsWith("233") && digits.length >= 11) return digits;
+  if (digits.startsWith("0") && digits.length >= 10) return `233${digits.slice(1)}`;
+  let local = digits;
+  if (local.startsWith("0")) local = local.slice(1);
+  if (local.length >= 8 && local.length <= 9) return `233${local}`;
+  if (local.length === 9) return `233${local}`;
+  return local.length >= 10 ? local : null;
+}
+
+function phoneForArkesel(intlPhone: string): string {
+  if (intlPhone.startsWith("233") && intlPhone.length >= 11) {
+    return `0${intlPhone.slice(3)}`;
+  }
+  return intlPhone;
+}
+
+function buildArkeselSmsUrl(apiKey: string, toPhone: string, sender: string, message: string): string {
+  const params = new URLSearchParams({
+    action: "send-sms",
+    api_key: apiKey,
+    to: phoneForArkesel(toPhone),
+    from: sender.slice(0, 11),
+    sms: message,
+  });
+  return `${ARKESEL_V1_URL}?${params.toString()}`;
+}
+
+async function sendArkeselSms(apiKey: string, toPhone: string, sender: string, message: string): Promise<Response> {
+  const url = buildArkeselSmsUrl(apiKey, toPhone, sender, message);
+  return fetch(url, { method: "GET" });
+}
 
 type SmsSettings = {
   sms_attendance_enabled: boolean;
@@ -26,15 +61,6 @@ type AttendanceEntry = {
   status: string;
   time_in?: string | null;
 };
-
-function normalizePhone(raw: string): string | null {
-  const digits = raw.replace(/\D/g, "");
-  if (!digits) return null;
-  if (digits.startsWith("233") && digits.length >= 12) return digits;
-  if (digits.startsWith("0") && digits.length >= 10) return `233${digits.slice(1)}`;
-  if (digits.length === 9) return `233${digits}`;
-  return digits.length >= 10 ? digits : null;
-}
 
 function formatShortDate(d: string): string {
   const dt = new Date(d.includes("T") ? d : `${d}T12:00:00`);
@@ -184,15 +210,16 @@ async function resolveParentsForStudent(
     user_id?: string | null;
     phone?: string | null;
     emergency_contact?: string | null;
-    profiles?: { full_name?: string } | null;
+    profiles?: { full_name?: string; phone?: string | null } | null;
   } | null) => {
     if (!p?.id || seen.has(p.id)) return;
     seen.add(p.id);
+    const profilePhone = p.profiles?.phone?.trim() || null;
     parents.push({
       id: p.id,
       user_id: p.user_id ?? null,
-      phone: p.phone ?? null,
-      emergency_contact: p.emergency_contact ?? null,
+      phone: p.phone?.trim() || profilePhone || null,
+      emergency_contact: p.emergency_contact?.trim() || null,
       full_name: p.profiles?.full_name ?? null,
     });
   };
@@ -200,7 +227,7 @@ async function resolveParentsForStudent(
   if (guardianId) {
     const { data: guardian } = await admin
       .from("parents")
-      .select("id, user_id, phone, emergency_contact, profiles:user_id(full_name)")
+      .select("id, user_id, phone, emergency_contact, profiles:user_id(full_name, phone)")
       .eq("id", guardianId)
       .maybeSingle();
     addParent(guardian as Parameters<typeof addParent>[0]);
@@ -208,7 +235,7 @@ async function resolveParentsForStudent(
 
   const { data: links } = await admin
     .from("parent_student_links")
-    .select("parent_id, parents(id, user_id, phone, emergency_contact, profiles:user_id(full_name))")
+    .select("parent_id, parents(id, user_id, phone, emergency_contact, profiles:user_id(full_name, phone))")
     .eq("student_id", studentId);
 
   for (const link of links ?? []) {
@@ -434,12 +461,14 @@ async function processAttendanceSmsBatch(opts: {
           throw new Error(credit.error ?? "Insufficient SMS balance");
         }
 
-        const res = await fetch(ARKESEL_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "api-key": apiKey },
-          body: JSON.stringify({ sender: senderId, message, recipients: [phone] }),
-        });
-        const body = await res.json().catch(() => ({}));
+        const res = await sendArkeselSms(apiKey, phone, senderId, message);
+        const rawBody = await res.text();
+        let body: Record<string, unknown> = {};
+        try {
+          body = JSON.parse(rawBody) as Record<string, unknown>;
+        } catch {
+          body = { raw: rawBody };
+        }
         const ok = res.ok;
 
         const updates = {

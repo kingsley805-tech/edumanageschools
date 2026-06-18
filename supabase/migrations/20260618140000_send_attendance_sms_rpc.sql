@@ -1,4 +1,6 @@
--- Mirror of public/sql/apply-send-attendance-sms-rpc.sql
+-- Send attendance SMS from Postgres (bypasses broken/outdated send-attendance-sms edge deploy).
+-- Requires: http extension + Arkesel API key (same value as Edge secret ARKESEL_API_KEY).
+-- Run after apply-attendance-sms-system.sql and apply-sms-subscription-billing.sql
 
 CREATE EXTENSION IF NOT EXISTS http WITH SCHEMA extensions;
 
@@ -19,6 +21,11 @@ CREATE POLICY "super admins manage platform sms gateway" ON public.platform_sms_
 GRANT SELECT, INSERT, UPDATE ON public.platform_sms_gateway TO authenticated;
 GRANT ALL ON public.platform_sms_gateway TO service_role;
 
+-- One-time: paste your Arkesel key (Dashboard → Edge Functions → Secrets → ARKESEL_API_KEY)
+-- INSERT INTO public.platform_sms_gateway (id, api_key)
+-- VALUES (true, 'your-arkesel-api-key-here')
+-- ON CONFLICT (id) DO UPDATE SET api_key = EXCLUDED.api_key, updated_at = now();
+
 CREATE OR REPLACE FUNCTION public.normalize_sms_phone(raw text)
 RETURNS text
 LANGUAGE plpgsql
@@ -29,12 +36,84 @@ DECLARE
 BEGIN
   digits := regexp_replace(coalesce(raw, ''), '\D', '', 'g');
   IF digits = '' THEN RETURN NULL; END IF;
-  IF digits ~ '^233' AND length(digits) >= 12 THEN RETURN digits; END IF;
-  IF digits ~ '^0' AND length(digits) >= 10 THEN RETURN '233' || substring(digits from 2); END IF;
-  IF length(digits) = 9 THEN RETURN '233' || digits; END IF;
+
+  IF digits ~ '^233' AND length(digits) >= 11 THEN RETURN digits; END IF;
+
+  IF digits ~ '^0' AND length(digits) >= 10 THEN
+    RETURN '233' || substring(digits from 2);
+  END IF;
+
+  IF digits ~ '^0' THEN
+    digits := substring(digits from 2);
+  END IF;
+
+  -- Ghana local numbers (8–9 digits), e.g. 050688781 → 23350688781
+  IF length(digits) BETWEEN 8 AND 9 THEN
+    RETURN '233' || digits;
+  END IF;
+
   IF length(digits) >= 10 THEN RETURN digits; END IF;
   RETURN NULL;
 END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.sms_phone_for_arkesel(intl_phone text)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT CASE
+    WHEN coalesce($1, '') ~ '^233' AND length($1) >= 11 THEN '0' || substring($1 from 4)
+    WHEN coalesce($1, '') ~ '^0' THEN $1
+    ELSE $1
+  END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.url_query_encode(input text)
+RETURNS text
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+  c text;
+  result text := '';
+  code int;
+  i int;
+BEGIN
+  IF input IS NULL THEN RETURN ''; END IF;
+  FOR i IN 1..length(input) LOOP
+    c := substring(input from i for 1);
+    code := ascii(c);
+    IF (code BETWEEN 48 AND 57) OR (code BETWEEN 65 AND 90) OR (code BETWEEN 97 AND 122)
+       OR c IN ('-', '_', '.', '~') THEN
+      result := result || c;
+    ELSIF c = ' ' THEN
+      result := result || '%20';
+    ELSE
+      result := result || '%' || lpad(upper(to_hex(code)), 2, '0');
+    END IF;
+  END LOOP;
+  RETURN result;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.build_arkesel_sms_url(
+  p_api_key text,
+  p_to_phone text,
+  p_sender text,
+  p_message text
+)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT format(
+    'https://sms.arkesel.com/sms/api?action=send-sms&api_key=%s&to=%s&from=%s&sms=%s',
+    public.url_query_encode(p_api_key),
+    public.url_query_encode(public.sms_phone_for_arkesel(p_to_phone)),
+    public.url_query_encode(substring(coalesce(p_sender, 'School') from 1 for 11)),
+    public.url_query_encode(p_message)
+  );
 $$;
 
 CREATE OR REPLACE FUNCTION public.send_attendance_sms_for_register(p_register_id uuid)
@@ -69,6 +148,7 @@ DECLARE
   v_errors text[] := ARRAY[]::text[];
   v_date_label text;
   v_log_id uuid;
+  v_arkesel_url text;
 BEGIN
   IF v_uid IS NULL THEN
     RETURN jsonb_build_object('error', 'Please sign in again.');
@@ -164,31 +244,33 @@ BEGIN
       CONTINUE;
     END IF;
 
-    SELECT
+    SELECT DISTINCT ON (pa.id)
       pa.id,
       pa.user_id,
-      pa.phone,
-      pa.emergency_contact,
+      coalesce(
+        nullif(trim(pa.phone), ''),
+        nullif(trim(pa.emergency_contact), ''),
+        nullif(trim(pr.phone), '')
+      ) AS contact_raw,
       coalesce(nullif(trim(pr.full_name), ''), 'Parent') AS parent_name
     INTO v_parent
-    FROM public.parents pa
-    LEFT JOIN public.profiles pr ON pr.id = pa.user_id
-    WHERE pa.id = v_entry.guardian_id;
-
-    IF v_parent.id IS NULL THEN
-      SELECT
-        pa.id,
-        pa.user_id,
-        pa.phone,
-        pa.emergency_contact,
-        coalesce(nullif(trim(pr.full_name), ''), 'Parent') AS parent_name
-      INTO v_parent
+    FROM (
+      SELECT psl.parent_id AS pid
       FROM public.parent_student_links psl
-      JOIN public.parents pa ON pa.id = psl.parent_id
-      LEFT JOIN public.profiles pr ON pr.id = pa.user_id
       WHERE psl.student_id = v_entry.student_id
-      LIMIT 1;
-    END IF;
+      UNION
+      SELECT v_entry.guardian_id
+      WHERE v_entry.guardian_id IS NOT NULL
+    ) src
+    JOIN public.parents pa ON pa.id = src.pid
+    LEFT JOIN public.profiles pr ON pr.id = pa.user_id
+    WHERE coalesce(
+      nullif(trim(pa.phone), ''),
+      nullif(trim(pa.emergency_contact), ''),
+      nullif(trim(pr.phone), '')
+    ) IS NOT NULL
+    ORDER BY pa.id
+    LIMIT 1;
 
     IF v_parent.id IS NULL THEN
       v_skipped := v_skipped + 1;
@@ -223,7 +305,7 @@ BEGIN
       END;
     END IF;
 
-    v_phone := public.normalize_sms_phone(coalesce(v_parent.phone, v_parent.emergency_contact, ''));
+    v_phone := public.normalize_sms_phone(v_parent.contact_raw);
     IF v_phone IS NULL THEN
       v_skipped := v_skipped + 1;
       CONTINUE;
@@ -269,20 +351,15 @@ BEGIN
         CONTINUE;
       END IF;
 
+      v_arkesel_url := public.build_arkesel_sms_url(v_api_key, v_phone, v_sender, v_message);
+
       SELECT * INTO v_http
       FROM extensions.http((
-        'POST',
-        'https://sms.arkesel.com/api/v2/sms/send',
-        ARRAY[
-          extensions.http_header('Content-Type', 'application/json'),
-          extensions.http_header('api-key', v_api_key)
-        ],
-        'application/json',
-        jsonb_build_object(
-          'sender', v_sender,
-          'message', v_message,
-          'recipients', jsonb_build_array(v_phone)
-        )::text
+        'GET',
+        v_arkesel_url,
+        NULL,
+        NULL,
+        NULL
       )::extensions.http_request);
 
       BEGIN
@@ -320,6 +397,9 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.normalize_sms_phone(text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.sms_phone_for_arkesel(text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.url_query_encode(text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.build_arkesel_sms_url(text, text, text, text) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.send_attendance_sms_for_register(uuid) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
