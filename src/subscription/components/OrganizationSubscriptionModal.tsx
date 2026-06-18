@@ -7,6 +7,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PaystackEdgeFunctionAlert } from "@/components/billing/PaystackEdgeFunctionAlert";
 import { invokeEdgeFunction, isEdgeFunctionUnreachable } from "@/lib/invokeEdgeFunction";
+import {
+  assertCheckoutTotalMatches,
+  initPlatformSubscriptionCheckout,
+} from "@/subscription/lib/initPlatformSubscriptionCheckout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -179,14 +183,7 @@ export default function OrganizationSubscriptionModal({
     setPaying(true);
     try {
       const callbackUrl = `${window.location.origin}/admin/subscription`;
-      const data = await invokeEdgeFunction<{
-        authorization_url?: string;
-        total_amount?: number;
-        package_amount?: number;
-        sms_amount?: number;
-        error?: string;
-      }>("paystack", {
-        action: "platform-subscription-init",
+      const data = await initPlatformSubscriptionCheckout({
         plan_id: selectedPlanId,
         billing_cycle: billingCycle,
         enable_sms: enableSms,
@@ -195,11 +192,9 @@ export default function OrganizationSubscriptionModal({
         total_amount: price,
         callback_url: callbackUrl,
       });
-      if (typeof data?.total_amount === "number" && Math.abs(data.total_amount - price) > 0.02) {
-        throw new Error(
-          `Paystack total (GHS ${data.total_amount}) does not match checkout (GHS ${price}). Redeploy the paystack edge function.`,
-        );
-      }
+
+      assertCheckoutTotalMatches(data, price, enableSms, smsAmount);
+
       if (data?.authorization_url) {
         window.location.href = data.authorization_url;
         return;

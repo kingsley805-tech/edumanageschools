@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { initPlatformSubscriptionCheckout } from "../_shared/platformSubscriptionInit.ts";
 
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -83,9 +84,6 @@ const validateCallbackUrl = (raw: string | undefined | null): string | null => {
   }
   throw new Error("Callback URL must use HTTPS (or http://localhost for development)");
 };
-
-const parseTruthyBoolean = (value: unknown): boolean =>
-  value === true || value === "true" || value === 1 || value === "1";
 
 const verifyPaystackSignature = async (rawBody: string, signature: string | null, secret: string) => {
   if (!signature) return false;
@@ -1729,183 +1727,9 @@ serve(async (req) => {
           return jsonResponse({ error: "Unauthorized" }, 401);
         }
 
-        const supabase = createClient(supabaseUrl, supabaseKey, {
-          global: { headers: { Authorization: authHeader } },
-        });
-        const admin = createClient(supabaseUrl, serviceKey);
-
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-        if (userError || !user) return jsonResponse({ error: "Unauthorized" }, 401);
-
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("school_id, email, full_name")
-          .eq("id", user.id)
-          .maybeSingle();
-        if (!profile?.school_id) return jsonResponse({ error: "Organization not found" }, 400);
-
-        const { data: roleRows } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
-        const roles = (roleRows ?? []).map((r) => r.role);
-        if (!roles.includes("admin")) return jsonResponse({ error: "Forbidden" }, 403);
-
-        const planId = typeof jsonBody.plan_id === "string" ? jsonBody.plan_id.trim() : "";
-        const billingCycle = jsonBody.billing_cycle === "annual" ? "annual" : "monthly";
-        const enableSms = parseTruthyBoolean(jsonBody.enable_sms);
-        if (!planId) return jsonResponse({ error: "Missing plan_id" }, 400);
-
-        const { data: plan, error: planErr } = await admin
-          .from("subscription_plans")
-          .select("*")
-          .eq("id", planId)
-          .maybeSingle();
-        if (planErr || !plan || !plan.is_active) return jsonResponse({ error: "Plan not found" }, 404);
-
-        const planPackageAmount =
-          billingCycle === "annual" ? Number(plan.price_annual) : Number(plan.price_monthly);
-        const planSmsAmount = enableSms
-          ? billingCycle === "annual"
-            ? Number(plan.sms_addon_fee_annual ?? 0)
-            : Number(plan.sms_addon_fee_monthly ?? 0)
-          : 0;
-
-        const clientPackageAmount = Number(jsonBody.package_amount);
-        const clientSmsAmount = Number(jsonBody.sms_amount);
-
-        const packageAmount =
-          Number.isFinite(clientPackageAmount) && clientPackageAmount >= 0
-            ? clientPackageAmount
-            : planPackageAmount;
-
-        // When SMS is enabled, always add SMS fee to the Paystack charge (package + SMS).
-        let smsAmount = 0;
-        if (enableSms) {
-          if (Number.isFinite(clientSmsAmount) && clientSmsAmount > 0) {
-            smsAmount = clientSmsAmount;
-          } else if (planSmsAmount > 0) {
-            smsAmount = planSmsAmount;
-          }
-        }
-
-        const amount = packageAmount + smsAmount;
-        if (!Number.isFinite(packageAmount) || packageAmount < 0) {
-          return jsonResponse({ error: "Invalid plan price" }, 400);
-        }
-        if (!Number.isFinite(smsAmount) || smsAmount < 0) {
-          return jsonResponse({ error: "Invalid SMS add-on price" }, 400);
-        }
-        if (enableSms && smsAmount <= 0) {
-          return jsonResponse({ error: "SMS add-on is enabled but no SMS fee is configured" }, 400);
-        }
-
-        const clientTotal = Number(jsonBody.total_amount);
-        if (Number.isFinite(clientTotal) && clientTotal > 0 && Math.abs(clientTotal - amount) > 0.02) {
-          return jsonResponse(
-            {
-              error: `Checkout total mismatch (expected GHS ${amount}, received GHS ${clientTotal}). Refresh and try again.`,
-            },
-            400,
-          );
-        }
-
-        let platformSecret = getPlatformPaystackSecret();
-        if (!platformSecret) {
-          const dbCfg = await getPlatformPaystackSecretFromDb(admin);
-          platformSecret = dbCfg.secret || "";
-        }
-        if (!platformSecret) {
-          return jsonResponse({
-            error:
-              "Platform Paystack is not configured. Super Admin: Platform → Payment gateway → save Secret key.",
-          }, 503);
-        }
-
-        const email =
-          (typeof profile.email === "string" && profile.email.trim()) ||
-          (typeof user.email === "string" && user.email.trim()) ||
-          "";
-        if (!email) return jsonResponse({ error: "Admin email is required for payment" }, 400);
-
-        const callbackRaw =
-          typeof jsonBody.callback_url === "string" && jsonBody.callback_url.trim()
-            ? jsonBody.callback_url.trim()
-            : `${req.headers.get("origin") || ""}/admin/subscription`;
-        let effectiveCallback = callbackRaw;
-        try {
-          effectiveCallback = validateCallbackUrl(callbackRaw) || callbackRaw;
-        } catch {
-          effectiveCallback = `${req.headers.get("origin") || ""}/admin/subscription`;
-        }
-
-        const reference = `ORG-SUB-${String(profile.school_id).slice(0, 8)}-${Date.now()}`;
-
-        const checkoutPayload = {
-          reference,
-          school_id: profile.school_id,
-          plan_id: planId,
-          billing_cycle: billingCycle,
-          amount,
-          package_amount: packageAmount,
-          sms_amount: smsAmount,
-          enable_sms: enableSms,
-          created_by: user.id,
-        };
-
-        let { error: checkoutErr } = await admin.from("platform_subscription_checkouts").insert(checkoutPayload);
-        if (checkoutErr?.message?.toLowerCase().includes("column")) {
-          ({ error: checkoutErr } = await admin.from("platform_subscription_checkouts").insert({
-            reference,
-            school_id: profile.school_id,
-            plan_id: planId,
-            billing_cycle: billingCycle,
-            amount,
-            created_by: user.id,
-          }));
-        }
-        if (checkoutErr) return jsonResponse({ error: checkoutErr.message }, 400);
-
-        const paystackRes = await fetch("https://api.paystack.co/transaction/initialize", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${platformSecret}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email,
-            amount: Math.round(amount * 100),
-            currency: "GHS",
-            reference,
-            callback_url: effectiveCallback,
-            metadata: {
-              payment_context: "platform_subscription",
-              school_id: profile.school_id,
-              plan_id: planId,
-              billing_cycle: billingCycle,
-              enable_sms: enableSms,
-              package_amount: packageAmount,
-              sms_amount: smsAmount,
-              total_amount: amount,
-              payer_user_id: user.id,
-              payer_name: profile.full_name || email,
-            },
-          }),
-        });
-
-        const paystackData = await paystackRes.json();
-        if (!paystackData.status) {
-          return jsonResponse({ error: paystackData.message || "Paystack initialization failed" }, 400);
-        }
-
-        return jsonResponse({
-          authorization_url: paystackData.data.authorization_url,
-          reference: paystackData.data.reference,
-          package_amount: packageAmount,
-          sms_amount: smsAmount,
-          total_amount: amount,
-          enable_sms: enableSms,
-        });
+        const origin = req.headers.get("origin") || "";
+        const result = await initPlatformSubscriptionCheckout(jsonBody, authHeader, origin);
+        return jsonResponse(result);
       } catch (initErr: unknown) {
         const msg = initErr instanceof Error ? initErr.message : "Subscription payment failed";
         console.error("platform-subscription-init:", initErr);

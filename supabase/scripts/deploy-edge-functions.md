@@ -77,16 +77,31 @@ supabase secrets set PAYSTACK_SECRET_KEY=sk_live_xxx
 
 ## Platform organization subscriptions (`/admin/subscription`)
 
-After deploying `paystack`, also set:
+Deploy **both** functions (or at minimum `platform-subscription-init`):
+
+```bash
+supabase functions deploy platform-subscription-init --project-ref xbhhpjtwawfawifhpxbe
+supabase functions deploy paystack --project-ref xbhhpjtwawfawifhpxbe
+```
+
+`platform-subscription-init` charges **package + SMS** on Paystack when SMS is enabled at checkout.
+
+Set secrets:
 
 - `PLATFORM_PAYSTACK_SECRET_KEY` — Paystack secret used for **organization** plan checkout (can be the same as `PAYSTACK_SECRET_KEY` for testing)
 - `PLATFORM_PAYSTACK_WEBHOOK_SECRET` — optional; defaults to platform secret
 
-Requires SQL step 2 (`apply-organization-subscription-billing.sql`) for `platform_subscription_checkouts` and related RPCs.
+Requires SQL step 2 (`apply-organization-subscription-billing.sql`) and step 6 (`apply-sms-subscription-billing.sql`) for checkout columns.
 
 ```bash
 supabase secrets set PLATFORM_PAYSTACK_SECRET_KEY=sk_test_xxx --project-ref xbhhpjtwawfawifhpxbe
 ```
+
+### Dashboard deploy (if CLI returns 403)
+
+1. Create function **`platform-subscription-init`** from `supabase/functions/platform-subscription-init/index.ts`
+2. Include shared file `supabase/functions/_shared/platformSubscriptionInit.ts` in the deploy bundle (CLI does this automatically)
+3. Redeploy **`paystack`** as well
 
 ## Verify
 
