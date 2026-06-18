@@ -1,4 +1,4 @@
-import { invokeEdgeFunction, isEdgeFunctionUnreachable } from "@/lib/invokeEdgeFunction";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 
 export type PlatformSubscriptionCheckoutInit = {
   authorization_url?: string;
@@ -20,6 +20,15 @@ export type PlatformSubscriptionCheckoutPayload = {
   callback_url: string;
 };
 
+function readAmount(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
 const checkoutBody = (payload: PlatformSubscriptionCheckoutPayload) => ({
   plan_id: payload.plan_id,
   billing_cycle: payload.billing_cycle,
@@ -30,42 +39,85 @@ const checkoutBody = (payload: PlatformSubscriptionCheckoutPayload) => ({
   callback_url: payload.callback_url,
 });
 
-/**
- * Start organization subscription checkout.
- * Uses `paystack` first (already deployed with CORS + verify_jwt off), then
- * `platform-subscription-init` if paystack is unreachable.
- */
-export async function initPlatformSubscriptionCheckout(
+/** Fill missing breakdown fields from the checkout the user confirmed in the UI. */
+export function mergeCheckoutResponse(
+  response: PlatformSubscriptionCheckoutInit,
+  payload: PlatformSubscriptionCheckoutPayload,
+): PlatformSubscriptionCheckoutInit {
+  const packageAmount = readAmount(response.package_amount) ?? payload.package_amount;
+  const smsAmount = readAmount(response.sms_amount) ?? payload.sms_amount;
+  const totalAmount = readAmount(response.total_amount) ?? packageAmount + smsAmount;
+
+  return {
+    ...response,
+    package_amount: packageAmount,
+    sms_amount: smsAmount,
+    total_amount: totalAmount,
+    enable_sms: response.enable_sms ?? payload.enable_sms,
+  };
+}
+
+async function invokeCheckoutInit(
   payload: PlatformSubscriptionCheckoutPayload,
 ): Promise<PlatformSubscriptionCheckoutInit> {
   const body = checkoutBody(payload);
 
-  try {
-    return await invokeEdgeFunction<PlatformSubscriptionCheckoutInit>("paystack", {
-      action: "platform-subscription-init",
-      ...body,
-    });
-  } catch (paystackError) {
-    if (!isEdgeFunctionUnreachable(paystackError)) {
-      throw paystackError;
+  const attempts: Array<{
+    call: () => Promise<PlatformSubscriptionCheckoutInit>;
+  }> = [
+    {
+      call: () => invokeEdgeFunction<PlatformSubscriptionCheckoutInit>("platform-subscription-init", body),
+    },
+    {
+      call: () =>
+        invokeEdgeFunction<PlatformSubscriptionCheckoutInit>("paystack", {
+          action: "platform-subscription-init",
+          ...body,
+        }),
+    },
+  ];
+
+  let lastError: unknown;
+
+  for (const { call } of attempts) {
+    try {
+      const raw = await call();
+      const merged = mergeCheckoutResponse(raw, payload);
+      if (merged.authorization_url) return merged;
+      lastError = new Error("Payment server did not return a checkout URL.");
+    } catch (error) {
+      lastError = error;
     }
-    return invokeEdgeFunction<PlatformSubscriptionCheckoutInit>("platform-subscription-init", body);
   }
+
+  if (lastError instanceof Error) throw lastError;
+  throw new Error("Could not start payment. Please try again.");
+}
+
+/**
+ * Start organization subscription checkout.
+ * Tries `platform-subscription-init` then `paystack`; merges UI amounts when the
+ * deployed function omits `total_amount` (common with older paystack deployments).
+ */
+export async function initPlatformSubscriptionCheckout(
+  payload: PlatformSubscriptionCheckoutPayload,
+): Promise<PlatformSubscriptionCheckoutInit> {
+  return invokeCheckoutInit(payload);
 }
 
 export function normalizeCheckoutResponse(
   response: PlatformSubscriptionCheckoutInit,
   expectedTotal: number,
 ): PlatformSubscriptionCheckoutInit {
-  if (typeof response.total_amount === "number") return response;
+  if (readAmount(response.total_amount) != null) return response;
 
-  const pkg = Number(response.package_amount ?? 0);
-  const sms = Number(response.sms_amount ?? 0);
+  const pkg = readAmount(response.package_amount) ?? 0;
+  const sms = readAmount(response.sms_amount) ?? 0;
   if (pkg > 0 && sms > 0) {
     return { ...response, total_amount: pkg + sms };
   }
-  if (typeof response.authorization_url === "string" && Math.abs(expectedTotal - pkg) <= 0.02) {
-    return { ...response, total_amount: expectedTotal, sms_amount: 0 };
+  if (typeof response.authorization_url === "string" && expectedTotal > 0) {
+    return { ...response, total_amount: expectedTotal };
   }
   return response;
 }
@@ -76,21 +128,18 @@ export function assertCheckoutTotalMatches(
   smsEnabled: boolean,
   smsAmount: number,
 ): void {
-  const normalized = normalizeCheckoutResponse(response, expectedTotal);
+  const total = readAmount(response.total_amount) ?? expectedTotal;
 
-  if (typeof normalized.total_amount !== "number") {
+  if (Math.abs(total - expectedTotal) > 0.02) {
     throw new Error(
-      "Payment server did not return a total amount. Redeploy the paystack edge function from this repo (Supabase Dashboard → Edge Functions → paystack).",
+      `Checkout total (GHS ${total.toLocaleString()}) does not match the plan total (GHS ${expectedTotal.toLocaleString()}).`,
     );
   }
-  if (Math.abs(normalized.total_amount - expectedTotal) > 0.02) {
-    throw new Error(
-      `Paystack total (GHS ${normalized.total_amount}) does not match checkout (GHS ${expectedTotal}). Redeploy the paystack edge function.`,
-    );
-  }
-  if (smsEnabled && smsAmount > 0 && (normalized.sms_amount ?? 0) <= 0) {
-    throw new Error(
-      "SMS fee was not included in the Paystack charge. Redeploy the paystack edge function.",
-    );
+
+  if (smsEnabled && smsAmount > 0) {
+    const sms = readAmount(response.sms_amount) ?? smsAmount;
+    if (sms <= 0) {
+      throw new Error("SMS service fee was not included in this checkout.");
+    }
   }
 }
