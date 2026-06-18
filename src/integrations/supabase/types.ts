@@ -6227,6 +6227,18 @@ export type Database = {
         }[]
       }
       confirm_paystack_payment: { Args: { p_reference: string }; Returns: Json }
+      init_platform_subscription_checkout: {
+        Args: {
+          p_billing_cycle?: string
+          p_callback_url?: string
+          p_enable_sms?: boolean
+          p_package_amount?: number
+          p_plan_id: string
+          p_sms_amount?: number
+          p_total_amount?: number
+        }
+        Returns: Json
+      }
       create_academic_recommendation: {
         Args: {
           p_recommendation_type: string
