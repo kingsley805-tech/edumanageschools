@@ -21,6 +21,7 @@ import {
   useOrganizationSubscription,
   useSubscriptionPlansPublic,
 } from "@/subscription/hooks/useOrganizationSubscription";
+import { syncOrganizationSubscriptionModules } from "@/subscription/lib/syncOrganizationSubscriptionModules";
 import type { OrganizationSubscriptionAccess } from "@/subscription/lib/subscriptionAccess";
 import { isPlanAvailableForCheckout } from "@/subscription/lib/subscriptionPlansPublic";
 import { sidebarItemsFromPlanModules } from "@/platform/lib/planSidebarLabels";
@@ -205,6 +206,11 @@ export default function OrganizationSubscriptionModal({
       sessionStorage.setItem(confirmKey, "done");
       clearPaystackReturnParams();
       if (data?.ok) {
+        try {
+          await syncOrganizationSubscriptionModules();
+        } catch (syncErr) {
+          console.warn("Module sync after payment:", syncErr);
+        }
         toast.success(
           data.duplicate ? "Subscription is already active." : "Subscription activated! Welcome to your dashboard.",
         );

@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { saveTeacherClassAttendance } from "@/lib/attendance-queries";
 import { fetchClassStudents, studentDisplayName } from "@/register/lib/api";
-import { sendTeacherAttendanceSmsNotifications } from "@/register/lib/sms";
+import { sendTeacherAttendanceSmsNotifications, describeAttendanceSmsResult } from "@/register/lib/sms";
 import { fetchTeacherAssignedClasses } from "@/report/lib/teacher-assignments";
 
 type ClassOption = { id: string; name: string };
@@ -118,19 +118,12 @@ const Attendance = () => {
 
       void sendTeacherAttendanceSmsNotifications(selectedClass, dateStr)
         .then((result) => {
-          const sent = result?.sent ?? 0;
-          const rawErrors = result?.errors ?? [];
-          const errors = Array.isArray(rawErrors) ? rawErrors.map(String) : [];
-          if (errors.length > 0) {
+          const feedback = describeAttendanceSmsResult(result ?? {});
+          if (feedback) {
             toast({
-              title: "Attendance saved — SMS partially failed",
-              description: errors.slice(0, 2).join("; "),
-              variant: "destructive",
-            });
-          } else if (sent > 0) {
-            toast({
-              title: "Parent SMS sent",
-              description: `${sent} notification${sent === 1 ? "" : "s"} sent to parents.`,
+              title: feedback.title,
+              description: feedback.description,
+              variant: feedback.variant === "success" ? "default" : feedback.variant,
             });
           }
         })

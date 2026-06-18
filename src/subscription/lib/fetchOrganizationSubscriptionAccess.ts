@@ -85,7 +85,11 @@ function computeAccessFromRow(sub: {
     };
   }
 
-  if (status === "active" && (expiresAt == null || expiresAt > now)) {
+  if (
+    (status === "active" || status === "trial") &&
+    sub.plan_id &&
+    (expiresAt == null || expiresAt > now)
+  ) {
     const expiringSoon = daysRemaining != null && daysRemaining <= 7;
     return {
       has_subscription_row: true,

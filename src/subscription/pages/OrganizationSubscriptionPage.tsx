@@ -1,19 +1,40 @@
 // @ts-nocheck
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
 import OrganizationSubscriptionModal from "@/subscription/components/OrganizationSubscriptionModal";
 import SubscriptionLockScreen from "@/subscription/components/SubscriptionLockScreen";
 import { useOrganizationSubscription } from "@/subscription/hooks/useOrganizationSubscription";
+import { syncOrganizationSubscriptionModules } from "@/subscription/lib/syncOrganizationSubscriptionModules";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, MessageSquare } from "lucide-react";
+import { ArrowLeft, Loader2, MessageSquare, RefreshCw } from "lucide-react";
 
 export default function OrganizationSubscriptionPage() {
   const { access, blocked, invalidate } = useOrganizationSubscription();
   const { currentSchool } = useSchoolInfo();
+  const [syncingModules, setSyncingModules] = useState(false);
+
+  const refreshModuleAccess = async () => {
+    setSyncingModules(true);
+    try {
+      const result = await syncOrganizationSubscriptionModules();
+      if (result?.ok) {
+        toast.success("Module access refreshed from your subscription plan.");
+        await invalidate();
+        return;
+      }
+      toast.error(result?.error ?? "Could not refresh module access.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not refresh module access.");
+    } finally {
+      setSyncingModules(false);
+    }
+  };
 
   const { data: subscriptionDetails } = useQuery({
     queryKey: ["school-subscription-details", currentSchool?.id],
@@ -55,6 +76,20 @@ export default function OrganizationSubscriptionPage() {
             : ""}
           . To change plans or renew early, select a plan below.
         </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={syncingModules}
+          onClick={() => void refreshModuleAccess()}
+        >
+          {syncingModules ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="mr-2 h-4 w-4" />
+          )}
+          Refresh module access
+        </Button>
 
         {subscriptionDetails ? (
           <div className="grid gap-4 sm:grid-cols-2">

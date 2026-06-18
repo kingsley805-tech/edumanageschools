@@ -14,6 +14,7 @@ import {
 } from "@/subscription/lib/subscriptionPlansPublic";
 
 export const ORGANIZATION_SUBSCRIPTION_ACCESS_KEY = "organization-subscription-access";
+export const SCHOOL_MODULE_ENTITLEMENTS_KEY = "school-module-entitlements";
 
 export function useOrganizationSubscription(schoolId?: string | null) {
   const { currentSchool, loading: schoolLoading } = useSchoolInfo();
@@ -43,8 +44,10 @@ export function useOrganizationSubscription(schoolId?: string | null) {
     },
   });
 
-  const invalidate = () =>
+  const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: [ORGANIZATION_SUBSCRIPTION_ACCESS_KEY, sid] });
+    queryClient.invalidateQueries({ queryKey: [SCHOOL_MODULE_ENTITLEMENTS_KEY, sid] });
+  };
 
   const access = query.data ?? null;
   const blocked = Boolean(access?.has_subscription_row && !access?.can_use_platform && !isSuperAdmin);

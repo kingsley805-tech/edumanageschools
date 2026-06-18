@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
@@ -8,9 +8,14 @@ import type { ModuleEntitlementRow } from "@/platform/lib/types";
 import { moduleByPath } from "@/lib/rbac/permissionCatalog";
 import { isPathGatedByPlatformPackage } from "@/platform/lib/portalModuleEntitlements";
 import { isMissingSchemaError } from "@/subscription/lib/fetchOrganizationSubscriptionAccess";
-import { useOrganizationSubscription } from "@/subscription/hooks/useOrganizationSubscription";
+import {
+  ORGANIZATION_SUBSCRIPTION_ACCESS_KEY,
+  SCHOOL_MODULE_ENTITLEMENTS_KEY,
+  useOrganizationSubscription,
+} from "@/subscription/hooks/useOrganizationSubscription";
+import { syncOrganizationSubscriptionModules } from "@/subscription/lib/syncOrganizationSubscriptionModules";
 
-const ENTITLEMENTS_KEY = "school-module-entitlements";
+const ENTITLEMENTS_KEY = SCHOOL_MODULE_ENTITLEMENTS_KEY;
 
 /** Map portal RBAC module key → platform module keys (many-to-one allowed) */
 function portalKeysForPath(path: string): string[] {
@@ -139,8 +144,45 @@ export function useSchoolEntitlements(schoolId?: string | null) {
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: [ENTITLEMENTS_KEY, sid] });
-    queryClient.invalidateQueries({ queryKey: ["organization-subscription-access"] });
+    queryClient.invalidateQueries({ queryKey: [ORGANIZATION_SUBSCRIPTION_ACCESS_KEY, sid] });
   };
+
+  const moduleSyncAttemptedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!sid || isSuperAdmin || entitlementsInitialLoading || isPending) return;
+    if (!subscriptionAccess?.can_use_platform || !data?.enforced) return;
+    if (!data?.rows?.length) return;
+
+    const enabledCount = data.rows.filter((row) => row.enabled && row.portal_module_key).length;
+    if (enabledCount > 0) return;
+
+    const syncKey = `${sid}:${subscriptionAccess.plan_id ?? "none"}`;
+    if (moduleSyncAttemptedRef.current === syncKey) return;
+    moduleSyncAttemptedRef.current = syncKey;
+
+    void (async () => {
+      try {
+        const result = await syncOrganizationSubscriptionModules(sid);
+        if (result?.ok) {
+          invalidate();
+        }
+      } catch (err) {
+        if (!isMissingSchemaError(err as { code?: string; message?: string })) {
+          console.warn("Subscription module self-heal:", err);
+        }
+      }
+    })();
+  }, [
+    sid,
+    isSuperAdmin,
+    entitlementsInitialLoading,
+    isPending,
+    subscriptionAccess?.can_use_platform,
+    subscriptionAccess?.plan_id,
+    data?.enforced,
+    data?.rows,
+  ]);
 
   return {
     loading: entitlementsInitialLoading || subscriptionInitialLoading,

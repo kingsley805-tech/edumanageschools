@@ -222,9 +222,71 @@ async function prepareTeacherAttendanceSmsRegisterClient(classId: string, dateSt
   return String(registerId);
 }
 
+export function describeAttendanceSmsResult(result: AttendanceSmsSendResult): {
+  variant: "success" | "destructive" | "default";
+  title: string;
+  description: string;
+} | null {
+  const sent = result?.sent ?? 0;
+  const rawErrors = result?.errors ?? [];
+  const errors = Array.isArray(rawErrors) ? rawErrors.map(String) : [];
+  const skipped = result?.skipped ?? 0;
+
+  if (errors.length > 0) {
+    return {
+      variant: "destructive",
+      title: sent > 0 ? "Attendance saved — SMS partially failed" : "Attendance saved — SMS failed",
+      description: errors.slice(0, 3).join("; "),
+    };
+  }
+  if (sent > 0) {
+    return {
+      variant: "success",
+      title: "Parent SMS sent",
+      description: `${sent} notification${sent === 1 ? "" : "s"} sent to parents.`,
+    };
+  }
+  if (result?.message) {
+    return {
+      variant: "default",
+      title: "Attendance saved — no SMS sent",
+      description: String(result.message),
+    };
+  }
+  if (skipped > 0) {
+    return {
+      variant: "default",
+      title: "Attendance saved — no SMS sent",
+      description:
+        "No parent SMS was sent. Mark absent/late (or enable Present in Register Settings), and ensure the parent phone is linked.",
+    };
+  }
+  return null;
+}
+
 /** Fire-and-forget parent SMS after teacher attendance page save. */
 export async function sendTeacherAttendanceSmsNotifications(classId: string, date: string) {
   const dateStr = date.slice(0, 10);
+
+  const { data, error } = await supabase.rpc("send_teacher_attendance_sms", {
+    p_class_id: classId,
+    p_date: dateStr,
+  });
+
+  if (!error && data) {
+    const result = data as AttendanceSmsSendResult;
+    if (result.error) throw new Error(result.error);
+    return result;
+  }
+
+  const missingTeacherRpc =
+    error &&
+    (error.code === "42883" ||
+      error.code === "PGRST202" ||
+      (error.message ?? "").includes("send_teacher_attendance_sms"));
+
+  if (!missingTeacherRpc && error) throw error;
+
   let registerId: string;
 
   const { data: rpcRegisterId, error: prepError } = await supabase.rpc(
@@ -273,10 +335,36 @@ export async function listAttendanceSmsLogs(schoolId: string, limit = 50) {
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) {
-    if (error.code === "42P01" || error.code === "PGRST205" || error.code === "42703") return [];
+    if (error.code === "42P01" || error.code === "PGRST205" || error.code === "42703") {
+      return listSmsLogsAsAttendanceRows(schoolId, limit);
+    }
     throw error;
   }
-  return data ?? [];
+  if ((data ?? []).length > 0) return data ?? [];
+  return listSmsLogsAsAttendanceRows(schoolId, limit);
+}
+
+async function listSmsLogsAsAttendanceRows(schoolId: string, limit: number) {
+  const { data, error } = await supabase
+    .from("sms_logs")
+    .select(
+      "id, phone_number, message, sms_status, sent_at, register_id, students(full_name, profiles:profile_id(full_name))",
+    )
+    .eq("school_id", schoolId)
+    .order("sent_at", { ascending: false })
+    .limit(limit);
+  if (error) {
+    if (error.code === "42P01" || error.code === "PGRST205") return [];
+    throw error;
+  }
+  return (data ?? []).map((row) => ({
+    ...row,
+    attendance_status: "—",
+    attendance_date: row.sent_at?.slice(0, 10) ?? null,
+    created_at: row.sent_at,
+    error_message: null,
+    source: "sms_logs",
+  }));
 }
 
 export async function fetchAttendanceSmsStats(schoolId: string): Promise<AttendanceSmsStats> {

@@ -148,7 +148,11 @@ DECLARE
   v_errors text[] := ARRAY[]::text[];
   v_date_label text;
   v_log_id uuid;
+  v_att_log_id uuid;
   v_arkesel_url text;
+  v_entry_count int := 0;
+  v_class_id uuid;
+  v_attendance_date date;
 BEGIN
   IF v_uid IS NULL THEN
     RETURN jsonb_build_object('error', 'Please sign in again.');
@@ -181,17 +185,7 @@ BEGIN
   WHERE ss.school_id = v_reg.school_id;
 
   IF NOT coalesce(v_attendance_enabled, true) THEN
-    RETURN jsonb_build_object('ok', true, 'sent', 0, 'skipped', 0, 'errors', '[]'::jsonb);
-  END IF;
-
-  BEGIN
-    SELECT public.school_sms_service_active(v_reg.school_id) INTO v_sms_active;
-  EXCEPTION WHEN OTHERS THEN
-    v_sms_active := true;
-  END;
-
-  IF coalesce(v_sms_active, true) = false THEN
-    RETURN jsonb_build_object('ok', true, 'sent', 0, 'skipped', 0, 'message', 'SMS not enabled for this school');
+    RETURN jsonb_build_object('error', 'Attendance SMS is disabled in Register Settings.');
   END IF;
 
   SELECT coalesce(g.api_key, v.decrypted_secret) INTO v_api_key
@@ -207,24 +201,70 @@ BEGIN
     );
   END IF;
 
+  BEGIN
+    SELECT public.school_sms_service_active(v_reg.school_id) INTO v_sms_active;
+  EXCEPTION WHEN OTHERS THEN
+    v_sms_active := true;
+  END;
+
+  IF coalesce(v_sms_active, true) = false AND (v_api_key IS NULL OR trim(v_api_key) = '') THEN
+    RETURN jsonb_build_object(
+      'error',
+      'School SMS is not enabled on your subscription. Enable SMS for this school or contact your administrator.'
+    );
+  END IF;
+
   v_sender := coalesce(
     v_sender,
     substring(regexp_replace(coalesce(v_school_name, 'School'), '[^a-zA-Z0-9]', '', 'g') from 1 for 11),
     'School'
   );
   v_date_label := to_char(v_reg.register_date, 'DD Mon YYYY');
+  v_class_id := v_reg.class_id;
+  v_attendance_date := v_reg.register_date;
+
+  SELECT count(*) INTO v_entry_count
+  FROM public.register_student_entries
+  WHERE register_id = p_register_id;
+
+  IF v_entry_count = 0 THEN
+    SELECT count(*) INTO v_entry_count
+    FROM public.attendance a
+    WHERE a.class_id = v_class_id AND a.date = v_attendance_date;
+  END IF;
+
+  IF v_entry_count = 0 THEN
+    RETURN jsonb_build_object('error', 'No attendance records found for this class and date.');
+  END IF;
 
   FOR v_entry IN
-    SELECT
-      e.student_id,
-      lower(trim(coalesce(e.attendance_status, ''))) AS status,
-      e.time_in,
-      coalesce(nullif(trim(p.full_name), ''), nullif(trim(st.full_name), ''), 'Student') AS student_name,
-      st.guardian_id
-    FROM public.register_student_entries e
-    JOIN public.students st ON st.id = e.student_id
-    LEFT JOIN public.profiles p ON p.id = st.profile_id
-    WHERE e.register_id = p_register_id
+    SELECT student_id, status, student_name, guardian_id
+    FROM (
+      SELECT
+        e.student_id,
+        lower(trim(coalesce(e.attendance_status, ''))) AS status,
+        coalesce(nullif(trim(p.full_name), ''), nullif(trim(st.full_name), ''), 'Student') AS student_name,
+        st.guardian_id
+      FROM public.register_student_entries e
+      JOIN public.students st ON st.id = e.student_id
+      LEFT JOIN public.profiles p ON p.id = st.profile_id
+      WHERE e.register_id = p_register_id
+      UNION ALL
+      SELECT
+        a.student_id,
+        lower(trim(coalesce(a.status, ''))) AS status,
+        coalesce(nullif(trim(p.full_name), ''), nullif(trim(st.full_name), ''), 'Student') AS student_name,
+        st.guardian_id
+      FROM public.attendance a
+      JOIN public.students st ON st.id = a.student_id
+      LEFT JOIN public.profiles p ON p.id = st.profile_id
+      WHERE NOT EXISTS (
+        SELECT 1 FROM public.register_student_entries re WHERE re.register_id = p_register_id
+      )
+        AND a.class_id = v_class_id
+        AND a.date = v_attendance_date
+    ) src
+    WHERE status <> ''
   LOOP
     v_status := v_entry.status;
     v_student_name := v_entry.student_name;
@@ -250,7 +290,8 @@ BEGIN
       coalesce(
         nullif(trim(pa.phone), ''),
         nullif(trim(pa.emergency_contact), ''),
-        nullif(trim(pr.phone), '')
+        nullif(trim(pr.phone), ''),
+        nullif(trim(u.phone), '')
       ) AS contact_raw,
       coalesce(nullif(trim(pr.full_name), ''), 'Parent') AS parent_name
     INTO v_parent
@@ -264,16 +305,19 @@ BEGIN
     ) src
     JOIN public.parents pa ON pa.id = src.pid
     LEFT JOIN public.profiles pr ON pr.id = pa.user_id
+    LEFT JOIN auth.users u ON u.id = pa.user_id
     WHERE coalesce(
       nullif(trim(pa.phone), ''),
       nullif(trim(pa.emergency_contact), ''),
-      nullif(trim(pr.phone), '')
+      nullif(trim(pr.phone), ''),
+      nullif(trim(u.phone), '')
     ) IS NOT NULL
     ORDER BY pa.id
     LIMIT 1;
 
     IF v_parent.id IS NULL THEN
       v_skipped := v_skipped + 1;
+      v_errors := array_append(v_errors, v_student_name || ': no linked parent with phone');
       CONTINUE;
     END IF;
 
@@ -308,6 +352,7 @@ BEGIN
     v_phone := public.normalize_sms_phone(v_parent.contact_raw);
     IF v_phone IS NULL THEN
       v_skipped := v_skipped + 1;
+      v_errors := array_append(v_errors, v_student_name || ': parent phone missing');
       CONTINUE;
     END IF;
 
@@ -342,11 +387,32 @@ BEGIN
     RETURNING id INTO v_log_id;
 
     BEGIN
+      INSERT INTO public.attendance_sms_logs (
+        school_id, student_id, parent_id, class_id, register_id,
+        attendance_date, attendance_status, phone_number, message,
+        sms_status, source, triggered_by
+      )
+      VALUES (
+        v_reg.school_id, v_entry.student_id, v_parent.id, v_class_id, p_register_id,
+        v_attendance_date, v_status, v_phone, v_message,
+        'queued', 'teacher_attendance', v_uid
+      )
+      RETURNING id INTO v_att_log_id;
+    EXCEPTION WHEN OTHERS THEN
+      v_att_log_id := NULL;
+    END;
+
+    BEGIN
       v_credit := public.consume_school_sms_credit(v_reg.school_id, 1);
       IF coalesce(v_credit->>'ok', 'false') = 'false' THEN
         UPDATE public.sms_logs
         SET sms_status = 'failed', provider_response = v_credit
         WHERE id = v_log_id;
+        IF v_att_log_id IS NOT NULL THEN
+          UPDATE public.attendance_sms_logs
+          SET sms_status = 'failed', error_message = coalesce(v_credit->>'error', 'Insufficient SMS balance'), provider_response = v_credit
+          WHERE id = v_att_log_id;
+        END IF;
         v_errors := array_append(v_errors, v_student_name || ': ' || coalesce(v_credit->>'error', 'Insufficient SMS balance'));
         CONTINUE;
       END IF;
@@ -372,20 +438,55 @@ BEGIN
         UPDATE public.sms_logs
         SET sms_status = 'sent', provider_response = v_body, sent_at = now()
         WHERE id = v_log_id;
+        IF v_att_log_id IS NOT NULL THEN
+          UPDATE public.attendance_sms_logs
+          SET sms_status = 'sent', provider_response = v_body, sent_at = now()
+          WHERE id = v_att_log_id;
+        END IF;
         v_sent := v_sent + 1;
       ELSE
         UPDATE public.sms_logs
         SET sms_status = 'failed', provider_response = v_body
         WHERE id = v_log_id;
+        IF v_att_log_id IS NOT NULL THEN
+          UPDATE public.attendance_sms_logs
+          SET sms_status = 'failed', error_message = coalesce(v_http.content, 'SMS provider error'), provider_response = v_body
+          WHERE id = v_att_log_id;
+        END IF;
         v_errors := array_append(v_errors, v_student_name || ': ' || coalesce(v_http.content, 'SMS provider error'));
       END IF;
     EXCEPTION WHEN OTHERS THEN
       UPDATE public.sms_logs
       SET sms_status = 'failed', provider_response = jsonb_build_object('error', SQLERRM)
       WHERE id = v_log_id;
+      IF v_att_log_id IS NOT NULL THEN
+        UPDATE public.attendance_sms_logs
+        SET sms_status = 'failed', error_message = SQLERRM, provider_response = jsonb_build_object('error', SQLERRM)
+        WHERE id = v_att_log_id;
+      END IF;
       v_errors := array_append(v_errors, v_student_name || ': ' || SQLERRM);
     END;
   END LOOP;
+
+  IF v_sent = 0 AND array_length(v_errors, 1) IS NULL AND v_skipped > 0 THEN
+    RETURN jsonb_build_object(
+      'ok', true,
+      'sent', 0,
+      'skipped', v_skipped,
+      'errors', '[]'::jsonb,
+      'message', 'No SMS sent. Enable absent/late/present notifications in Register Settings, or link a parent phone number.'
+    );
+  END IF;
+
+  IF v_sent = 0 AND array_length(v_errors, 1) IS NOT NULL THEN
+    RETURN jsonb_build_object(
+      'ok', false,
+      'sent', 0,
+      'skipped', v_skipped,
+      'errors', to_jsonb(v_errors),
+      'message', v_errors[1]
+    );
+  END IF;
 
   RETURN jsonb_build_object(
     'ok', true,
@@ -396,10 +497,48 @@ BEGIN
 END;
 $$;
 
+-- Teacher attendance page: read saved attendance rows directly (one RPC call).
+CREATE OR REPLACE FUNCTION public.send_teacher_attendance_sms(
+  p_class_id uuid,
+  p_date date
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_register_id uuid;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RETURN jsonb_build_object('error', 'Please sign in again.');
+  END IF;
+
+  BEGIN
+    v_register_id := public.prepare_teacher_attendance_sms_register(p_class_id, p_date);
+  EXCEPTION
+    WHEN undefined_function THEN
+      NULL;
+    WHEN OTHERS THEN
+      NULL;
+  END;
+
+  IF v_register_id IS NOT NULL THEN
+    RETURN public.send_attendance_sms_for_register(v_register_id);
+  END IF;
+
+  RETURN jsonb_build_object(
+    'error',
+    'Could not prepare attendance SMS. Run public/sql/apply-attendance-sms-teacher-page.sql in Supabase SQL Editor.'
+  );
+END;
+$$;
+
 GRANT EXECUTE ON FUNCTION public.normalize_sms_phone(text) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.sms_phone_for_arkesel(text) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.url_query_encode(text) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.build_arkesel_sms_url(text, text, text, text) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.send_attendance_sms_for_register(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.send_teacher_attendance_sms(uuid, date) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
