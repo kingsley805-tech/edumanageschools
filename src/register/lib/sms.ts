@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 
 export type RegisterSmsSettings = {
   sms_sender_id: string;
@@ -93,20 +94,18 @@ export async function saveRegisterSmsSettings(schoolId: string, settings: Regist
 }
 
 export async function sendAttendanceSmsNotifications(registerId: string) {
-  const { data, error } = await supabase.functions.invoke("send-attendance-sms", {
-    body: { registerId },
-  });
-  if (error) throw error;
-  return data as { sent?: number; skipped?: number; errors?: string[] };
+  return invokeEdgeFunction<{ ok?: boolean; sent?: number; skipped?: number; errors?: string[] }>(
+    "send-attendance-sms",
+    { registerId },
+  );
 }
 
 /** Fire-and-forget parent SMS after teacher attendance page save. */
 export async function sendTeacherAttendanceSmsNotifications(classId: string, date: string) {
-  const { data, error } = await supabase.functions.invoke("send-attendance-sms", {
-    body: { classId, date },
-  });
-  if (error) throw error;
-  return data as { ok?: boolean; sent?: number; skipped?: number; errors?: string[] };
+  return invokeEdgeFunction<{ ok?: boolean; sent?: number; skipped?: number; errors?: string[] }>(
+    "send-attendance-sms",
+    { classId, date: date.slice(0, 10) },
+  );
 }
 
 export async function listSmsLogs(schoolId: string, limit = 50) {

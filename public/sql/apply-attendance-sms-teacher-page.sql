@@ -1,5 +1,10 @@
 -- Teacher attendance page: parent SMS logs, settings, templates
 -- Run after apply-attendance-sms-system.sql and apply-sms-subscription-billing.sql
+--
+-- Also required (Supabase Dashboard):
+--   1. Edge Functions → send-attendance-sms → paste supabase/functions/send-attendance-sms/index.ts
+--   2. JWT verification OFF for send-attendance-sms
+--   3. Secrets: ARKESEL_API_KEY (same key used for other SMS)
 
 CREATE TABLE IF NOT EXISTS public.attendance_sms_logs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -53,3 +58,5 @@ CREATE POLICY "attendance sms logs service all" ON public.attendance_sms_logs
 
 GRANT SELECT ON public.attendance_sms_logs TO authenticated;
 GRANT ALL ON public.attendance_sms_logs TO service_role;
+
+NOTIFY pgrst, 'reload schema';
