@@ -18,6 +18,7 @@ import {
   useSubscriptionPlansPublic,
 } from "@/subscription/hooks/useOrganizationSubscription";
 import type { OrganizationSubscriptionAccess } from "@/subscription/lib/subscriptionAccess";
+import { isPlanAvailableForCheckout } from "@/subscription/lib/subscriptionPlansPublic";
 import { sidebarItemsFromPlanModules } from "@/platform/lib/planSidebarLabels";
 
 type BillingCycle = "monthly" | "annual";
@@ -45,6 +46,7 @@ export default function OrganizationSubscriptionModal({
     isLoading: plansLoading,
     isError: plansError,
     error: plansErrorDetail,
+    refetch: refetchPlans,
   } = useSubscriptionPlansPublic();
 
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
@@ -59,13 +61,24 @@ export default function OrganizationSubscriptionModal({
     inline || forceOpen || blocked || access?.access_state === "locked" || access?.access_state === "pending_payment";
 
   const displayPlans = useMemo(
-    () => plans.filter((p) => !p.is_custom || Number(p.price_monthly) === 0),
+    () => plans.filter(isPlanAvailableForCheckout),
     [plans],
   );
 
+  useEffect(() => {
+    if (!visible) return;
+    void refetchPlans();
+  }, [visible, refetchPlans]);
+
+  useEffect(() => {
+    if (selectedPlanId && !displayPlans.some((p) => p.id === selectedPlanId)) {
+      setSelectedPlanId(null);
+    }
+  }, [displayPlans, selectedPlanId]);
+
   const selectedPlan = useMemo(
-    () => plans.find((p) => p.id === selectedPlanId) ?? null,
-    [plans, selectedPlanId],
+    () => displayPlans.find((p) => p.id === selectedPlanId) ?? null,
+    [displayPlans, selectedPlanId],
   );
 
   const packageAmount = useMemo(() => {
@@ -205,6 +218,14 @@ export default function OrganizationSubscriptionModal({
               : "Check your connection or ask the platform owner to enable subscription plans."}
           </AlertDescription>
         </Alert>
+      ) : displayPlans.length === 0 && plans.length > 0 ? (
+        <Alert>
+          <AlertTitle>No self-serve plans available</AlertTitle>
+          <AlertDescription>
+            Active plans exist but none are available for online checkout. Add monthly or annual pricing, or contact
+            your platform administrator.
+          </AlertDescription>
+        </Alert>
       ) : displayPlans.length === 0 ? (
         <Alert>
           <AlertTitle>No plans available</AlertTitle>
@@ -221,6 +242,9 @@ export default function OrganizationSubscriptionModal({
                 ? Number(plan.price_annual)
                 : Number(plan.price_monthly);
             const selected = selectedPlanId === plan.id;
+            const sidebarItems = sidebarItemsFromPlanModules(plan.default_modules as string[]);
+            const visibleSidebarItems = sidebarItems.slice(0, 12);
+            const hiddenSidebarCount = sidebarItems.length - visibleSidebarItems.length;
             return (
               <Card
                 key={plan.id}
@@ -230,7 +254,10 @@ export default function OrganizationSubscriptionModal({
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
                     <CardTitle className="text-lg">{plan.name}</CardTitle>
-                    {selected ? <Badge>Selected</Badge> : null}
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      {selected ? <Badge>Selected</Badge> : null}
+                      {plan.is_custom ? <Badge variant="secondary">Enterprise</Badge> : null}
+                    </div>
                   </div>
                   <CardDescription className="line-clamp-2">{plan.description}</CardDescription>
                 </CardHeader>
@@ -250,16 +277,24 @@ export default function OrganizationSubscriptionModal({
                       {plan.max_storage_gb == null ? "Unlimited" : `${plan.max_storage_gb} GB`}
                     </li>
                   </ul>
-                  <ul className="max-h-28 space-y-0.5 overflow-y-auto text-xs">
-                    {sidebarItemsFromPlanModules(plan.default_modules as string[])
-                      .slice(0, 10)
-                      .map((item) => (
-                      <li key={item.key} className="flex items-center gap-1">
-                        <Check className="h-3 w-3 shrink-0 text-emerald-600" />
-                        {item.label}
-                      </li>
-                    ))}
-                  </ul>
+                  <div>
+                    <p className="mb-1 text-xs font-medium uppercase text-muted-foreground">Sidebar menu</p>
+                    {sidebarItems.length === 0 ? (
+                      <p className="text-xs italic text-muted-foreground">No pages configured</p>
+                    ) : (
+                      <ul className="max-h-28 space-y-0.5 overflow-y-auto text-xs">
+                        {visibleSidebarItems.map((item) => (
+                          <li key={item.key} className="flex items-center gap-1">
+                            <Check className="h-3 w-3 shrink-0 text-emerald-600" />
+                            {item.label}
+                          </li>
+                        ))}
+                        {hiddenSidebarCount > 0 ? (
+                          <li className="text-muted-foreground">+{hiddenSidebarCount} more</li>
+                        ) : null}
+                      </ul>
+                    )}
+                  </div>
                   {(plan.sms_included_quantity ?? 0) > 0 ? (
                     <p className="text-xs text-muted-foreground">
                       Includes {Number(plan.sms_included_quantity).toLocaleString()} SMS credits

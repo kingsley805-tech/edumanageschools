@@ -8,6 +8,10 @@ import {
   fetchOrganizationSubscriptionAccess,
   isMissingSchemaError,
 } from "@/subscription/lib/fetchOrganizationSubscriptionAccess";
+import {
+  fetchPublicSubscriptionPlans,
+  SUBSCRIPTION_PLANS_PUBLIC_KEY,
+} from "@/subscription/lib/subscriptionPlansPublic";
 
 export const ORGANIZATION_SUBSCRIPTION_ACCESS_KEY = "organization-subscription-access";
 
@@ -61,26 +65,11 @@ export function useOrganizationSubscription(schoolId?: string | null) {
 
 export function useSubscriptionPlansPublic() {
   return useQuery({
-    queryKey: ["subscription-plans-public"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("subscription_plans")
-        .select("*")
-        .eq("is_active", true)
-        .order("sort_order");
-      if (error) {
-        if (isMissingSchemaError(error)) return [];
-        throw error;
-      }
-      return (data ?? []).map((p) => ({
-        ...p,
-        default_modules: Array.isArray(p.default_modules)
-          ? p.default_modules
-          : typeof p.default_modules === "string"
-            ? JSON.parse(p.default_modules)
-            : [],
-      }));
-    },
+    queryKey: [SUBSCRIPTION_PLANS_PUBLIC_KEY],
+    queryFn: fetchPublicSubscriptionPlans,
+    staleTime: 30_000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
     retry: false,
   });
 }

@@ -16,6 +16,7 @@ import {
 import PlanEditorDialog, { planFormToRow, type PlanFormValues } from "@/platform/components/PlanEditorDialog";
 import { sidebarItemsFromPlanModules } from "@/platform/lib/planSidebarLabels";
 import { saveSubscriptionPlanRow } from "@/platform/lib/saveSubscriptionPlan";
+import { invalidatePublicSubscriptionPlans } from "@/subscription/lib/subscriptionPlansPublic";
 import type { SubscriptionPlan } from "@/platform/lib/types";
 
 export default function SubscriptionPlansPage() {
@@ -68,6 +69,7 @@ export default function SubscriptionPlansPage() {
       }
 
       await queryClient.invalidateQueries({ queryKey: ["subscription-plans"] });
+      await invalidatePublicSubscriptionPlans(queryClient);
       await queryClient.invalidateQueries({ queryKey: ["school-module-entitlements"] });
       setEditorOpen(false);
     } catch (e) {
