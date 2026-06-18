@@ -16,6 +16,9 @@ import {
 import { exportTimetableExcel, exportTimetablePdf } from "@/timetable/lib/export";
 import type { ScheduleEntry, TimetablePeriod } from "@/timetable/lib/types";
 import { toast } from "sonner";
+import { UpcomingLiveSessions } from "@/live-classes/components/UpcomingLiveSessions";
+import { recordJoin } from "@/live-classes/lib/api";
+import type { LiveClassSession } from "@/live-classes/lib/types";
 
 type PortalRole = "student" | "teacher" | "parent";
 
@@ -35,6 +38,9 @@ export function TimetablePortalView({
   const [schoolName, setSchoolName] = useState("School");
   const [schoolCloseTime, setSchoolCloseTime] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [classId, setClassId] = useState<string | null>(null);
+  const [teacherId, setTeacherId] = useState<string | null>(null);
+  const [studentId, setStudentId] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -61,10 +67,12 @@ export function TimetablePortalView({
         if (role === "student") {
           const { data: st } = await supabase
             .from("students")
-            .select("class_id, classes(name)")
+            .select("id, class_id, classes(name)")
             .eq("user_id", user.id)
             .maybeSingle();
           if (!st?.class_id) return;
+          setStudentId(st.id);
+          setClassId(st.class_id);
           setTitle(`${(st.classes as { name?: string })?.name ?? "Class"} Timetable`);
           setEntries(await fetchSchedules({ classId: st.class_id, publishedOnly: true }));
         } else if (role === "parent" && childStudentId) {
@@ -74,11 +82,13 @@ export function TimetablePortalView({
             .eq("id", childStudentId)
             .maybeSingle();
           if (!st?.class_id) return;
+          setClassId(st.class_id);
           setTitle(`${(st.profiles as { full_name?: string })?.full_name ?? "Child"} — ${(st.classes as { name?: string })?.name}`);
           setEntries(await fetchSchedules({ classId: st.class_id, publishedOnly: true }));
         } else if (role === "teacher") {
           const { data: t } = await supabase.from("teachers").select("id").eq("user_id", user.id).maybeSingle();
           if (!t) return;
+          setTeacherId(t.id);
           setTitle("My Teaching Schedule");
           setEntries(await fetchSchedules({ teacherId: t.id, publishedOnly: true }));
         }
@@ -102,6 +112,12 @@ export function TimetablePortalView({
     () => entries.filter((e) => e.day_of_week === today).sort((a, b) => a.start_time.localeCompare(b.start_time)),
     [entries, today],
   );
+
+  const handleLiveJoin = async (session: LiveClassSession) => {
+    if (studentId) {
+      await recordJoin(session.id, studentId);
+    }
+  };
 
   return (
     <Wrapper>
@@ -151,6 +167,15 @@ export function TimetablePortalView({
             </CardContent>
           </Card>
         ) : null}
+
+        <div className="print:hidden">
+          <UpcomingLiveSessions
+            classId={classId}
+            teacherId={teacherId}
+            showJoin={role === "student"}
+            onJoin={role === "student" ? handleLiveJoin : undefined}
+          />
+        </div>
 
         {loading ? (
           <p className="text-center py-16 text-muted-foreground">Loading timetable…</p>

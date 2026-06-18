@@ -36,6 +36,7 @@ import {
   PenLine,
   CreditCard,
   Palette,
+  Video,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { NotificationCenter } from "./NotificationCenter";
@@ -235,6 +236,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
             { icon: BookOpen, label: "Classes", path: "/admin/classes" },
             { icon: ClipboardList, label: "Subjects", path: "/admin/subjects" },
             { icon: Clock, label: "Timetable", path: "/admin/timetable" },
+            { icon: Video, label: "Online Learning", path: "/admin/online-learning" },
             { icon: FileText, label: "Lesson Notes", path: "/admin/lesson-notes" },
             { icon: Award, label: "Grade Scales", path: "/admin/grade-scales" },
           ],
@@ -404,6 +406,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
             { icon: BookOpen, label: "My Classes", path: "/teacher/classes" },
             { icon: UserCheck, label: "My Class (Class Teacher)", path: "/teacher/my-class" },
             { icon: Clock, label: "Timetable", path: "/teacher/timetable" },
+            { icon: Video, label: "Live Classes", path: "/teacher/live-classes" },
             { icon: ClipboardList, label: "Class Registers", path: "/teacher/register" },
             { icon: Calendar, label: "Attendance", path: "/teacher/attendance" },
             { icon: FileText, label: "Assignments", path: "/teacher/assignments" },
@@ -457,6 +460,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
             { icon: FileText, label: "Report Cards", path: "/parent/reports" },
             { icon: MessageSquare, label: "Recommendations", path: "/parent/recommendations" },
             { icon: Clock, label: "Timetable", path: "/parent/timetable" },
+            { icon: Video, label: "Class Schedule", path: "/parent/class-schedule" },
           ],
         },
         {
@@ -494,6 +498,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           icon: BookOpen,
           items: [
             { icon: Clock, label: "Timetable", path: "/student/timetable" },
+            { icon: Video, label: "Live Classes", path: "/student/live-classes" },
             { icon: ClipboardList, label: "Class Register", path: "/student/register" },
             { icon: FileText, label: "Assignments", path: "/student/assignments" },
             { icon: Award, label: "Grades", path: "/student/grades" },

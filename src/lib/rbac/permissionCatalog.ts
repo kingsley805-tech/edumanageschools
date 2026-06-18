@@ -57,6 +57,7 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
       { key: "classes", label: "Classes", path: "/admin/classes", actions: ["view", "create", "edit", "delete", "manage"] },
       { key: "subjects", label: "Subjects", path: "/admin/subjects", actions: ["view", "create", "edit", "delete", "manage"] },
       { key: "timetable", label: "Timetable", path: "/admin/timetable", actions: ["view", "create", "edit", "delete", "manage"] },
+      { key: "live_classes", label: "Online Learning", path: "/admin/online-learning", actions: ["view", "create", "edit", "delete", "manage"] },
       { key: "grade_scales", label: "Grade Scales", path: "/admin/grade-scales", actions: ["view", "create", "edit", "delete", "manage"] },
       {
         key: "lesson_notes",
@@ -234,7 +235,7 @@ export function defaultCodesForRole(slug: string): string[] {
   });
   const academics = all.filter((c) => {
     const p = parsePermissionCode(c);
-    return p && ["students", "classes", "subjects", "timetable", "grade_scales", "teachers", "lesson_notes", "dashboard"].includes(p.moduleKey);
+    return p && ["students", "classes", "subjects", "timetable", "live_classes", "grade_scales", "teachers", "lesson_notes", "dashboard"].includes(p.moduleKey);
   });
   const registrar = all.filter((c) => {
     const p = parsePermissionCode(c);

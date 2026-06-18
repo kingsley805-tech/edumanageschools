@@ -79,6 +79,22 @@ export const PORTAL_PAGES: PortalPageDef[] = [
     permissions: {},
   },
   {
+    key: "live_classes",
+    label: "Online Learning",
+    section: "Academics",
+    path: "/admin/online-learning",
+    assignableTo: ["teacher"],
+    permissions: {},
+  },
+  {
+    key: "live_classes_teacher",
+    label: "Live Classes",
+    section: "Academics",
+    path: "/teacher/live-classes",
+    assignableTo: ["teacher"],
+    permissions: {},
+  },
+  {
     key: "grade_scales",
     label: "Grade Scales",
     section: "Academics",

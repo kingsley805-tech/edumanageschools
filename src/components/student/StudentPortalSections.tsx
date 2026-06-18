@@ -12,6 +12,7 @@ const sections = [
     accent: "text-primary bg-primary/10",
     links: [
       { label: "Timetable", path: "/student/timetable" },
+      { label: "Live classes", path: "/student/live-classes" },
       { label: "Assignments", path: "/student/assignments" },
       { label: "Grades", path: "/student/grades" },
       { label: "Performance", path: "/student/performance" },
