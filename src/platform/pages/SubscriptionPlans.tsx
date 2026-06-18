@@ -14,8 +14,8 @@ import {
   usePlatformModulesCatalog,
 } from "@/platform/hooks/usePlatformDashboard";
 import PlanEditorDialog, { planFormToRow, type PlanFormValues } from "@/platform/components/PlanEditorDialog";
-import { uniquePortalLabelsForPlan } from "@/platform/lib/packagePermissionSummary";
-import { sidebarLabelsFromPlanModules } from "@/platform/lib/planSidebarLabels";
+import { sidebarItemsFromPlanModules } from "@/platform/lib/planSidebarLabels";
+import { saveSubscriptionPlanRow } from "@/platform/lib/saveSubscriptionPlan";
 import type { SubscriptionPlan } from "@/platform/lib/types";
 
 export default function SubscriptionPlansPage() {
@@ -41,10 +41,9 @@ export default function SubscriptionPlansPage() {
     setSaving(true);
     const row = planFormToRow(values);
     try {
-      if (planId) {
-        const { error } = await supabase.from("subscription_plans").update(row).eq("id", planId);
-        if (error) throw error;
+      const { skippedExtendedColumns } = await saveSubscriptionPlanRow(row, planId);
 
+      if (planId) {
         const { data: reapplyData, error: reapplyError } = await supabase.rpc(
           "reapply_subscription_plan_modules",
           { p_plan_id: planId },
@@ -59,13 +58,15 @@ export default function SubscriptionPlansPage() {
           toast.success("Plan updated");
         }
       } else {
-        const { error } = await supabase.from("subscription_plans").insert({
-          ...row,
-          created_at: new Date().toISOString(),
-        });
-        if (error) throw error;
         toast.success("Plan created");
       }
+
+      if (skippedExtendedColumns) {
+        toast.message(
+          "SMS plan columns were not saved — run apply-sms-subscription-billing.sql and apply-subscription-package-full-config.sql in Supabase.",
+        );
+      }
+
       await queryClient.invalidateQueries({ queryKey: ["subscription-plans"] });
       await queryClient.invalidateQueries({ queryKey: ["school-module-entitlements"] });
       setEditorOpen(false);
@@ -164,13 +165,13 @@ export default function SubscriptionPlansPage() {
                       {(plan.default_modules ?? []).length === 0 ? (
                         <li className="italic text-muted-foreground">No pages configured</li>
                       ) : (
-                        (modules.length
-                          ? uniquePortalLabelsForPlan(plan.default_modules as string[], modules)
-                          : sidebarLabelsFromPlanModules(plan.default_modules as string[])
-                        ).map((label) => (
-                          <li key={label} className="flex items-center gap-1">
+                        sidebarItemsFromPlanModules(
+                          plan.default_modules as string[],
+                          modules.length ? modules : [],
+                        ).map((item) => (
+                          <li key={item.key} className="flex items-center gap-1">
                             <Check className="h-3 w-3 shrink-0 text-emerald-600" />
-                            {label}
+                            {item.label}
                           </li>
                         ))
                       )}

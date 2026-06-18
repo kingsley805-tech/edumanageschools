@@ -18,7 +18,7 @@ import {
   useSubscriptionPlansPublic,
 } from "@/subscription/hooks/useOrganizationSubscription";
 import type { OrganizationSubscriptionAccess } from "@/subscription/lib/subscriptionAccess";
-import { sidebarLabelsFromPlanModules } from "@/platform/lib/planSidebarLabels";
+import { sidebarItemsFromPlanModules } from "@/platform/lib/planSidebarLabels";
 
 type BillingCycle = "monthly" | "annual";
 
@@ -251,10 +251,12 @@ export default function OrganizationSubscriptionModal({
                     </li>
                   </ul>
                   <ul className="max-h-28 space-y-0.5 overflow-y-auto text-xs">
-                    {sidebarLabelsFromPlanModules(plan.default_modules as string[]).slice(0, 10).map((label) => (
-                      <li key={label} className="flex items-center gap-1">
+                    {sidebarItemsFromPlanModules(plan.default_modules as string[])
+                      .slice(0, 10)
+                      .map((item) => (
+                      <li key={item.key} className="flex items-center gap-1">
                         <Check className="h-3 w-3 shrink-0 text-emerald-600" />
-                        {label}
+                        {item.label}
                       </li>
                     ))}
                   </ul>

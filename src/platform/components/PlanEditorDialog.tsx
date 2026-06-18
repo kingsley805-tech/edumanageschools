@@ -364,7 +364,7 @@ export default function PlanEditorDialog({
                         </p>
                         <ul className="space-y-0.5">
                           {group.items.map((item) => (
-                            <li key={item.path} className="text-sm">
+                            <li key={`${group.groupLabel}-${item.path}`} className="text-sm">
                               <span className="font-medium">{item.label}</span>
                               <span className="ml-2 text-xs text-muted-foreground">{item.path}</span>
                             </li>
