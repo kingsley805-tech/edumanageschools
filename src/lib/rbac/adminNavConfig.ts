@@ -23,6 +23,7 @@ import {
   Shield,
   NotebookPen,
   CreditCard as SubscriptionIcon,
+  Video,
 } from "lucide-react";
 import { PORTAL_CATEGORIES, permissionCode, type PermissionAction } from "@/lib/rbac/permissionCatalog";
 
@@ -46,6 +47,7 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
   classes: BookOpen,
   subjects: ClipboardList,
   timetable: Clock,
+  live_classes: Video,
   grade_scales: Award,
   lesson_notes: NotebookPen,
   report_cards: FileText,

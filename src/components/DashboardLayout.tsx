@@ -106,7 +106,8 @@ interface DashboardLayoutProps {
   hideSidebar?: boolean;
 }
 
-function navMatchesQuery(label: string, query: string) {
+function navMatchesQuery(label: string | undefined, query: string) {
+  if (!label) return false;
   return label.toLowerCase().includes(query);
 }
 

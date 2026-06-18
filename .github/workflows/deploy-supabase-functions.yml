@@ -1,0 +1,40 @@
+name: Deploy Supabase Edge Functions
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "supabase/functions/**"
+      - ".github/workflows/deploy-supabase-functions.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy paystack (includes Google Meet actions)
+        run: supabase functions deploy paystack --project-ref xbhhpjtwawfawifhpxbe
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Deploy google-meet
+        run: supabase functions deploy google-meet --project-ref xbhhpjtwawfawifhpxbe
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Set Google OAuth secrets
+        run: |
+          if [ -n "${{ secrets.GOOGLE_CLIENT_ID }}" ]; then
+            supabase secrets set \
+              GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
+              GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
+              GOOGLE_REDIRECT_URI="${{ secrets.GOOGLE_REDIRECT_URI }}" \
+              --project-ref xbhhpjtwawfawifhpxbe
+          fi
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

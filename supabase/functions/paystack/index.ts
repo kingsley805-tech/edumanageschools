@@ -1,6 +1,7 @@
 /// <reference path="../deno-shim.d.ts" />
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { handleGoogleMeet, isGoogleMeetAction } from "../_shared/googleMeet.ts";
 
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -2052,6 +2053,16 @@ serve(async (req) => {
 
       const verifyData = await verifyRes.json();
       return jsonResponse(verifyData);
+    }
+
+    if (req.method === "POST" && isGoogleMeetAction(jsonBody.action)) {
+      const authHeader = req.headers.get("Authorization");
+      return handleGoogleMeet(
+        jsonBody,
+        authHeader,
+        { supabaseUrl, supabaseAnon: supabaseKey, serviceKey },
+        jsonResponse,
+      );
     }
 
     return jsonResponse({ error: "Not found" }, 404);

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction, isEdgeFunctionUnreachable } from "@/lib/invokeEdgeFunction";
 import { isMissingSchemaTableError } from "@/report/lib/supabase-errors";
 import type {
   CreateLiveClassInput,
@@ -30,10 +31,17 @@ export const LIVE_CLASSES_SETUP_SQL_URL =
   "https://supabase.com/dashboard/project/xbhhpjtwawfawifhpxbe/sql/new";
 
 export const GOOGLE_MEET_SETUP_HINT =
-  "Deploy the google-meet edge function and set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI in Supabase Edge Function secrets.";
+  "Google Meet is not configured yet. Push this repo to GitHub (paystack edge function redeploys automatically), then add GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI as Supabase or GitHub repository secrets.";
+
+export const GOOGLE_MEET_FUNCTIONS_URL =
+  "https://supabase.com/dashboard/project/xbhhpjtwawfawifhpxbe/functions/paystack/details";
 
 let liveClassesSchemaReady: boolean | null = null;
 let googleMeetUnavailable = false;
+
+export function isGoogleMeetFunctionUnavailable(): boolean {
+  return googleMeetUnavailable;
+}
 
 function isLiveClassesUnavailable(error: { code?: string; message?: string; status?: number } | null): boolean {
   if (!error) return false;
@@ -52,21 +60,31 @@ async function invokeGoogleMeet<T>(body: Record<string, unknown>): Promise<T> {
   if (googleMeetUnavailable) {
     throw new Error(GOOGLE_MEET_SETUP_HINT);
   }
-  const { data, error } = await supabase.functions.invoke("google-meet", { body });
-  if (error) {
-    const msg = error.message ?? "";
-    if (
-      msg.includes("Failed to fetch") ||
-      msg.includes("FunctionsFetchError") ||
-      msg.includes("CORS")
-    ) {
-      googleMeetUnavailable = true;
-      throw new Error(GOOGLE_MEET_SETUP_HINT);
+
+  const attempts = [
+    () => invokeEdgeFunction<T>("google-meet", body),
+    () => invokeEdgeFunction<T>("paystack", body),
+  ];
+
+  let lastError: unknown;
+  for (const attempt of attempts) {
+    try {
+      return await attempt();
+    } catch (error) {
+      if (isEdgeFunctionUnreachable(error)) {
+        lastError = error;
+        continue;
+      }
+      throw error;
     }
-    throw error;
   }
-  if (data?.error) throw new Error(String(data.error));
-  return data as T;
+
+  googleMeetUnavailable = true;
+  throw new Error(
+    lastError instanceof Error && lastError.message
+      ? lastError.message
+      : GOOGLE_MEET_SETUP_HINT,
+  );
 }
 
 export async function fetchGoogleConnection(schoolId: string): Promise<GoogleConnection> {

@@ -31,11 +31,7 @@ import TeacherRegisterEditor from "@/register/pages/teacher/TeacherRegisterEdito
 import StudentRegister from "./pages/student/Register";
 import ParentRegister from "./pages/parent/Register";
 import TimetableDashboard from "@/timetable/pages/admin/TimetableDashboard";
-import AdminOnlineLearning from "@/live-classes/pages/admin/OnlineLearning";
-import GoogleOAuthCallback from "@/live-classes/pages/admin/GoogleOAuthCallback";
-import TeacherLiveClasses from "@/live-classes/pages/teacher/LiveClasses";
-import StudentLiveClasses from "@/live-classes/pages/student/LiveClasses";
-import ParentClassSchedule from "@/live-classes/pages/parent/ClassSchedule";
+import { LiveClassesRoutes } from "@/live-classes/routes";
 import Reports from "@/report/pages/admin/AnalyticsReports";
 import AdminReportCardsIndex from "@/report/pages/admin/ReportCardsIndex";
 import AdminReportCardsView from "@/report/pages/admin/ReportCardsView";
@@ -308,16 +304,7 @@ function App() {
                   <TimetableDashboard />
                 </ProtectedRoute>
               } />
-              <Route path="/admin/online-learning" element={
-                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
-                  <AdminOnlineLearning />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/online-learning/oauth/callback" element={
-                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
-                  <GoogleOAuthCallback />
-                </ProtectedRoute>
-              } />
+              {LiveClassesRoutes()}
               <Route path="/admin/reports" element={
                 <ProtectedRoute allowedRoles={["admin", "super_admin", "accountant", "auditor"]}>
                   <Reports />
@@ -453,11 +440,6 @@ function App() {
                   <TeacherAttendance />
                 </ProtectedRoute>
               } />
-              <Route path="/teacher/live-classes" element={
-                <ProtectedRoute allowedRoles={["teacher"]}>
-                  <TeacherLiveClasses />
-                </ProtectedRoute>
-              } />
               <Route path="/teacher/register" element={
                 <ProtectedRoute allowedRoles={["teacher"]}>
                   <TeacherRegisterList />
@@ -563,11 +545,6 @@ function App() {
                   <ParentTimetable />
                 </ProtectedRoute>
               } />
-              <Route path="/parent/class-schedule" element={
-                <ProtectedRoute allowedRoles={["parent"]}>
-                  <ParentClassSchedule />
-                </ProtectedRoute>
-              } />
               <Route path="/parent/recommendations" element={
                 <ProtectedRoute allowedRoles={["parent"]}>
                   <ParentRecommendations />
@@ -651,11 +628,6 @@ function App() {
               <Route path="/student/timetable" element={
                 <ProtectedRoute allowedRoles={["student"]}>
                   <StudentTimetable />
-                </ProtectedRoute>
-              } />
-              <Route path="/student/live-classes" element={
-                <ProtectedRoute allowedRoles={["student"]}>
-                  <StudentLiveClasses />
                 </ProtectedRoute>
               } />
               <Route path="/teacher/timetable" element={

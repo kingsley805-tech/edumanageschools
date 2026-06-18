@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
-import { PortalPageHeader } from "@/components/PortalPageHeader";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { exchangeGoogleCode } from "@/live-classes/lib/api";
 
 export default function GoogleOAuthCallback() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [done, setDone] = useState(false);
 
@@ -14,9 +14,10 @@ export default function GoogleOAuthCallback() {
     const code = searchParams.get("code");
     const state = searchParams.get("state");
     const error = searchParams.get("error");
+
     if (error) {
       toast.error("Google authorization was cancelled");
-      window.location.href = "/admin/online-learning";
+      navigate("/admin/online-learning", { replace: true });
       return;
     }
     if (!code) return;
@@ -30,10 +31,10 @@ export default function GoogleOAuthCallback() {
         toast.error(e instanceof Error ? e.message : "OAuth failed");
       } finally {
         setDone(true);
-        window.location.href = "/admin/online-learning";
+        navigate("/admin/online-learning", { replace: true });
       }
     })();
-  }, [searchParams]);
+  }, [navigate, searchParams]);
 
   return (
     <DashboardLayout role="admin">

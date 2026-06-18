@@ -1,1 +1,3 @@
-verify_jwt = true
+# Browser CORS preflight (OPTIONS) does not send a JWT — disable gateway JWT check.
+# The handler still validates Authorization on every POST request.
+verify_jwt = false
