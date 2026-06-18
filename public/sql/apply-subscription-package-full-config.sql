@@ -49,6 +49,8 @@ SET search_path = public
 AS $$
 DECLARE
   v_balance int;
+  v_sms_enabled boolean := false;
+  v_sms_override boolean := false;
 BEGIN
   IF p_count IS NULL OR p_count < 1 THEN
     RETURN jsonb_build_object('ok', false, 'error', 'Invalid count');
@@ -58,13 +60,25 @@ BEGIN
     RETURN jsonb_build_object('ok', true, 'super_admin_bypass', true);
   END IF;
 
-  SELECT sms_balance INTO v_balance
+  SELECT sms_balance, coalesce(sms_enabled, false), coalesce(sms_admin_override, false)
+  INTO v_balance, v_sms_enabled, v_sms_override
   FROM public.school_subscriptions
   WHERE school_id = p_school_id
   FOR UPDATE;
 
   IF NOT FOUND THEN
     RETURN jsonb_build_object('ok', true, 'legacy', true);
+  END IF;
+
+  -- Paid SMS add-on: allow sends even when included credit balance is 0.
+  IF v_sms_enabled OR v_sms_override THEN
+    IF coalesce(v_balance, 0) >= p_count THEN
+      UPDATE public.school_subscriptions
+      SET sms_balance = sms_balance - p_count, updated_at = now()
+      WHERE school_id = p_school_id;
+      RETURN jsonb_build_object('ok', true, 'balance_after', v_balance - p_count);
+    END IF;
+    RETURN jsonb_build_object('ok', true, 'unmetered', true, 'balance', coalesce(v_balance, 0));
   END IF;
 
   IF coalesce(v_balance, 0) < p_count THEN

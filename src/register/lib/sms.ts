@@ -232,6 +232,13 @@ export function describeAttendanceSmsResult(result: AttendanceSmsSendResult): {
   const errors = Array.isArray(rawErrors) ? rawErrors.map(String) : [];
   const skipped = result?.skipped ?? 0;
 
+  if (result?.error) {
+    return {
+      variant: "destructive",
+      title: "Attendance saved — SMS failed",
+      description: String(result.error),
+    };
+  }
   if (errors.length > 0) {
     return {
       variant: "destructive",

@@ -11,6 +11,7 @@ After the last script, run: NOTIFY pgrst, 'reload schema';
 8. apply-platform-subscription-checkout-rpc.sql ← Paystack init with package + SMS (fixes GHS 49-only charge)
 9. apply-subscription-module-access-fix.sql       ← CRITICAL: module entitlements after payment, self-heal RPC
 10. apply-subscription-module-catalog-and-resync.sql ← full module catalog + resync counts (or re-run step 9 + new migration)
+11. apply-sms-enable-fix.sql                        ← SMS works when Parent SMS add-on is enabled at checkout
 
 Attendance SMS (teacher page + register):
 - apply-attendance-sms-system.sql (if not already applied)

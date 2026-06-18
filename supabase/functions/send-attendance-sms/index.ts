@@ -299,8 +299,21 @@ async function processAttendanceSmsBatch(opts: {
   if (smsActiveErr) console.error("school_sms_service_active:", smsActiveErr);
 
   const settings = await loadSmsSettings(admin, schoolId);
-  if (smsActive === false || !settings.sms_attendance_enabled) {
-    return { sent: 0, skipped: entries.length, errors: [] };
+  if (smsActive === false) {
+    return {
+      sent: 0,
+      skipped: entries.length,
+      errors: [
+        "School SMS is not enabled. Enable Parent SMS Notifications on your subscription or contact your administrator.",
+      ],
+    };
+  }
+  if (!settings.sms_attendance_enabled) {
+    return {
+      sent: 0,
+      skipped: entries.length,
+      errors: ["Attendance SMS is disabled in Register Settings."],
+    };
   }
 
   const senderId = (

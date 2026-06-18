@@ -98,8 +98,7 @@ BEGIN
   IF NOT FOUND THEN RETURN true; END IF;
 
   IF coalesce(v_sub.sms_admin_override, false) OR coalesce(v_sub.sms_enabled, false) THEN
-    RETURN public.school_has_platform_module(p_school_id, 'sms')
-      OR coalesce(v_sub.sms_admin_override, false);
+    RETURN true;
   END IF;
 
   RETURN false;

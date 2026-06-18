@@ -165,6 +165,7 @@ BEGIN
   END LOOP;
 
   PERFORM public.sync_school_rbac_to_entitlements(p_school_id);
+  PERFORM public.sync_school_sms_entitlement(p_school_id);
 END;
 $$;
 
@@ -228,6 +229,7 @@ BEGIN
   END IF;
 
   PERFORM public.apply_subscription_plan_to_school_internal(v_school_id, v_sub.plan_id);
+  PERFORM public.sync_school_sms_entitlement(v_school_id);
 
   SELECT count(*)::int INTO v_enabled_count
   FROM public.school_module_entitlements e

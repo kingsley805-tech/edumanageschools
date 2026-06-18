@@ -207,10 +207,12 @@ BEGIN
     v_sms_active := true;
   END;
 
-  IF coalesce(v_sms_active, true) = false AND (v_api_key IS NULL OR trim(v_api_key) = '') THEN
+  IF NOT coalesce(v_sms_active, false) THEN
     RETURN jsonb_build_object(
       'error',
-      'School SMS is not enabled on your subscription. Enable SMS for this school or contact your administrator.'
+      'School SMS is not enabled. Enable Parent SMS Notifications on your subscription or ask your platform administrator.',
+      'sent', 0,
+      'skipped', 0
     );
   END IF;
 
