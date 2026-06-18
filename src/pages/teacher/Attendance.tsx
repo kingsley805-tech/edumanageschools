@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { saveTeacherClassAttendance } from "@/lib/attendance-queries";
 import { fetchClassStudents, studentDisplayName } from "@/register/lib/api";
+import { sendTeacherAttendanceSmsNotifications } from "@/register/lib/sms";
 import { fetchTeacherAssignedClasses } from "@/report/lib/teacher-assignments";
 
 type ClassOption = { id: string; name: string };
@@ -25,6 +26,7 @@ const Attendance = () => {
   const [attendanceRecords, setAttendanceRecords] = useState<Record<string, string>>({});
   const [loadingClasses, setLoadingClasses] = useState(true);
   const [loadingStudents, setLoadingStudents] = useState(false);
+  const [saving, setSaving] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -101,6 +103,7 @@ const Attendance = () => {
     const dateStr = date.toISOString().split("T")[0];
 
     try {
+      setSaving(true);
       const records = Object.entries(attendanceRecords).map(([studentId, status]) => ({
         student_id: studentId,
         status,
@@ -112,6 +115,33 @@ const Attendance = () => {
         title: "Success",
         description: "Attendance saved successfully",
       });
+
+      void sendTeacherAttendanceSmsNotifications(selectedClass, dateStr)
+        .then((result) => {
+          const sent = result?.sent ?? 0;
+          const errors = result?.errors ?? [];
+          if (errors.length > 0) {
+            toast({
+              title: "Attendance saved — SMS partially failed",
+              description: errors.slice(0, 2).join("; "),
+              variant: "destructive",
+            });
+          } else if (sent > 0) {
+            toast({
+              title: "Parent SMS sent",
+              description: `${sent} notification${sent === 1 ? "" : "s"} sent to parents.`,
+            });
+          }
+        })
+        .catch((smsError: unknown) => {
+          const message =
+            smsError instanceof Error ? smsError.message : "Could not send parent SMS notifications";
+          toast({
+            title: "Attendance saved — SMS failed",
+            description: message,
+            variant: "destructive",
+          });
+        });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to save attendance";
       toast({
@@ -119,6 +149,8 @@ const Attendance = () => {
         description: message,
         variant: "destructive",
       });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -134,9 +166,9 @@ const Attendance = () => {
             <h2 className="text-3xl font-bold tracking-tight">Attendance</h2>
             <p className="text-muted-foreground">Mark and manage student attendance</p>
           </div>
-          <Button className="gap-2" onClick={handleSaveAttendance} disabled={!selectedClass || loadingStudents}>
+          <Button className="gap-2" onClick={handleSaveAttendance} disabled={!selectedClass || loadingStudents || saving}>
             <Save className="h-4 w-4" />
-            Save Attendance
+            {saving ? "Saving…" : "Save Attendance"}
           </Button>
         </div>
 

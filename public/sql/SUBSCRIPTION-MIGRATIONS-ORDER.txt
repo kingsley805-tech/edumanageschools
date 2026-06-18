@@ -10,6 +10,12 @@ After the last script, run: NOTIFY pgrst, 'reload schema';
 7. apply-subscription-package-full-config.sql   ← SMS credits, student/teacher limits, activation hooks
 8. apply-platform-subscription-checkout-rpc.sql ← Paystack init with package + SMS (fixes GHS 49-only charge)
 
+Attendance SMS (teacher page + register):
+- apply-attendance-sms-system.sql (if not already applied)
+- apply-attendance-sms-teacher-page.sql ← attendance_sms_logs, templates, master toggle
+- Deploy edge function: send-attendance-sms
+- Secret: ARKESEL_API_KEY
+
 Optional (fixes lesson_notes 404 on admin dashboard):
 9. apply-lesson-notes.sql
 10. apply-lesson-notes-nav.sql
