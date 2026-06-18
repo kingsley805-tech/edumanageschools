@@ -134,12 +134,8 @@ const Attendance = () => {
           }
         })
         .catch((smsError: unknown) => {
-          let message =
+          const message =
             smsError instanceof Error ? smsError.message : "Could not send parent SMS notifications";
-          if (/registerId/i.test(message)) {
-            message +=
-              " Redeploy the send-attendance-sms Edge Function in Supabase (Dashboard → Edge Functions) and run public/sql/apply-attendance-sms-teacher-page.sql.";
-          }
           toast({
             title: "Attendance saved — SMS failed",
             description: message,

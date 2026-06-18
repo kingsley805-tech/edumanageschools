@@ -100,11 +100,128 @@ export async function sendAttendanceSmsNotifications(registerId: string) {
   );
 }
 
+const TEACHER_ATTENDANCE_PERIOD = "Teacher Attendance";
+
+async function prepareTeacherAttendanceSmsRegisterClient(classId: string, dateStr: string): Promise<string> {
+  const { data: cls, error: clsErr } = await supabase
+    .from("classes")
+    .select("school_id, class_teacher_id")
+    .eq("id", classId)
+    .single();
+  if (clsErr || !cls) throw new Error("Class not found");
+
+  const { data: session } = await supabase.auth.getSession();
+  const userId = session.session?.user?.id;
+  if (!userId) throw new Error("Please sign in again");
+
+  const { data: teacherRow } = await supabase
+    .from("teachers")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("school_id", cls.school_id)
+    .maybeSingle();
+
+  let teacherId = teacherRow?.id ?? cls.class_teacher_id;
+  if (!teacherId) {
+    const { data: anyTeacher } = await supabase
+      .from("teachers")
+      .select("id")
+      .eq("school_id", cls.school_id)
+      .limit(1)
+      .maybeSingle();
+    teacherId = anyTeacher?.id ?? null;
+  }
+  if (!teacherId) throw new Error("No teacher profile found for SMS");
+
+  const { data: classSubject } = await supabase
+    .from("class_subjects")
+    .select("subject_id")
+    .eq("class_id", classId)
+    .limit(1)
+    .maybeSingle();
+
+  let subjectId = classSubject?.subject_id;
+  if (!subjectId) {
+    const { data: attSubject } = await supabase
+      .from("subjects")
+      .select("id")
+      .eq("school_id", cls.school_id)
+      .eq("code", "_ATT_SMS")
+      .maybeSingle();
+    subjectId = attSubject?.id;
+  }
+  if (!subjectId) {
+    const { data: anySubject } = await supabase
+      .from("subjects")
+      .select("id")
+      .eq("school_id", cls.school_id)
+      .limit(1)
+      .maybeSingle();
+    subjectId = anySubject?.id;
+  }
+  if (!subjectId) {
+    throw new Error("No subject found for this class. Assign a subject to the class or contact your admin.");
+  }
+
+  const { data: registerId, error: regErr } = await supabase.rpc("create_or_get_class_register", {
+    p_school_id: cls.school_id,
+    p_class_id: classId,
+    p_subject_id: subjectId,
+    p_teacher_id: teacherId,
+    p_register_date: dateStr,
+    p_period_label: TEACHER_ATTENDANCE_PERIOD,
+  });
+  if (regErr) throw regErr;
+  if (!registerId) throw new Error("Could not prepare SMS register");
+
+  const { data: attendanceRows, error: attErr } = await supabase
+    .from("attendance")
+    .select("student_id, status")
+    .eq("class_id", classId)
+    .eq("date", dateStr);
+  if (attErr) throw attErr;
+
+  const entries = (attendanceRows ?? []).map((row) => ({
+    student_id: row.student_id,
+    attendance_status: row.status,
+  }));
+
+  if (entries.length > 0) {
+    const { error: upsertErr } = await supabase.rpc("upsert_register_entries", {
+      p_register_id: registerId,
+      p_entries: entries,
+    });
+    if (upsertErr) throw upsertErr;
+  }
+
+  return String(registerId);
+}
+
 /** Fire-and-forget parent SMS after teacher attendance page save. */
 export async function sendTeacherAttendanceSmsNotifications(classId: string, date: string) {
+  const dateStr = date.slice(0, 10);
+  let registerId: string;
+
+  const { data: rpcRegisterId, error: prepError } = await supabase.rpc(
+    "prepare_teacher_attendance_sms_register",
+    { p_class_id: classId, p_date: dateStr },
+  );
+
+  if (!prepError && rpcRegisterId) {
+    registerId = String(rpcRegisterId);
+  } else {
+    const missingRpc =
+      !prepError ||
+      prepError.code === "42883" ||
+      prepError.code === "PGRST202" ||
+      (prepError.message ?? "").includes("prepare_teacher_attendance_sms_register");
+    if (!missingRpc) throw prepError;
+    registerId = await prepareTeacherAttendanceSmsRegisterClient(classId, dateStr);
+  }
+
   return invokeEdgeFunction<{ ok?: boolean; sent?: number; skipped?: number; errors?: string[] }>(
     "send-attendance-sms",
-    { classId, date: date.slice(0, 10) },
+    { registerId },
   );
 }
 
