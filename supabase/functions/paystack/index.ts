@@ -1779,14 +1779,14 @@ serve(async (req) => {
             ? clientPackageAmount
             : planPackageAmount;
 
+        // When SMS is enabled, always add SMS fee to the Paystack charge (package + SMS).
         let smsAmount = 0;
         if (enableSms) {
-          smsAmount =
-            planSmsAmount > 0
-              ? planSmsAmount
-              : Number.isFinite(clientSmsAmount) && clientSmsAmount > 0
-                ? clientSmsAmount
-                : 0;
+          if (Number.isFinite(clientSmsAmount) && clientSmsAmount > 0) {
+            smsAmount = clientSmsAmount;
+          } else if (planSmsAmount > 0) {
+            smsAmount = planSmsAmount;
+          }
         }
 
         const amount = packageAmount + smsAmount;
@@ -1886,6 +1886,7 @@ serve(async (req) => {
               enable_sms: enableSms,
               package_amount: packageAmount,
               sms_amount: smsAmount,
+              total_amount: amount,
               payer_user_id: user.id,
               payer_name: profile.full_name || email,
             },

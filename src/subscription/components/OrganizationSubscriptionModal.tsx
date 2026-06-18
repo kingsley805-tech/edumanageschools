@@ -191,7 +191,7 @@ export default function OrganizationSubscriptionModal({
         billing_cycle: billingCycle,
         enable_sms: enableSms,
         package_amount: packageAmount,
-        sms_amount: smsAmount,
+        sms_amount: enableSms ? smsAmount : 0,
         total_amount: price,
         callback_url: callbackUrl,
       });
