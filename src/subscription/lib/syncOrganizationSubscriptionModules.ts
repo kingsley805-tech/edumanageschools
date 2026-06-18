@@ -7,6 +7,8 @@ export type SyncOrganizationModulesResult = {
   status?: string;
   plan_id?: string;
   school_id?: string;
+  plan_module_count?: number;
+  enabled_count?: number;
 };
 
 /** Re-applies the school's active subscription plan modules (entitlements + RBAC). */

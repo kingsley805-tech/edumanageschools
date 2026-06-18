@@ -24,10 +24,7 @@ ON CONFLICT (module_key) DO UPDATE SET
   portal_module_key = EXCLUDED.portal_module_key,
   sort_order = EXCLUDED.sort_order;
 
--- Ensure basic plan example includes dashboard
-UPDATE public.subscription_plans
-SET default_modules = '["dashboard","students","teachers","attendance","class_registers","report_cards"]'::jsonb
-WHERE slug = 'basic';
+-- Do not overwrite custom plan modules here — configure packages in Platform → Subscription Plans.
 
 -- ---------------------------------------------------------------------------
 -- Strip staff role permissions for portal modules not in the school's package

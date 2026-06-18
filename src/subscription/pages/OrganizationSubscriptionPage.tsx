@@ -24,7 +24,11 @@ export default function OrganizationSubscriptionPage() {
     try {
       const result = await syncOrganizationSubscriptionModules();
       if (result?.ok) {
-        toast.success("Module access refreshed from your subscription plan.");
+        toast.success(
+          result.enabled_count != null && result.plan_module_count != null
+            ? `Module access refreshed (${result.enabled_count} of ${result.plan_module_count} plan pages).`
+            : "Module access refreshed from your subscription plan.",
+        );
         await invalidate();
         return;
       }

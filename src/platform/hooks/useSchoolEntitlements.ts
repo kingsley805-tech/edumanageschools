@@ -39,8 +39,28 @@ export function useSchoolEntitlements(schoolId?: string | null) {
       const [modsRes, entRes, subRes] = await Promise.all([
         supabase.from("platform_modules").select("*").order("sort_order"),
         supabase.from("school_module_entitlements").select("*").eq("school_id", sid!),
-        supabase.from("school_subscriptions").select("status, read_only_on_expiry, block_login_on_expiry, expires_at").eq("school_id", sid!).maybeSingle(),
+        supabase.from("school_subscriptions").select("status, read_only_on_expiry, block_login_on_expiry, expires_at, plan_id").eq("school_id", sid!).maybeSingle(),
       ]);
+
+      let planModuleCount = 0;
+      if (subRes.data?.plan_id) {
+        const planRes = await supabase
+          .from("subscription_plans")
+          .select("default_modules")
+          .eq("id", subRes.data.plan_id)
+          .maybeSingle();
+        const raw = planRes.data?.default_modules;
+        if (Array.isArray(raw)) {
+          planModuleCount = new Set(raw.filter(Boolean)).size;
+        } else if (typeof raw === "string") {
+          try {
+            const parsed = JSON.parse(raw) as string[];
+            planModuleCount = new Set(parsed.filter(Boolean)).size;
+          } catch {
+            planModuleCount = 0;
+          }
+        }
+      }
 
       const platformReady =
         !modsRes.error &&
@@ -57,6 +77,7 @@ export function useSchoolEntitlements(schoolId?: string | null) {
           rows: [],
           subscription: subRes.data ?? null,
           enforced: false,
+          planModuleCount: 0,
         };
       }
 
@@ -81,6 +102,7 @@ export function useSchoolEntitlements(schoolId?: string | null) {
         rows,
         subscription: subRes.data,
         enforced: Boolean(subRes.data),
+        planModuleCount,
       };
     },
     retry: (failureCount, error) => {
@@ -155,7 +177,10 @@ export function useSchoolEntitlements(schoolId?: string | null) {
     if (!data?.rows?.length) return;
 
     const enabledCount = data.rows.filter((row) => row.enabled && row.portal_module_key).length;
-    if (enabledCount > 0) return;
+    const planModuleCount = data.planModuleCount ?? 0;
+    const needsSync =
+      enabledCount === 0 || (planModuleCount > 0 && enabledCount < planModuleCount);
+    if (!needsSync) return;
 
     const syncKey = `${sid}:${subscriptionAccess.plan_id ?? "none"}`;
     if (moduleSyncAttemptedRef.current === syncKey) return;
@@ -182,6 +207,7 @@ export function useSchoolEntitlements(schoolId?: string | null) {
     subscriptionAccess?.plan_id,
     data?.enforced,
     data?.rows,
+    data?.planModuleCount,
   ]);
 
   return {
