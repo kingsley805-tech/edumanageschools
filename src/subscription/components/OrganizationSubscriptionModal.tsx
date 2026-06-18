@@ -69,6 +69,25 @@ export default function OrganizationSubscriptionModal({
     [plans],
   );
 
+  const currentPlanId = access?.plan_id ?? null;
+
+  useEffect(() => {
+    if (!visible || !currentPlanId) return;
+    if (displayPlans.some((p) => p.id === currentPlanId)) {
+      setSelectedPlanId((prev) => prev ?? currentPlanId);
+    }
+  }, [visible, currentPlanId, displayPlans]);
+
+  useEffect(() => {
+    if (!visible) {
+      billingCycleSyncedRef.current = false;
+      return;
+    }
+    if (billingCycleSyncedRef.current || !access?.billing_cycle) return;
+    setBillingCycle(access.billing_cycle as BillingCycle);
+    billingCycleSyncedRef.current = true;
+  }, [visible, access?.billing_cycle]);
+
   useEffect(() => {
     if (!visible) return;
     void refetchPlans();
@@ -144,6 +163,7 @@ export default function OrganizationSubscriptionModal({
   }, [visible]);
 
   const confirmAttemptRef = useRef<string | null>(null);
+  const billingCycleSyncedRef = useRef(false);
 
   const clearPaystackReturnParams = () => {
     const url = new URL(window.location.href);
@@ -292,20 +312,35 @@ export default function OrganizationSubscriptionModal({
                 ? Number(plan.price_annual)
                 : Number(plan.price_monthly);
             const selected = selectedPlanId === plan.id;
+            const isCurrentPlan = currentPlanId === plan.id;
             const sidebarItems = sidebarItemsFromPlanModules(plan.default_modules as string[]);
             const visibleSidebarItems = sidebarItems.slice(0, 12);
             const hiddenSidebarCount = sidebarItems.length - visibleSidebarItems.length;
             return (
               <Card
                 key={plan.id}
-                className={`cursor-pointer transition-all ${selected ? "border-primary ring-2 ring-primary/30" : "hover:border-primary/50"}`}
+                className={`cursor-pointer transition-all ${
+                  selected
+                    ? "border-primary ring-2 ring-primary/30"
+                    : isCurrentPlan
+                      ? "border-emerald-600/60 ring-1 ring-emerald-600/25"
+                      : "hover:border-primary/50"
+                }`}
                 onClick={() => setSelectedPlanId(plan.id)}
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-lg">{plan.name}</CardTitle>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      {isCurrentPlan ? (
+                        <Check className="h-5 w-5 shrink-0 text-emerald-600" aria-hidden />
+                      ) : null}
+                      {plan.name}
+                    </CardTitle>
                     <div className="flex shrink-0 flex-col items-end gap-1">
-                      {selected ? <Badge>Selected</Badge> : null}
+                      {isCurrentPlan ? (
+                        <Badge className="bg-emerald-600 hover:bg-emerald-600">Current plan</Badge>
+                      ) : null}
+                      {selected && !isCurrentPlan ? <Badge>Selected</Badge> : null}
                       {plan.is_custom ? <Badge variant="secondary">Enterprise</Badge> : null}
                     </div>
                   </div>
@@ -430,6 +465,8 @@ export default function OrganizationSubscriptionModal({
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Redirecting to Paystack…
             </>
+          ) : selectedPlanId === currentPlanId && currentPlanId ? (
+            "Renew plan"
           ) : (
             "Pay & activate"
           )}
