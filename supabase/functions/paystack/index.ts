@@ -84,6 +84,9 @@ const validateCallbackUrl = (raw: string | undefined | null): string | null => {
   throw new Error("Callback URL must use HTTPS (or http://localhost for development)");
 };
 
+const parseTruthyBoolean = (value: unknown): boolean =>
+  value === true || value === "true" || value === 1 || value === "1";
+
 const verifyPaystackSignature = async (rawBody: string, signature: string | null, secret: string) => {
   if (!signature) return false;
   const key = new TextEncoder().encode(secret);
@@ -1750,31 +1753,61 @@ serve(async (req) => {
 
         const planId = typeof jsonBody.plan_id === "string" ? jsonBody.plan_id.trim() : "";
         const billingCycle = jsonBody.billing_cycle === "annual" ? "annual" : "monthly";
-        const enableSms = jsonBody.enable_sms === true;
+        const enableSms = parseTruthyBoolean(jsonBody.enable_sms);
         if (!planId) return jsonResponse({ error: "Missing plan_id" }, 400);
 
         const { data: plan, error: planErr } = await admin
           .from("subscription_plans")
-          .select(
-            "id, name, price_monthly, price_annual, sms_addon_fee_monthly, sms_addon_fee_annual, is_active",
-          )
+          .select("*")
           .eq("id", planId)
           .maybeSingle();
         if (planErr || !plan || !plan.is_active) return jsonResponse({ error: "Plan not found" }, 404);
 
-        const packageAmount =
+        const planPackageAmount =
           billingCycle === "annual" ? Number(plan.price_annual) : Number(plan.price_monthly);
-        const smsAmount = enableSms
+        const planSmsAmount = enableSms
           ? billingCycle === "annual"
             ? Number(plan.sms_addon_fee_annual ?? 0)
             : Number(plan.sms_addon_fee_monthly ?? 0)
           : 0;
+
+        const clientPackageAmount = Number(jsonBody.package_amount);
+        const clientSmsAmount = Number(jsonBody.sms_amount);
+
+        const packageAmount =
+          Number.isFinite(clientPackageAmount) && clientPackageAmount >= 0
+            ? clientPackageAmount
+            : planPackageAmount;
+
+        let smsAmount = 0;
+        if (enableSms) {
+          smsAmount =
+            planSmsAmount > 0
+              ? planSmsAmount
+              : Number.isFinite(clientSmsAmount) && clientSmsAmount > 0
+                ? clientSmsAmount
+                : 0;
+        }
+
         const amount = packageAmount + smsAmount;
         if (!Number.isFinite(packageAmount) || packageAmount < 0) {
           return jsonResponse({ error: "Invalid plan price" }, 400);
         }
         if (!Number.isFinite(smsAmount) || smsAmount < 0) {
           return jsonResponse({ error: "Invalid SMS add-on price" }, 400);
+        }
+        if (enableSms && smsAmount <= 0) {
+          return jsonResponse({ error: "SMS add-on is enabled but no SMS fee is configured" }, 400);
+        }
+
+        const clientTotal = Number(jsonBody.total_amount);
+        if (Number.isFinite(clientTotal) && clientTotal > 0 && Math.abs(clientTotal - amount) > 0.02) {
+          return jsonResponse(
+            {
+              error: `Checkout total mismatch (expected GHS ${amount}, received GHS ${clientTotal}). Refresh and try again.`,
+            },
+            400,
+          );
         }
 
         let platformSecret = getPlatformPaystackSecret();
@@ -1808,7 +1841,7 @@ serve(async (req) => {
 
         const reference = `ORG-SUB-${String(profile.school_id).slice(0, 8)}-${Date.now()}`;
 
-        const { error: checkoutErr } = await admin.from("platform_subscription_checkouts").insert({
+        const checkoutPayload = {
           reference,
           school_id: profile.school_id,
           plan_id: planId,
@@ -1818,7 +1851,19 @@ serve(async (req) => {
           sms_amount: smsAmount,
           enable_sms: enableSms,
           created_by: user.id,
-        });
+        };
+
+        let { error: checkoutErr } = await admin.from("platform_subscription_checkouts").insert(checkoutPayload);
+        if (checkoutErr?.message?.toLowerCase().includes("column")) {
+          ({ error: checkoutErr } = await admin.from("platform_subscription_checkouts").insert({
+            reference,
+            school_id: profile.school_id,
+            plan_id: planId,
+            billing_cycle: billingCycle,
+            amount,
+            created_by: user.id,
+          }));
+        }
         if (checkoutErr) return jsonResponse({ error: checkoutErr.message }, 400);
 
         const paystackRes = await fetch("https://api.paystack.co/transaction/initialize", {

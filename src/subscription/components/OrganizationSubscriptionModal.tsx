@@ -172,19 +172,34 @@ export default function OrganizationSubscriptionModal({
       toast.error("Select a subscription plan");
       return;
     }
+    if (enableSms && smsAmount <= 0) {
+      toast.error("SMS add-on is enabled but this plan has no SMS service fee configured");
+      return;
+    }
     setPaying(true);
     try {
       const callbackUrl = `${window.location.origin}/admin/subscription`;
       const data = await invokeEdgeFunction<{
         authorization_url?: string;
+        total_amount?: number;
+        package_amount?: number;
+        sms_amount?: number;
         error?: string;
       }>("paystack", {
         action: "platform-subscription-init",
         plan_id: selectedPlanId,
         billing_cycle: billingCycle,
         enable_sms: enableSms,
+        package_amount: packageAmount,
+        sms_amount: smsAmount,
+        total_amount: price,
         callback_url: callbackUrl,
       });
+      if (typeof data?.total_amount === "number" && Math.abs(data.total_amount - price) > 0.02) {
+        throw new Error(
+          `Paystack total (GHS ${data.total_amount}) does not match checkout (GHS ${price}). Redeploy the paystack edge function.`,
+        );
+      }
       if (data?.authorization_url) {
         window.location.href = data.authorization_url;
         return;
