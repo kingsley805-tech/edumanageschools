@@ -10,14 +10,17 @@ import {
   fetchLiveClassSessions,
   fetchSchoolId,
   finalizeSession,
+  getSessionStatus,
+  isLiveClassesSchemaReady,
+  LIVE_CLASSES_SETUP_HINT,
   recordJoin,
   recordLeave,
 } from "@/live-classes/lib/api";
 import type { LiveClassSession } from "@/live-classes/lib/types";
 import { fetchTeacherAssignedClasses } from "@/report/lib/teacher-assignments";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { getSessionStatus } from "@/live-classes/lib/api";
 
 export default function TeacherLiveClasses() {
   const { user } = useAuth();
@@ -27,11 +30,13 @@ export default function TeacherLiveClasses() {
   const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [subjects, setSubjects] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [schemaReady, setSchemaReady] = useState<boolean | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
+      setSchemaReady(await isLiveClassesSchemaReady());
       const sid = await fetchSchoolId(user.id);
       if (!sid) return;
       setSchoolId(sid);
@@ -113,6 +118,13 @@ export default function TeacherLiveClasses() {
             ) : null
           }
         />
+
+        {schemaReady === false && (
+          <Alert variant="destructive">
+            <AlertTitle>Database setup required</AlertTitle>
+            <AlertDescription>{LIVE_CLASSES_SETUP_HINT}</AlertDescription>
+          </Alert>
+        )}
 
         {loading ? (
           <p className="text-muted-foreground">Loading…</p>

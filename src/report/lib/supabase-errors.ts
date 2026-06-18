@@ -17,6 +17,7 @@ export function isMissingSchemaTableError(error: SupabaseLikeError): boolean {
   const msg = error.message ?? "";
   return (
     error.code === "PGRST205" ||
+    error.code === "42P01" ||
     /could not find the table/i.test(msg) ||
     /could not find.*table/i.test(msg) ||
     /relation.*does not exist/i.test(msg)

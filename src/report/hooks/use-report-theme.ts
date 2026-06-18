@@ -9,7 +9,7 @@ import {
   resolveReportThemePrimary,
   type ReportBrandColors,
 } from "@/report/lib/report-brand-colors";
-import { isMissingSchemaColumnError } from "@/report/lib/supabase-errors";
+import { isMissingSchemaError } from "@/report/lib/supabase-errors";
 
 export function useReportTheme(schoolIdOverride?: string | null) {
   const { profile, user } = useAuth();
@@ -36,10 +36,10 @@ export function useReportTheme(schoolIdOverride?: string | null) {
           .maybeSingle(),
       ]);
 
-      if (settingsRes.error && !isMissingSchemaColumnError(settingsRes.error)) {
+      if (settingsRes.error && !isMissingSchemaError(settingsRes.error)) {
         throw settingsRes.error;
       }
-      if (schoolRes.error && !isMissingSchemaColumnError(schoolRes.error)) {
+      if (schoolRes.error && !isMissingSchemaError(schoolRes.error)) {
         throw schoolRes.error;
       }
 
