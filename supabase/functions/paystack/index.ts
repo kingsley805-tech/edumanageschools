@@ -1,3 +1,4 @@
+/// <reference path="../deno-shim.d.ts" />
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -843,8 +844,10 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: "Invalid signature" }), { status: 401, headers: corsHeaders });
       }
 
-      const reference = event?.data?.reference || null;
-      const schoolId = event?.data?.metadata?.school_id || null;
+      const webhookPayload = (event.data as Record<string, unknown> | undefined) ?? {};
+      const webhookMeta = (webhookPayload.metadata as Record<string, unknown> | undefined) ?? {};
+      const reference = webhookPayload.reference != null ? String(webhookPayload.reference) : null;
+      const schoolId = webhookMeta.school_id != null ? String(webhookMeta.school_id) : null;
 
       const { data: existingEvent } = reference
         ? await adminSupabase
@@ -1577,13 +1580,17 @@ serve(async (req) => {
         return jsonResponse({ error: "Missing required fields: salary_id, amount, staff_user_id, month" }, 400);
       }
 
+      const salaryId = String(salary_id);
+      const staffUserId = String(staff_user_id);
+      const monthStr = String(month);
+
       const { data: salary } = await adminSupabase
         .from("staff_salaries")
         .select("id, school_id, staff_user_id, amount, status")
-        .eq("id", salary_id)
+        .eq("id", salaryId)
         .maybeSingle();
 
-      if (!salary || salary.school_id !== schoolId || salary.staff_user_id !== staff_user_id) {
+      if (!salary || salary.school_id !== schoolId || salary.staff_user_id !== staffUserId) {
         return jsonResponse({ error: "Salary record not found" }, 404);
       }
 
@@ -1605,7 +1612,7 @@ serve(async (req) => {
         .from("staff_bank_accounts")
         .select("account_number, bank_code, account_name, recipient_code")
         .eq("school_id", schoolId)
-        .eq("staff_user_id", staff_user_id)
+        .eq("staff_user_id", staffUserId)
         .maybeSingle();
 
       const acctNumber = account_number || existingBank?.account_number;
@@ -1626,7 +1633,7 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             type: recipientType,
-            name: acctName || `Teacher ${staff_user_id.slice(0, 8)}`,
+            name: acctName || `Teacher ${staffUserId.slice(0, 8)}`,
             account_number: acctNumber,
             bank_code: bankCode,
             currency: transferCurrency,
@@ -1642,7 +1649,7 @@ serve(async (req) => {
 
         await adminSupabase.from("staff_bank_accounts").upsert({
           school_id: schoolId,
-          staff_user_id,
+          staff_user_id: staffUserId,
           account_number: acctNumber,
           bank_code: bankCode,
           account_name: acctName,
@@ -1650,7 +1657,7 @@ serve(async (req) => {
         }, { onConflict: "school_id,staff_user_id" });
       }
 
-      const reference = `SAL-${salary_id.slice(0, 8)}-${Date.now()}`;
+      const reference = `SAL-${salaryId.slice(0, 8)}-${Date.now()}`;
       const transferRes = await fetch("https://api.paystack.co/transfer", {
         method: "POST",
         headers: {
@@ -1662,7 +1669,7 @@ serve(async (req) => {
           currency: transferCurrency,
           amount: Math.round(Number(amount) * 100),
           recipient: recipientCode,
-          reason: description || `Salary for ${month}`,
+          reason: description || `Salary for ${monthStr}`,
           reference,
         }),
       });
@@ -1672,7 +1679,7 @@ serve(async (req) => {
         await adminSupabase
           .from("staff_salaries")
           .update({ status: "failed", gateway: "paystack", gateway_ref: reference, notes: transferData?.message || "Transfer failed" })
-          .eq("id", salary_id);
+          .eq("id", salaryId);
         return jsonResponse({ error: transferData?.message || "Transfer failed" }, 400);
       }
 
@@ -1685,7 +1692,7 @@ serve(async (req) => {
           gateway_ref: transferData?.data?.reference || reference,
           paid_at: new Date().toISOString(),
         })
-        .eq("id", salary_id)
+        .eq("id", salaryId)
         .eq("school_id", schoolId);
 
       await adminSupabase.from("audit_logs").insert({
@@ -1693,12 +1700,12 @@ serve(async (req) => {
         user_id: user.id,
         action: "salary_transfer_paid",
         entity: "staff_salaries",
-        entity_id: salary_id,
+        entity_id: salaryId,
         after_data: {
-          salary_id,
-          staff_user_id,
+          salary_id: salaryId,
+          staff_user_id: staffUserId,
           amount: Number(amount),
-          month,
+          month: monthStr,
           reference: transferData?.data?.reference || reference,
           gateway: "paystack",
         },
@@ -1706,7 +1713,7 @@ serve(async (req) => {
 
       return jsonResponse({
         success: true,
-        salary_id,
+        salary_id: salaryId,
         reference: transferData?.data?.reference || reference,
       });
     }
@@ -1953,6 +1960,23 @@ serve(async (req) => {
         const reference = typeof jsonBody.reference === "string" ? jsonBody.reference.trim() : "";
         if (!reference) return jsonResponse({ error: "Missing reference" }, 400);
 
+        const { data: existingCheckout } = await admin
+          .from("platform_subscription_checkouts")
+          .select("consumed_at, school_id")
+          .eq("reference", reference)
+          .maybeSingle();
+
+        if (existingCheckout?.consumed_at) {
+          const { data: existingSub } = await admin
+            .from("school_subscriptions")
+            .select("status")
+            .eq("school_id", existingCheckout.school_id)
+            .maybeSingle();
+          if (existingSub?.status === "active") {
+            return jsonResponse({ ok: true, duplicate: true });
+          }
+        }
+
         let platformSecret = getPlatformPaystackSecret();
         if (!platformSecret) {
           const dbCfg = await getPlatformPaystackSecretFromDb(admin);
@@ -1972,7 +1996,9 @@ serve(async (req) => {
 
         const txn = verifyData.data;
         const metadata = (txn.metadata as Record<string, unknown>) || {};
-        if (metadata.payment_context !== "platform_subscription") {
+        const isPlatformSubscription =
+          metadata.payment_context === "platform_subscription" || reference.startsWith("ORG-SUB-");
+        if (!isPlatformSubscription) {
           return jsonResponse({ error: "Invalid payment type" }, 400);
         }
 

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, CreditCard, Loader2, Lock, LogOut, MessageSquare } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -143,31 +143,71 @@ export default function OrganizationSubscriptionModal({
     };
   }, [visible]);
 
+  const confirmAttemptRef = useRef<string | null>(null);
+
+  const clearPaystackReturnParams = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("reference");
+    url.searchParams.delete("trxref");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  };
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const ref = params.get("reference") || params.get("trxref");
     if (!ref || !visible) return;
+    if (!ref.startsWith("ORG-SUB-")) {
+      clearPaystackReturnParams();
+      return;
+    }
+    if (access?.access_state === "active" || access?.access_state === "expiring_soon") {
+      clearPaystackReturnParams();
+      return;
+    }
+    const confirmKey = `org-sub-confirm:${ref}`;
+    if (sessionStorage.getItem(confirmKey) === "done") {
+      clearPaystackReturnParams();
+      return;
+    }
+    if (confirmAttemptRef.current === ref) return;
+    confirmAttemptRef.current = ref;
     void confirmPayment(ref);
-  }, [visible]);
+  }, [visible, access?.access_state]);
 
   const confirmPayment = async (reference: string) => {
+    const confirmKey = `org-sub-confirm:${reference}`;
     setVerifying(true);
     try {
-      const data = await invokeEdgeFunction<{ ok?: boolean; error?: string }>("paystack", {
+      const data = await invokeEdgeFunction<{ ok?: boolean; duplicate?: boolean; error?: string }>("paystack", {
         action: "platform-subscription-confirm",
         reference,
       });
+      sessionStorage.setItem(confirmKey, "done");
+      clearPaystackReturnParams();
       if (data?.ok) {
-        toast.success("Subscription activated! Welcome to your dashboard.");
+        toast.success(
+          data.duplicate ? "Subscription is already active." : "Subscription activated! Welcome to your dashboard.",
+        );
         await invalidate();
         onActivated?.();
-        window.history.replaceState({}, "", "/admin/subscription");
         navigate("/admin", { replace: true });
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Payment verification failed");
+      sessionStorage.setItem(confirmKey, "failed");
+      clearPaystackReturnParams();
+      const message = e instanceof Error ? e.message : "Payment verification failed";
+      const abandoned =
+        /not successful/i.test(message) ||
+        /abandoned/i.test(message) ||
+        /cancel/i.test(message);
+      if (abandoned) {
+        toast.message("Payment was not completed. Select a plan and try again when ready.");
+      } else {
+        toast.error(message);
+      }
     } finally {
       setVerifying(false);
+      confirmAttemptRef.current = null;
     }
   };
 
