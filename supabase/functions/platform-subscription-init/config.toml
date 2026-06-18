@@ -1,1 +1,3 @@
-verify_jwt = true
+verify_jwt = false
+
+# OPTIONS preflight has no JWT — auth is enforced inside the handler.

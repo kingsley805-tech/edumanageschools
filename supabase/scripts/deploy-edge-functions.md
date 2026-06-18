@@ -47,7 +47,29 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 
 If deploy returns **403**, your Supabase account may not have deploy access on this project. Use **Option B** or ask the project owner to deploy.
 
-## Option B — Supabase Dashboard
+## Option B — Supabase Dashboard (no CLI)
+
+Works with **Lovable-linked Supabase** when you cannot run `supabase login`.
+
+1. Open your project: [Supabase Dashboard → Edge Functions](https://supabase.com/dashboard/project/xbhhpjtwawfawifhpxbe/functions)
+2. **Create or open** function `platform-subscription-init`
+3. Paste the entire contents of **`supabase/functions/platform-subscription-init/index.ts`** (single file, no imports from other folders)
+4. Click **Deploy**
+5. Open function **`paystack`**, redeploy from repo after a git push, or paste an updated `paystack/index.ts` if you maintain it manually
+6. **Edge Functions → Secrets**: ensure `PLATFORM_PAYSTACK_SECRET_KEY` is set (and `PAYSTACK_SECRET_KEY` if you use that instead)
+
+## Option C — Lovable + Git push
+
+If your app is built on Lovable and connected to GitHub:
+
+1. **Commit and push** this repo (includes `supabase/functions/platform-subscription-init/` and updated `paystack/`)
+2. In Lovable, sync/deploy backend (or wait for automatic Supabase function deploy if enabled)
+3. Confirm in Supabase Dashboard → Edge Functions that **`platform-subscription-init`** shows **Active** with a recent deploy time
+4. Run SQL migrations in **Supabase → SQL Editor** (no CLI): see `public/sql/SUBSCRIPTION-MIGRATIONS-ORDER.txt`
+
+The frontend calls `platform-subscription-init` first; if that function is missing, it falls back to `paystack` with action `platform-subscription-init` (requires redeployed `paystack` too).
+
+## Option D — Supabase Dashboard (legacy paystack-only)
 
 1. Open [Edge Functions](https://supabase.com/dashboard/project/xbhhpjtwawfawifhpxbe/functions) for the project.
 2. Deploy or redeploy function **`paystack`** from this repo: `supabase/functions/paystack/index.ts`.
