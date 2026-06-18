@@ -6,6 +6,7 @@ import { Calendar as CalendarIcon, Save } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCallback, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +15,7 @@ import { saveTeacherClassAttendance } from "@/lib/attendance-queries";
 import { fetchClassStudents, studentDisplayName } from "@/register/lib/api";
 import { sendTeacherAttendanceSmsNotifications, describeAttendanceSmsResult } from "@/register/lib/sms";
 import { fetchTeacherAssignedClasses } from "@/report/lib/teacher-assignments";
+import { invalidateAttendanceQueries } from "@/register/hooks/use-attendance-summary";
 
 type ClassOption = { id: string; name: string };
 type ClassStudent = Awaited<ReturnType<typeof fetchClassStudents>>[number];
@@ -29,6 +31,7 @@ const Attendance = () => {
   const [saving, setSaving] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!user) return;
@@ -110,6 +113,11 @@ const Attendance = () => {
       }));
 
       await saveTeacherClassAttendance(selectedClass, dateStr, records);
+
+      invalidateAttendanceQueries(queryClient, { classId: selectedClass });
+      for (const studentId of Object.keys(attendanceRecords)) {
+        invalidateAttendanceQueries(queryClient, { studentId });
+      }
 
       toast({
         title: "Success",

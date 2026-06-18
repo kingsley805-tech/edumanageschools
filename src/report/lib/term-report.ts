@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { supabase } from "@/integrations/supabase/client";
 import { fetchClassSubjectTemplates } from "@/report/lib/class-subjects";
+import { enrichFormWithAttendanceSummary } from "@/register/lib/attendance";
 import { isMissingSchemaColumnError } from "@/report/lib/supabase-errors";
 import { applyTermDatesToForm, fetchTermReportDates } from "@/report/lib/terms";
 import { EXPORTABLE_STATUSES, type ReportCardStatus } from "@/report/lib/report-card-status";
@@ -114,6 +115,10 @@ export function rowToForm(
     academicYear: row.academic_year ?? "",
     attendanceMade: row.attendance_made ?? "",
     attendanceTotal: row.attendance_total ?? "",
+    attendanceAbsent: "",
+    attendanceLate: "",
+    attendanceExcused: "",
+    attendancePercent: "",
     conduct: row.conduct ?? "Good",
     interest: row.interest ?? "High",
     club: row.club ?? "—",
@@ -145,9 +150,14 @@ export async function rowToFormWithTermDates(
   const templatesOrDefault = templates.length ? templates : DEFAULT_SUBJECTS;
   const form = rowToForm(row, format, templatesOrDefault);
   const withCount = await enrichFormWithClassReportCount(form, row.class_id, row.term_id);
-  if (!row.term_id) return withCount;
+  const withAttendance = await enrichFormWithAttendanceSummary(
+    withCount,
+    row.student_id,
+    row.term_id,
+  );
+  if (!row.term_id) return withAttendance;
   const dates = await fetchTermReportDates(row.school_id, row.term_id);
-  return applyTermDatesToForm(withCount, dates);
+  return applyTermDatesToForm(withAttendance, dates);
 }
 
 export function formToPayload(

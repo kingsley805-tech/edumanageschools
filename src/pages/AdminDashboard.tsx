@@ -8,8 +8,19 @@ import { Users, GraduationCap, DollarSign, TrendingUp, Calendar, BookOpen, Noteb
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchSchoolAttendanceStats } from "@/lib/attendance-queries";
+import { fetchSchoolAttendanceStats, fetchSchoolAttendanceTrend } from "@/lib/attendance-queries";
 import { isLessonNotesAvailable, isLessonNotesMissingError } from "@/lib/lessonNotesAvailability";
+import { RegisterAttendanceChart } from "@/register/components/RegisterAttendanceChart";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -59,15 +70,29 @@ const AdminDashboard = () => {
       if (!profileData?.school_id) return;
       const schoolId = profileData.school_id;
 
-      const [studentsRes, teachersRes, feesRes, attendanceStats] = await Promise.all([
+      const [studentsRes, teachersRes, feesRes, attendanceStats, termRes, trendRes] = await Promise.all([
         supabase.from("students").select("id", { count: "exact", head: true }).eq("school_id", schoolId),
         supabase.from("teachers").select("id", { count: "exact", head: true }).eq("school_id", schoolId),
         supabase.from("invoices").select("amount, students!inner(school_id)").eq("students.school_id", schoolId),
         fetchSchoolAttendanceStats(schoolId),
+        supabase.from("terms").select("id").eq("school_id", schoolId).eq("is_current", true).maybeSingle(),
+        fetchSchoolAttendanceTrend(schoolId, 14),
       ]);
 
+      let termStats = attendanceStats;
+      if (termRes.data?.id) {
+        termStats = await fetchSchoolAttendanceStats(schoolId, termRes.data.id);
+      }
+      setTermAttendance({
+        present: termStats.present,
+        absent: termStats.absent,
+        late: termStats.late,
+        rate: termStats.rate,
+      });
+      setAttendanceTrend(trendRes);
+
       const totalFees = feesRes.data?.reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
-      const attendanceRate = attendanceStats.rate.toFixed(1);
+      const attendanceRate = termStats.rate.toFixed(1);
 
       setStats([
         { title: "Total Students", value: studentsRes.count?.toString() || "0", change: "+12.5%", icon: Users, color: "text-primary" },
@@ -88,6 +113,13 @@ const AdminDashboard = () => {
     rejected: 0,
     recent: [] as { id: string; topic: string; teacher_name: string | null; status: string; updated_at: string }[],
   });
+  const [attendanceTrend, setAttendanceTrend] = useState<{ date: string; present: number; absent: number }[]>([]);
+  const [termAttendance, setTermAttendance] = useState<{
+    present: number;
+    absent: number;
+    late: number;
+    rate: number;
+  } | null>(null);
 
   useEffect(() => {
     const fetchRecentActivity = async () => {
@@ -242,6 +274,39 @@ const AdminDashboard = () => {
             </Card>
           ))}
         </div>
+
+        {termAttendance && termAttendance.present + termAttendance.absent + termAttendance.late > 0 ? (
+          <div className="grid gap-4 lg:grid-cols-2">
+            <RegisterAttendanceChart
+              percent={Math.round(termAttendance.rate)}
+              present={termAttendance.present}
+              absent={termAttendance.absent}
+              late={termAttendance.late}
+            />
+            {attendanceTrend.length > 0 ? (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Daily attendance trend (14 days)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={attendanceTrend}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="present" fill="#22c55e" stackId="a" />
+                        <Bar dataKey="absent" fill="#ef4444" stackId="a" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+          </div>
+        ) : null}
 
         {/* Lesson notes overview */}
         <Card className="animate-fade-up">

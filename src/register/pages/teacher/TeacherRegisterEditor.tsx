@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -33,6 +34,7 @@ import {
   submitRegister,
   syncLegacyAttendance,
 } from "@/register/lib/api";
+import { invalidateAttendanceQueries } from "@/register/hooks/use-attendance-summary";
 import { RegisterStatusBadge } from "@/register/components/RegisterStatusBadge";
 
 export default function TeacherRegisterEditor() {
@@ -41,6 +43,7 @@ export default function TeacherRegisterEditor() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const isNew = id === "new" || !id;
   const isAdminRoute = location.pathname.startsWith("/admin/register");
   const layoutRole = isAdminRoute ? "admin" : "teacher";
@@ -356,6 +359,12 @@ export default function TeacherRegisterEditor() {
         const full = await getRegister(registerId);
         if (full) await syncLegacyAttendance(full);
         const sms = await finalizeRegisterSubmission(registerId);
+        invalidateAttendanceQueries(queryClient, {
+          classId: full?.class_id ?? register?.class_id,
+        });
+        for (const student of classStudents) {
+          invalidateAttendanceQueries(queryClient, { studentId: student.id });
+        }
         if (sms?.sent) {
           toast.success(`Submitted — ${sms.sent} parent SMS sent`);
         } else {

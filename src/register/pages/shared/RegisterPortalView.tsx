@@ -161,9 +161,9 @@ export function RegisterPortalView({ role, childStudentId }: { role: PortalRole;
               <span className="text-lg font-semibold">{attendanceRate}%</span>
             </div>
             {summary ? (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
                 <div className="rounded-lg border p-3">
-                  <p className="text-muted-foreground text-xs">Total sessions</p>
+                  <p className="text-muted-foreground text-xs">Total school days</p>
                   <p className="font-bold text-lg">{summary.total_days}</p>
                 </div>
                 <div className="rounded-lg border p-3">
@@ -177,6 +177,10 @@ export function RegisterPortalView({ role, childStudentId }: { role: PortalRole;
                 <div className="rounded-lg border p-3">
                   <p className="text-muted-foreground text-xs">Late</p>
                   <p className="font-bold text-lg text-orange-600">{summary.late_count}</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-muted-foreground text-xs">Excused</p>
+                  <p className="font-bold text-lg text-blue-600">{summary.excused_count}</p>
                 </div>
               </div>
             ) : (

@@ -6,6 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { BookOpen, Users, ClipboardCheck, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { useCurrentTerm } from "@/report/hooks/use-school-data";
+import { useClassAttendanceSummary } from "@/register/hooks/use-attendance-summary";
+import { RegisterAttendanceChart } from "@/register/components/RegisterAttendanceChart";
+import { fetchSchoolAttendanceTrend } from "@/lib/attendance-queries";
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
@@ -17,6 +21,9 @@ const TeacherDashboard = () => {
   ]);
   const [upcomingClasses, setUpcomingClasses] = useState<any[]>([]);
   const [recentAssignments, setRecentAssignments] = useState<any[]>([]);
+  const [primaryClassId, setPrimaryClassId] = useState<string | null>(null);
+  const { data: term } = useCurrentTerm();
+  const { data: classSummary } = useClassAttendanceSummary(primaryClassId, term?.id);
 
   useEffect(() => {
     fetchDashboardData();
@@ -43,6 +50,7 @@ const TeacherDashboard = () => {
 
     // Get unique class IDs
     const classIds = [...new Set(classSubjectsData?.map(c => c.class?.id).filter(Boolean) || [])];
+    setPrimaryClassId(classIds[0] ?? null);
     const uniqueClasses = classSubjectsData?.filter((item, index, self) => 
       index === self.findIndex((t) => t.class?.id === item.class?.id)
     ) || [];
@@ -99,6 +107,18 @@ const TeacherDashboard = () => {
             </Card>
           ))}
         </div>
+
+        {classSummary && classSummary.total_days > 0 ? (
+          <div>
+            <h2 className="text-lg font-semibold mb-4">Class attendance this term</h2>
+            <RegisterAttendanceChart
+              percent={Math.round(classSummary.attendance_percentage)}
+              present={classSummary.present_count}
+              absent={classSummary.absent_count}
+              late={classSummary.late_count}
+            />
+          </div>
+        ) : null}
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Today's Schedule */}

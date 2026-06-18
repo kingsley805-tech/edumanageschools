@@ -26,6 +26,7 @@ import {
 import { enqueueOfflineJob } from "@/report/lib/pwa-stub/offline-queue";
 import { clearReportPositions } from "@/report/lib/shepherd-grading";
 import { useReportCardAutosave } from "@/report/hooks/use-report-card-autosave";
+import { enrichFormWithAttendanceSummary } from "@/register/lib/attendance";
 
 function hasSavedPositions(row: TermReportRow | null) {
   if (!row) return false;
@@ -117,6 +118,10 @@ export function useTermReportCard(opts: UseTermReportCardOpts) {
           academicYear: term ? `${term.session} Academic Year` : "",
           attendanceMade: "",
           attendanceTotal: "",
+          attendanceAbsent: "",
+          attendanceLate: "",
+          attendanceExcused: "",
+          attendancePercent: "",
           conduct: "Good",
           interest: "High",
           club: "—",
@@ -159,7 +164,12 @@ export function useTermReportCard(opts: UseTermReportCardOpts) {
         effectiveClassId,
         opts.termId || null,
       );
-      setForm(withClassCount);
+      const withAttendance = await enrichFormWithAttendanceSummary(
+        withClassCount,
+        opts.studentId,
+        opts.termId || null,
+      );
+      setForm(withAttendance);
     } finally {
       setLoading(false);
     }

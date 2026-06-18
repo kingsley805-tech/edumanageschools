@@ -228,6 +228,10 @@ export interface ReportFormData {
   academicYear: string;
   attendanceMade: string;
   attendanceTotal: string;
+  attendanceAbsent: string;
+  attendanceLate: string;
+  attendanceExcused: string;
+  attendancePercent: string;
   conduct: string;
   interest: string;
   club: string;

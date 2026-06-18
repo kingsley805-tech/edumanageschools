@@ -214,13 +214,41 @@ export async function fetchStudentAttendanceRate(
   };
 }
 
-export async function fetchSchoolAttendanceStats(schoolId: string): Promise<{
+export async function fetchSchoolAttendanceStats(
+  schoolId: string,
+  termId?: string | null,
+): Promise<{
   total: number;
   present: number;
   absent: number;
   late: number;
+  excused: number;
   rate: number;
 }> {
+  if (termId) {
+    const { data: summaries, error } = await supabase
+      .from("attendance_summaries")
+      .select("total_days, present_count, absent_count, late_count, excused_count")
+      .eq("school_id", schoolId)
+      .eq("term_id", termId);
+
+    if (!error && summaries && summaries.length > 0) {
+      const total = summaries.reduce((a, r) => a + (r.total_days ?? 0), 0);
+      const present = summaries.reduce((a, r) => a + (r.present_count ?? 0), 0);
+      const absent = summaries.reduce((a, r) => a + (r.absent_count ?? 0), 0);
+      const late = summaries.reduce((a, r) => a + (r.late_count ?? 0), 0);
+      const excused = summaries.reduce((a, r) => a + (r.excused_count ?? 0), 0);
+      return {
+        total,
+        present,
+        absent,
+        late,
+        excused,
+        rate: total ? Math.round((present / total) * 10000) / 100 : 0,
+      };
+    }
+  }
+
   const { data: registerRows, error: registerErr } = await supabase
     .from("attendance_records")
     .select("attendance_status")
@@ -231,11 +259,13 @@ export async function fetchSchoolAttendanceStats(schoolId: string): Promise<{
     const present = registerRows.filter((r) => normalizeStatus(r.attendance_status) === "present").length;
     const absent = registerRows.filter((r) => normalizeStatus(r.attendance_status) === "absent").length;
     const late = registerRows.filter((r) => normalizeStatus(r.attendance_status) === "late").length;
+    const excused = registerRows.filter((r) => normalizeStatus(r.attendance_status) === "excused").length;
     return {
       total,
       present,
       absent,
       late,
+      excused,
       rate: total ? Math.round((present / total) * 1000) / 10 : 0,
     };
   }
@@ -251,12 +281,14 @@ export async function fetchSchoolAttendanceStats(schoolId: string): Promise<{
   const present = legacyRows?.filter((r) => normalizeStatus(r.status) === "present").length ?? 0;
   const absent = legacyRows?.filter((r) => normalizeStatus(r.status) === "absent").length ?? 0;
   const late = legacyRows?.filter((r) => normalizeStatus(r.status) === "late").length ?? 0;
+  const excused = legacyRows?.filter((r) => normalizeStatus(r.status) === "excused").length ?? 0;
 
   return {
     total,
     present,
     absent,
     late,
+    excused,
     rate: total ? Math.round((present / total) * 1000) / 10 : 0,
   };
 }

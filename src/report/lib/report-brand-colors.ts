@@ -216,6 +216,10 @@ export function buildReportCardCss(c: ReportBrandColors): string {
 .rc-att-box,.rc-att-pill{border:1px solid ${accent};border-radius:8px;padding:12px;background:${c.white};display:flex;align-items:center;gap:8px;color:${c.black}}
 .rc-att-pill{flex-direction:column;align-items:center}
 .rc-att-label{font-size:10px;color:${accent};font-weight:700;text-transform:uppercase}
+.rc-att-summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;margin-bottom:18px;border:1px solid ${accent};border-radius:10px;padding:16px 18px;background:${c.white}}
+.rc-att-summary-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:${c.black}}
+.rc-att-summary-label{font-weight:600;color:${accent}}
+.rc-att-summary-value{font-weight:700}
 .rc-remark-box{border:1px solid ${accent};border-radius:10px;padding:18px;background:${c.white};margin-bottom:22px;color:${c.black}}
 .rc-remark-stack{display:flex;flex-direction:column;gap:20px}
 .rc-quote-block{background:${c.mutedBg};border-left:4px solid ${accent};padding:12px 16px;font-style:italic;margin-top:8px;color:${c.black}}

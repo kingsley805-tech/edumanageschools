@@ -306,7 +306,15 @@ export function ShepherdReportCard({
               {[
                 { v: data.position, l: "Class Position", key: "position" as const },
                 { v: totalScore.toFixed(1), l: "Total Score", key: null },
-                { v: data.attendanceMade, l: "Attendance", key: "attendanceMade" as const },
+                {
+                  v: data.attendancePercent
+                    ? `${data.attendancePercent}%`
+                    : data.attendanceMade && data.attendanceTotal
+                      ? `${((Number(data.attendanceMade) / Number(data.attendanceTotal)) * 100).toFixed(1)}%`
+                      : data.attendanceMade || "—",
+                  l: "Attendance",
+                  key: null,
+                },
                 { v: data.conduct, l: "Conduct", key: "conduct" as const },
               ].map((s) => (
                 <div className="rc-stat" key={s.l}>
@@ -402,6 +410,26 @@ export function ShepherdReportCard({
                   <div className="rc-scale-range">{g.range}</div>
                   <div className="rc-scale-grade">{g.grade}</div>
                   <div className="rc-scale-remark">{g.remark}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="rc-sec-title"><div className="rc-sec-title-dot" />Attendance Summary</div>
+            <div className="rc-att-summary-grid">
+              {[
+                { label: "Total School Days", value: data.attendanceTotal || "—" },
+                { label: "Present", value: data.attendanceMade || "—" },
+                { label: "Absent", value: data.attendanceAbsent || "—" },
+                { label: "Late", value: data.attendanceLate || "—" },
+                { label: "Excused", value: data.attendanceExcused || "—" },
+                {
+                  label: "Attendance Percentage",
+                  value: data.attendancePercent ? `${data.attendancePercent}%` : "—",
+                },
+              ].map((item) => (
+                <div key={item.label} className="rc-att-summary-row">
+                  <span className="rc-att-summary-label">{item.label}:</span>
+                  <span className="rc-att-summary-value">{item.value}</span>
                 </div>
               ))}
             </div>

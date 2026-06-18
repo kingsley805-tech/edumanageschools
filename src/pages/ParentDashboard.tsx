@@ -19,13 +19,29 @@ import {
 import { fetchStudentAttendanceRate } from "@/lib/attendance-queries";
 import { linkParentToStudents } from "@/lib/auth-api";
 import { EventsCalendar } from "@/components/EventsCalendar";
+import { useCurrentTerm } from "@/report/hooks/use-school-data";
+import {
+  useAttendanceSummary,
+  useClassAttendanceSummary,
+  useMonthlyAttendanceTrend,
+} from "@/register/hooks/use-attendance-summary";
+import { AttendanceAnalyticsPanel } from "@/register/components/AttendanceAnalyticsPanel";
 
 const ParentDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { data: term } = useCurrentTerm();
   const [children, setChildren] = useState<any[]>([]);
   const [recentGrades, setRecentGrades] = useState<any[]>([]);
   const [signupAdmissionNumbers, setSignupAdmissionNumbers] = useState<string[]>([]);
+
+  const primaryChild = children[0];
+  const { data: attendanceSummary, isLoading: attendanceLoading } = useAttendanceSummary(
+    primaryChild?.id,
+    term?.id,
+  );
+  const { data: classSummary } = useClassAttendanceSummary(primaryChild?.class_id, term?.id);
+  const { data: monthlyTrend } = useMonthlyAttendanceTrend(primaryChild?.id, term?.id);
 
   useEffect(() => {
     if (user) {
@@ -44,14 +60,14 @@ const ParentDashboard = () => {
 
     let studentsData = await fetchStudentsForParent(
       parent.id,
-      "id, full_name, admission_no, admission_number, class:classes(name), profiles:user_id(full_name)"
+      "id, full_name, admission_no, admission_number, class_id, class:classes(name), profiles:user_id(full_name)"
     );
 
     if (studentsData.length === 0 && signupNums.length > 0) {
       await linkParentToStudents(parent.id, parent.school_id, signupNums);
       studentsData = await fetchStudentsForParent(
         parent.id,
-        "id, full_name, admission_no, admission_number, class:classes(name), profiles:user_id(full_name)"
+        "id, full_name, admission_no, admission_number, class_id, class:classes(name), profiles:user_id(full_name)"
       );
     }
 
@@ -167,6 +183,21 @@ const ParentDashboard = () => {
             )}
           </CardContent>
         </Card>
+
+        {primaryChild ? (
+          <div>
+            <h2 className="text-lg font-semibold mb-4">
+              Attendance analytics — {studentDisplayNameForParent(primaryChild)}
+            </h2>
+            <AttendanceAnalyticsPanel
+              summary={attendanceSummary}
+              classSummary={classSummary}
+              monthlyTrend={monthlyTrend}
+              loading={attendanceLoading}
+              compact
+            />
+          </div>
+        ) : null}
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Recent Grades */}

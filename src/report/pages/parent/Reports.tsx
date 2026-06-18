@@ -15,6 +15,7 @@ import { ArrowLeft, AlertTriangle, AlertCircle, GraduationCap } from "lucide-rea
 import { ReportMetaPanel } from "@/report/components/report-meta-panel";
 import { useReportSignatures } from "@/report/hooks/use-report-signatures";
 import { Badge } from "@/components/ui/badge";
+import { fetchAttendanceSummary } from "@/register/lib/attendance";
 
 function ParentReports() {
   const { user } = useAuth();
@@ -109,29 +110,19 @@ function ParentReports() {
     }
   });
 
-  // Query student attendance records for active child and class
-  const { data: studentAttendance } = useQuery({
-    queryKey: ["parent-student-attendance", activeStudentId, report?.class_id],
-    enabled: !!activeStudentId && !!report?.class_id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("attendance")
-        .select("status")
-        .eq("student_id", activeStudentId!)
-        .eq("class_id", report!.class_id!);
-      if (error) throw error;
-      return data ?? [];
-    }
+  // Term attendance from precomputed summaries
+  const { data: attendanceSummary } = useQuery({
+    queryKey: ["parent-student-attendance", activeStudentId, report?.term_id],
+    enabled: !!activeStudentId && !!report?.term_id,
+    queryFn: () => fetchAttendanceSummary(activeStudentId!, report!.term_id!),
   });
 
-  // Calculate student attendance rate
   const studentAttendanceRate = useMemo(() => {
-    if (!studentAttendance || studentAttendance.length === 0) return 100;
-    const attended = studentAttendance.filter(r => 
-      r.status === "present" || r.status === "late" || r.status === "excused"
-    ).length;
-    return Math.round((attended / studentAttendance.length) * 100);
-  }, [studentAttendance]);
+    if (attendanceSummary && attendanceSummary.total_days > 0) {
+      return Math.round(attendanceSummary.attendance_percentage);
+    }
+    return 100;
+  }, [attendanceSummary]);
 
   const isLoading = reportLoading || formLoading;
 

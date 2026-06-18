@@ -12,6 +12,9 @@ import { useClientPagination } from "@/report/hooks/use-client-pagination";
 import { TablePagination } from "@/report/portal/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { withReportLayout } from "@/report/withReportLayout";
+import { useAttendanceSummary } from "@/register/hooks/use-attendance-summary";
+import { AttendanceAnalyticsPanel } from "@/register/components/AttendanceAnalyticsPanel";
+import { useStudentData } from "@/hooks/useStudentData";
 
 async function resolveStudentId(userId: string): Promise<string | null> {
   let { data } = await supabase.from("students").select("id").eq("profile_id", userId).maybeSingle();
@@ -24,6 +27,11 @@ async function resolveStudentId(userId: string): Promise<string | null> {
 function StudentPerformance() {
   const { user } = useAuth();
   const { data: term } = useCurrentTerm();
+  const { studentId } = useStudentData();
+  const { data: attendanceSummary, isLoading: attendanceLoading } = useAttendanceSummary(
+    studentId,
+    term?.id,
+  );
 
   const { data, isLoading } = useQuery({
     queryKey: ["student-performance", user?.id, term?.id],
@@ -96,6 +104,8 @@ function StudentPerformance() {
             )}
           </div>
         )}
+
+        <AttendanceAnalyticsPanel summary={attendanceSummary} loading={attendanceLoading} compact />
 
         <Card>
           <CardHeader>

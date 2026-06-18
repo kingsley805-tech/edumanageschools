@@ -9,9 +9,23 @@ import { useStudentData } from "@/hooks/useStudentData";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchStudentAttendanceRate } from "@/lib/attendance-queries";
 import { StudentPortalSections } from "@/components/student/StudentPortalSections";
+import { useCurrentTerm } from "@/report/hooks/use-school-data";
+import {
+  useAttendanceSummary,
+  useClassAttendanceSummary,
+  useMonthlyAttendanceTrend,
+} from "@/register/hooks/use-attendance-summary";
+import { AttendanceAnalyticsPanel } from "@/register/components/AttendanceAnalyticsPanel";
 
 const StudentDashboard = () => {
   const { studentId, classId, loading } = useStudentData();
+  const { data: term } = useCurrentTerm();
+  const { data: attendanceSummary, isLoading: attendanceLoading } = useAttendanceSummary(
+    studentId,
+    term?.id,
+  );
+  const { data: classSummary } = useClassAttendanceSummary(classId, term?.id);
+  const { data: monthlyTrend } = useMonthlyAttendanceTrend(studentId, term?.id);
   const [stats, setStats] = useState([
     { title: "My Classes", value: "0", icon: BookOpen, color: "text-primary" },
     { title: "Assignments", value: "0", icon: ClipboardCheck, color: "text-accent" },
@@ -84,6 +98,16 @@ const StudentDashboard = () => {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        <div>
+          <h2 className="text-lg font-semibold mb-4">Attendance analytics</h2>
+          <AttendanceAnalyticsPanel
+            summary={attendanceSummary}
+            classSummary={classSummary}
+            monthlyTrend={monthlyTrend}
+            loading={loading || attendanceLoading}
+          />
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
