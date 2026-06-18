@@ -538,7 +538,7 @@ serve(async (req) => {
 
       const { data: cls } = await admin
         .from("classes")
-        .select("name, schools(name, school_name)")
+        .select("name, schools(school_name)")
         .eq("id", classId)
         .maybeSingle();
 
@@ -578,7 +578,7 @@ serve(async (req) => {
 
     const { data: reg, error: regErr } = await admin
       .from("class_registers")
-      .select("id, school_id, class_id, register_date, classes(name), schools(name, school_name)")
+      .select("id, school_id, class_id, register_date, classes(name), schools(school_name)")
       .eq("id", registerId)
       .maybeSingle();
 

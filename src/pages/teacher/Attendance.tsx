@@ -119,7 +119,8 @@ const Attendance = () => {
       void sendTeacherAttendanceSmsNotifications(selectedClass, dateStr)
         .then((result) => {
           const sent = result?.sent ?? 0;
-          const errors = result?.errors ?? [];
+          const rawErrors = result?.errors ?? [];
+          const errors = Array.isArray(rawErrors) ? rawErrors.map(String) : [];
           if (errors.length > 0) {
             toast({
               title: "Attendance saved — SMS partially failed",

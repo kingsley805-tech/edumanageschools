@@ -93,11 +93,36 @@ export async function saveRegisterSmsSettings(schoolId: string, settings: Regist
   }
 }
 
+export type AttendanceSmsSendResult = {
+  ok?: boolean;
+  sent?: number;
+  skipped?: number;
+  errors?: string[] | unknown;
+  error?: string;
+  message?: string;
+};
+
+async function sendAttendanceSmsViaRpc(registerId: string): Promise<AttendanceSmsSendResult | null> {
+  const { data, error } = await supabase.rpc("send_attendance_sms_for_register", {
+    p_register_id: registerId,
+  });
+  if (error) {
+    const missing =
+      error.code === "42883" ||
+      error.code === "PGRST202" ||
+      (error.message ?? "").includes("send_attendance_sms_for_register");
+    if (missing) return null;
+    throw error;
+  }
+  const result = (data ?? {}) as AttendanceSmsSendResult;
+  if (result.error) throw new Error(result.error);
+  return result;
+}
+
 export async function sendAttendanceSmsNotifications(registerId: string) {
-  return invokeEdgeFunction<{ ok?: boolean; sent?: number; skipped?: number; errors?: string[] }>(
-    "send-attendance-sms",
-    { registerId },
-  );
+  const rpc = await sendAttendanceSmsViaRpc(registerId);
+  if (rpc) return rpc;
+  return invokeEdgeFunction<AttendanceSmsSendResult>("send-attendance-sms", { registerId });
 }
 
 const TEACHER_ATTENDANCE_PERIOD = "Teacher Attendance";
@@ -219,10 +244,9 @@ export async function sendTeacherAttendanceSmsNotifications(classId: string, dat
     registerId = await prepareTeacherAttendanceSmsRegisterClient(classId, dateStr);
   }
 
-  return invokeEdgeFunction<{ ok?: boolean; sent?: number; skipped?: number; errors?: string[] }>(
-    "send-attendance-sms",
-    { registerId },
-  );
+  const rpc = await sendAttendanceSmsViaRpc(registerId);
+  if (rpc) return rpc;
+  return invokeEdgeFunction<AttendanceSmsSendResult>("send-attendance-sms", { registerId });
 }
 
 export async function listSmsLogs(schoolId: string, limit = 50) {

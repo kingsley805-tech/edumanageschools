@@ -1,12 +1,8 @@
 -- Teacher attendance page: parent SMS logs, settings, templates
 -- Run after apply-attendance-sms-system.sql and apply-sms-subscription-billing.sql
 --
--- Also required (Supabase Dashboard):
---   1. Edge Functions → send-attendance-sms (existing registerId handler is enough)
---   2. JWT verification OFF for send-attendance-sms
---   3. Secrets: ARKESEL_API_KEY (same key used for other SMS)
--- Teacher page SMS uses registerId (no edge redeploy for classId+date).
-
+-- Also run: public/sql/apply-send-attendance-sms-rpc.sql (DB SMS sender — avoids edge 500)
+-- One-time after that SQL: INSERT your Arkesel key into platform_sms_gateway (see that file).
 CREATE TABLE IF NOT EXISTS public.attendance_sms_logs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id uuid NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
