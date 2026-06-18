@@ -13,8 +13,8 @@ import {
   getSessionStatus,
   isLiveClassesSchemaReady,
   LIVE_CLASSES_SETUP_HINT,
-  recordJoin,
-  recordLeave,
+  LIVE_CLASSES_SETUP_SQL_URL,
+  GOOGLE_MEET_SETUP_HINT,
 } from "@/live-classes/lib/api";
 import type { LiveClassSession } from "@/live-classes/lib/types";
 import { fetchTeacherAssignedClasses } from "@/report/lib/teacher-assignments";
@@ -36,7 +36,10 @@ export default function TeacherLiveClasses() {
     if (!user) return;
     setLoading(true);
     try {
-      setSchemaReady(await isLiveClassesSchemaReady());
+      const ready = await isLiveClassesSchemaReady();
+      setSchemaReady(ready);
+      if (!ready) return;
+
       const sid = await fetchSchoolId(user.id);
       if (!sid) return;
       setSchoolId(sid);
@@ -113,6 +116,7 @@ export default function TeacherLiveClasses() {
                 teacherId={teacherId}
                 classes={classes}
                 subjects={subjects}
+                disabled={schemaReady === false}
                 onCreated={load}
               />
             ) : null
@@ -122,7 +126,20 @@ export default function TeacherLiveClasses() {
         {schemaReady === false && (
           <Alert variant="destructive">
             <AlertTitle>Database setup required</AlertTitle>
-            <AlertDescription>{LIVE_CLASSES_SETUP_HINT}</AlertDescription>
+            <AlertDescription className="space-y-2">
+              <p>{LIVE_CLASSES_SETUP_HINT}</p>
+              <p>
+                <a
+                  href={LIVE_CLASSES_SETUP_SQL_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline font-medium"
+                >
+                  Open Supabase SQL Editor
+                </a>
+              </p>
+              <p className="text-sm">{GOOGLE_MEET_SETUP_HINT}</p>
+            </AlertDescription>
           </Alert>
         )}
 

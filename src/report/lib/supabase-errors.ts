@@ -6,6 +6,8 @@ export function isMissingSchemaColumnError(error: SupabaseLikeError): boolean {
   const msg = error.message ?? "";
   return (
     error.code === "PGRST204" ||
+    error.code === "42703" ||
+    /report_theme_primary/i.test(msg) ||
     /could not find.*column/i.test(msg) ||
     /column.*does not exist/i.test(msg)
   );

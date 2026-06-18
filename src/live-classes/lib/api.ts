@@ -24,17 +24,34 @@ const SESSION_SELECT = `
 `;
 
 export const LIVE_CLASSES_SETUP_HINT =
-  "Live Classes tables are not set up yet. Run public/sql/apply-live-classes.sql in the Supabase SQL Editor, then refresh.";
+  "Live Classes tables are missing on Supabase. Open SQL Editor → run public/sql/apply-live-classes.sql → refresh this page.";
 
-function isLiveClassesUnavailable(error: { code?: string; message?: string } | null): boolean {
+export const LIVE_CLASSES_SETUP_SQL_URL =
+  "https://supabase.com/dashboard/project/xbhhpjtwawfawifhpxbe/sql/new";
+
+export const GOOGLE_MEET_SETUP_HINT =
+  "Deploy the google-meet edge function and set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI in Supabase Edge Function secrets.";
+
+let liveClassesSchemaReady: boolean | null = null;
+let googleMeetUnavailable = false;
+
+function isLiveClassesUnavailable(error: { code?: string; message?: string; status?: number } | null): boolean {
   if (!error) return false;
+  if (error.status === 404) return true;
   if (isMissingSchemaTableError(error)) return true;
-  if (error.code === "42P01") return true;
+  if (error.code === "42P01" || error.code === "PGRST205") return true;
   const msg = (error.message ?? "").toLowerCase();
-  return msg.includes("live_class") && (msg.includes("does not exist") || msg.includes("could not find"));
+  return (
+    msg.includes("live_class") ||
+    msg.includes("could not find the table") ||
+    (msg.includes("relation") && msg.includes("does not exist"))
+  );
 }
 
 async function invokeGoogleMeet<T>(body: Record<string, unknown>): Promise<T> {
+  if (googleMeetUnavailable) {
+    throw new Error(GOOGLE_MEET_SETUP_HINT);
+  }
   const { data, error } = await supabase.functions.invoke("google-meet", { body });
   if (error) {
     const msg = error.message ?? "";
@@ -43,9 +60,8 @@ async function invokeGoogleMeet<T>(body: Record<string, unknown>): Promise<T> {
       msg.includes("FunctionsFetchError") ||
       msg.includes("CORS")
     ) {
-      throw new Error(
-        "Google Meet service is not available. Deploy the google-meet edge function (npm run functions:deploy) and set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI in Supabase.",
-      );
+      googleMeetUnavailable = true;
+      throw new Error(GOOGLE_MEET_SETUP_HINT);
     }
     throw error;
   }
@@ -111,6 +127,12 @@ export async function fetchLiveClassSessions(opts: {
   toDate?: string;
   limit?: number;
 }): Promise<LiveClassSession[]> {
+  if (liveClassesSchemaReady === false) return [];
+  if (liveClassesSchemaReady === null) {
+    const ready = await isLiveClassesSchemaReady();
+    if (!ready) return [];
+  }
+
   let q = supabase
     .from("live_class_sessions")
     .select(SESSION_SELECT)
@@ -125,7 +147,10 @@ export async function fetchLiveClassSessions(opts: {
 
   const { data, error } = await q;
   if (error) {
-    if (isLiveClassesUnavailable(error)) return [];
+    if (isLiveClassesUnavailable(error)) {
+      liveClassesSchemaReady = false;
+      return [];
+    }
     throw error;
   }
   return (data ?? []) as LiveClassSession[];
@@ -144,12 +169,20 @@ export async function fetchSessionById(sessionId: string): Promise<LiveClassSess
   return data as LiveClassSession | null;
 }
 
-export async function isLiveClassesSchemaReady(): Promise<boolean> {
+export async function isLiveClassesSchemaReady(force = false): Promise<boolean> {
+  if (!force && liveClassesSchemaReady !== null) return liveClassesSchemaReady;
   const { error } = await supabase.from("live_class_sessions").select("id").limit(1);
-  return !isLiveClassesUnavailable(error);
+  liveClassesSchemaReady = !isLiveClassesUnavailable(error);
+  return liveClassesSchemaReady;
 }
 
 export async function fetchLiveClasses(schoolId: string): Promise<LiveClass[]> {
+  if (liveClassesSchemaReady === false) return [];
+  if (liveClassesSchemaReady === null) {
+    const ready = await isLiveClassesSchemaReady();
+    if (!ready) return [];
+  }
+
   const { data, error } = await supabase
     .from("live_classes")
     .select(
@@ -157,7 +190,13 @@ export async function fetchLiveClasses(schoolId: string): Promise<LiveClass[]> {
     )
     .eq("school_id", schoolId)
     .order("created_at", { ascending: false });
-  if (error) throw error;
+  if (error) {
+    if (isLiveClassesUnavailable(error)) {
+      liveClassesSchemaReady = false;
+      return [];
+    }
+    throw error;
+  }
   return (data ?? []) as LiveClass[];
 }
 

@@ -23,31 +23,21 @@ export function useReportTheme(schoolIdOverride?: string | null) {
         schoolIdOverride ?? profile?.school_id ?? (user ? await resolveUserSchoolId(user.id) : null);
       if (!schoolId) return buildReportBrandColors(DEFAULT_REPORT_THEME);
 
-      const [settingsRes, schoolRes] = await Promise.all([
-        supabase
-          .from("school_settings")
-          .select("report_theme_primary")
-          .eq("school_id", schoolId)
-          .maybeSingle(),
-        supabase
-          .from("schools")
-          .select("theme_primary, theme_secondary, theme_accent")
-          .eq("id", schoolId)
-          .maybeSingle(),
-      ]);
+      const { data: school, error: schoolErr } = await supabase
+        .from("schools")
+        .select("theme_primary, theme_secondary, theme_accent, primary_color")
+        .eq("id", schoolId)
+        .maybeSingle();
 
-      if (settingsRes.error && !isMissingSchemaError(settingsRes.error)) {
-        throw settingsRes.error;
-      }
-      if (schoolRes.error && !isMissingSchemaError(schoolRes.error)) {
-        throw schoolRes.error;
+      if (schoolErr && !isMissingSchemaError(schoolErr)) {
+        throw schoolErr;
       }
 
-      const schoolBrand = parseSchoolBrand(schoolRes.data);
-      const settingsPrimary = (settingsRes.data as { report_theme_primary?: string | null } | null)
-        ?.report_theme_primary;
-
-      const hex = resolveReportThemePrimary(settingsPrimary, schoolBrand.primary);
+      const schoolBrand = parseSchoolBrand(school);
+      const hex = resolveReportThemePrimary(
+        null,
+        schoolBrand.primary ?? (school as { primary_color?: string } | null)?.primary_color,
+      );
       return buildReportBrandColors(hex);
     },
   });

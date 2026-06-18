@@ -29,6 +29,7 @@ type Props = {
   teacherId: string;
   classes: { id: string; name: string }[];
   subjects: { id: string; name: string }[];
+  disabled?: boolean;
   onCreated?: () => void;
 };
 
@@ -45,6 +46,7 @@ export function CreateLiveClassDialog({
   teacherId,
   classes,
   subjects,
+  disabled,
   onCreated,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -101,7 +103,7 @@ export function CreateLiveClassDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
+        <Button disabled={disabled}>
           <Plus className="h-4 w-4 mr-2" />
           Create Live Class
         </Button>
