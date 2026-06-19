@@ -2,16 +2,17 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, Link2, Unlink } from "lucide-react";
 import { toast } from "sonner";
 import {
   disconnectGoogle,
   fetchGoogleConnection,
+  fetchGoogleOAuthConfig,
   getGoogleAuthUrl,
-  GOOGLE_MEET_FUNCTIONS_URL,
-  GOOGLE_MEET_SETUP_HINT,
-  isGoogleMeetFunctionUnavailable,
+  saveGoogleOAuthConfig,
 } from "@/live-classes/lib/api";
 import type { GoogleConnection } from "@/live-classes/lib/types";
 
@@ -21,28 +22,35 @@ type Props = {
   onConnectionChange?: (conn: GoogleConnection) => void;
 };
 
+const DEFAULT_REDIRECT =
+  typeof window !== "undefined"
+    ? `${window.location.origin}/admin/online-learning/oauth/callback`
+    : "http://localhost:8080/admin/online-learning/oauth/callback";
+
 export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Props) {
   const [loading, setLoading] = useState(true);
+  const [savingConfig, setSavingConfig] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [connection, setConnection] = useState<GoogleConnection | null>(null);
-  const [setupError, setSetupError] = useState<string | null>(null);
+  const [oauthConfigured, setOauthConfigured] = useState(false);
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
+  const [redirectUri, setRedirectUri] = useState(DEFAULT_REDIRECT);
 
   const load = async () => {
-    if (disabled || isGoogleMeetFunctionUnavailable()) {
-      setSetupError(GOOGLE_MEET_SETUP_HINT);
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
-    setSetupError(null);
     try {
-      const conn = await fetchGoogleConnection(schoolId);
+      const [conn, cfg] = await Promise.all([
+        fetchGoogleConnection(schoolId),
+        fetchGoogleOAuthConfig(schoolId),
+      ]);
       setConnection(conn);
       onConnectionChange?.(conn);
+      setOauthConfigured(cfg.configured);
+      if (cfg.clientId) setClientId(cfg.clientId);
+      if (cfg.redirectUri) setRedirectUri(cfg.redirectUri);
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Failed to load Google connection";
-      setSetupError(message);
+      toast.error(e instanceof Error ? e.message : "Failed to load Google connection");
     } finally {
       setLoading(false);
     }
@@ -50,18 +58,30 @@ export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Pr
 
   useEffect(() => {
     void load();
-  }, [schoolId, disabled]);
+  }, [schoolId]);
+
+  const handleSaveConfig = async () => {
+    setSavingConfig(true);
+    try {
+      await saveGoogleOAuthConfig(schoolId, clientId, clientSecret, redirectUri);
+      setOauthConfigured(true);
+      setClientSecret("");
+      toast.success("Google OAuth settings saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save settings");
+    } finally {
+      setSavingConfig(false);
+    }
+  };
 
   const handleConnect = async () => {
     setConnecting(true);
     try {
-      const redirectUri = `${window.location.origin}/admin/online-learning/oauth/callback`;
-      const url = await getGoogleAuthUrl(schoolId, redirectUri);
+      const redirect = redirectUri || DEFAULT_REDIRECT;
+      const url = await getGoogleAuthUrl(schoolId, redirect);
       window.location.href = url;
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Failed to start Google sign-in";
-      setSetupError(message);
-      toast.error(message);
+      toast.error(e instanceof Error ? e.message : "Failed to start Google sign-in");
       setConnecting(false);
     }
   };
@@ -94,40 +114,63 @@ export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Pr
           Google Workspace
         </CardTitle>
         <CardDescription>
-          Connect your school Google account to automatically create Google Meet links for live classes.
+          Connect your school Google account to create Google Meet links. No Edge Function deploy
+          required — credentials are stored per school in Supabase.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {setupError ? (
-          <Alert variant="destructive">
-            <AlertTitle>Google Meet service not ready</AlertTitle>
-            <AlertDescription className="space-y-2">
-              <p>{setupError}</p>
+        {!oauthConfigured && !connection?.connected && (
+          <Alert>
+            <AlertTitle>Step 1 — Google Cloud credentials</AlertTitle>
+            <AlertDescription className="space-y-3 pt-2">
               <p className="text-sm">
-                <strong>Git push fix:</strong> commit and push this repo — the{" "}
-                <code className="text-xs">paystack</code> edge function now handles Google Meet
-                (same as subscription checkout). Lovable or GitHub Actions redeploys it automatically.
+                Create an OAuth 2.0 Client in Google Cloud Console and paste the values below.
+                Add the redirect URI to Google&apos;s authorized redirect URIs list.
               </p>
-              <p className="text-sm">
-                Add these GitHub repository secrets for auto-deploy:{" "}
-                <code className="text-xs">SUPABASE_ACCESS_TOKEN</code>,{" "}
-                <code className="text-xs">GOOGLE_CLIENT_ID</code>,{" "}
-                <code className="text-xs">GOOGLE_CLIENT_SECRET</code>,{" "}
-                <code className="text-xs">GOOGLE_REDIRECT_URI</code>
-              </p>
-              <p>
-                <a
-                  href={GOOGLE_MEET_FUNCTIONS_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline font-medium"
-                >
-                  Open Supabase Edge Functions (paystack)
-                </a>
+              <div className="space-y-2">
+                <Label htmlFor="google-client-id">Client ID</Label>
+                <Input
+                  id="google-client-id"
+                  value={clientId}
+                  onChange={(e) => setClientId(e.target.value)}
+                  placeholder="xxxx.apps.googleusercontent.com"
+                  disabled={disabled}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="google-client-secret">Client Secret</Label>
+                <Input
+                  id="google-client-secret"
+                  type="password"
+                  value={clientSecret}
+                  onChange={(e) => setClientSecret(e.target.value)}
+                  placeholder="GOCSPX-..."
+                  disabled={disabled}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="google-redirect-uri">Redirect URI</Label>
+                <Input
+                  id="google-redirect-uri"
+                  value={redirectUri}
+                  onChange={(e) => setRedirectUri(e.target.value)}
+                  disabled={disabled}
+                />
+              </div>
+              <Button onClick={handleSaveConfig} disabled={savingConfig || disabled || !clientId || !clientSecret}>
+                {savingConfig ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Save Google credentials
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                First time? Run{" "}
+                <code className="text-xs">public/sql/apply-google-meet-oauth.sql</code> in Supabase
+                SQL Editor once.
               </p>
             </AlertDescription>
           </Alert>
-        ) : connection?.connected ? (
+        )}
+
+        {connection?.connected ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <Badge variant="secondary" className="mb-1">
@@ -149,7 +192,10 @@ export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Pr
             </div>
           </div>
         ) : (
-          <Button onClick={handleConnect} disabled={connecting || disabled}>
+          <Button
+            onClick={handleConnect}
+            disabled={connecting || disabled || (!oauthConfigured && !clientId)}
+          >
             {connecting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Connect Google Account
           </Button>

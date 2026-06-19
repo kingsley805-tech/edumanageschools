@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { invokeEdgeFunction, isEdgeFunctionUnreachable } from "@/lib/invokeEdgeFunction";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { isMissingSchemaTableError } from "@/report/lib/supabase-errors";
 import type {
   CreateLiveClassInput,
@@ -31,17 +31,12 @@ export const LIVE_CLASSES_SETUP_SQL_URL =
   "https://supabase.com/dashboard/project/xbhhpjtwawfawifhpxbe/sql/new";
 
 export const GOOGLE_MEET_SETUP_HINT =
-  "Google Meet is not configured yet. Push this repo to GitHub (paystack edge function redeploys automatically), then add GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI as Supabase or GitHub repository secrets.";
+  "Configure Google OAuth on the Online Learning page, or run public/sql/apply-google-meet-oauth.sql in Supabase SQL Editor.";
 
 export const GOOGLE_MEET_FUNCTIONS_URL =
   "https://supabase.com/dashboard/project/xbhhpjtwawfawifhpxbe/functions/paystack/details";
 
 let liveClassesSchemaReady: boolean | null = null;
-let googleMeetUnavailable = false;
-
-export function isGoogleMeetFunctionUnavailable(): boolean {
-  return googleMeetUnavailable;
-}
 
 function isLiveClassesUnavailable(error: { code?: string; message?: string; status?: number } | null): boolean {
   if (!error) return false;
@@ -56,14 +51,27 @@ function isLiveClassesUnavailable(error: { code?: string; message?: string; stat
   );
 }
 
-async function invokeGoogleMeet<T>(body: Record<string, unknown>): Promise<T> {
-  if (googleMeetUnavailable) {
-    throw new Error(GOOGLE_MEET_SETUP_HINT);
+function isEdgeFunctionMissing(error: unknown): boolean {
+  if (error && typeof error === "object") {
+    const e = error as { message?: string; name?: string; context?: Response };
+    if (e.name === "FunctionsFetchError") return true;
+    const msg = (e.message ?? "").trim();
+    if (
+      msg.includes("Failed to send a request to the Edge Function") ||
+      msg.toLowerCase().includes("failed to fetch") ||
+      msg.includes("CORS")
+    ) {
+      return true;
+    }
+    if (e.context?.status === 404) return true;
   }
+  return false;
+}
 
+async function invokeGoogleMeet<T>(body: Record<string, unknown>): Promise<T> {
   const attempts = [
-    () => invokeEdgeFunction<T>("google-meet", body),
     () => invokeEdgeFunction<T>("paystack", body),
+    () => invokeEdgeFunction<T>("google-meet", body),
   ];
 
   let lastError: unknown;
@@ -71,7 +79,7 @@ async function invokeGoogleMeet<T>(body: Record<string, unknown>): Promise<T> {
     try {
       return await attempt();
     } catch (error) {
-      if (isEdgeFunctionUnreachable(error)) {
+      if (isEdgeFunctionMissing(error)) {
         lastError = error;
         continue;
       }
@@ -79,7 +87,6 @@ async function invokeGoogleMeet<T>(body: Record<string, unknown>): Promise<T> {
     }
   }
 
-  googleMeetUnavailable = true;
   throw new Error(
     lastError instanceof Error && lastError.message
       ? lastError.message
@@ -87,17 +94,110 @@ async function invokeGoogleMeet<T>(body: Record<string, unknown>): Promise<T> {
   );
 }
 
+export async function fetchGoogleOAuthConfig(schoolId: string): Promise<{
+  configured: boolean;
+  clientId?: string;
+  redirectUri?: string;
+}> {
+  const { data, error } = await supabase.rpc("get_google_oauth_public_config", {
+    p_school_id: schoolId,
+  });
+  if (error) {
+    if (isMissingSchemaTableError(error) || error.code === "PGRST202") {
+      return { configured: false };
+    }
+    throw new Error(error.message);
+  }
+  const row = data as {
+    configured?: boolean;
+    client_id?: string;
+    redirect_uri?: string;
+    error?: string;
+  } | null;
+  if (row?.error) throw new Error(row.error);
+  return {
+    configured: !!row?.configured,
+    clientId: row?.client_id,
+    redirectUri: row?.redirect_uri,
+  };
+}
+
+export async function saveGoogleOAuthConfig(
+  schoolId: string,
+  clientId: string,
+  clientSecret: string,
+  redirectUri: string,
+): Promise<void> {
+  const { data, error } = await supabase.rpc("upsert_google_oauth_config", {
+    p_school_id: schoolId,
+    p_client_id: clientId,
+    p_client_secret: clientSecret,
+    p_redirect_uri: redirectUri,
+  });
+  if (error) {
+    if (error.code === "PGRST202") {
+      throw new Error(
+        "Run public/sql/apply-google-meet-oauth.sql in Supabase SQL Editor, then refresh.",
+      );
+    }
+    throw new Error(error.message);
+  }
+  const row = data as { ok?: boolean; error?: string } | null;
+  if (row?.error) throw new Error(row.error);
+  if (!row?.ok) throw new Error("Failed to save Google OAuth settings");
+}
+
+const GOOGLE_OAUTH_SCOPES = [
+  "https://www.googleapis.com/auth/calendar.events",
+  "openid",
+  "email",
+  "profile",
+].join(" ");
+
 export async function fetchGoogleConnection(schoolId: string): Promise<GoogleConnection> {
-  return invokeGoogleMeet({ action: "connection_status", schoolId });
+  const { data, error } = await supabase
+    .from("google_workspace_connections")
+    .select("google_email, token_expires_at")
+    .eq("school_id", schoolId)
+    .maybeSingle();
+
+  if (error) {
+    if (isLiveClassesUnavailable(error) || isMissingSchemaTableError(error)) {
+      return { connected: false, email: null, expiresAt: null };
+    }
+    throw error;
+  }
+
+  return {
+    connected: !!data,
+    email: data?.google_email ?? null,
+    expiresAt: data?.token_expires_at ?? null,
+  };
 }
 
 export async function getGoogleAuthUrl(schoolId: string, redirectUri: string): Promise<string> {
-  const data = await invokeGoogleMeet<{ url: string }>({
-    action: "auth_url",
-    schoolId,
-    redirectUri,
-  });
-  return data.url;
+  const cfg = await fetchGoogleOAuthConfig(schoolId);
+  const clientId =
+    cfg.clientId ?? (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined);
+  const redirect = redirectUri || cfg.redirectUri;
+  if (!clientId || !redirect) {
+    throw new Error("Add your Google OAuth Client ID and Secret below, then try again.");
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const state = btoa(JSON.stringify({ schoolId, userId: user?.id }));
+
+  return `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirect,
+    response_type: "code",
+    scope: GOOGLE_OAUTH_SCOPES,
+    access_type: "offline",
+    prompt: "consent",
+    state,
+  })}`;
 }
 
 export async function exchangeGoogleCode(
@@ -105,11 +205,35 @@ export async function exchangeGoogleCode(
   redirectUri: string,
   state?: string,
 ): Promise<{ success: boolean; email: string }> {
-  return invokeGoogleMeet({ action: "exchange_code", code, redirectUri, state });
+  const { data, error } = await supabase.rpc("exchange_google_oauth_code", {
+    p_code: code,
+    p_redirect_uri: redirectUri,
+    p_state: state ?? null,
+  });
+
+  if (!error && data) {
+    const row = data as { ok?: boolean; email?: string; error?: string };
+    if (row.ok && row.email) return { success: true, email: row.email };
+    if (row.error && row.error !== "Could not find the function") {
+      throw new Error(row.error);
+    }
+  }
+
+  if (error?.code !== "PGRST202") {
+    return invokeGoogleMeet({ action: "exchange_code", code, redirectUri, state });
+  }
+
+  throw new Error(
+    "Run public/sql/apply-google-meet-oauth.sql in Supabase SQL Editor, then try connecting again.",
+  );
 }
 
 export async function disconnectGoogle(schoolId: string): Promise<void> {
-  await invokeGoogleMeet({ action: "disconnect", schoolId });
+  const { error } = await supabase
+    .from("google_workspace_connections")
+    .delete()
+    .eq("school_id", schoolId);
+  if (error) throw error;
 }
 
 export async function createLiveClass(input: CreateLiveClassInput) {

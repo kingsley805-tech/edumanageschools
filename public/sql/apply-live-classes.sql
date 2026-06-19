@@ -1,9 +1,6 @@
 -- Live Classes / Google Meet (run in Supabase SQL Editor)
 -- Project: https://supabase.com/dashboard/project/xbhhpjtwawfawifhpxbe/sql/new
--- After running:
--- 1. Commit + push to GitHub — paystack edge function includes Google Meet (auto-redeploy via Lovable or GitHub Actions)
--- 2. GitHub repo secrets (Settings → Secrets): SUPABASE_ACCESS_TOKEN, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
---    GOOGLE_REDIRECT_URI=http://localhost:8080/admin/online-learning/oauth/callback
+-- After running live classes SQL, also run: public/sql/apply-google-meet-oauth.sql
 
 -- Google Workspace OAuth connections (per school)
 CREATE TABLE IF NOT EXISTS public.google_workspace_connections (
