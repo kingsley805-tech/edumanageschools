@@ -12,6 +12,8 @@ import {
   fetchGoogleConnection,
   fetchGoogleOAuthConfig,
   getGoogleAuthUrl,
+  GOOGLE_OAUTH_SETUP_HINT,
+  LIVE_CLASSES_SETUP_SQL_URL,
   saveGoogleOAuthConfig,
 } from "@/live-classes/lib/api";
 import type { GoogleConnection } from "@/live-classes/lib/types";
@@ -33,6 +35,7 @@ export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Pr
   const [connecting, setConnecting] = useState(false);
   const [connection, setConnection] = useState<GoogleConnection | null>(null);
   const [oauthConfigured, setOauthConfigured] = useState(false);
+  const [schemaReady, setSchemaReady] = useState(true);
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
   const [redirectUri, setRedirectUri] = useState(DEFAULT_REDIRECT);
@@ -47,6 +50,7 @@ export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Pr
       setConnection(conn);
       onConnectionChange?.(conn);
       setOauthConfigured(cfg.configured);
+      setSchemaReady(cfg.schemaReady);
       if (cfg.clientId) setClientId(cfg.clientId);
       if (cfg.redirectUri) setRedirectUri(cfg.redirectUri);
     } catch (e) {
@@ -119,7 +123,24 @@ export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Pr
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {!oauthConfigured && !connection?.connected && (
+        {!schemaReady && (
+          <Alert variant="destructive">
+            <AlertTitle>One-time database setup</AlertTitle>
+            <AlertDescription className="space-y-2">
+              <p>{GOOGLE_OAUTH_SETUP_HINT}</p>
+              <a
+                href={LIVE_CLASSES_SETUP_SQL_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="underline font-medium text-sm"
+              >
+                Open Supabase SQL Editor
+              </a>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {!oauthConfigured && !connection?.connected && schemaReady && (
           <Alert>
             <AlertTitle>Step 1 — Google Cloud credentials</AlertTitle>
             <AlertDescription className="space-y-3 pt-2">
@@ -161,11 +182,6 @@ export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Pr
                 {savingConfig ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Save Google credentials
               </Button>
-              <p className="text-xs text-muted-foreground">
-                First time? Run{" "}
-                <code className="text-xs">public/sql/apply-google-meet-oauth.sql</code> in Supabase
-                SQL Editor once.
-              </p>
             </AlertDescription>
           </Alert>
         )}

@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
-import { isMissingSchemaTableError } from "@/report/lib/supabase-errors";
+import { isMissingRpcError, isMissingSchemaTableError } from "@/report/lib/supabase-errors";
 import type {
   CreateLiveClassInput,
   GoogleConnection,
@@ -94,17 +94,67 @@ async function invokeGoogleMeet<T>(body: Record<string, unknown>): Promise<T> {
   );
 }
 
+export const GOOGLE_OAUTH_SETUP_HINT =
+  "Run public/sql/apply-live-classes.sql in Supabase SQL Editor once (includes Google OAuth RPCs), then Settings → API → Reload schema.";
+
+export async function isGoogleOAuthSchemaReady(): Promise<boolean> {
+  const { error } = await supabase.rpc("get_google_oauth_public_config", {
+    p_school_id: "00000000-0000-0000-0000-000000000001",
+  });
+  if (!error) return true;
+  if (isMissingRpcError(error)) {
+    const { error: tableErr } = await supabase
+      .from("school_google_oauth_config")
+      .select("school_id")
+      .limit(1);
+    return !isMissingSchemaTableError(tableErr);
+  }
+  return true;
+}
+
+async function fetchGoogleOAuthConfigDirect(schoolId: string): Promise<{
+  configured: boolean;
+  clientId?: string;
+  redirectUri?: string;
+}> {
+  const { data, error } = await supabase
+    .from("school_google_oauth_config")
+    .select("client_id, redirect_uri")
+    .eq("school_id", schoolId)
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingSchemaTableError(error)) return { configured: false };
+    throw error;
+  }
+
+  return {
+    configured: !!data,
+    clientId: data?.client_id ?? undefined,
+    redirectUri: data?.redirect_uri ?? undefined,
+  };
+}
+
 export async function fetchGoogleOAuthConfig(schoolId: string): Promise<{
   configured: boolean;
   clientId?: string;
   redirectUri?: string;
+  schemaReady: boolean;
 }> {
   const { data, error } = await supabase.rpc("get_google_oauth_public_config", {
     p_school_id: schoolId,
   });
   if (error) {
-    if (isMissingSchemaTableError(error) || error.code === "PGRST202") {
-      return { configured: false };
+    if (isMissingRpcError(error)) {
+      const direct = await fetchGoogleOAuthConfigDirect(schoolId);
+      const { error: tableErr } = await supabase
+        .from("school_google_oauth_config")
+        .select("school_id")
+        .limit(1);
+      return { ...direct, schemaReady: !isMissingSchemaTableError(tableErr) };
+    }
+    if (isMissingSchemaTableError(error)) {
+      return { configured: false, schemaReady: false };
     }
     throw new Error(error.message);
   }
@@ -119,6 +169,7 @@ export async function fetchGoogleOAuthConfig(schoolId: string): Promise<{
     configured: !!row?.configured,
     clientId: row?.client_id,
     redirectUri: row?.redirect_uri,
+    schemaReady: true,
   };
 }
 
@@ -134,14 +185,28 @@ export async function saveGoogleOAuthConfig(
     p_client_secret: clientSecret,
     p_redirect_uri: redirectUri,
   });
-  if (error) {
-    if (error.code === "PGRST202") {
+
+  if (error && isMissingRpcError(error)) {
+    const { error: upsertErr } = await supabase.from("school_google_oauth_config").upsert(
+      {
+        school_id: schoolId,
+        client_id: clientId.trim(),
+        client_secret: clientSecret.trim(),
+        redirect_uri:
+          redirectUri.trim() || "http://localhost:8080/admin/online-learning/oauth/callback",
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "school_id" },
+    );
+    if (upsertErr) {
       throw new Error(
-        "Run public/sql/apply-google-meet-oauth.sql in Supabase SQL Editor, then refresh.",
+        isMissingSchemaTableError(upsertErr) ? GOOGLE_OAUTH_SETUP_HINT : upsertErr.message,
       );
     }
-    throw new Error(error.message);
+    return;
   }
+
+  if (error) throw new Error(error.message);
   const row = data as { ok?: boolean; error?: string } | null;
   if (row?.error) throw new Error(row.error);
   if (!row?.ok) throw new Error("Failed to save Google OAuth settings");
@@ -214,18 +279,18 @@ export async function exchangeGoogleCode(
   if (!error && data) {
     const row = data as { ok?: boolean; email?: string; error?: string };
     if (row.ok && row.email) return { success: true, email: row.email };
-    if (row.error && row.error !== "Could not find the function") {
-      throw new Error(row.error);
-    }
+    if (row.error) throw new Error(row.error);
   }
 
-  if (error?.code !== "PGRST202") {
-    return invokeGoogleMeet({ action: "exchange_code", code, redirectUri, state });
+  if (error && !isMissingRpcError(error)) {
+    throw new Error(error.message);
   }
 
-  throw new Error(
-    "Run public/sql/apply-google-meet-oauth.sql in Supabase SQL Editor, then try connecting again.",
-  );
+  try {
+    return await invokeGoogleMeet({ action: "exchange_code", code, redirectUri, state });
+  } catch {
+    throw new Error(GOOGLE_OAUTH_SETUP_HINT);
+  }
 }
 
 export async function disconnectGoogle(schoolId: string): Promise<void> {

@@ -30,6 +30,20 @@ export function isMissingSchemaError(error: SupabaseLikeError): boolean {
   return isMissingSchemaTableError(error) || isMissingSchemaColumnError(error);
 }
 
+/** PostgREST error when an RPC/function is missing (404 or schema cache). */
+export function isMissingRpcError(
+  error: SupabaseLikeError & { status?: number } | null,
+): boolean {
+  if (!error) return false;
+  if (error.status === 404) return true;
+  if (error.code === "PGRST202" || error.code === "42883") return true;
+  const msg = (error.message ?? "").toLowerCase();
+  return (
+    msg.includes("could not find the function") ||
+    (msg.includes("function") && msg.includes("does not exist"))
+  );
+}
+
 const REPORT_SETUP_SQL_PATH = "supabase/scripts/apply-report-system.sql";
 const SUPABASE_SQL_EDITOR_URL =
   "https://supabase.com/dashboard/project/xbhhpjtwawfawifhpxbe/sql/new";
