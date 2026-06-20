@@ -23,6 +23,8 @@ import type { GoogleConnection } from "@/live-classes/lib/types";
 const GOOGLE_OAUTH_CONSENT_URL =
   "https://console.cloud.google.com/apis/credentials/consent";
 const GOOGLE_SEARCH_CONSOLE_URL = "https://search.google.com/search-console/welcome";
+const GOOGLE_CALENDAR_API_URL =
+  "https://console.cloud.google.com/apis/library/calendar-json.googleapis.com";
 
 function OAuthBrandingLinkRow({ label, url }: { label: string; url: string }) {
   const copy = async () => {
@@ -255,7 +257,15 @@ export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Pr
                 <code className="text-xs">userinfo.email</code>, and{" "}
                 <code className="text-xs">userinfo.profile</code> under{" "}
                 <strong>Data access / Scopes</strong>, and enable the{" "}
-                <strong>Google Calendar API</strong>.
+                <a
+                  href={GOOGLE_CALENDAR_API_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline font-medium"
+                >
+                  Google Calendar API
+                </a>{" "}
+                (required — without it you will see “Calendar API has not been used or is disabled”).
               </p>
               <div className="space-y-2">
                 <Label htmlFor="google-client-id">Client ID</Label>

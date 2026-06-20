@@ -443,20 +443,26 @@ export async function handleGoogleMeet(
       if (sessErr) return jsonResponse({ error: sessErr.message }, 500);
 
       if (scheduleId) {
-        await userClient.from("schedules").update({ status: "published" }).eq("id", scheduleId);
+        try {
+          await userClient.from("schedules").update({ status: "published" }).eq("id", scheduleId);
+        } catch {
+          /* timetable columns may be missing on older schemas */
+        }
       } else {
         const dayOfWeek = new Date(String(sessionDate) + "T12:00:00").getDay();
-        await userClient.from("schedules").insert({
-          school_id: schoolId,
-          class_id: classId,
-          subject_id: subjectId,
-          teacher_id: teacherId,
-          day_of_week: dayOfWeek,
-          start_time: startTime,
-          end_time: endTime,
-          room: "Google Meet",
-          status: "published",
-        });
+        try {
+          await userClient.from("schedules").insert({
+            class_id: classId,
+            subject_id: subjectId,
+            teacher_id: teacherId,
+            day_of_week: dayOfWeek,
+            start_time: startTime,
+            end_time: endTime,
+            room: "Google Meet",
+          });
+        } catch {
+          /* optional timetable row — live class still succeeds */
+        }
       }
 
       await adminClient.from("live_class_audit_logs").insert({

@@ -522,11 +522,15 @@ BEGIN
   END LOOP;
   SELECT coalesce(jsonb_agg(to_jsonb(s) ORDER BY s.start_at), '[]'::jsonb) INTO v_sessions
   FROM public.live_class_sessions s WHERE s.live_class_id = v_live_class.id;
-  IF p_schedule_id IS NOT NULL THEN UPDATE public.schedules SET status = 'published' WHERE id = p_schedule_id;
+  IF p_schedule_id IS NOT NULL THEN
+    BEGIN UPDATE public.schedules SET status = 'published' WHERE id = p_schedule_id;
+    EXCEPTION WHEN undefined_column THEN NULL; END;
   ELSE
     v_day_of_week := extract(dow FROM p_session_date)::int;
-    INSERT INTO public.schedules (school_id, class_id, subject_id, teacher_id, day_of_week, start_time, end_time, room, status)
-    VALUES (p_school_id, p_class_id, p_subject_id, p_teacher_id, v_day_of_week, p_start_time, p_end_time, 'Google Meet', 'published');
+    BEGIN
+      INSERT INTO public.schedules (class_id, subject_id, teacher_id, day_of_week, start_time, end_time, room)
+      VALUES (p_class_id, p_subject_id, p_teacher_id, v_day_of_week, p_start_time, p_end_time, 'Google Meet');
+    EXCEPTION WHEN OTHERS THEN NULL; END;
   END IF;
   INSERT INTO public.live_class_audit_logs (school_id, actor_id, action, entity_type, entity_id, metadata)
   VALUES (p_school_id, v_uid, 'live_class_created', 'live_classes', v_live_class.id,

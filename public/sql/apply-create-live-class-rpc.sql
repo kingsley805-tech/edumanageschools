@@ -291,15 +291,23 @@ BEGIN
   WHERE s.live_class_id = v_live_class.id;
 
   IF p_schedule_id IS NOT NULL THEN
-    UPDATE public.schedules SET status = 'published' WHERE id = p_schedule_id;
+    BEGIN
+      UPDATE public.schedules SET status = 'published' WHERE id = p_schedule_id;
+    EXCEPTION
+      WHEN undefined_column THEN NULL;
+    END;
   ELSE
     v_day_of_week := extract(dow FROM p_session_date)::int;
-    INSERT INTO public.schedules (
-      school_id, class_id, subject_id, teacher_id, day_of_week, start_time, end_time, room, status
-    ) VALUES (
-      p_school_id, p_class_id, p_subject_id, p_teacher_id, v_day_of_week,
-      p_start_time, p_end_time, 'Google Meet', 'published'
-    );
+    BEGIN
+      INSERT INTO public.schedules (
+        class_id, subject_id, teacher_id, day_of_week, start_time, end_time, room
+      ) VALUES (
+        p_class_id, p_subject_id, p_teacher_id, v_day_of_week,
+        p_start_time, p_end_time, 'Google Meet'
+      );
+    EXCEPTION
+      WHEN OTHERS THEN NULL;
+    END;
   END IF;
 
   INSERT INTO public.live_class_audit_logs (

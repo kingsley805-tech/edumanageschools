@@ -244,8 +244,16 @@ export function connectionHasCalendarScope(scopes: string[] | null | undefined):
 }
 
 function formatGoogleScopeError(message: string): string {
-  if (message.toLowerCase().includes("insufficient authentication scopes")) {
+  const lower = message.toLowerCase();
+  if (lower.includes("insufficient authentication scopes")) {
     return GOOGLE_CALENDAR_SCOPE_HINT;
+  }
+  if (lower.includes("calendar api has not been used") || lower.includes("calendar-json.googleapis.com")) {
+    return (
+      "Google Calendar API is not enabled for your Google Cloud project. " +
+      "Open Google Cloud Console → APIs & Services → Library → search “Google Calendar API” → Enable. " +
+      "Wait 1–2 minutes, then try Create Live Class again."
+    );
   }
   return message;
 }

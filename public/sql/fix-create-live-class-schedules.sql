@@ -1,0 +1,4 @@
+-- Fix: "column school_id of relation schedules does not exist" when creating live classes.
+-- Run the FULL file apply-create-live-class-rpc.sql in Supabase SQL Editor (it replaces the function).
+-- https://supabase.com/dashboard/project/xbhhpjtwawfawifhpxbe/sql/new
+-- Then: Settings → API → Reload schema
