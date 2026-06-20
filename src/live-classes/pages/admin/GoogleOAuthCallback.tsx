@@ -16,7 +16,15 @@ export default function GoogleOAuthCallback() {
     const error = searchParams.get("error");
 
     if (error) {
-      toast.error("Google authorization was cancelled");
+      const description = searchParams.get("error_description") ?? "";
+      if (error === "access_denied" || description.includes("verification")) {
+        toast.error(
+          "Google blocked sign-in: add your email as a Test user in Google Cloud Console → OAuth consent screen, then try again.",
+          { duration: 12000 },
+        );
+      } else {
+        toast.error("Google authorization was cancelled");
+      }
       navigate("/admin/online-learning", { replace: true });
       return;
     }

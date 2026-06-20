@@ -16,7 +16,34 @@ import {
   LIVE_CLASSES_SETUP_SQL_URL,
   saveGoogleOAuthConfig,
 } from "@/live-classes/lib/api";
+import { getPublicAppLinks, getPublicAppUrl } from "@/lib/publicAppUrl";
 import type { GoogleConnection } from "@/live-classes/lib/types";
+
+const GOOGLE_OAUTH_CONSENT_URL =
+  "https://console.cloud.google.com/apis/credentials/consent";
+
+function OAuthBrandingLinkRow({ label, url }: { label: string; url: string }) {
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success(`Copied ${label}`);
+    } catch {
+      toast.error("Could not copy — select and copy the URL manually");
+    }
+  };
+
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <div className="flex gap-2 items-center">
+        <code className="text-xs flex-1 break-all bg-muted px-2 py-1.5 rounded">{url}</code>
+        <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={copy}>
+          Copy
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 type Props = {
   schoolId: string;
@@ -39,6 +66,8 @@ export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Pr
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
   const [redirectUri, setRedirectUri] = useState(DEFAULT_REDIRECT);
+  const publicLinks = getPublicAppLinks();
+  const publicBase = getPublicAppUrl();
 
   const load = async () => {
     setLoading(true);
@@ -141,12 +170,53 @@ export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Pr
         )}
 
         {!oauthConfigured && !connection?.connected && schemaReady && (
-          <Alert>
-            <AlertTitle>Step 1 — Google Cloud credentials</AlertTitle>
+          <>
+            <Alert>
+              <AlertTitle>OAuth consent screen — required links</AlertTitle>
+              <AlertDescription className="space-y-3 pt-2">
+                <p className="text-sm">
+                  In{" "}
+                  <a
+                    href={GOOGLE_OAUTH_CONSENT_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline font-medium"
+                  >
+                    Google Cloud → OAuth consent screen
+                  </a>
+                  , paste these URLs (must be public <strong>https://</strong> — not localhost):
+                </p>
+                {!publicBase && (
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    Deploy the app (Lovable/Vercel) or set{" "}
+                    <code className="text-xs">VITE_PUBLIC_APP_URL=https://your-domain.com</code> in
+                    .env, then rebuild. Replace <code className="text-xs">your-domain.com</code>{" "}
+                    below with your live URL.
+                  </p>
+                )}
+                <OAuthBrandingLinkRow label="Application home page" url={publicLinks.home} />
+                <OAuthBrandingLinkRow
+                  label="Application privacy policy link"
+                  url={publicLinks.privacy}
+                />
+                <OAuthBrandingLinkRow
+                  label="Application terms of service link"
+                  url={publicLinks.terms}
+                />
+              </AlertDescription>
+            </Alert>
+
+            <Alert>
+              <AlertTitle>Step 1 — Google Cloud credentials</AlertTitle>
             <AlertDescription className="space-y-3 pt-2">
               <p className="text-sm">
                 Create an OAuth 2.0 Client in Google Cloud Console and paste the values below.
                 Add the redirect URI to Google&apos;s authorized redirect URIs list.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                While the app is in <strong>Testing</strong> mode, add each Google account that
+                will connect (e.g. your admin email) under OAuth consent screen →{" "}
+                <strong>Test users</strong>.
               </p>
               <div className="space-y-2">
                 <Label htmlFor="google-client-id">Client ID</Label>
@@ -184,6 +254,7 @@ export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Pr
               </Button>
             </AlertDescription>
           </Alert>
+          </>
         )}
 
         {connection?.connected ? (
