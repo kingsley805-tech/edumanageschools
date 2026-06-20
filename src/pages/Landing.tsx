@@ -64,7 +64,8 @@ export default function Landing() {
               animate="visible"
               className="text-[1.65rem] font-extrabold leading-[1.12] tracking-tight text-white sm:text-4xl lg:text-[2.65rem] xl:text-5xl"
             >
-              The Modern, Complete{" "}
+              <span className="text-white">EduManage</span>
+              <span className="text-white/90"> — The Modern, Complete </span>
               <span className="bg-gradient-to-r from-emerald-300 via-teal-200 to-cyan-300 bg-clip-text text-transparent">
                 School Management System
               </span>

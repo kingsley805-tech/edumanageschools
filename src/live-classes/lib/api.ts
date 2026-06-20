@@ -31,7 +31,7 @@ export const LIVE_CLASSES_SETUP_SQL_URL =
   "https://supabase.com/dashboard/project/xbhhpjtwawfawifhpxbe/sql/new";
 
 export const GOOGLE_MEET_SETUP_HINT =
-  "Configure Google OAuth on the Online Learning page, or run public/sql/apply-google-meet-oauth.sql in Supabase SQL Editor.";
+  "Run public/sql/apply-create-live-class-rpc.sql in Supabase SQL Editor (or deploy the paystack Edge Function).";
 
 export const GOOGLE_MEET_FUNCTIONS_URL =
   "https://supabase.com/dashboard/project/xbhhpjtwawfawifhpxbe/functions/paystack/details";
@@ -52,18 +52,26 @@ function isLiveClassesUnavailable(error: { code?: string; message?: string; stat
 }
 
 function isEdgeFunctionMissing(error: unknown): boolean {
+  if (isEdgeFunctionUnreachable(error)) return true;
   if (error && typeof error === "object") {
     const e = error as { message?: string; name?: string; context?: Response };
     if (e.name === "FunctionsFetchError") return true;
-    const msg = (e.message ?? "").trim();
+    const msg = (e.message ?? "").trim().toLowerCase();
     if (
-      msg.includes("Failed to send a request to the Edge Function") ||
-      msg.toLowerCase().includes("failed to fetch") ||
-      msg.includes("CORS")
+      msg.includes("failed to send a request to the edge function") ||
+      msg.includes("failed to fetch") ||
+      msg.includes("cors") ||
+      msg.includes("not found") ||
+      msg.includes("not reachable") ||
+      msg.includes("404")
     ) {
       return true;
     }
     if (e.context?.status === 404) return true;
+  }
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    return msg.includes("not found") || msg.includes("not reachable") || msg.includes("404");
   }
   return false;
 }
@@ -302,6 +310,46 @@ export async function disconnectGoogle(schoolId: string): Promise<void> {
 }
 
 export async function createLiveClass(input: CreateLiveClassInput) {
+  const { data, error } = await supabase.rpc("create_live_class_via_google", {
+    p_school_id: input.schoolId,
+    p_class_id: input.classId,
+    p_subject_id: input.subjectId,
+    p_teacher_id: input.teacherId,
+    p_title: input.title,
+    p_description: input.description ?? null,
+    p_session_date: input.sessionDate,
+    p_start_time: input.startTime,
+    p_end_time: input.endTime,
+    p_timezone: input.timezone ?? "Africa/Accra",
+    p_recurrence_type: input.recurrenceType ?? "none",
+    p_recurrence_end_date: input.recurrenceEndDate ?? null,
+    p_recurrence_rule: input.recurrenceRule ?? {},
+    p_recording_enabled: input.recordingEnabled ?? false,
+    p_schedule_id: input.scheduleId ?? null,
+  });
+
+  if (!error && data) {
+    const row = data as {
+      ok?: boolean;
+      error?: string;
+      liveClass?: LiveClass;
+      sessions?: LiveClassSession[];
+      meetLink?: string;
+    };
+    if (row.ok && row.liveClass && row.sessions) {
+      return {
+        liveClass: row.liveClass,
+        sessions: row.sessions,
+        meetLink: row.meetLink ?? "",
+      };
+    }
+    if (row.error) throw new Error(row.error);
+  }
+
+  if (error && !isMissingRpcError(error)) {
+    throw new Error(error.message);
+  }
+
   return invokeGoogleMeet<{
     liveClass: LiveClass;
     sessions: LiveClassSession[];

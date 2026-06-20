@@ -28,9 +28,9 @@ export function isEdgeFunctionUnreachable(error: unknown): boolean {
     }
   }
   if (error instanceof Error) {
-    const msg = error.message;
+    const msg = error.message.toLowerCase();
     return (
-      msg.includes("Failed to send a request to the Edge Function") ||
+      msg.includes("failed to send a request to the edge function") ||
       msg.includes("not reachable") ||
       msg.includes("not found") ||
       msg.includes("404")

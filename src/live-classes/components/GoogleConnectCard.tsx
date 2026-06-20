@@ -21,6 +21,7 @@ import type { GoogleConnection } from "@/live-classes/lib/types";
 
 const GOOGLE_OAUTH_CONSENT_URL =
   "https://console.cloud.google.com/apis/credentials/consent";
+const GOOGLE_SEARCH_CONSOLE_URL = "https://search.google.com/search-console/welcome";
 
 function OAuthBrandingLinkRow({ label, url }: { label: string; url: string }) {
   const copy = async () => {
@@ -203,6 +204,37 @@ export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Pr
                   label="Application terms of service link"
                   url={publicLinks.terms}
                 />
+                <div className="rounded-md border border-amber-200/80 bg-amber-50/80 p-3 text-xs text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100 space-y-2">
+                  <p className="font-medium">If Google reports verification errors:</p>
+                  <ul className="list-disc pl-4 space-y-1.5">
+                    <li>
+                      <strong>App name must match the home page.</strong> Set OAuth consent screen{" "}
+                      <strong>App name</strong> to <code className="text-xs">EduManage</code> (not
+                      &quot;EduManage Google Integration&quot;). The landing page headline must show
+                      the same name.
+                    </li>
+                    <li>
+                      <strong>Verify you own the site.</strong> In{" "}
+                      <a
+                        href={GOOGLE_SEARCH_CONSOLE_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline font-medium"
+                      >
+                        Google Search Console
+                      </a>
+                      , add property{" "}
+                      <code className="text-xs">
+                        {publicBase || "https://your-domain.com"}
+                      </code>
+                      , choose <strong>HTML tag</strong>, copy the <code className="text-xs">content</code>{" "}
+                      value, set{" "}
+                      <code className="text-xs">VITE_GOOGLE_SITE_VERIFICATION</code> in Vercel env,
+                      redeploy, then click Verify in Search Console. Return to OAuth consent screen
+                      and re-submit.
+                    </li>
+                  </ul>
+                </div>
               </AlertDescription>
             </Alert>
 
