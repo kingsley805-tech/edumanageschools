@@ -17,7 +17,6 @@ import { exportTimetableExcel, exportTimetablePdf } from "@/timetable/lib/export
 import type { ScheduleEntry, TimetablePeriod } from "@/timetable/lib/types";
 import { toast } from "sonner";
 import { UpcomingLiveSessions } from "@/live-classes/components/UpcomingLiveSessions";
-import { recordJoin } from "@/live-classes/lib/api";
 import type { LiveClassSession } from "@/live-classes/lib/types";
 
 type PortalRole = "student" | "teacher" | "parent";
@@ -113,10 +112,8 @@ export function TimetablePortalView({
     [entries, today],
   );
 
-  const handleLiveJoin = async (session: LiveClassSession) => {
-    if (studentId) {
-      await recordJoin(session.id, studentId);
-    }
+  const handleLiveJoin = (_session: LiveClassSession) => {
+    /* attendance is recorded on the in-portal meeting room page */
   };
 
   return (
@@ -172,8 +169,9 @@ export function TimetablePortalView({
           <UpcomingLiveSessions
             classId={classId}
             teacherId={teacherId}
-            showJoin={role === "student"}
+            showJoin={role === "student" || role === "teacher"}
             onJoin={role === "student" ? handleLiveJoin : undefined}
+            joinPathRole={role === "student" ? "student" : role === "teacher" ? "teacher" : undefined}
           />
         </div>
 

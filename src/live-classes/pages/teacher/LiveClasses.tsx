@@ -21,6 +21,7 @@ import { fetchTeacherAssignedClasses } from "@/report/lib/teacher-assignments";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
+import { getLiveClassMeetingPath } from "@/live-classes/lib/meetingPaths";
 
 export default function TeacherLiveClasses() {
   const { user } = useAuth();
@@ -153,7 +154,11 @@ export default function TeacherLiveClasses() {
           <div className="grid gap-4 md:grid-cols-2">
             {sessions.map((s) => (
               <div key={s.id} className="space-y-2">
-                <LiveClassSessionCard session={s} onJoin={handleJoin} />
+                <LiveClassSessionCard
+                  session={s}
+                  onJoin={handleJoin}
+                  joinHref={getLiveClassMeetingPath("teacher", s.id)}
+                />
                 <LiveClassResourcesPanel
                   liveClassId={s.live_class_id}
                   sessionId={s.id}

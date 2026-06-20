@@ -10,6 +10,7 @@ import {
   studentDisplayNameForParent,
 } from "@/lib/parent-students";
 import { fetchLiveClassSessions } from "@/live-classes/lib/api";
+import { getLiveClassMeetingPath } from "@/live-classes/lib/meetingPaths";
 import { LiveClassResourcesPanel } from "@/live-classes/components/LiveClassResourcesPanel";
 import type { LiveClassSession } from "@/live-classes/lib/types";
 
@@ -84,7 +85,11 @@ export default function ParentClassSchedule() {
           <div className="grid gap-4 md:grid-cols-2">
             {sessions.map((s) => (
               <div key={s.id} className="space-y-2">
-                <LiveClassSessionCard session={s} showJoin={false} />
+                <LiveClassSessionCard
+                  session={s}
+                  showJoin
+                  joinHref={getLiveClassMeetingPath("parent", s.id)}
+                />
                 <LiveClassResourcesPanel
                   liveClassId={s.live_class_id}
                   sessionId={s.id}

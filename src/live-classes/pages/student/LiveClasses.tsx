@@ -8,11 +8,10 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   fetchLiveClassSessions,
   fetchStudentOnlineAttendance,
-  recordJoin,
-  recordLeave,
 } from "@/live-classes/lib/api";
 import type { LiveClassSession, StudentOnlineAttendance } from "@/live-classes/lib/types";
 import { LiveClassResourcesPanel } from "@/live-classes/components/LiveClassResourcesPanel";
+import { getLiveClassMeetingPath } from "@/live-classes/lib/meetingPaths";
 
 export default function StudentLiveClasses() {
   const { user } = useAuth();
@@ -60,14 +59,8 @@ export default function StudentLiveClasses() {
     })();
   }, [user]);
 
-  const handleJoin = async (session: LiveClassSession) => {
-    if (!studentId) return;
-    await recordJoin(session.id, studentId);
-    const onLeave = () => {
-      void recordLeave(session.id, studentId);
-      window.removeEventListener("beforeunload", onLeave);
-    };
-    window.addEventListener("beforeunload", onLeave);
+  const handleJoin = async (_session: LiveClassSession) => {
+    /* join side-effects run on the meeting room page */
   };
 
   return (
@@ -75,7 +68,7 @@ export default function StudentLiveClasses() {
       <div className="space-y-6">
         <PortalPageHeader
           title="Live Classes"
-          description="Join scheduled Google Meet sessions for your class."
+          description="Join scheduled Google Meet sessions inside the EduManage portal."
         />
 
         {stats && stats.totalClasses > 0 && (
@@ -102,7 +95,11 @@ export default function StudentLiveClasses() {
           <div className="grid gap-4 md:grid-cols-2">
             {sessions.map((s) => (
               <div key={s.id} className="space-y-2">
-                <LiveClassSessionCard session={s} onJoin={handleJoin} />
+                <LiveClassSessionCard
+                  session={s}
+                  onJoin={handleJoin}
+                  joinHref={getLiveClassMeetingPath("student", s.id)}
+                />
                 <LiveClassResourcesPanel
                   liveClassId={s.live_class_id}
                   sessionId={s.id}

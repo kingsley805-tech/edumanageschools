@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Video } from "lucide-react";
 import { fetchLiveClassSessions } from "@/live-classes/lib/api";
+import { getLiveClassMeetingPath, type LiveClassPortalRole } from "@/live-classes/lib/meetingPaths";
 import { LiveClassSessionCard } from "@/live-classes/components/LiveClassSessionCard";
 import type { LiveClassSession } from "@/live-classes/lib/types";
 
@@ -11,6 +12,7 @@ type Props = {
   title?: string;
   showJoin?: boolean;
   onJoin?: (session: LiveClassSession) => void;
+  joinPathRole?: LiveClassPortalRole;
   daysAhead?: number;
 };
 
@@ -20,6 +22,7 @@ export function UpcomingLiveSessions({
   title = "Upcoming live classes",
   showJoin = true,
   onJoin,
+  joinPathRole,
   daysAhead = 14,
 }: Props) {
   const [sessions, setSessions] = useState<LiveClassSession[]>([]);
@@ -59,7 +62,14 @@ export function UpcomingLiveSessions({
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {sessions.map((s) => (
-              <LiveClassSessionCard key={s.id} session={s} compact showJoin={showJoin} onJoin={onJoin} />
+              <LiveClassSessionCard
+                key={s.id}
+                session={s}
+                compact
+                showJoin={showJoin}
+                onJoin={onJoin}
+                joinHref={joinPathRole ? getLiveClassMeetingPath(joinPathRole, s.id) : undefined}
+              />
             ))}
           </div>
         )}

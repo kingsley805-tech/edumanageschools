@@ -15,6 +15,7 @@ import {
   LIVE_CLASSES_SETUP_SQL_URL,
 } from "@/live-classes/lib/api";
 import type { LiveClassAnalytics, LiveClassSession } from "@/live-classes/lib/types";
+import { getLiveClassMeetingPath } from "@/live-classes/lib/meetingPaths";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Video } from "lucide-react";
 
@@ -98,7 +99,12 @@ export default function AdminOnlineLearning() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
               {sessions.map((s) => (
-                <LiveClassSessionCard key={s.id} session={s} showJoin={false} />
+                <LiveClassSessionCard
+                  key={s.id}
+                  session={s}
+                  showJoin
+                  joinHref={getLiveClassMeetingPath("admin", s.id)}
+                />
               ))}
             </div>
           )}
