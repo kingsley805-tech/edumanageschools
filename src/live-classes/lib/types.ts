@@ -8,6 +8,8 @@ export type GoogleConnection = {
   connected: boolean;
   email: string | null;
   expiresAt: string | null;
+  /** False when connected before Calendar scope was granted — user must reconnect. */
+  hasCalendarScope: boolean;
 };
 
 export type LiveClass = {

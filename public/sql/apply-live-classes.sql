@@ -375,7 +375,7 @@ BEGIN
     scopes, connected_by, connected_at, updated_at
   ) VALUES (
     v_school_id, v_user ->> 'id', v_user ->> 'email', v_tokens ->> 'access_token', v_tokens ->> 'refresh_token',
-    v_expires_at, ARRAY['https://www.googleapis.com/auth/calendar.events','openid','email','profile'],
+    v_expires_at, ARRAY['https://www.googleapis.com/auth/calendar','openid','email','profile'],
     v_uid, now(), now()
   ) ON CONFLICT (school_id) DO UPDATE SET
     google_account_id = EXCLUDED.google_account_id, google_email = EXCLUDED.google_email,

@@ -13,6 +13,7 @@ import {
   fetchGoogleOAuthConfig,
   getGoogleAuthUrl,
   GOOGLE_OAUTH_SETUP_HINT,
+  GOOGLE_CALENDAR_SCOPE_HINT,
   LIVE_CLASSES_SETUP_SQL_URL,
   saveGoogleOAuthConfig,
 } from "@/live-classes/lib/api";
@@ -248,7 +249,13 @@ export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Pr
               <p className="text-sm text-muted-foreground">
                 While the app is in <strong>Testing</strong> mode, add each Google account that
                 will connect (e.g. your admin email) under OAuth consent screen →{" "}
-                <strong>Test users</strong>.
+                <strong>Test users</strong>. Also add scope{" "}
+                <code className="text-xs">.../auth/calendar</code> (or calendar.events), plus{" "}
+                <code className="text-xs">openid</code>,{" "}
+                <code className="text-xs">userinfo.email</code>, and{" "}
+                <code className="text-xs">userinfo.profile</code> under{" "}
+                <strong>Data access / Scopes</strong>, and enable the{" "}
+                <strong>Google Calendar API</strong>.
               </p>
               <div className="space-y-2">
                 <Label htmlFor="google-client-id">Client ID</Label>
@@ -290,7 +297,19 @@ export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Pr
         )}
 
         {connection?.connected ? (
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-3">
+            {connection.connected && !connection.hasCalendarScope && (
+              <Alert variant="destructive">
+                <AlertTitle>Calendar permission missing</AlertTitle>
+                <AlertDescription className="text-sm space-y-2">
+                  <p>{GOOGLE_CALENDAR_SCOPE_HINT}</p>
+                  <Button variant="outline" size="sm" onClick={handleConnect} disabled={connecting || disabled}>
+                    Reconnect with Calendar access
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+            <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <Badge variant="secondary" className="mb-1">
                 Connected
@@ -309,6 +328,7 @@ export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Pr
                 Disconnect
               </Button>
             </div>
+          </div>
           </div>
         ) : (
           <Button

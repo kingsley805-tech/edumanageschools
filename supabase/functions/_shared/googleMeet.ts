@@ -5,10 +5,10 @@ const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const CALENDAR_EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
 const SCOPES = [
-  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar",
   "openid",
-  "email",
-  "profile",
+  "https://www.googleapis.com/auth/userinfo.email",
+  "https://www.googleapis.com/auth/userinfo.profile",
 ].join(" ");
 
 export const GOOGLE_MEET_ACTIONS = new Set([

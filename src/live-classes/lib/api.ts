@@ -220,31 +220,57 @@ export async function saveGoogleOAuthConfig(
   if (!row?.ok) throw new Error("Failed to save Google OAuth settings");
 }
 
-const GOOGLE_OAUTH_SCOPES = [
-  "https://www.googleapis.com/auth/calendar.events",
+const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar";
+
+export const GOOGLE_OAUTH_SCOPES = [
+  GOOGLE_CALENDAR_SCOPE,
   "openid",
-  "email",
-  "profile",
+  "https://www.googleapis.com/auth/userinfo.email",
+  "https://www.googleapis.com/auth/userinfo.profile",
 ].join(" ");
+
+export const GOOGLE_CALENDAR_SCOPE_HINT =
+  "Google Calendar access is required for Meet links. In Google Cloud Console → OAuth consent screen → Scopes, add " +
+  `"${GOOGLE_CALENDAR_SCOPE}" (or calendar.events), plus openid, email, and profile. ` +
+  "Enable the Google Calendar API, then Disconnect and Connect again on this page.";
+
+export function connectionHasCalendarScope(scopes: string[] | null | undefined): boolean {
+  return (scopes ?? []).some(
+    (s) =>
+      s === GOOGLE_CALENDAR_SCOPE ||
+      s.includes("calendar.events") ||
+      s === "https://www.googleapis.com/auth/calendar",
+  );
+}
+
+function formatGoogleScopeError(message: string): string {
+  if (message.toLowerCase().includes("insufficient authentication scopes")) {
+    return GOOGLE_CALENDAR_SCOPE_HINT;
+  }
+  return message;
+}
 
 export async function fetchGoogleConnection(schoolId: string): Promise<GoogleConnection> {
   const { data, error } = await supabase
     .from("google_workspace_connections")
-    .select("google_email, token_expires_at")
+    .select("google_email, token_expires_at, scopes")
     .eq("school_id", schoolId)
     .maybeSingle();
 
   if (error) {
     if (isLiveClassesUnavailable(error) || isMissingSchemaTableError(error)) {
-      return { connected: false, email: null, expiresAt: null };
+      return { connected: false, email: null, expiresAt: null, hasCalendarScope: false };
     }
     throw error;
   }
+
+  const scopes = (data?.scopes as string[] | null) ?? null;
 
   return {
     connected: !!data,
     email: data?.google_email ?? null,
     expiresAt: data?.token_expires_at ?? null,
+    hasCalendarScope: connectionHasCalendarScope(scopes),
   };
 }
 
@@ -269,6 +295,7 @@ export async function getGoogleAuthUrl(schoolId: string, redirectUri: string): P
     scope: GOOGLE_OAUTH_SCOPES,
     access_type: "offline",
     prompt: "consent",
+    include_granted_scopes: "true",
     state,
   })}`;
 }
@@ -343,11 +370,11 @@ export async function createLiveClass(input: CreateLiveClassInput) {
         meetLink: row.meetLink ?? "",
       };
     }
-    if (row.error) throw new Error(row.error);
+    if (row.error) throw new Error(formatGoogleScopeError(row.error));
   }
 
   if (error && !isMissingRpcError(error)) {
-    throw new Error(error.message);
+    throw new Error(formatGoogleScopeError(error.message));
   }
 
   return invokeGoogleMeet<{
