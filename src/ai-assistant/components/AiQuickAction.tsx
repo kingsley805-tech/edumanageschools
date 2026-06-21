@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { buildContextFromLocation, storeReferrerContext } from "../lib/context";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useLocation } from "react-router-dom";
 
 type Props = {
@@ -23,9 +24,11 @@ export function AiQuickAction({
   size = "sm",
 }: Props) {
   const location = useLocation();
-  const { profile } = useAuth();
-  const role = profile?.role ?? "admin";
-  const ctx = buildContextFromLocation(location.pathname, role, profile?.full_name);
+  const { user } = useAuth();
+  const { role: portalRole } = useUserRole();
+  const role = portalRole ?? "admin";
+  const userName = (user?.user_metadata?.full_name as string | undefined) ?? undefined;
+  const ctx = buildContextFromLocation(location.pathname, role, userName);
 
   const to = prompt
     ? `/ai-assistant?${new URLSearchParams({ q: prompt }).toString()}`

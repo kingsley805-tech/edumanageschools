@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { buildContextFromLocation, storeReferrerContext } from "@/ai-assistant/lib/context";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
 
 type Props = {
   className?: string;
@@ -12,14 +13,16 @@ type Props = {
 /** Floating quick-access button — hidden on AI page itself */
 export function AiFloatingButton({ className }: Props) {
   const location = useLocation();
-  const { profile } = useAuth();
+  const { user } = useAuth();
+  const { role: portalRole } = useUserRole();
 
   if (location.pathname.startsWith("/ai-assistant") || location.pathname.startsWith("/dashboard/ai-assistant")) {
     return null;
   }
 
-  const role = profile?.role ?? "admin";
-  const ctx = buildContextFromLocation(location.pathname, role, profile?.full_name);
+  const role = portalRole ?? "admin";
+  const userName = (user?.user_metadata?.full_name as string | undefined) ?? undefined;
+  const ctx = buildContextFromLocation(location.pathname, role, userName);
 
   return (
     <Link

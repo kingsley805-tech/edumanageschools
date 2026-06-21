@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
+import { usePermissions } from "@/hooks/usePermissions";
 import DashboardLayout from "@/components/DashboardLayout";
 import { toast } from "sonner";
 import { AiConversationSidebar } from "../components/AiConversationSidebar";
@@ -61,13 +63,17 @@ async function streamReveal(
 }
 
 export default function AiAssistantPage() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
+  const { role: portalRole, hasPortalRole } = useUserRole();
+  const { isSuperAdmin } = usePermissions();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const role = profile?.role ?? "admin";
+  const role = portalRole ?? "admin";
   const layoutRole = roleForLayout(role);
-  const userName = profile?.full_name ?? user?.email ?? "there";
+  const userName =
+    (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? "there";
+  const canConfigurePlatformAi = isSuperAdmin || hasPortalRole("super_admin");
 
   const [context] = useState<AiContext>(() => {
     const referrer = loadReferrerContext();
@@ -86,8 +92,8 @@ export default function AiAssistantPage() {
   const [rightOpen, setRightOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [needsGeminiSetup, setNeedsGeminiSetup] = useState(false);
+  const [showKeyManager, setShowKeyManager] = useState(false);
 
-  const isSuperAdmin = role === "super_admin";
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const localHintShown = useRef(false);
@@ -258,13 +264,15 @@ export default function AiAssistantPage() {
   const chatArea = (
     <div className="flex min-h-0 flex-1 flex-col">
       <ScrollArea className="flex-1">
-        {needsGeminiSetup ? (
-          isSuperAdmin ? (
-            <AiGeminiSetupCard onConfigured={() => setNeedsGeminiSetup(false)} />
-          ) : (
-            <AiGeminiPendingNotice />
-          )
+        {canConfigurePlatformAi && (needsGeminiSetup || showKeyManager) ? (
+          <AiGeminiSetupCard
+            onConfigured={() => {
+              setNeedsGeminiSetup(false);
+              setShowKeyManager(false);
+            }}
+          />
         ) : null}
+        {!canConfigurePlatformAi && needsGeminiSetup ? <AiGeminiPendingNotice /> : null}
         {messages.length === 0 && !loading ? (
           <AiWelcomeScreen
             userName={userName}
@@ -326,9 +334,21 @@ export default function AiAssistantPage() {
               </div>
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setRightOpen(true)}>
-            <PanelRight className="h-5 w-5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {canConfigurePlatformAi && !needsGeminiSetup ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden h-8 text-xs sm:inline-flex"
+                onClick={() => setShowKeyManager((v) => !v)}
+              >
+                {showKeyManager ? "Hide API key" : "Platform API key"}
+              </Button>
+            ) : null}
+            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setRightOpen(true)}>
+              <PanelRight className="h-5 w-5" />
+            </Button>
+          </div>
         </header>
 
         <div className="flex min-h-0 flex-1">
