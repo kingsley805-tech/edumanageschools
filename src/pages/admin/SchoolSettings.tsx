@@ -21,8 +21,10 @@ import {
 } from "@/lib/schoolFetch";
 import { formatExample } from "@/lib/admission-numbers";
 import { derivePrefixFromSchoolName } from "@/lib/school-prefix";
-import { Upload, Building, Image, Save, Loader2, Palette, CreditCard, FileText } from "lucide-react";
+import { Upload, Building, Image, Save, Loader2, Palette, CreditCard, FileText, Coins } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useSchoolCurrency } from "@/hooks/useSchoolCurrency";
+import { formatMoney } from "@/lib/currency";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { syncReportThemeWithSchoolBrand } from "@/report/lib/sync-report-theme";
 
@@ -30,6 +32,7 @@ const SchoolSettings = () => {
   const { user } = useAuth();
   const { role } = useUserRole();
   const { applyColors, refreshSchoolTheme } = useSchoolTheme();
+  const { currency, symbol } = useSchoolCurrency();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -604,22 +607,51 @@ const SchoolSettings = () => {
           </Card>
 
           {(role === "admin" || role === "super_admin") && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
-                  Online payments
-                </CardTitle>
-                <CardDescription>
-                  Connect this school&apos;s own Paystack account for fee collection.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button asChild variant="outline">
-                  <Link to="/admin/billing/settings/payments">Payment gateway settings</Link>
-                </Button>
-              </CardContent>
-            </Card>
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Coins className="h-5 w-5" />
+                    Currency
+                  </CardTitle>
+                  <CardDescription>
+                    Display currency for invoices, fees, payroll, and billing dashboards.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="rounded-lg border bg-muted/40 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">Current currency</p>
+                    <p className="mt-1 text-2xl font-semibold tabular-nums">
+                      {symbol}{" "}
+                      <span className="text-base font-medium text-muted-foreground">({currency})</span>
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Preview: {formatMoney(1250, currency)}
+                    </p>
+                  </div>
+                  <Button asChild>
+                    <Link to="/admin/billing/settings">Change currency</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5" />
+                    Online payments
+                  </CardTitle>
+                  <CardDescription>
+                    Connect this school&apos;s own Paystack account for fee collection.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button asChild variant="outline">
+                    <Link to="/admin/billing/settings/payments">Payment gateway settings</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </>
           )}
         </div>
       </div>

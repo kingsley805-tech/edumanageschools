@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useBillingAuth } from "@/billing/hooks/useBillingAuth";
-import { useSchoolInfo } from "@/hooks/useSchoolInfo";
+import { useSchoolInfo, SCHOOL_INFO_QUERY_KEY } from "@/hooks/useSchoolInfo";
+import { requestBillingDashboardRefetch } from "@/billing/lib/billingDashboardSync";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,7 @@ import {
 
 function BillingSettings() {
   const { schoolId, isAdmin } = useBillingAuth();
+  const queryClient = useQueryClient();
   const { currentSchool, refetch } = useSchoolInfo();
   const [form, setForm] = useState({
     currency: "GHS",
@@ -65,8 +67,10 @@ function BillingSettings() {
         .eq("id", schoolId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      refetch();
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [SCHOOL_INFO_QUERY_KEY] });
+      await refetch();
+      requestBillingDashboardRefetch();
       toast.success(`Billing settings saved — amounts will display as ${symbol}`);
     },
     onError: (e: Error) => toast.error(e.message),

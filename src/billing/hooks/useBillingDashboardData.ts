@@ -1,8 +1,9 @@
 // @ts-nocheck
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useBillingAuth } from "@/billing/hooks/useBillingAuth";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
+import { normalizeCurrencyCode } from "@/lib/currency";
 import { BILLING_DASHBOARD_STATS_REFETCH_EVENT } from "@/billing/lib/billingDashboardSync";
 
 function parseMemberCountsPayload(data: unknown): {
@@ -115,10 +116,11 @@ export function useBillingDashboardData(): BillingDashboardStats {
     const memberCounts = parseMemberCountsPayload(memberCountsRes.data);
     const invoices = invoicesRes.data || [];
     const payments = paymentsRes.data || [];
-    const currency =
-      (currentSchool as { currency?: string } | null)?.currency?.trim() ||
-      invoices[0]?.currency ||
-      "GHS";
+    const currency = normalizeCurrencyCode(
+      (currentSchool as { currency?: string } | null)?.currency ||
+        invoices[0]?.currency ||
+        "GHS",
+    );
     const schoolName =
       currentSchool?.name?.trim() ||
       currentSchool?.school_name?.trim() ||
@@ -252,5 +254,10 @@ export function useBillingDashboardData(): BillingDashboardStats {
     };
   }, [fetchStats, schoolId, authLoading]);
 
-  return { ...stats, loading: stats.loading || authLoading };
+  const displayCurrency = useMemo(
+    () => normalizeCurrencyCode(currentSchool?.currency) || stats.currency,
+    [currentSchool?.currency, stats.currency],
+  );
+
+  return { ...stats, currency: displayCurrency, loading: stats.loading || authLoading };
 }

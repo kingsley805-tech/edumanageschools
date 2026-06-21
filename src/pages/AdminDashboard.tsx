@@ -11,6 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchSchoolAttendanceStats, fetchSchoolAttendanceTrend } from "@/lib/attendance-queries";
 import { isLessonNotesAvailable, isLessonNotesMissingError } from "@/lib/lessonNotesAvailability";
 import { RegisterAttendanceChart } from "@/register/components/RegisterAttendanceChart";
+import { useSchoolCurrency } from "@/hooks/useSchoolCurrency";
+import { formatMoney } from "@/lib/currency";
 import {
   Bar,
   BarChart,
@@ -24,6 +26,7 @@ import {
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const { currency, format } = useSchoolCurrency();
   const [stats, setStats] = useState([
     {
       title: "Total Students",
@@ -41,7 +44,7 @@ const AdminDashboard = () => {
     },
     {
       title: "Fees Collected",
-      value: "$0",
+      value: format(0),
       change: "+18.7%",
       icon: DollarSign,
       color: "text-success"
@@ -70,9 +73,10 @@ const AdminDashboard = () => {
       if (!profileData?.school_id) return;
       const schoolId = profileData.school_id;
 
-      const [studentsRes, teachersRes, feesRes, attendanceStats, termRes, trendRes] = await Promise.all([
+      const [studentsRes, teachersRes, billingPaymentsRes, legacyFeesRes, attendanceStats, termRes, trendRes] = await Promise.all([
         supabase.from("students").select("id", { count: "exact", head: true }).eq("school_id", schoolId),
         supabase.from("teachers").select("id", { count: "exact", head: true }).eq("school_id", schoolId),
+        supabase.from("billing_payments").select("amount").eq("school_id", schoolId).eq("status", "paid"),
         supabase.from("invoices").select("amount, students!inner(school_id)").eq("students.school_id", schoolId),
         fetchSchoolAttendanceStats(schoolId),
         supabase.from("terms").select("id").eq("school_id", schoolId).eq("is_current", true).maybeSingle(),
@@ -91,19 +95,24 @@ const AdminDashboard = () => {
       });
       setAttendanceTrend(trendRes);
 
-      const totalFees = feesRes.data?.reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
+      const billingTotal =
+        billingPaymentsRes.data?.reduce((sum, p) => sum + Number(p.amount || 0), 0) ?? 0;
+      const legacyTotal =
+        legacyFeesRes.data?.reduce((sum, inv) => sum + Number(inv.amount || 0), 0) ?? 0;
+      const totalFees = billingTotal > 0 ? billingTotal : legacyTotal;
       const attendanceRate = termStats.rate.toFixed(1);
+      const feesLabel = format(totalFees, currency, { maximumFractionDigits: 0 });
 
       setStats([
         { title: "Total Students", value: studentsRes.count?.toString() || "0", change: "+12.5%", icon: Users, color: "text-primary" },
         { title: "Active Teachers", value: teachersRes.count?.toString() || "0", change: "+3.2%", icon: GraduationCap, color: "text-accent" },
-        { title: "Fees Collected", value: `$${totalFees.toLocaleString()}`, change: "+18.7%", icon: DollarSign, color: "text-success" },
+        { title: "Fees Collected", value: feesLabel, change: "+18.7%", icon: DollarSign, color: "text-success" },
         { title: "Attendance Rate", value: `${attendanceRate}%`, change: "+2.1%", icon: TrendingUp, color: "text-warning" }
       ]);
     };
 
     fetchStats();
-  }, []);
+  }, [currency, format]);
 
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [classDistribution, setClassDistribution] = useState<any[]>([]);
@@ -151,7 +160,7 @@ const AdminDashboard = () => {
         })),
         ...(paymentsRes.data || []).map(p => ({
           type: "payment",
-          message: `Fee payment of $${p.amount} received`,
+          message: `Fee payment of ${formatMoney(Number(p.amount), currency)} received`,
           time: new Date(p.created_at).toLocaleString()
         })),
         ...(attendanceRes.data || []).map(a => ({
@@ -246,7 +255,7 @@ const AdminDashboard = () => {
     fetchRecentActivity();
     fetchClassDistribution();
     fetchLessonNotes();
-  }, []);
+  }, [currency]);
 
   return (
     <DashboardLayout role="admin">

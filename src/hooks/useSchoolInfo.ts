@@ -41,7 +41,7 @@ export const useSchoolInfo = () => {
         currencySymbol: getCurrencySymbol(cur),
       };
     },
-    staleTime: 10 * 60 * 1000,
+    staleTime: 60 * 1000,
   });
 
   return {
