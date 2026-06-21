@@ -99,12 +99,15 @@ CREATE POLICY "ai favorites own" ON public.ai_favorites
 DROP POLICY IF EXISTS "ai usage own read" ON public.ai_usage_logs;
 CREATE POLICY "ai usage own read" ON public.ai_usage_logs
   FOR SELECT TO authenticated
-  USING (user_id = auth.uid() OR public.has_role(auth.uid(), 'super_admin'::app_role));
+  USING (
+    user_id = auth.uid()
+    OR school_id IN (SELECT p.school_id FROM public.profiles p WHERE p.id = auth.uid())
+  );
 
 DROP POLICY IF EXISTS "ai templates read" ON public.ai_prompt_templates;
 CREATE POLICY "ai templates read" ON public.ai_prompt_templates
   FOR SELECT TO authenticated
-  USING (is_system = true OR user_id = auth.uid() OR school_id = public.get_user_school_id(auth.uid()));
+  USING (is_system = true OR user_id = auth.uid());
 
 DROP POLICY IF EXISTS "ai templates write own" ON public.ai_prompt_templates;
 CREATE POLICY "ai templates write own" ON public.ai_prompt_templates

@@ -19,12 +19,14 @@ import {
   fetchMessages,
   fetchSchoolIdForUser,
   fetchUsageStats,
+  isUsingLocalAiStore,
   listConversations,
   renameConversation,
   saveMessage,
   sendChatToGemini,
   setMessageFeedback,
   toggleFavorite,
+  AI_SETUP_HINT,
 } from "../lib/api";
 import { buildContextFromLocation, loadReferrerContext } from "../lib/context";
 import type { AiConversation, AiMessage, AiContext, AiUsageStats } from "../lib/types";
@@ -83,15 +85,21 @@ export default function AiAssistantPage() {
 
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const localHintShown = useRef(false);
 
   const refreshConversations = useCallback(async () => {
+    if (!user?.id) return;
     try {
-      const list = await listConversations();
+      const list = await listConversations(user.id);
       setConversations(list);
+      if (isUsingLocalAiStore() && !localHintShown.current) {
+        localHintShown.current = true;
+        toast.message("Using local chat history", { description: AI_SETUP_HINT });
+      }
     } catch {
-      /* tables may not exist yet */
+      /* ignore */
     }
-  }, []);
+  }, [user?.id]);
 
   const loadUsage = useCallback(async () => {
     try {
@@ -112,10 +120,10 @@ export default function AiAssistantPage() {
       setMessages([]);
       return;
     }
-    void fetchMessages(activeId)
+    void fetchMessages(user.id, activeId)
       .then(setMessages)
       .catch(() => setMessages([]));
-  }, [activeId]);
+  }, [activeId, user?.id]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -153,12 +161,12 @@ export default function AiAssistantPage() {
     try {
       const convId = await ensureConversation();
 
-      const userMsg = await saveMessage(convId, "user", text);
+      const userMsg = await saveMessage(user.id, convId, "user", text);
       setMessages((m) => [...m, userMsg]);
 
       if (messages.length === 0) {
         const title = deriveTitleFromMessage(text);
-        await renameConversation(convId, title);
+        await renameConversation(user.id, convId, title);
         void refreshConversations();
       }
 
@@ -194,7 +202,7 @@ export default function AiAssistantPage() {
         abortRef.current.signal,
       );
 
-      const assistantMsg = await saveMessage(convId, "assistant", content, tokens);
+      const assistantMsg = await saveMessage(user.id, convId, "assistant", content, tokens);
       setMessages((m) => m.map((msg) => (msg.id === tempId ? assistantMsg : msg)));
       setStreamingId(null);
       void loadUsage();
@@ -259,8 +267,8 @@ export default function AiAssistantPage() {
                     : undefined
                 }
                 onFeedback={
-                  m.role === "assistant" && !m.id.startsWith("stream-")
-                    ? (fb) => void setMessageFeedback(m.id, fb)
+                  m.role === "assistant" && !m.id.startsWith("stream-") && user?.id && activeId
+                    ? (fb) => void setMessageFeedback(user.id, m.id, activeId, fb)
                     : undefined
                 }
               />
@@ -281,8 +289,8 @@ export default function AiAssistantPage() {
   );
 
   return (
-    <DashboardLayout role={layoutRole} hideSidebar>
-      <div className="flex h-[calc(100vh-4rem)] flex-col overflow-hidden md:h-[calc(100vh-3.5rem)]">
+    <DashboardLayout role={layoutRole}>
+      <div className="-mx-3 -mt-3 flex min-h-[calc(100vh-8rem)] flex-col overflow-hidden rounded-xl border bg-card shadow-sm md:-mx-0 md:mt-0 md:min-h-[calc(100vh-10rem)]">
         <header className="flex shrink-0 items-center justify-between border-b px-3 py-2 md:px-4">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setLeftOpen(true)}>
@@ -311,17 +319,19 @@ export default function AiAssistantPage() {
             onSelect={handleSelectConversation}
             onNew={handleNewChat}
             onDelete={async (id) => {
-              await deleteConversation(id);
+              if (!user?.id) return;
+              await deleteConversation(user.id, id);
               if (activeId === id) handleNewChat();
               void refreshConversations();
             }}
             onRename={async (id, title) => {
-              await renameConversation(id, title);
+              if (!user?.id) return;
+              await renameConversation(user.id, id, title);
               void refreshConversations();
             }}
             onToggleFavorite={async (id, fav) => {
               if (!user?.id) return;
-              await toggleFavorite(id, user.id, fav);
+              await toggleFavorite(user.id, id, fav);
               void refreshConversations();
             }}
             collapsed={sidebarCollapsed}
@@ -350,17 +360,19 @@ export default function AiAssistantPage() {
             onSelect={handleSelectConversation}
             onNew={handleNewChat}
             onDelete={async (id) => {
-              await deleteConversation(id);
+              if (!user?.id) return;
+              await deleteConversation(user.id, id);
               if (activeId === id) handleNewChat();
               void refreshConversations();
             }}
             onRename={async (id, title) => {
-              await renameConversation(id, title);
+              if (!user?.id) return;
+              await renameConversation(user.id, id, title);
               void refreshConversations();
             }}
             onToggleFavorite={async (id, fav) => {
               if (!user?.id) return;
-              await toggleFavorite(id, user.id, fav);
+              await toggleFavorite(user.id, id, fav);
               void refreshConversations();
             }}
           />
