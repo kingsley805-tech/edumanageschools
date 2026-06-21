@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { isMissingRpcError, isMissingSchemaTableError } from "@/report/lib/supabase-errors";
 import type { AiContext, AiConversation, AiMessage, AiUsageStats } from "./types";
 import {
@@ -18,8 +17,11 @@ export const AI_SETUP_SQL_URL =
 export const AI_SETUP_HINT =
   "Platform AI uses one shared Gemini key. Super Admin: open AI Assistant and save the platform key.";
 
-const AI_SETUP_MESSAGE =
-  "Platform AI is not configured. Super Admin must add the shared Gemini API key in AI Assistant.";
+const AI_DB_SETUP_MESSAGE =
+  "AI database is not set up. Run public/sql/apply-ai-assistant.sql in Supabase SQL Editor, then public/sql/patch-gemini-chat-timeout.sql.";
+
+const AI_TIMEOUT_MESSAGE =
+  "Gemini timed out. Run public/sql/patch-gemini-chat-timeout.sql in Supabase SQL Editor, then try a shorter message.";
 
 let aiDbReady: boolean | null = null;
 let localUserId: string | null = null;
@@ -308,7 +310,7 @@ async function invokeGeminiViaRpc(opts: {
   history: { role: "user" | "assistant"; content: string }[];
   context: AiContext;
   conversationId: string;
-}): Promise<{ content: string; tokens: number } | null> {
+}): Promise<{ content: string; tokens: number }> {
   const { data, error } = await supabase.rpc("gemini_chat", {
     p_message: opts.message,
     p_history: opts.history,
@@ -317,30 +319,27 @@ async function invokeGeminiViaRpc(opts: {
   });
 
   if (error) {
-    if (isMissingRpcError(error)) return null;
-    throw new Error(error.message);
+    if (isMissingRpcError(error)) throw new Error(AI_DB_SETUP_MESSAGE);
+    const msg = error.message ?? "";
+    if (msg.toLowerCase().includes("timed out") || msg.includes("5002")) {
+      throw new Error(AI_TIMEOUT_MESSAGE);
+    }
+    throw new Error(msg);
   }
 
   const result = data as GeminiRpcResult | null;
-  if (!result) return null;
+  if (!result) throw new Error(AI_DB_SETUP_MESSAGE);
   if (result.ok && result.content) {
     return { content: result.content, tokens: result.tokens ?? 0 };
   }
-  if (result.error) throw new Error(result.error);
-  return null;
-}
-
-async function invokeGeminiViaEdge(body: Record<string, unknown>): Promise<{ content: string; tokens: number }> {
-  try {
-    return await invokeEdgeFunction<{ content: string; tokens: number }>("paystack", body);
-  } catch (paystackError) {
-    const detail =
-      paystackError instanceof Error ? paystackError.message : AI_SETUP_MESSAGE;
-    if (detail.includes("GEMINI_API_KEY") || detail.includes("Platform AI") || detail.includes("not configured")) {
-      throw new Error(detail);
+  if (result.error) {
+    const err = result.error;
+    if (err.toLowerCase().includes("timed out") || err.includes("5002")) {
+      throw new Error(AI_TIMEOUT_MESSAGE);
     }
-    throw new Error(AI_SETUP_MESSAGE);
+    throw new Error(err);
   }
+  throw new Error(AI_DB_SETUP_MESSAGE);
 }
 
 async function invokeGemini(opts: {
@@ -349,42 +348,10 @@ async function invokeGemini(opts: {
   context: AiContext;
   conversationId: string;
 }): Promise<{ content: string; tokens: number }> {
-  const trimmedHistory = opts.history.slice(-20);
-  const body = {
-    action: "chat",
-    conversationId: opts.conversationId,
-    message: opts.message,
-    history: trimmedHistory,
-    context: opts.context,
-  };
-
-  try {
-    return await invokeGeminiViaEdge(body);
-  } catch (edgeError) {
-    const edgeMsg = edgeError instanceof Error ? edgeError.message : "";
-    const configError =
-      edgeMsg.includes("Platform AI") ||
-      edgeMsg.includes("GEMINI_API_KEY") ||
-      edgeMsg.includes("not configured");
-    if (configError) throw edgeError;
-  }
-
-  try {
-    const rpc = await invokeGeminiViaRpc({ ...opts, history: trimmedHistory });
-    if (rpc) return rpc;
-  } catch (rpcError) {
-    const rpcMsg = rpcError instanceof Error ? rpcError.message : "";
-    if (rpcMsg.toLowerCase().includes("timed out") || rpcMsg.includes("5002")) {
-      try {
-        return await invokeGeminiViaEdge(body);
-      } catch {
-        throw new Error("Gemini timed out. Run public/sql/patch-gemini-chat-timeout.sql in Supabase SQL Editor.");
-      }
-    }
-    throw rpcError;
-  }
-
-  return invokeGeminiViaEdge(body);
+  return invokeGeminiViaRpc({
+    ...opts,
+    history: opts.history.slice(-20),
+  });
 }
 
 export async function sendChatToGemini(opts: {
@@ -402,42 +369,26 @@ export async function sendChatToGemini(opts: {
 }
 
 export async function fetchUsageStats(): Promise<AiUsageStats> {
-  try {
-    const { data, error } = await supabase.rpc("gemini_chat_usage_stats");
-    if (!error && data) {
-      const result = data as GeminiRpcResult;
-      if (result.ok !== false) {
-        return {
-          totalRequests: result.totalRequests ?? 0,
-          totalTokens: result.totalTokens ?? 0,
-          monthlyLimit: result.monthlyLimit ?? 1000,
-          remaining: result.remaining ?? 1000,
-        };
-      }
-    }
-    if (error && !isMissingRpcError(error)) {
-      /* fall through */
-    } else if (!error) {
-      return {
-        totalRequests: 0,
-        totalTokens: 0,
-        monthlyLimit: 1000,
-        remaining: 1000,
-      };
-    }
-  } catch {
-    /* fall through */
-  }
+  const defaults: AiUsageStats = {
+    totalRequests: 0,
+    totalTokens: 0,
+    monthlyLimit: 1000,
+    remaining: 1000,
+  };
 
   try {
-    return await invokeEdgeFunction<AiUsageStats>("paystack", { action: "usage_stats" });
-  } catch {
+    const { data, error } = await supabase.rpc("gemini_chat_usage_stats");
+    if (error) return defaults;
+    const result = data as GeminiRpcResult;
+    if (result?.ok === false) return defaults;
     return {
-      totalRequests: 0,
-      totalTokens: 0,
-      monthlyLimit: 1000,
-      remaining: 1000,
+      totalRequests: result.totalRequests ?? 0,
+      totalTokens: result.totalTokens ?? 0,
+      monthlyLimit: result.monthlyLimit ?? 1000,
+      remaining: result.remaining ?? 1000,
     };
+  } catch {
+    return defaults;
   }
 }
 
