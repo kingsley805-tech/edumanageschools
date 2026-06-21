@@ -7,6 +7,7 @@
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { formatMoney } from "@/lib/currency";
 
 export type PaymentDetailsPayload = {
   id: string;
@@ -78,7 +79,7 @@ export function PaymentDetailsDialog({
               {st.label}
             </Badge>
             <span className="text-sm font-semibold text-foreground">
-              {payment.currency} {Number(payment.amount).toLocaleString()}
+              {formatMoney(Number(payment.amount), payment.currency)}
             </span>
           </div>
           <Row label="Invoice" value={payment.invoice_number || payment.invoice_id} />

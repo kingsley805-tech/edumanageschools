@@ -8,6 +8,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { formatMoney } from "@/lib/currency";
 
 interface Props {
   data: { month: string; online: number; manual: number }[];
@@ -45,7 +46,10 @@ export default function CollectionsOverviewChart({ data, currency, loading }: Pr
                   borderRadius: "12px",
                   fontSize: "13px",
                 }}
-                formatter={(value: number, name: string) => [`${currency} ${value.toLocaleString()}`, name === "online" ? "Online" : "Manual"]}
+                formatter={(value: number, name: string) => [
+                  formatMoney(value, currency, { maximumFractionDigits: 0 }),
+                  name === "online" ? "Online" : "Manual",
+                ]}
               />
               <Legend
                 wrapperStyle={{ fontSize: 12 }}

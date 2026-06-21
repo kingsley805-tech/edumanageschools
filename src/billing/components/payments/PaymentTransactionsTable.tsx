@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { formatMoney } from "@/lib/currency";
 import { Download, Eye, Printer } from "lucide-react";
 import { TruncatedMonoText } from "@/billing/components/payments/TruncatedMonoText";
 import {
@@ -109,7 +110,7 @@ export default function PaymentTransactionsTable({
                   </>
                 ) : null}
                 <TableCell className="font-semibold whitespace-nowrap">
-                  {row.currency} {Number(row.amount).toLocaleString()}
+                  {formatMoney(Number(row.amount), row.currency)}
                 </TableCell>
                 <TableCell>{row.invoice_number ?? "—"}</TableCell>
                 <TruncatedMonoCell value={row.gateway_ref} />

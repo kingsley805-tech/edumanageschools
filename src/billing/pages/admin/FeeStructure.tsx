@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { DollarSign, Layers, Link2, Plus, Tag, Trash2, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { formatMoney } from "@/lib/currency";
 import { fetchStudentsWithLinkedProfiles, formatStudentDisplayName } from "@/billing/lib/studentDisplayName";
 import { AcademicCalendarPanel } from "@/billing/components/AcademicCalendarPanel";
 import {
@@ -437,7 +438,7 @@ function FeeCreationSection({ schoolId, permission }: { schoolId: string; permis
                   <div className="fee-subtext">{fee.terms?.name ?? "Term"}{fee.terms?.fees_due_date ? ` · Due ${fee.terms.fees_due_date}` : ""}</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span className="amount-chip">{fee.currency || orgCurrency} {Number(fee.amount).toLocaleString("en", { minimumFractionDigits: 2 })}</span>
+                  <span className="amount-chip">{formatMoney(Number(fee.amount), fee.currency || orgCurrency)}</span>
                   {canDelete ? (
                     <ConfirmActionButton
                       title="Delete fee?"
@@ -560,7 +561,7 @@ function FeeAssignmentSection({ schoolId, permission }: { schoolId: string; perm
                   <SelectContent>
                     {createdFees.map((fee) => (
                       <SelectItem key={fee.id} value={fee.id}>
-                        {(fee.fee_categories?.name ?? "Fee")} · {(fee.terms?.name ?? "Term")} · {(fee.currency || "GHS")} {Number(fee.amount).toLocaleString()}
+                        {(fee.fee_categories?.name ?? "Fee")} · {(fee.terms?.name ?? "Term")} · {formatMoney(Number(fee.amount), fee.currency || "GHS")}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -629,7 +630,7 @@ function FeeAssignmentSection({ schoolId, permission }: { schoolId: string; perm
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span className="amount-chip">{a.fee_items?.currency ?? "GHS"} {Number(a.fee_items?.amount ?? 0).toLocaleString()}</span>
+                  <span className="amount-chip">{formatMoney(Number(a.fee_items?.amount ?? 0), a.fee_items?.currency ?? "GHS")}</span>
                   {canDelete ? (
                     <ConfirmActionButton
                       title="Remove fee assignment?"

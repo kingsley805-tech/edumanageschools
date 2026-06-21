@@ -8,6 +8,7 @@ import RecentPaystackPayments from "@/billing/components/dashboard/RecentPaystac
 import { Button } from "@/components/ui/button";
 import { useBillingDashboardData } from "@/billing/hooks/useBillingDashboardData";
 import { useBillingAuth } from "@/billing/hooks/useBillingAuth";
+import { formatMoney } from "@/lib/currency";
 import {
   DollarSign,
   TrendingUp,
@@ -44,7 +45,7 @@ function BillingDashboard() {
   } = useBillingDashboardData();
 
   const fmt = (value: number) =>
-    `${currency} ${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+    formatMoney(value, currency, { maximumFractionDigits: 0 });
   const totalUsers = totalStudents + totalParents + totalTeachers + totalAccountants;
   const pct = (part: number, whole: number) => (whole > 0 ? Math.min(100, (part / whole) * 100) : 0);
 

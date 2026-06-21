@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useBillingAuth } from "@/billing/hooks/useBillingAuth";
 import { Loader2 } from "lucide-react";
+import { formatMoney } from "@/lib/currency";
 
 type Row = {
   id: string;
@@ -101,7 +102,7 @@ export default function RecentPaystackPayments() {
                   <tr key={r.id}>
                     <td className="py-2 pr-3 font-mono text-xs">{r.billing_invoices?.invoice_number ?? "—"}</td>
                     <td className="py-2 pr-3 font-medium">
-                      {r.currency} {Number(r.amount).toLocaleString()}
+                      {formatMoney(Number(r.amount), r.currency)}
                     </td>
                     <td className="max-w-[160px] truncate py-2 pr-3 font-mono text-xs">{r.gateway_ref || "—"}</td>
                     <td className="max-w-[120px] truncate py-2 pr-3 font-mono text-xs">{r.paystack_transaction_id || "—"}</td>

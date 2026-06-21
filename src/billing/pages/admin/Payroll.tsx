@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { Banknote, History, Loader2, Plus, Settings2, Users, Wallet } from "lucide-react";
 import { requestBillingDashboardRefetch } from "@/billing/lib/billingDashboardSync";
 import { payoutSummaryFromSnapshot } from "@/billing/lib/payrollExport";
+import { formatMoney } from "@/lib/currency";
 import {
   validateBankAccountNumber,
   validateContactPhone,
@@ -475,7 +476,7 @@ export default function PayrollPage() {
     setSelected(next);
   };
 
-  const fmt = (n: number) => `${currency} ${Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  const fmt = (n: number) => formatMoney(Number(n || 0), currency, { maximumFractionDigits: 2 });
 
   if (!perm.view) {
     return <div className="py-16 text-center text-muted-foreground">You do not have access to payroll.</div>;

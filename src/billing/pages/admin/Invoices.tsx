@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { formatMoney } from "@/lib/currency";
 import { useBillingPermissions } from "@/billing/hooks/useBillingPermissions";
 import { useBillingAuth } from "@/billing/hooks/useBillingAuth";
 import { Search, Download, FileText, Undo2, Loader2, UserRoundPen } from "lucide-react";
@@ -220,9 +221,12 @@ export default function BillingInvoices() {
   const headers = ["Invoice #", "Total", "Paid", "Balance", "Status", "Due Date"];
   const toRow = (invoice: Invoice): string[] => [
     invoice.invoice_number,
-    `${invoice.currency} ${Number(invoice.total_amount).toLocaleString()}`,
-    `${invoice.currency} ${Number(invoice.amount_paid).toLocaleString()}`,
-    `${invoice.currency} ${Number(invoice.balance_due ?? (Number(invoice.total_amount) - Number(invoice.amount_paid))).toLocaleString()}`,
+    formatMoney(Number(invoice.total_amount), invoice.currency),
+    formatMoney(Number(invoice.amount_paid), invoice.currency),
+    formatMoney(
+      Number(invoice.balance_due ?? Number(invoice.total_amount) - Number(invoice.amount_paid)),
+      invoice.currency,
+    ),
     (statusConfig[invoice.status] || statusConfig.draft).label,
     invoice.due_date,
   ];
@@ -354,9 +358,9 @@ export default function BillingInvoices() {
                     <Checkbox checked={selectedIds.has(invoice.id)} onCheckedChange={() => toggleSelect(invoice.id)} />
                   </td>
                   <td className="px-4 py-3.5 font-mono text-sm font-medium text-card-foreground">{invoice.invoice_number}</td>
-                  <td className="px-4 py-3.5 text-sm">{invoice.currency} {Number(invoice.total_amount).toLocaleString()}</td>
-                  <td className="px-4 py-3.5 text-sm text-success">{invoice.currency} {Number(invoice.amount_paid).toLocaleString()}</td>
-                  <td className="px-4 py-3.5 text-sm font-medium">{invoice.currency} {Number(invoice.balance_due ?? (Number(invoice.total_amount) - Number(invoice.amount_paid))).toLocaleString()}</td>
+                  <td className="px-4 py-3.5 text-sm">{formatMoney(Number(invoice.total_amount), invoice.currency)}</td>
+                  <td className="px-4 py-3.5 text-sm text-success">{formatMoney(Number(invoice.amount_paid), invoice.currency)}</td>
+                  <td className="px-4 py-3.5 text-sm font-medium">{formatMoney(Number(invoice.balance_due ?? (Number(invoice.total_amount) - Number(invoice.amount_paid))), invoice.currency)}</td>
                   <td className="px-4 py-3.5">
                     <Badge variant="outline" className={cn("text-xs font-medium", (statusConfig[invoice.status] || statusConfig.draft).className)}>
                       {(statusConfig[invoice.status] || statusConfig.draft).label}

@@ -27,6 +27,7 @@ import {
   canPayPortalInvoice,
   getPortalInvoiceStatusBadge,
 } from "@/billing/lib/portalInvoiceStatus";
+import { formatMoney } from "@/lib/currency";
 
 type ChildInvoice = {
   id: string;
@@ -258,10 +259,10 @@ export default function ParentBillingPayments() {
                           <p className="font-mono text-sm font-semibold">{inv.invoice_number}</p>
                           <p className="text-sm text-muted-foreground">
                             Due {new Date(inv.due_date).toLocaleDateString()} ·{" "}
-                            {inv.currency} {Number(inv.total_amount).toLocaleString()}
+                            {formatMoney(Number(inv.total_amount), inv.currency)}
                           </p>
                           <p className="text-sm font-medium mt-1">
-                            Balance: {inv.currency} {due.toLocaleString()}
+                            Balance: {formatMoney(due, inv.currency)}
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">

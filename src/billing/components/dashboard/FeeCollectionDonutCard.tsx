@@ -1,4 +1,5 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { formatMoney } from "@/lib/currency";
 
 interface Props {
   collected: number;
@@ -55,7 +56,9 @@ export default function FeeCollectionDonutCard({
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value: number) => `${currency} ${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                  formatter={(value: number) =>
+                    formatMoney(value, currency, { maximumFractionDigits: 0 })
+                  }
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -71,7 +74,7 @@ export default function FeeCollectionDonutCard({
                 Collected
               </span>
               <span className="font-semibold tabular-nums text-card-foreground">
-                {currency} {collected.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                {formatMoney(collected, currency, { maximumFractionDigits: 0 })}
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
@@ -80,7 +83,7 @@ export default function FeeCollectionDonutCard({
                 Outstanding
               </span>
               <span className="font-semibold tabular-nums text-card-foreground">
-                {currency} {outstanding.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                {formatMoney(outstanding, currency, { maximumFractionDigits: 0 })}
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">

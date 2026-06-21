@@ -1,6 +1,7 @@
 // @ts-nocheck
 ﻿import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { formatMoney } from "@/lib/currency";
 
 export type ReceiptLetterhead = {
   schoolName: string;
@@ -164,8 +165,8 @@ export async function generateReceipt(data: ReceiptData) {
     autoTable(doc, {
       startY: y,
       head: [["Description", "Amount"]],
-      body: data.items.map((item) => [item.description, `${data.currency} ${item.amount.toLocaleString()}`]),
-      foot: [["Total Paid", `${data.currency} ${data.amount.toLocaleString()}`]],
+      body: data.items.map((item) => [item.description, formatMoney(item.amount, data.currency)]),
+      foot: [["Total Paid", formatMoney(data.amount, data.currency)]],
       margin: { left: margin, right: margin },
       headStyles: { fillColor: primary, fontSize: 8, font: "helvetica" },
       bodyStyles: { fontSize: 8 },
@@ -179,7 +180,7 @@ export async function generateReceipt(data: ReceiptData) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
     doc.setTextColor(primary[0], primary[1], primary[2]);
-    doc.text(`${data.currency} ${data.amount.toLocaleString()}`, w / 2, y + 9, { align: "center" });
+    doc.text(formatMoney(data.amount, data.currency), w / 2, y + 9, { align: "center" });
     doc.setFontSize(8);
     doc.setTextColor(100, 100, 100);
     doc.text(`Paid via ${data.method.replace(/_/g, " ")}`, w / 2, y + 16, { align: "center" });

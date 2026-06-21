@@ -27,6 +27,7 @@ import {
   canPayPortalInvoice,
   getPortalInvoiceStatusBadge,
 } from "@/billing/lib/portalInvoiceStatus";
+import { formatMoney } from "@/lib/currency";
 
 type StudentInvoice = {
   id: string;
@@ -225,7 +226,7 @@ export default function StudentBilling() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-2xl font-bold">
-                  {currency} {totalBilled.toLocaleString()}
+                  {formatMoney(totalBilled, currency, { maximumFractionDigits: 0 })}
                 </CardContent>
               </Card>
               <Card>
@@ -235,7 +236,7 @@ export default function StudentBilling() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-2xl font-bold text-emerald-700">
-                  {currency} {totalPaid.toLocaleString()}
+                  {formatMoney(totalPaid, currency, { maximumFractionDigits: 0 })}
                 </CardContent>
               </Card>
               <Card>
@@ -245,7 +246,7 @@ export default function StudentBilling() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-2xl font-bold text-amber-700">
-                  {currency} {outstanding.toLocaleString()}
+                  {formatMoney(outstanding, currency, { maximumFractionDigits: 0 })}
                 </CardContent>
               </Card>
               <Card>
@@ -310,7 +311,7 @@ export default function StudentBilling() {
                             Due {new Date(inv.due_date).toLocaleDateString()}
                           </p>
                           <p className="text-sm font-medium mt-1">
-                            Balance: {inv.currency} {due.toLocaleString()}
+                            Balance: {formatMoney(due, inv.currency)}
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">

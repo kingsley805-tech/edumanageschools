@@ -5,6 +5,7 @@ import { CreditCard, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useBillingAuth } from "@/billing/hooks/useBillingAuth";
 import { formatDistanceToNow } from "date-fns";
+import { formatMoney } from "@/lib/currency";
 
 type AuditRow = {
   id: string;
@@ -29,7 +30,7 @@ function formatPaymentLine(action: string, data: Record<string, unknown> | null)
         ? data.student_name
         : "";
   const method = typeof data.method === "string" ? data.method.replace(/_/g, " ") : "";
-  const amtStr = Number.isFinite(amount) ? `${currency} ${amount.toLocaleString()}`.trim() : "";
+  const amtStr = Number.isFinite(amount) ? formatMoney(amount, currency || "GHS") : "";
 
   if (action === "online_payment_received") {
     const payer = typeof data.payer_name === "string" ? data.payer_name : "";

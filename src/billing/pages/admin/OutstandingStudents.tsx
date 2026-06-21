@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatStudentDisplayName } from "@/billing/lib/studentDisplayName";
+import { formatMoney } from "@/lib/currency";
 
 type OutstandingRow = {
   student_id_pk: string;
@@ -187,7 +188,7 @@ export default function BillingOutstandingStudents() {
                   <td className="px-4 py-3.5 text-sm text-muted-foreground">{row.class_name}</td>
                   <td className="px-4 py-3.5 text-sm font-mono text-muted-foreground">{row.admission_number}</td>
                   <td className="px-4 py-3.5 text-sm text-muted-foreground">{row.invoices_count}</td>
-                  <td className="px-4 py-3.5 text-sm font-medium">{row.currency} {row.outstanding_balance.toLocaleString()}</td>
+                  <td className="px-4 py-3.5 text-sm font-medium">{formatMoney(row.outstanding_balance, row.currency)}</td>
                   <td className="px-4 py-3.5"><Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">Outstanding</Badge></td>
                 </tr>
               ))}

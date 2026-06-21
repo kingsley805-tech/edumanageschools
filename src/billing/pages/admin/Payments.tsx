@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { formatMoney } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Search, Download, FileText, Upload, RefreshCcw, RotateCw, Eye } from "lucide-react";
@@ -584,7 +585,7 @@ export default function BillingPayments() {
     "Date",
   ];
   const toRow = (payment: Payment): string[] => [
-    `${payment.currency} ${Number(payment.amount).toLocaleString()}`,
+    formatMoney(Number(payment.amount), payment.currency),
     payment.method.replace("_", " "),
     payment.gateway,
     payment.payer_name || (payment.payer_role ? payment.payer_role.replace("_", " ") : "--"),
@@ -635,7 +636,7 @@ export default function BillingPayments() {
         <div className="rounded-xl border bg-card p-4 shadow-sm">
           <p className="text-xs font-medium uppercase text-muted-foreground">Total revenue</p>
           <p className="mt-1 text-2xl font-bold text-emerald-700">
-            {revenueStats.currency} {revenueStats.total.toLocaleString()}
+            {formatMoney(revenueStats.total, revenueStats.currency, { maximumFractionDigits: 0 })}
           </p>
           <p className="text-xs text-muted-foreground">Successful payments (filtered)</p>
         </div>
@@ -769,7 +770,7 @@ export default function BillingPayments() {
                   </td>
                   <td className="px-4 py-3.5 text-sm">{payment.student_name || "—"}</td>
                   <td className="px-4 py-3.5 text-sm text-muted-foreground">{payment.parent_name || "—"}</td>
-                  <td className="px-4 py-3.5 text-sm font-medium text-card-foreground">{payment.currency} {Number(payment.amount).toLocaleString()}</td>
+                  <td className="px-4 py-3.5 text-sm font-medium text-card-foreground">{formatMoney(Number(payment.amount), payment.currency)}</td>
                   <td className="px-4 py-3.5 text-sm capitalize text-muted-foreground">{payment.method.replace("_", " ")}</td>
                   <td className="px-4 py-3.5 text-sm capitalize text-muted-foreground">{payment.gateway}</td>
                   <td className="px-4 py-3.5 text-sm text-muted-foreground">{payment.payer_name || (payment.payer_role ? payment.payer_role.replace("_", " ") : "--")}</td>

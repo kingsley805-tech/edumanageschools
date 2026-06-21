@@ -7,6 +7,7 @@ import AdminKpiCard from "@/billing/components/dashboard/AdminKpiCard";
 import CollectionsOverviewChart from "@/billing/components/dashboard/CollectionsOverviewChart";
 import { PermissionGate } from "@/components/PermissionGate";
 import { PERMISSIONS } from "@/lib/permissions";
+import { formatMoney } from "@/lib/currency";
 import { DollarSign, TrendingUp, FileText, AlertCircle, ArrowRight } from "lucide-react";
 
 const AccountantDashboard = () => {
@@ -23,7 +24,7 @@ const AccountantDashboard = () => {
     loading,
   } = useBillingDashboardData();
 
-  const fmt = (n: number) => `${currency} ${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  const fmt = (n: number) => formatMoney(n, currency, { maximumFractionDigits: 0 });
 
   return (
     <PermissionGate

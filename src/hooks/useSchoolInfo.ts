@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchSchoolById, resolveUserSchoolId } from "@/lib/schoolFetch";
+import { getCurrencySymbol, normalizeCurrencyCode } from "@/lib/currency";
 
 export interface SchoolInfo {
   id: string;
@@ -11,6 +12,7 @@ export interface SchoolInfo {
   theme_secondary?: string | null;
   theme_accent?: string | null;
   currency?: string | null;
+  currencySymbol?: string;
 }
 
 export const SCHOOL_INFO_QUERY_KEY = "school-info";
@@ -26,6 +28,7 @@ export const useSchoolInfo = () => {
       if (!schoolId) return null;
       const school = await fetchSchoolById(schoolId);
       if (!school) return null;
+      const cur = normalizeCurrencyCode(school.currency);
       return {
         id: school.id,
         school_name: school.school_name,
@@ -34,7 +37,8 @@ export const useSchoolInfo = () => {
         theme_primary: school.theme_primary,
         theme_secondary: school.theme_secondary,
         theme_accent: school.theme_accent,
-        currency: school.currency || "GHS",
+        currency: cur,
+        currencySymbol: getCurrencySymbol(cur),
       };
     },
     staleTime: 10 * 60 * 1000,
