@@ -138,6 +138,7 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
     label: "Communication",
     modules: [
       { key: "announcements", label: "Announcements", path: "/admin/announcements", actions: ["view", "create", "edit", "delete", "manage"] },
+      { key: "ai_assistant", label: "AI Assistant", path: "/ai-assistant", actions: ["view", "create", "manage"] },
     ],
   },
   {
@@ -267,7 +268,7 @@ export function defaultCodesForRole(slug: string): string[] {
     case "school_admin":
       return all;
     case "accountant":
-      return finance;
+      return [...finance, permissionCode("ai_assistant", "view")];
     case "teacher":
       return [...academics, ...exams, ...all.filter((c) => c.includes("attendance"))];
     case "examiner":
@@ -275,7 +276,11 @@ export function defaultCodesForRole(slug: string): string[] {
     case "registrar":
       return registrar;
     case "auditor":
-      return [...finance.filter((c) => c.endsWith(".view") || c.endsWith(".export")), ...viewOnly.filter((c) => c.includes("audit"))];
+      return [
+        ...finance.filter((c) => c.endsWith(".view") || c.endsWith(".export")),
+        ...viewOnly.filter((c) => c.includes("audit")),
+        permissionCode("ai_assistant", "view"),
+      ];
     case "parent_support":
       return parentSupport;
     default:

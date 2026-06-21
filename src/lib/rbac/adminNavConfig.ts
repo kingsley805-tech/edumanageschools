@@ -24,6 +24,7 @@ import {
   NotebookPen,
   CreditCard as SubscriptionIcon,
   Video,
+  Sparkles,
 } from "lucide-react";
 import { PORTAL_CATEGORIES, permissionCode, type PermissionAction } from "@/lib/rbac/permissionCatalog";
 
@@ -69,6 +70,7 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
   teacher_class_link: BookOpen,
   parent_contacts: UserCircle,
   announcements: Megaphone,
+  ai_assistant: Sparkles,
   school_settings: Building,
   staff_access: Shield,
   approvals: FileText,
@@ -169,7 +171,7 @@ export function buildAdminNav(hasPermission: (code: string) => boolean): (AdminN
     const items: AdminNavItem[] = [];
     for (const mod of category.modules) {
       // Teacher-only routes belong in the teacher shell, not the admin sidebar.
-      if (!mod.path.startsWith("/admin") && mod.path !== "/settings") continue;
+      if (!mod.path.startsWith("/admin") && mod.path !== "/settings" && mod.path !== "/ai-assistant") continue;
       const viewPerm = permissionCode(mod.key, "view");
       const canView =
         hasPermission(viewPerm) ||

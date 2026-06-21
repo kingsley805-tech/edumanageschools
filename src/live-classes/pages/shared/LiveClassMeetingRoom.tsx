@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
-import { ArrowLeft, ExternalLink, Loader2, Maximize2, Video } from "lucide-react";
+import {
+  ArrowLeft,
+  ExternalLink,
+  Loader2,
+  MonitorPlay,
+  RefreshCw,
+  Video,
+} from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +24,7 @@ import {
   getLiveClassListPath,
   type LiveClassPortalRole,
 } from "@/live-classes/lib/meetingPaths";
+import { focusMeetWindow, openMeetWindow } from "@/live-classes/lib/meetWindow";
 import type { LiveClassSession } from "@/live-classes/lib/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,6 +33,8 @@ import { toast } from "sonner";
 type Props = {
   role: LiveClassPortalRole;
 };
+
+type MeetWindowState = "idle" | "open" | "closed" | "blocked";
 
 const statusColors: Record<string, string> = {
   scheduled: "bg-blue-100 text-blue-800",
@@ -37,15 +47,14 @@ export default function LiveClassMeetingRoom({ role }: Props) {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const [session, setSession] = useState<LiveClassSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [studentId, setStudentId] = useState<string | null>(null);
   const [teacherUserId, setTeacherUserId] = useState<string | null>(null);
-  const [showEmbedHint, setShowEmbedHint] = useState(false);
-  const [meetingLaunched, setMeetingLaunched] = useState(false);
+  const [meetState, setMeetState] = useState<MeetWindowState>("idle");
   const joinedRef = useRef(false);
+  const autoLaunchRef = useRef(false);
 
   const backPath = getLiveClassListPath(role);
   const layoutRole =
@@ -116,12 +125,34 @@ export default function LiveClassMeetingRoom({ role }: Props) {
     }
   }, [markTeacherLive, role, session, studentId]);
 
+  const launchMeeting = useCallback(() => {
+    if (!session?.meet_link) return false;
+    const win = openMeetWindow(session.meet_link);
+    if (!win) {
+      setMeetState("blocked");
+      toast.error("Allow pop-ups for this site, then click Join Google Meet again.");
+      return false;
+    }
+    setMeetState("open");
+    return true;
+  }, [session?.meet_link]);
+
   useEffect(() => {
-    if (!session?.meet_link) return;
+    if (!session?.meet_link || autoLaunchRef.current) return;
+    autoLaunchRef.current = true;
     void handleJoinSideEffects();
-    const hintTimer = window.setTimeout(() => setShowEmbedHint(true), 4000);
-    return () => window.clearTimeout(hintTimer);
-  }, [session, handleJoinSideEffects]);
+    const opened = launchMeeting();
+    if (!opened) setMeetState("blocked");
+  }, [session, handleJoinSideEffects, launchMeeting]);
+
+  useEffect(() => {
+    if (meetState !== "open") return;
+    const interval = window.setInterval(() => {
+      if (focusMeetWindow()) return;
+      setMeetState("closed");
+    }, 1500);
+    return () => window.clearInterval(interval);
+  }, [meetState]);
 
   useEffect(() => {
     if (role !== "student" || !studentId || !sessionId) return;
@@ -130,9 +161,7 @@ export default function LiveClassMeetingRoom({ role }: Props) {
       void recordLeave(sessionId, studentId).catch(() => {
         void supabase
           .from("live_class_attendance")
-          .update({
-            leave_time: new Date().toISOString(),
-          })
+          .update({ leave_time: new Date().toISOString() })
           .eq("session_id", sessionId)
           .eq("student_id", studentId);
       });
@@ -144,20 +173,6 @@ export default function LiveClassMeetingRoom({ role }: Props) {
       onLeave();
     };
   }, [role, sessionId, studentId]);
-
-  const launchMeetingPopup = () => {
-    if (!session?.meet_link) return;
-    const width = Math.min(window.screen.width - 80, 1280);
-    const height = Math.min(window.screen.height - 80, 800);
-    const left = Math.round((window.screen.width - width) / 2);
-    const top = Math.round((window.screen.height - height) / 2);
-    window.open(
-      session.meet_link,
-      "eduManageMeet",
-      `noopener,noreferrer,width=${width},height=${height},left=${left},top=${top}`,
-    );
-    setMeetingLaunched(true);
-  };
 
   const handleEndSession = async () => {
     if (!sessionId) return;
@@ -229,43 +244,72 @@ export default function LiveClassMeetingRoom({ role }: Props) {
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-          <main className="relative min-h-0 flex-1 bg-zinc-950">
+          <main className="relative flex min-h-0 flex-1 flex-col items-center justify-center bg-gradient-to-br from-zinc-950 via-zinc-900 to-emerald-950 p-6 text-center text-white">
             {canJoin ? (
-              <>
-                <iframe
-                  ref={iframeRef}
-                  title={`Google Meet — ${session.title}`}
-                  src={session.meet_link!}
-                  className="absolute inset-0 h-full w-full border-0 bg-zinc-950"
-                  allow="camera; microphone; fullscreen; display-capture; autoplay; clipboard-write; speaker-selection"
-                  referrerPolicy="no-referrer-when-downgrade"
-                />
-                {(showEmbedHint || meetingLaunched) && (
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/80 to-transparent p-4 pt-12">
-                    <div className="pointer-events-auto mx-auto flex max-w-xl flex-col gap-2 rounded-lg border border-white/15 bg-black/70 p-3 text-white backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
-                      <p className="text-xs sm:text-sm">
-                        {meetingLaunched
-                          ? "Meeting window opened. Keep this page open for class resources."
-                          : "If the meeting does not appear above, launch it in a meeting window."}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        <Button size="sm" variant="secondary" onClick={launchMeetingPopup}>
-                          <Video className="h-4 w-4 mr-1" />
-                          Launch meeting
-                        </Button>
-                        <Button size="sm" variant="outline" className="border-white/30 text-white hover:bg-white/10" asChild>
-                          <a href={session.meet_link!} target="_blank" rel="noreferrer">
-                            <ExternalLink className="h-4 w-4 mr-1" />
-                            New tab
-                          </a>
-                        </Button>
-                      </div>
-                    </div>
+              <div className="mx-auto flex w-full max-w-lg flex-col items-center gap-5">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/15 ring-1 ring-emerald-400/30">
+                  <MonitorPlay className="h-10 w-10 text-emerald-300" />
+                </div>
+
+                <div className="space-y-2">
+                  <h2 className="text-xl font-semibold">EduManage Live Class</h2>
+                  <p className="text-sm text-white/70 leading-relaxed">
+                    Google Meet cannot run inside this page (Google blocks embedding). Your meeting
+                    opens in a separate window while this portal stays open for resources and
+                    attendance.
+                  </p>
+                </div>
+
+                {meetState === "open" && (
+                  <div className="w-full rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+                    Meeting window is open. Use the buttons below if you do not see it.
                   </div>
                 )}
-              </>
+
+                {meetState === "closed" && (
+                  <div className="w-full rounded-lg border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                    The meeting window was closed. Click below to rejoin.
+                  </div>
+                )}
+
+                {meetState === "blocked" && (
+                  <div className="w-full rounded-lg border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+                    Your browser blocked the meeting pop-up. Allow pop-ups for this site, then click
+                    Join Google Meet.
+                  </div>
+                )}
+
+                <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
+                  <Button size="lg" className="w-full sm:w-auto" onClick={launchMeeting}>
+                    <Video className="h-5 w-5 mr-2" />
+                    {meetState === "open" ? "Focus meeting window" : "Join Google Meet"}
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="w-full border-white/25 bg-white/5 text-white hover:bg-white/10 sm:w-auto"
+                    onClick={() => {
+                      if (session.meet_link) openMeetWindow(session.meet_link);
+                    }}
+                  >
+                    <RefreshCw className="h-5 w-5 mr-2" />
+                    Reopen
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="w-full border-white/25 bg-white/5 text-white hover:bg-white/10 sm:w-auto"
+                    asChild
+                  >
+                    <a href={session.meet_link!} target="_blank" rel="noreferrer">
+                      <ExternalLink className="h-5 w-5 mr-2" />
+                      New tab
+                    </a>
+                  </Button>
+                </div>
+              </div>
             ) : (
-              <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-white">
+              <div className="flex flex-col items-center gap-3">
                 <Video className="h-10 w-10 opacity-60" />
                 <p className="text-sm opacity-80">
                   {status === "ended" || status === "cancelled"
@@ -280,13 +324,9 @@ export default function LiveClassMeetingRoom({ role }: Props) {
           </main>
 
           <aside className="flex w-full shrink-0 flex-col border-t bg-background lg:w-80 lg:border-l lg:border-t-0">
-            <div className="flex items-center justify-between border-b px-3 py-2">
+            <div className="border-b px-3 py-2">
               <p className="text-sm font-medium">Class resources</p>
-              {canJoin ? (
-                <Button variant="ghost" size="icon" className="h-8 w-8 lg:hidden" onClick={launchMeetingPopup}>
-                  <Maximize2 className="h-4 w-4" />
-                </Button>
-              ) : null}
+              <p className="text-xs text-muted-foreground">Stay on this page during the lesson</p>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto p-3">
               <LiveClassResourcesPanel

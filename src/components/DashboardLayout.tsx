@@ -37,6 +37,7 @@ import {
   CreditCard,
   Palette,
   Video,
+  Sparkles,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { NotificationCenter } from "./NotificationCenter";
@@ -66,6 +67,7 @@ import {
   portalNavSubLinkBase,
 } from "@/lib/portalNavStyles";
 import type { AdminNavGroup, AdminNavItem } from "@/lib/rbac/adminNavConfig";
+import { AiFloatingButton } from "@/ai-assistant/components/AiFloatingButton";
 
 const SIDEBAR_WIDTH_KEY = "portal-sidebar-width";
 const SIDEBAR_OPEN_KEY = "portal-sidebar-open";
@@ -296,7 +298,10 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           type: "group",
           label: "Communication",
           icon: Megaphone,
-          items: [{ icon: Megaphone, label: "Announcements", path: "/admin/announcements" }],
+          items: [
+            { icon: Megaphone, label: "Announcements", path: "/admin/announcements" },
+            { icon: Sparkles, label: "AI Assistant", path: "/ai-assistant" },
+          ],
         },
         {
           type: "group",
@@ -358,7 +363,10 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           type: "group",
           label: "Account",
           icon: Settings,
-          items: [{ icon: Settings, label: "Settings", path: "/settings" }],
+          items: [
+            { icon: Sparkles, label: "AI Assistant", path: "/ai-assistant" },
+            { icon: Settings, label: "Settings", path: "/settings" },
+          ],
         },
       ] as MenuItemDef[],
     },
@@ -391,7 +399,10 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           type: "group",
           label: "Account",
           icon: Settings,
-          items: [{ icon: Settings, label: "Settings", path: "/settings" }],
+          items: [
+            { icon: Sparkles, label: "AI Assistant", path: "/ai-assistant" },
+            { icon: Settings, label: "Settings", path: "/settings" },
+          ],
         },
       ] as MenuItemDef[],
     },
@@ -435,6 +446,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           icon: MessageSquare,
           items: [
             { icon: MessageSquare, label: "Messages", path: "/messages", showBadge: true },
+            { icon: Sparkles, label: "AI Assistant", path: "/ai-assistant" },
           ],
         },
         {
@@ -479,6 +491,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           icon: MessageSquare,
           items: [
             { icon: MessageSquare, label: "Messages", path: "/messages", showBadge: true },
+            { icon: Sparkles, label: "AI Assistant", path: "/ai-assistant" },
           ],
         },
         {
@@ -527,7 +540,10 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           type: "group",
           label: "Account",
           icon: Settings,
-          items: [{ icon: Settings, label: "Settings", path: "/settings" }],
+          items: [
+            { icon: Sparkles, label: "AI Assistant", path: "/ai-assistant" },
+            { icon: Settings, label: "Settings", path: "/settings" },
+          ],
         },
       ] as MenuItemDef[],
     },
@@ -822,11 +838,19 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
         </header>
 
         {/* Page Content */}
-        <main className="portal-main-scroll relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-background p-3 md:p-6 lg:p-8">
+        <main
+          className={cn(
+            "portal-main-scroll relative z-10 min-h-0 flex-1 overflow-x-hidden bg-background",
+            hideSidebar ? "overflow-hidden p-0" : "overflow-y-auto p-3 md:p-6 lg:p-8",
+          )}
+        >
           {role === "admin" && subscriptionAccess?.can_use_platform ? (
             <SubscriptionExpiryBanner access={subscriptionAccess} />
           ) : null}
-          <div className="mx-auto w-full min-w-0 max-w-[1400px]">{children}</div>
+          <div className={cn("mx-auto w-full min-w-0", hideSidebar ? "h-full max-w-none" : "max-w-[1400px]")}>
+            {children}
+          </div>
+          {!hideSidebar ? <AiFloatingButton /> : null}
         </main>
       </div>
     </div>

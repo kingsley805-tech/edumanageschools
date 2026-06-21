@@ -17,42 +17,18 @@ import {
   LIVE_CLASSES_SETUP_SQL_URL,
   saveGoogleOAuthConfig,
 } from "@/live-classes/lib/api";
-import { getPublicAppLinks, getPublicAppUrl } from "@/lib/publicAppUrl";
 import type { GoogleConnection } from "@/live-classes/lib/types";
 
 const GOOGLE_OAUTH_CONSENT_URL =
   "https://console.cloud.google.com/apis/credentials/consent";
-const GOOGLE_SEARCH_CONSOLE_URL = "https://search.google.com/search-console/welcome";
 const GOOGLE_CALENDAR_API_URL =
   "https://console.cloud.google.com/apis/library/calendar-json.googleapis.com";
-
-function OAuthBrandingLinkRow({ label, url }: { label: string; url: string }) {
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success(`Copied ${label}`);
-    } catch {
-      toast.error("Could not copy — select and copy the URL manually");
-    }
-  };
-
-  return (
-    <div className="space-y-1">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <div className="flex gap-2 items-center">
-        <code className="text-xs flex-1 break-all bg-muted px-2 py-1.5 rounded">{url}</code>
-        <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={copy}>
-          Copy
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 type Props = {
   schoolId: string;
   disabled?: boolean;
   onConnectionChange?: (conn: GoogleConnection) => void;
+  onOpenSetupGuide?: () => void;
 };
 
 const DEFAULT_REDIRECT =
@@ -60,7 +36,7 @@ const DEFAULT_REDIRECT =
     ? `${window.location.origin}/admin/online-learning/oauth/callback`
     : "http://localhost:8080/admin/online-learning/oauth/callback";
 
-export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Props) {
+export function GoogleConnectCard({ schoolId, disabled, onConnectionChange, onOpenSetupGuide }: Props) {
   const [loading, setLoading] = useState(true);
   const [savingConfig, setSavingConfig] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -70,8 +46,6 @@ export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Pr
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
   const [redirectUri, setRedirectUri] = useState(DEFAULT_REDIRECT);
-  const publicLinks = getPublicAppLinks();
-  const publicBase = getPublicAppUrl();
 
   const load = async () => {
     setLoading(true);
@@ -150,9 +124,21 @@ export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Pr
           <Link2 className="h-5 w-5" />
           Google Workspace
         </CardTitle>
-        <CardDescription>
-          Connect your school Google account to create Google Meet links. No Edge Function deploy
-          required — credentials are stored per school in Supabase.
+        <CardDescription className="space-y-2">
+          <span className="block">
+            Connect your school Google account to create Google Meet links. Credentials are stored
+            per school in EduManage (multi-tenant).
+          </span>
+          {onOpenSetupGuide ? (
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto p-0 text-sm font-medium"
+              onClick={onOpenSetupGuide}
+            >
+              Open full Google Cloud setup guide →
+            </Button>
+          ) : null}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -176,7 +162,7 @@ export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Pr
         {!oauthConfigured && !connection?.connected && schemaReady && (
           <>
             <Alert>
-              <AlertTitle>OAuth consent screen — required links</AlertTitle>
+              <AlertTitle>OAuth consent screen (Testing mode)</AlertTitle>
               <AlertDescription className="space-y-3 pt-2">
                 <p className="text-sm">
                   In{" "}
@@ -188,56 +174,10 @@ export function GoogleConnectCard({ schoolId, disabled, onConnectionChange }: Pr
                   >
                     Google Cloud → OAuth consent screen
                   </a>
-                  , paste these URLs (must be public <strong>https://</strong> — not localhost):
+                  , keep the app in <strong>Testing</strong>. Add scopes (calendar, openid, email,
+                  profile), enable Calendar API, and add <strong>Test users</strong> — home page,
+                  privacy, and terms URLs are not required while testing.
                 </p>
-                {!publicBase && (
-                  <p className="text-xs text-amber-700 dark:text-amber-400">
-                    Deploy the app (Lovable/Vercel) or set{" "}
-                    <code className="text-xs">VITE_PUBLIC_APP_URL=https://your-domain.com</code> in
-                    .env, then rebuild. Replace <code className="text-xs">your-domain.com</code>{" "}
-                    below with your live URL.
-                  </p>
-                )}
-                <OAuthBrandingLinkRow label="Application home page" url={publicLinks.home} />
-                <OAuthBrandingLinkRow
-                  label="Application privacy policy link"
-                  url={publicLinks.privacy}
-                />
-                <OAuthBrandingLinkRow
-                  label="Application terms of service link"
-                  url={publicLinks.terms}
-                />
-                <div className="rounded-md border border-amber-200/80 bg-amber-50/80 p-3 text-xs text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100 space-y-2">
-                  <p className="font-medium">If Google reports verification errors:</p>
-                  <ul className="list-disc pl-4 space-y-1.5">
-                    <li>
-                      <strong>App name must match the home page.</strong> Set OAuth consent screen{" "}
-                      <strong>App name</strong> to <code className="text-xs">EduManage</code> (not
-                      &quot;EduManage Google Integration&quot;). The landing page headline must show
-                      the same name.
-                    </li>
-                    <li>
-                      <strong>Verify you own the site.</strong> In{" "}
-                      <a
-                        href={GOOGLE_SEARCH_CONSOLE_URL}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="underline font-medium"
-                      >
-                        Google Search Console
-                      </a>
-                      , add property{" "}
-                      <code className="text-xs">
-                        {publicBase || "https://your-domain.com"}
-                      </code>
-                      , choose <strong>HTML tag</strong>, copy the <code className="text-xs">content</code>{" "}
-                      value, set{" "}
-                      <code className="text-xs">VITE_GOOGLE_SITE_VERIFICATION</code> in Vercel env,
-                      redeploy, then click Verify in Search Console. Return to OAuth consent screen
-                      and re-submit.
-                    </li>
-                  </ul>
-                </div>
               </AlertDescription>
             </Alert>
 

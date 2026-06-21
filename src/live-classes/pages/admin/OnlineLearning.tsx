@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { PortalPageHeader } from "@/components/PortalPageHeader";
 import { GoogleConnectCard } from "@/live-classes/components/GoogleConnectCard";
+import { GoogleMeetSetupGuideDialog } from "@/live-classes/components/GoogleMeetSetupGuideDialog";
 import { LiveClassAnalyticsPanel } from "@/live-classes/components/LiveClassAnalyticsPanel";
 import { LiveClassSessionCard } from "@/live-classes/components/LiveClassSessionCard";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,7 +18,8 @@ import {
 import type { LiveClassAnalytics, LiveClassSession } from "@/live-classes/lib/types";
 import { getLiveClassMeetingPath } from "@/live-classes/lib/meetingPaths";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Video } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { BookOpen, Video } from "lucide-react";
 
 export default function AdminOnlineLearning() {
   const { user } = useAuth();
@@ -26,6 +28,7 @@ export default function AdminOnlineLearning() {
   const [analytics, setAnalytics] = useState<LiveClassAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [schemaReady, setSchemaReady] = useState<boolean | null>(null);
+  const [guideOpen, setGuideOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -58,7 +61,15 @@ export default function AdminOnlineLearning() {
         <PortalPageHeader
           title="Online Learning"
           description="Connect Google Meet, monitor live classes, and view participation analytics."
+          actions={
+            <Button variant="outline" onClick={() => setGuideOpen(true)}>
+              <BookOpen className="h-4 w-4 mr-2" />
+              Setup guide
+            </Button>
+          }
         />
+
+        <GoogleMeetSetupGuideDialog open={guideOpen} onOpenChange={setGuideOpen} />
 
         {schemaReady === false && (
           <Alert variant="destructive">
@@ -80,7 +91,13 @@ export default function AdminOnlineLearning() {
           </Alert>
         )}
 
-        {schoolId ? <GoogleConnectCard schoolId={schoolId} disabled={schemaReady === false} /> : null}
+        {schoolId ? (
+          <GoogleConnectCard
+            schoolId={schoolId}
+            disabled={schemaReady === false}
+            onOpenSetupGuide={() => setGuideOpen(true)}
+          />
+        ) : null}
 
         <div>
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
