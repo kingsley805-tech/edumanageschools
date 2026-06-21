@@ -419,6 +419,16 @@ export function isUsingLocalAiStore(): boolean {
   return aiDbReady === false;
 }
 
+export async function isGeminiConfigured(): Promise<boolean | null> {
+  const { data, error } = await supabase.rpc("get_platform_ai_status");
+  if (error) {
+    if (isMissingRpcError(error)) return null;
+    return null;
+  }
+  const result = data as { configured?: boolean } | null;
+  return !!result?.configured;
+}
+
 export function deriveTitleFromMessage(message: string): string {
   const line = message.trim().split("\n")[0] ?? "New chat";
   return line.length > 48 ? `${line.slice(0, 45)}…` : line;

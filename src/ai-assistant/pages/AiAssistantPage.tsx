@@ -12,6 +12,7 @@ import { AiChatInput } from "../components/AiChatInput";
 import { AiMessageBubble } from "../components/AiMessageBubble";
 import { AiWelcomeScreen } from "../components/AiWelcomeScreen";
 import { AiContextPanel } from "../components/AiContextPanel";
+import { AiGeminiSetupCard } from "../components/AiGeminiSetupCard";
 import {
   createConversation,
   deleteConversation,
@@ -19,6 +20,7 @@ import {
   fetchMessages,
   fetchSchoolIdForUser,
   fetchUsageStats,
+  isGeminiConfigured,
   isUsingLocalAiStore,
   listConversations,
   renameConversation,
@@ -82,7 +84,9 @@ export default function AiAssistantPage() {
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [needsGeminiSetup, setNeedsGeminiSetup] = useState(false);
 
+  const isAdmin = role === "admin" || role === "super_admin";
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const localHintShown = useRef(false);
@@ -109,6 +113,14 @@ export default function AiAssistantPage() {
       /* edge fn may not be deployed */
     }
   }, []);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    void isGeminiConfigured().then((configured) => {
+      if (configured === false) setNeedsGeminiSetup(true);
+      if (configured === true) setNeedsGeminiSetup(false);
+    });
+  }, [isAdmin]);
 
   useEffect(() => {
     void refreshConversations();
@@ -211,6 +223,7 @@ export default function AiAssistantPage() {
       const msg = e instanceof Error ? e.message : "Failed to send message";
       toast.error(msg);
       setStreamingId(null);
+      setNeedsGeminiSetup(isAdmin && msg.includes("GEMINI_API_KEY"));
     } finally {
       setLoading(false);
       abortRef.current = null;
@@ -245,6 +258,9 @@ export default function AiAssistantPage() {
   const chatArea = (
     <div className="flex min-h-0 flex-1 flex-col">
       <ScrollArea className="flex-1">
+        {isAdmin && needsGeminiSetup ? (
+          <AiGeminiSetupCard onConfigured={() => setNeedsGeminiSetup(false)} />
+        ) : null}
         {messages.length === 0 && !loading ? (
           <AiWelcomeScreen
             userName={userName}

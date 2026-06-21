@@ -294,4 +294,25 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.gemini_chat_usage_stats() TO authenticated;
 
+CREATE OR REPLACE FUNCTION public.get_platform_ai_status()
+RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT coalesce(
+    (
+      SELECT jsonb_build_object(
+        'configured', coalesce(trim(gemini_api_key), '') <> '',
+        'enabled', coalesce(ai_enabled, true)
+      )
+      FROM public.platform_ai_config
+      WHERE id = 1
+    ),
+    jsonb_build_object('configured', false, 'enabled', true)
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_platform_ai_status() TO authenticated;
+
 NOTIFY pgrst, 'reload schema';
