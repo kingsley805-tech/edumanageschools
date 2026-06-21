@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
-import { isMissingSchemaTableError } from "@/report/lib/supabase-errors";
+import { isMissingRpcError, isMissingSchemaTableError } from "@/report/lib/supabase-errors";
 import type { AiContext, AiConversation, AiMessage, AiUsageStats } from "./types";
 import {
   getLocalMessages,
@@ -16,7 +16,10 @@ export const AI_SETUP_SQL_URL =
   "https://supabase.com/dashboard/project/xbhhpjtwawfawifhpxbe/sql/new";
 
 export const AI_SETUP_HINT =
-  "AI tables are not on Supabase yet. Run public/sql/apply-ai-assistant.sql in SQL Editor for persistent history.";
+  "Run public/sql/apply-gemini-chat-rpc.sql in Supabase SQL Editor, then set your key: SELECT public.upsert_platform_gemini_key('your-google-ai-key');";
+
+const AI_SETUP_MESSAGE =
+  "AI is not set up on Supabase yet. Run public/sql/apply-gemini-chat-rpc.sql, then: SELECT public.upsert_platform_gemini_key('your-google-ai-key');";
 
 let aiDbReady: boolean | null = null;
 let localUserId: string | null = null;
@@ -289,16 +292,73 @@ export async function setMessageFeedback(
   if (error) throw error;
 }
 
-async function invokeGemini<T>(body: Record<string, unknown>): Promise<T> {
-  try {
-    return await invokeEdgeFunction<T>("gemini-chat", body);
-  } catch (primary) {
-    try {
-      return await invokeEdgeFunction<T>("paystack", body);
-    } catch {
-      throw primary;
-    }
+type GeminiRpcResult = {
+  ok?: boolean;
+  content?: string;
+  tokens?: number;
+  error?: string;
+  totalRequests?: number;
+  totalTokens?: number;
+  monthlyLimit?: number;
+  remaining?: number;
+};
+
+async function invokeGeminiViaRpc(opts: {
+  message: string;
+  history: { role: "user" | "assistant"; content: string }[];
+  context: AiContext;
+  conversationId: string;
+}): Promise<{ content: string; tokens: number } | null> {
+  const { data, error } = await supabase.rpc("gemini_chat", {
+    p_message: opts.message,
+    p_history: opts.history,
+    p_context: opts.context,
+    p_conversation_id: opts.conversationId || null,
+  });
+
+  if (error) {
+    if (isMissingRpcError(error)) return null;
+    throw new Error(error.message);
   }
+
+  const result = data as GeminiRpcResult | null;
+  if (!result) return null;
+  if (result.ok && result.content) {
+    return { content: result.content, tokens: result.tokens ?? 0 };
+  }
+  if (result.error) throw new Error(result.error);
+  return null;
+}
+
+async function invokeGeminiViaEdge(body: Record<string, unknown>): Promise<{ content: string; tokens: number }> {
+  try {
+    return await invokeEdgeFunction<{ content: string; tokens: number }>("paystack", body);
+  } catch (paystackError) {
+    const detail =
+      paystackError instanceof Error ? paystackError.message : AI_SETUP_MESSAGE;
+    if (detail.includes("GEMINI_API_KEY") || detail.includes("not configured")) {
+      throw new Error(detail);
+    }
+    throw new Error(AI_SETUP_MESSAGE);
+  }
+}
+
+async function invokeGemini(opts: {
+  message: string;
+  history: { role: "user" | "assistant"; content: string }[];
+  context: AiContext;
+  conversationId: string;
+}): Promise<{ content: string; tokens: number }> {
+  const rpc = await invokeGeminiViaRpc(opts);
+  if (rpc) return rpc;
+
+  return invokeGeminiViaEdge({
+    action: "chat",
+    conversationId: opts.conversationId,
+    message: opts.message,
+    history: opts.history,
+    context: opts.context,
+  });
 }
 
 export async function sendChatToGemini(opts: {
@@ -307,8 +367,7 @@ export async function sendChatToGemini(opts: {
   history: { role: "user" | "assistant"; content: string }[];
   context: AiContext;
 }): Promise<{ content: string; tokens: number }> {
-  return invokeGemini<{ content: string; tokens: number }>({
-    action: "chat",
+  return invokeGemini({
     conversationId: opts.conversationId,
     message: opts.message,
     history: opts.history,
@@ -318,7 +377,34 @@ export async function sendChatToGemini(opts: {
 
 export async function fetchUsageStats(): Promise<AiUsageStats> {
   try {
-    return await invokeGemini<AiUsageStats>({ action: "usage_stats" });
+    const { data, error } = await supabase.rpc("gemini_chat_usage_stats");
+    if (!error && data) {
+      const result = data as GeminiRpcResult;
+      if (result.ok !== false) {
+        return {
+          totalRequests: result.totalRequests ?? 0,
+          totalTokens: result.totalTokens ?? 0,
+          monthlyLimit: result.monthlyLimit ?? 1000,
+          remaining: result.remaining ?? 1000,
+        };
+      }
+    }
+    if (error && !isMissingRpcError(error)) {
+      /* fall through */
+    } else if (!error) {
+      return {
+        totalRequests: 0,
+        totalTokens: 0,
+        monthlyLimit: 1000,
+        remaining: 1000,
+      };
+    }
+  } catch {
+    /* fall through */
+  }
+
+  try {
+    return await invokeEdgeFunction<AiUsageStats>("paystack", { action: "usage_stats" });
   } catch {
     return {
       totalRequests: 0,
