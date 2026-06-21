@@ -33,6 +33,7 @@ import ParentRegister from "./pages/parent/Register";
 import TimetableDashboard from "@/timetable/pages/admin/TimetableDashboard";
 import { LiveClassesRoutes } from "@/live-classes/routes";
 import { AiAssistantRoutes } from "@/ai-assistant/routes";
+import { OperationsModuleRoutes } from "@/modules/routes";
 import Reports from "@/report/pages/admin/AnalyticsReports";
 import AdminReportCardsIndex from "@/report/pages/admin/ReportCardsIndex";
 import AdminReportCardsView from "@/report/pages/admin/ReportCardsView";
@@ -307,6 +308,7 @@ function App() {
               } />
               {LiveClassesRoutes()}
               {AiAssistantRoutes()}
+              {OperationsModuleRoutes()}
               <Route path="/admin/reports" element={
                 <ProtectedRoute allowedRoles={["admin", "super_admin", "accountant", "auditor"]}>
                   <Reports />

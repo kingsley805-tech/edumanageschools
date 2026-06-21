@@ -1,0 +1,205 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { Briefcase, Download, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { useSchoolInfo } from "@/hooks/useSchoolInfo";
+import { useModuleAccess } from "@/modules/lib/useModuleAccess";
+import { ModuleAccessDenied } from "@/modules/lib/ModuleAccessDenied";
+import { downloadCsv } from "@/modules/lib/exportCsv";
+import { toast } from "sonner";
+
+type StaffRow = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  role: string;
+  employee_no: string | null;
+};
+
+const STAFF_ROLES = ["admin", "teacher", "accountant", "auditor", "registrar", "examiner", "parent_support"];
+
+export default function StaffManagementPage() {
+  const { currentSchool } = useSchoolInfo();
+  const schoolId = currentSchool?.id ?? null;
+  const access = useModuleAccess("staff_management");
+  const [rows, setRows] = useState<StaffRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+
+  const load = useCallback(async () => {
+    if (!schoolId) return;
+    setLoading(true);
+    try {
+      const { data: profiles, error: profErr } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .eq("school_id", schoolId);
+
+      if (profErr) throw profErr;
+
+      const userIds = (profiles ?? []).map((p) => p.id);
+      if (!userIds.length) {
+        setRows([]);
+        return;
+      }
+
+      const { data: roles, error: rolesErr } = await supabase
+        .from("user_roles")
+        .select("user_id, role")
+        .in("user_id", userIds)
+        .in("role", STAFF_ROLES as never[]);
+
+      if (rolesErr) throw rolesErr;
+
+      const staffUserIds = new Set((roles ?? []).map((r) => r.user_id));
+      const staffProfiles = (profiles ?? []).filter((p) => staffUserIds.has(p.id));
+
+      const { data: teachers } = await supabase
+        .from("teachers")
+        .select("profile_id, employee_no")
+        .eq("school_id", schoolId);
+
+      const empMap = new Map((teachers ?? []).map((t) => [t.profile_id, t.employee_no]));
+
+      const roleMap = new Map<string, string[]>();
+      for (const r of roles ?? []) {
+        const list = roleMap.get(r.user_id) ?? [];
+        list.push(String(r.role));
+        roleMap.set(r.user_id, list);
+      }
+
+      setRows(
+        staffProfiles.map((p) => ({
+          id: p.id,
+          full_name: p.full_name,
+          email: p.email,
+          role: (roleMap.get(p.id) ?? []).join(", "),
+          employee_no: empMap.get(p.id) ?? null,
+        })),
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to load staff");
+    } finally {
+      setLoading(false);
+    }
+  }, [schoolId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(
+      (r) =>
+        (r.full_name ?? "").toLowerCase().includes(q) ||
+        (r.email ?? "").toLowerCase().includes(q) ||
+        r.role.toLowerCase().includes(q),
+    );
+  }, [rows, search]);
+
+  const exportRows = () => {
+    downloadCsv(
+      `staff-${schoolId?.slice(0, 8) ?? "export"}.csv`,
+      ["Name", "Email", "Roles", "Employee No"],
+      filtered.map((r) => [r.full_name, r.email, r.role, r.employee_no]),
+    );
+  };
+
+  if (!access.canView) return <ModuleAccessDenied label="Staff Management" />;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
+            <Briefcase className="h-6 w-6" />
+            Staff Management
+          </h1>
+          <p className="text-sm text-muted-foreground">School staff directory across all portal roles.</p>
+        </div>
+        <div className="flex gap-2">
+          {access.canExport ? (
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={exportRows}>
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
+          ) : null}
+          {access.canCreate ? (
+            <Button asChild size="sm">
+              <Link to="/admin/teachers">Add teacher</Link>
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Staff directory</CardTitle>
+          <CardDescription>Teachers and school staff linked to this organization.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="relative max-w-sm">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="pl-8"
+              placeholder="Search staff…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="overflow-x-auto rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Roles</TableHead>
+                  <TableHead>Employee #</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                      Loading…
+                    </TableCell>
+                  </TableRow>
+                ) : filtered.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                      No staff found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filtered.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="font-medium">{r.full_name ?? "—"}</TableCell>
+                      <TableCell>{r.email ?? "—"}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {r.role.split(", ").filter(Boolean).map((role) => (
+                            <Badge key={role} variant="secondary">
+                              {role}
+                            </Badge>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell>{r.employee_no ?? "—"}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

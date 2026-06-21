@@ -42,6 +42,8 @@ export type PortalCategoryDef = {
 };
 
 /** Exact category structure from product requirements */
+const OPS_MODULE_ACTIONS: PermissionAction[] = ["view", "create", "edit", "delete", "export", "manage"];
+
 export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
   {
     key: "dashboard",
@@ -109,16 +111,88 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
         actions: ["view", "create", "edit", "manage", "export"],
       },
       {
+        key: "billing_overview",
+        label: "Billing Overview",
+        path: "/admin/billing",
+        actions: ["view", "export"],
+      },
+    ],
+  },
+  {
+    key: "hr",
+    label: "HR Modules",
+    modules: [
+      {
+        key: "staff_management",
+        label: "Staff Management",
+        path: "/admin/hr/staff",
+        actions: OPS_MODULE_ACTIONS,
+      },
+      {
         key: "billing_payroll",
         label: "Payroll",
         path: "/admin/billing/payroll",
         actions: ["view", "create", "edit", "manage", "export"],
       },
       {
-        key: "billing_overview",
-        label: "Billing Overview",
-        path: "/admin/billing",
-        actions: ["view", "export"],
+        key: "leave_management",
+        label: "Leave Management",
+        path: "/admin/hr/leave",
+        actions: OPS_MODULE_ACTIONS,
+      },
+      {
+        key: "staff_attendance",
+        label: "Staff Attendance",
+        path: "/admin/hr/attendance",
+        actions: OPS_MODULE_ACTIONS,
+      },
+    ],
+  },
+  {
+    key: "library",
+    label: "Library Modules",
+    modules: [
+      {
+        key: "library_management",
+        label: "Library Management",
+        path: "/admin/library",
+        actions: OPS_MODULE_ACTIONS,
+      },
+    ],
+  },
+  {
+    key: "transport",
+    label: "Transport Modules",
+    modules: [
+      {
+        key: "transport",
+        label: "Transport",
+        path: "/admin/transport",
+        actions: OPS_MODULE_ACTIONS,
+      },
+    ],
+  },
+  {
+    key: "hostel",
+    label: "Hostel Modules",
+    modules: [
+      {
+        key: "hostel",
+        label: "Hostel",
+        path: "/admin/hostel",
+        actions: OPS_MODULE_ACTIONS,
+      },
+    ],
+  },
+  {
+    key: "inventory",
+    label: "Inventory Modules",
+    modules: [
+      {
+        key: "inventory",
+        label: "Inventory",
+        path: "/admin/inventory",
+        actions: OPS_MODULE_ACTIONS,
       },
     ],
   },
@@ -228,7 +302,37 @@ export function defaultCodesForRole(slug: string): string[] {
   const viewOnly = all.filter((c) => c.endsWith(".view") || c.endsWith(".export"));
   const finance = all.filter((c) => {
     const p = parsePermissionCode(c);
-    return p && ["billing_fees", "billing_invoices", "billing_payments", "billing_payment_gateways", "billing_paid", "billing_outstanding", "billing_reports", "dashboard"].includes(p.moduleKey);
+    return (
+      p &&
+      [
+        "billing_fees",
+        "billing_invoices",
+        "billing_payments",
+        "billing_payment_gateways",
+        "billing_paid",
+        "billing_outstanding",
+        "billing_reports",
+        "billing_family",
+        "billing_overview",
+        "dashboard",
+      ].includes(p.moduleKey)
+    );
+  });
+  const hrOps = all.filter((c) => {
+    const p = parsePermissionCode(c);
+    return (
+      p &&
+      [
+        "staff_management",
+        "billing_payroll",
+        "leave_management",
+        "staff_attendance",
+        "library_management",
+        "transport",
+        "hostel",
+        "inventory",
+      ].includes(p.moduleKey)
+    );
   });
   const exams = all.filter((c) => {
     const p = parsePermissionCode(c);
@@ -268,7 +372,7 @@ export function defaultCodesForRole(slug: string): string[] {
     case "school_admin":
       return all;
     case "accountant":
-      return [...finance, permissionCode("ai_assistant", "view")];
+      return [...finance, ...hrOps.filter((c) => c.includes("billing_payroll") || c.endsWith(".view") || c.endsWith(".export")), permissionCode("ai_assistant", "view")];
     case "teacher":
       return [...academics, ...exams, ...all.filter((c) => c.includes("attendance"))];
     case "examiner":
