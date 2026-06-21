@@ -1,13 +1,14 @@
 import { ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AI_ASSISTANT_TITLE } from "../lib/branding";
 
 export function AiGeminiPendingNotice() {
   return (
-    <Card className="mx-auto mb-4 max-w-3xl border-amber-500/30 bg-amber-500/5">
+    <Card className="mx-auto mb-4 max-w-3xl border-warning/30 bg-warning/5">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          <ShieldAlert className="h-4 w-4 text-amber-600" />
-          AI Assistant is not active yet
+          <ShieldAlert className="h-4 w-4 text-warning" />
+          {AI_ASSISTANT_TITLE} is not active yet
         </CardTitle>
         <CardDescription>
           EduManage uses one shared Gemini API key for the whole platform, configured by the{" "}
@@ -16,7 +17,8 @@ export function AiGeminiPendingNotice() {
         </CardDescription>
       </CardHeader>
       <CardContent className="text-sm text-muted-foreground">
-        Ask your Super Admin to open <strong>AI Assistant</strong>, add the platform Gemini key from{" "}
+        Ask your Super Admin to open <strong>{AI_ASSISTANT_TITLE}</strong>, add the platform Gemini
+        key from{" "}
         <a
           href="https://aistudio.google.com/apikey"
           target="_blank"

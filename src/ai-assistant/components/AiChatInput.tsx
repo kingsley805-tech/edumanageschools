@@ -3,6 +3,7 @@ import { Mic, MicOff, Paperclip, Send, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { AI_ASSISTANT_SHORT } from "../lib/branding";
 import { toast } from "sonner";
 
 type Props = {
@@ -22,7 +23,7 @@ export function AiChatInput({
   disabled,
   loading,
   onStop,
-  placeholder = "Ask EduManage AI anything…",
+  placeholder = `Ask ${AI_ASSISTANT_SHORT} anything…`,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [listening, setListening] = useState(false);
@@ -188,7 +189,7 @@ export function AiChatInput({
         </div>
       </div>
       <p className="mx-auto mt-2 max-w-3xl text-center text-[11px] text-muted-foreground">
-        EduManage AI can make mistakes. Verify important information.
+        {AI_ASSISTANT_SHORT} can make mistakes. Verify important information.
       </p>
     </div>
   );

@@ -37,7 +37,7 @@ import {
   CreditCard,
   Palette,
   Video,
-  Sparkles,
+  BrainCircuit,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { NotificationCenter } from "./NotificationCenter";
@@ -300,7 +300,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           icon: Megaphone,
           items: [
             { icon: Megaphone, label: "Announcements", path: "/admin/announcements" },
-            { icon: Sparkles, label: "AI Assistant", path: "/ai-assistant" },
+            { icon: BrainCircuit, label: "EduManage AI", path: "/ai-assistant" },
           ],
         },
         {
@@ -364,7 +364,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           label: "Account",
           icon: Settings,
           items: [
-            { icon: Sparkles, label: "AI Assistant", path: "/ai-assistant" },
+            { icon: BrainCircuit, label: "EduManage AI", path: "/ai-assistant" },
             { icon: Settings, label: "Settings", path: "/settings" },
           ],
         },
@@ -400,7 +400,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           label: "Account",
           icon: Settings,
           items: [
-            { icon: Sparkles, label: "AI Assistant", path: "/ai-assistant" },
+            { icon: BrainCircuit, label: "EduManage AI", path: "/ai-assistant" },
             { icon: Settings, label: "Settings", path: "/settings" },
           ],
         },
@@ -446,7 +446,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           icon: MessageSquare,
           items: [
             { icon: MessageSquare, label: "Messages", path: "/messages", showBadge: true },
-            { icon: Sparkles, label: "AI Assistant", path: "/ai-assistant" },
+            { icon: BrainCircuit, label: "EduManage AI", path: "/ai-assistant" },
           ],
         },
         {
@@ -491,7 +491,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           icon: MessageSquare,
           items: [
             { icon: MessageSquare, label: "Messages", path: "/messages", showBadge: true },
-            { icon: Sparkles, label: "AI Assistant", path: "/ai-assistant" },
+            { icon: BrainCircuit, label: "EduManage AI", path: "/ai-assistant" },
           ],
         },
         {
@@ -541,7 +541,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
           label: "Account",
           icon: Settings,
           items: [
-            { icon: Sparkles, label: "AI Assistant", path: "/ai-assistant" },
+            { icon: BrainCircuit, label: "EduManage AI", path: "/ai-assistant" },
             { icon: Settings, label: "Settings", path: "/settings" },
           ],
         },

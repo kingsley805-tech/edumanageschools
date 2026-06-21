@@ -1,10 +1,11 @@
 import { Link, useLocation } from "react-router-dom";
-import { Sparkles } from "lucide-react";
+import { BrainCircuit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { buildContextFromLocation, storeReferrerContext } from "@/ai-assistant/lib/context";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
+import { AI_ASSISTANT_NAV_LABEL } from "../lib/branding";
 
 type Props = {
   className?: string;
@@ -35,10 +36,10 @@ export function AiFloatingButton({ className }: Props) {
     >
       <Button
         size="lg"
-        className="h-12 gap-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-5 shadow-lg hover:from-violet-500 hover:to-indigo-500"
+        className="ai-brand-gradient h-12 gap-2 rounded-full px-5 shadow-lg hover:opacity-90"
       >
-        <Sparkles className="h-4 w-4" />
-        <span className="hidden sm:inline">AI Assistant</span>
+        <BrainCircuit className="h-4 w-4" />
+        <span className="hidden sm:inline">{AI_ASSISTANT_NAV_LABEL}</span>
       </Button>
     </Link>
   );

@@ -1,11 +1,12 @@
 import { Link } from "react-router-dom";
-import { Sparkles } from "lucide-react";
+import { BrainCircuit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { buildContextFromLocation, storeReferrerContext } from "../lib/context";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useLocation } from "react-router-dom";
+import { AI_ASSISTANT_NAV_LABEL } from "../lib/branding";
 
 type Props = {
   label?: string;
@@ -17,7 +18,7 @@ type Props = {
 
 /** Inline AI action button — pass module context and optional prefill prompt */
 export function AiQuickAction({
-  label = "AI Assistant",
+  label = AI_ASSISTANT_NAV_LABEL,
   prompt,
   className,
   variant = "outline",
@@ -45,7 +46,7 @@ export function AiQuickAction({
         to={to}
         onClick={() => storeReferrerContext(ctx)}
       >
-        <Sparkles className="h-3.5 w-3.5" />
+        <BrainCircuit className="ai-accent-text h-3.5 w-3.5" />
         {label}
       </Link>
     </Button>

@@ -6,7 +6,6 @@ import {
   ThumbsDown,
   ThumbsUp,
   User,
-  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -14,6 +13,8 @@ import { toast } from "sonner";
 import type { AiMessage } from "../lib/types";
 import { exportTextFile } from "../lib/api";
 import { AiMarkdown } from "./AiMarkdown";
+import { AiBrandIcon } from "./AiBrandIcon";
+import { AI_ASSISTANT_SHORT } from "../lib/branding";
 
 type Props = {
   message: AiMessage;
@@ -42,15 +43,15 @@ export function AiMessageBubble({ message, onRegenerate, onFeedback, isStreaming
     >
       <div
         className={cn(
-          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-          isUser ? "bg-primary/10 text-primary" : "bg-gradient-to-br from-violet-500 to-indigo-600 text-white",
+          "flex shrink-0",
+          isUser ? "h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary" : "",
         )}
       >
-        {isUser ? <User className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+        {isUser ? <User className="h-4 w-4" /> : <AiBrandIcon size="sm" rounded="full" />}
       </div>
       <div className="min-w-0 flex-1 space-y-2">
         <p className="text-xs font-medium text-muted-foreground">
-          {isUser ? "You" : "EduManage AI"}
+          {isUser ? "You" : AI_ASSISTANT_SHORT}
         </p>
         {isUser ? (
           <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>

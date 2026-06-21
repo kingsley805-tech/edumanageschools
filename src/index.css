@@ -331,6 +331,29 @@ All colors MUST be HSL.
 }
 
 @layer components {
+  .ai-brand-icon {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+    color: hsl(var(--primary-foreground));
+  }
+
+  .ai-brand-gradient {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+    color: hsl(var(--primary-foreground));
+  }
+
+  .ai-surface-card {
+    border-color: hsl(var(--primary) / 0.22);
+    background: linear-gradient(
+      135deg,
+      hsl(var(--primary) / 0.08),
+      hsl(var(--accent) / 0.06)
+    );
+  }
+
+  .ai-accent-text {
+    color: hsl(var(--primary));
+  }
+
   [data-portal-layout] .portal-nav-link-active,
   [data-portal-layout] .portal-nav-sublink.portal-nav-link-active {
     background-color: hsl(var(--sidebar-accent));

@@ -9,7 +9,7 @@ for (const m of ALL_PORTAL_MODULES) {
 
 /** Longest-prefix match for nested routes */
 export function resolveModuleFromPath(pathname: string): { key: string; label: string } | null {
-  if (pathname.startsWith("/ai-assistant")) return { key: "ai_assistant", label: "AI Assistant" };
+  if (pathname.startsWith("/ai-assistant")) return { key: "ai_assistant", label: "EduManage AI Assistant" };
 
   let best: { key: string; label: string; len: number } | null = null;
   for (const [path, mod] of Object.entries(PATH_MODULE_MAP)) {

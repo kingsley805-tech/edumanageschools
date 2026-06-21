@@ -138,7 +138,7 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
     label: "Communication",
     modules: [
       { key: "announcements", label: "Announcements", path: "/admin/announcements", actions: ["view", "create", "edit", "delete", "manage"] },
-      { key: "ai_assistant", label: "AI Assistant", path: "/ai-assistant", actions: ["view", "create", "manage"] },
+      { key: "ai_assistant", label: "EduManage AI", path: "/ai-assistant", actions: ["view", "create", "manage"] },
     ],
   },
   {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { KeyRound, Loader2, Sparkles } from "lucide-react";
+import { KeyRound, Loader2, Cpu } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { AI_SETUP_SQL_URL } from "../lib/api";
+import { AI_ASSISTANT_TITLE } from "../lib/branding";
 
 type Props = {
   onConfigured?: () => void;
@@ -38,7 +39,7 @@ export function AiGeminiSetupCard({ onConfigured }: Props) {
       }
 
       setApiKey("");
-      toast.success("Platform Gemini key saved. All schools can use AI Assistant.");
+      toast.success(`Platform Gemini key saved. All schools can use ${AI_ASSISTANT_TITLE}.`);
       onConfigured?.();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to save API key";
@@ -61,15 +62,15 @@ export function AiGeminiSetupCard({ onConfigured }: Props) {
   };
 
   return (
-    <Card className="mx-auto mb-4 max-w-3xl border-violet-500/30 bg-gradient-to-br from-violet-500/5 to-indigo-500/5">
+    <Card className="ai-surface-card mx-auto mb-4 max-w-3xl border">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          <KeyRound className="h-4 w-4 text-violet-600" />
+          <KeyRound className="ai-accent-text h-4 w-4" />
           Platform Gemini API key
         </CardTitle>
         <CardDescription className="space-y-2">
           <span className="flex items-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5 text-violet-500" />
+            <Cpu className="ai-accent-text h-3.5 w-3.5" />
             <strong>Super Admin only.</strong> This key is shared by every school, admin, teacher,
             parent, and student on EduManage.
           </span>

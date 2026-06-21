@@ -1,4 +1,4 @@
-import { Sparkles, User, Layers, Zap } from "lucide-react";
+import { Radar, User, Layers, Compass } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,10 +30,10 @@ export function AiContextPanel({ context, usage, onActionClick, className }: Pro
     <aside className={className}>
       <ScrollArea className="h-full">
         <div className="space-y-4 p-4">
-          <Card className="border-violet-500/20 bg-gradient-to-br from-violet-500/5 to-indigo-500/5">
+          <Card className="ai-surface-card border">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm">
-                <Sparkles className="h-4 w-4 text-violet-500" />
+                <Radar className="ai-accent-text h-4 w-4" />
                 Context
               </CardTitle>
             </CardHeader>
@@ -63,7 +63,7 @@ export function AiContextPanel({ context, usage, onActionClick, className }: Pro
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm">
-                <Zap className="h-4 w-4" />
+                <Compass className="ai-accent-text h-4 w-4" />
                 Available actions
               </CardTitle>
             </CardHeader>

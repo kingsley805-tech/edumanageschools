@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
-import { Menu, PanelRight, Sparkles } from "lucide-react";
+import { Menu, PanelRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -14,8 +14,10 @@ import { AiChatInput } from "../components/AiChatInput";
 import { AiMessageBubble } from "../components/AiMessageBubble";
 import { AiWelcomeScreen } from "../components/AiWelcomeScreen";
 import { AiContextPanel } from "../components/AiContextPanel";
+import { AiBrandIcon } from "../components/AiBrandIcon";
 import { AiGeminiSetupCard } from "../components/AiGeminiSetupCard";
 import { AiGeminiPendingNotice } from "../components/AiGeminiPendingNotice";
+import { AI_ASSISTANT_TAGLINE, AI_ASSISTANT_TITLE } from "../lib/branding";
 import {
   createConversation,
   deleteConversation,
@@ -325,12 +327,10 @@ export default function AiAssistantPage() {
               <Menu className="h-5 w-5" />
             </Button>
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 text-white">
-                <Sparkles className="h-4 w-4" />
-              </div>
+              <AiBrandIcon size="sm" rounded="lg" />
               <div>
-                <p className="text-sm font-semibold leading-none">AI Assistant</p>
-                <p className="text-[11px] text-muted-foreground">Powered by Gemini</p>
+                <p className="text-sm font-semibold leading-none">{AI_ASSISTANT_TITLE}</p>
+                <p className="text-[11px] text-muted-foreground">{AI_ASSISTANT_TAGLINE}</p>
               </div>
             </div>
           </div>

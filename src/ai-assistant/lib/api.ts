@@ -15,7 +15,7 @@ export const AI_SETUP_SQL_URL =
   "https://supabase.com/dashboard/project/xbhhpjtwawfawifhpxbe/sql/new";
 
 export const AI_SETUP_HINT =
-  "Platform AI uses one shared Gemini key. Super Admin: open AI Assistant and save the platform key.";
+  "Platform AI uses one shared Gemini key. Super Admin: open EduManage AI Assistant and save the platform key.";
 
 const AI_DB_SETUP_MESSAGE =
   "AI database is not set up. Run public/sql/apply-ai-assistant.sql in Supabase SQL Editor, then public/sql/patch-gemini-chat-timeout.sql.";

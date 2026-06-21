@@ -24,7 +24,7 @@ import {
   NotebookPen,
   CreditCard as SubscriptionIcon,
   Video,
-  Sparkles,
+  BrainCircuit,
 } from "lucide-react";
 import { PORTAL_CATEGORIES, permissionCode, type PermissionAction } from "@/lib/rbac/permissionCatalog";
 
@@ -70,7 +70,7 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
   teacher_class_link: BookOpen,
   parent_contacts: UserCircle,
   announcements: Megaphone,
-  ai_assistant: Sparkles,
+  ai_assistant: BrainCircuit,
   school_settings: Building,
   staff_access: Shield,
   approvals: FileText,
