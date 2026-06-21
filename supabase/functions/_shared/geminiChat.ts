@@ -52,30 +52,42 @@ function toGeminiContents(history: ChatMessage[], latestUser: string) {
 
 async function callGemini(apiKey: string, systemPrompt: string, history: ChatMessage[], message: string) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      contents: toGeminiContents(history, message),
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 4096,
-      },
-    }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 120_000);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        contents: toGeminiContents(history, message),
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2048,
+        },
+      }),
+    });
 
-  const data = await res.json();
-  if (!res.ok) {
-    const err = data?.error?.message ?? "Gemini API request failed";
-    throw new Error(err);
+    const data = await res.json();
+    if (!res.ok) {
+      const err = data?.error?.message ?? "Gemini API request failed";
+      throw new Error(err);
+    }
+
+    const text =
+      data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
+    const tokens = data?.usageMetadata?.totalTokenCount ?? 0;
+    if (!text.trim()) throw new Error("Empty response from Gemini");
+    return { text: text.trim(), tokens };
+  } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") {
+      throw new Error("Gemini request timed out. Try a shorter message.");
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
   }
-
-  const text =
-    data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
-  const tokens = data?.usageMetadata?.totalTokenCount ?? 0;
-  if (!text.trim()) throw new Error("Empty response from Gemini");
-  return { text: text.trim(), tokens };
 }
 
 async function logUsage(
@@ -96,23 +108,37 @@ async function logUsage(
   }
 }
 
+async function resolveGeminiApiKey(admin: SupabaseClient): Promise<string | null> {
+  const fromEnv = Deno.env.get("GEMINI_API_KEY")?.trim();
+  if (fromEnv) return fromEnv;
+  const { data } = await admin
+    .from("platform_ai_config")
+    .select("gemini_api_key")
+    .eq("id", 1)
+    .maybeSingle();
+  const fromDb = data?.gemini_api_key?.trim();
+  return fromDb || null;
+}
+
 export async function handleGeminiChat(
   body: Record<string, unknown>,
   authHeader: string | null,
   env: { supabaseUrl: string; supabaseAnon: string; serviceKey: string },
   respond: (payload: unknown, status?: number) => Response,
 ): Promise<Response> {
-  const apiKey = Deno.env.get("GEMINI_API_KEY");
-  if (!apiKey) {
-    return respond({ error: "GEMINI_API_KEY is not configured on the server." }, 500);
-  }
-
   if (!authHeader) return respond({ error: "Unauthorized" }, 401);
 
   const userClient = createClient(env.supabaseUrl, env.supabaseAnon, {
     global: { headers: { Authorization: authHeader } },
   });
   const admin = createClient(env.supabaseUrl, env.serviceKey);
+
+  const apiKey = await resolveGeminiApiKey(admin);
+  if (!apiKey) {
+    return respond({
+      error: "Platform AI is not configured yet. The Super Admin must add the shared Gemini API key in AI Assistant.",
+    }, 500);
+  }
 
   const { data: userData, error: userErr } = await userClient.auth.getUser();
   if (userErr || !userData.user) return respond({ error: "Unauthorized" }, 401);

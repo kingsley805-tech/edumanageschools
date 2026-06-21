@@ -181,21 +181,34 @@ BEGIN
   v_body := jsonb_build_object(
     'systemInstruction', jsonb_build_object('parts', jsonb_build_array(jsonb_build_object('text', v_system))),
     'contents', v_contents,
-    'generationConfig', jsonb_build_object('temperature', 0.7, 'maxOutputTokens', 4096)
+    'generationConfig', jsonb_build_object('temperature', 0.7, 'maxOutputTokens', 2048)
   );
 
   v_url := 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' || v_cfg.gemini_api_key;
 
-  SELECT * INTO v_http
-  FROM extensions.http((
-    'POST',
-    v_url,
-    ARRAY[
-      extensions.http_header('Content-Type', 'application/json')
-    ],
-    'application/json',
-    v_body::text
-  )::extensions.http_request);
+  BEGIN
+    PERFORM extensions.http_set_curlopt('CURLOPT_TIMEOUT', '120');
+    PERFORM extensions.http_set_curlopt('CURLOPT_CONNECTTIMEOUT', '30');
+
+    SELECT * INTO v_http
+    FROM extensions.http((
+      'POST',
+      v_url,
+      ARRAY[
+        extensions.http_header('Content-Type', 'application/json')
+      ],
+      'application/json',
+      v_body::text
+    )::extensions.http_request);
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM ILIKE '%timed out%' OR SQLERRM ILIKE '%timeout%' THEN
+      RETURN jsonb_build_object(
+        'ok', false,
+        'error', 'Gemini request timed out. Run public/sql/patch-gemini-chat-timeout.sql in Supabase, or try a shorter message.'
+      );
+    END IF;
+    RETURN jsonb_build_object('ok', false, 'error', SQLERRM);
+  END;
 
   BEGIN
     v_resp := v_http.content::jsonb;

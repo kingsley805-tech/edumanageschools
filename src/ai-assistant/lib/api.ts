@@ -349,16 +349,42 @@ async function invokeGemini(opts: {
   context: AiContext;
   conversationId: string;
 }): Promise<{ content: string; tokens: number }> {
-  const rpc = await invokeGeminiViaRpc(opts);
-  if (rpc) return rpc;
-
-  return invokeGeminiViaEdge({
+  const trimmedHistory = opts.history.slice(-20);
+  const body = {
     action: "chat",
     conversationId: opts.conversationId,
     message: opts.message,
-    history: opts.history,
+    history: trimmedHistory,
     context: opts.context,
-  });
+  };
+
+  try {
+    return await invokeGeminiViaEdge(body);
+  } catch (edgeError) {
+    const edgeMsg = edgeError instanceof Error ? edgeError.message : "";
+    const configError =
+      edgeMsg.includes("Platform AI") ||
+      edgeMsg.includes("GEMINI_API_KEY") ||
+      edgeMsg.includes("not configured");
+    if (configError) throw edgeError;
+  }
+
+  try {
+    const rpc = await invokeGeminiViaRpc({ ...opts, history: trimmedHistory });
+    if (rpc) return rpc;
+  } catch (rpcError) {
+    const rpcMsg = rpcError instanceof Error ? rpcError.message : "";
+    if (rpcMsg.toLowerCase().includes("timed out") || rpcMsg.includes("5002")) {
+      try {
+        return await invokeGeminiViaEdge(body);
+      } catch {
+        throw new Error("Gemini timed out. Run public/sql/patch-gemini-chat-timeout.sql in Supabase SQL Editor.");
+      }
+    }
+    throw rpcError;
+  }
+
+  return invokeGeminiViaEdge(body);
 }
 
 export async function sendChatToGemini(opts: {
