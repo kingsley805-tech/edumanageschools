@@ -155,11 +155,8 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'error', 'Unauthorized');
   END IF;
 
-  IF NOT (
-    public.has_role(v_uid, 'super_admin'::app_role)
-    OR public.has_role(v_uid, 'admin'::app_role)
-  ) THEN
-    RETURN jsonb_build_object('ok', false, 'error', 'Admin access required');
+  IF NOT public.has_role(v_uid, 'super_admin'::app_role) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Super Admin access required');
   END IF;
 
   IF coalesce(trim(p_api_key), '') = '' THEN
@@ -235,7 +232,7 @@ BEGIN
     RETURN jsonb_build_object(
       'ok', false,
       'error',
-      'GEMINI_API_KEY is not configured. Run: SELECT public.upsert_platform_gemini_key(''your-google-ai-key'');'
+      'Platform AI is not configured yet. The Super Admin must add the shared Gemini API key in AI Assistant.'
     );
   END IF;
 

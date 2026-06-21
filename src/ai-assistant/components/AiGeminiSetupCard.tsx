@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { KeyRound, Loader2 } from "lucide-react";
+import { KeyRound, Loader2, Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ export function AiGeminiSetupCard({ onConfigured }: Props) {
   const save = async () => {
     const key = apiKey.trim();
     if (!key) {
-      toast.error("Enter your Google AI Studio API key.");
+      toast.error("Enter the platform Gemini API key.");
       return;
     }
 
@@ -38,7 +38,7 @@ export function AiGeminiSetupCard({ onConfigured }: Props) {
       }
 
       setApiKey("");
-      toast.success("Gemini API key saved. You can start chatting.");
+      toast.success("Platform Gemini key saved. All schools can use AI Assistant.");
       onConfigured?.();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to save API key";
@@ -50,6 +50,8 @@ export function AiGeminiSetupCard({ onConfigured }: Props) {
             onClick: () => window.open(AI_SETUP_SQL_URL, "_blank"),
           },
         });
+      } else if (msg.toLowerCase().includes("super admin")) {
+        toast.error("Only the Super Admin can configure the platform Gemini key.");
       } else {
         toast.error(msg);
       }
@@ -59,39 +61,46 @@ export function AiGeminiSetupCard({ onConfigured }: Props) {
   };
 
   return (
-    <Card className="mx-auto mb-4 max-w-3xl border-amber-500/30 bg-amber-500/5">
+    <Card className="mx-auto mb-4 max-w-3xl border-violet-500/30 bg-gradient-to-br from-violet-500/5 to-indigo-500/5">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          <KeyRound className="h-4 w-4 text-amber-600" />
-          Configure Gemini API key
+          <KeyRound className="h-4 w-4 text-violet-600" />
+          Platform Gemini API key
         </CardTitle>
-        <CardDescription>
-          One-time setup for school admins. Get a free key from{" "}
-          <a
-            href="https://aistudio.google.com/apikey"
-            target="_blank"
-            rel="noreferrer"
-            className="text-primary underline"
-          >
-            Google AI Studio
-          </a>
-          .
+        <CardDescription className="space-y-2">
+          <span className="flex items-center gap-1.5">
+            <Sparkles className="h-3.5 w-3.5 text-violet-500" />
+            <strong>Super Admin only.</strong> This key is shared by every school, admin, teacher,
+            parent, and student on EduManage.
+          </span>
+          <span>
+            Get a key from{" "}
+            <a
+              href="https://aistudio.google.com/apikey"
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary underline"
+            >
+              Google AI Studio
+            </a>{" "}
+            and save it once here. School admins do not add their own keys.
+          </span>
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="flex-1 space-y-2">
-          <Label htmlFor="gemini-api-key">API key</Label>
+          <Label htmlFor="gemini-api-key">Platform API key</Label>
           <Input
             id="gemini-api-key"
             type="password"
-            placeholder="Paste your Gemini API key"
+            placeholder="Paste the shared Gemini API key"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             autoComplete="off"
           />
         </div>
         <Button onClick={() => void save()} disabled={saving} className="shrink-0">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save key"}
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save platform key"}
         </Button>
       </CardContent>
     </Card>

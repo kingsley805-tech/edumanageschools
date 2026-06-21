@@ -16,10 +16,10 @@ export const AI_SETUP_SQL_URL =
   "https://supabase.com/dashboard/project/xbhhpjtwawfawifhpxbe/sql/new";
 
 export const AI_SETUP_HINT =
-  "Run public/sql/apply-gemini-chat-rpc.sql in Supabase SQL Editor, then set your key: SELECT public.upsert_platform_gemini_key('your-google-ai-key');";
+  "Platform AI uses one shared Gemini key. Super Admin: open AI Assistant and save the platform key.";
 
 const AI_SETUP_MESSAGE =
-  "AI is not set up on Supabase yet. Run public/sql/apply-gemini-chat-rpc.sql, then: SELECT public.upsert_platform_gemini_key('your-google-ai-key');";
+  "Platform AI is not configured. Super Admin must add the shared Gemini API key in AI Assistant.";
 
 let aiDbReady: boolean | null = null;
 let localUserId: string | null = null;
@@ -336,7 +336,7 @@ async function invokeGeminiViaEdge(body: Record<string, unknown>): Promise<{ con
   } catch (paystackError) {
     const detail =
       paystackError instanceof Error ? paystackError.message : AI_SETUP_MESSAGE;
-    if (detail.includes("GEMINI_API_KEY") || detail.includes("not configured")) {
+    if (detail.includes("GEMINI_API_KEY") || detail.includes("Platform AI") || detail.includes("not configured")) {
       throw new Error(detail);
     }
     throw new Error(AI_SETUP_MESSAGE);
