@@ -16,7 +16,12 @@ import { useModuleAccess } from "@/modules/lib/useModuleAccess";
 import { ModuleAccessDenied } from "@/modules/lib/ModuleAccessDenied";
 import { downloadCsv } from "@/modules/lib/exportCsv";
 import { isMissingTableError, operationsSchemaSetupMessage } from "@/modules/lib/missingSchema";
-import { OperationsSchemaSetupCard } from "@/modules/lib/OperationsSchemaSetupCard";
+import { TransportSchemaSetupCard } from "@/modules/transport/components/TransportSchemaSetupCard";
+import {
+  checkTransportSchema,
+  transportSchemaReady,
+  type TransportSchemaStatus,
+} from "@/modules/transport/lib/schema";
 import {
   assignStudentTransport,
   fetchTransportBuses,
@@ -35,6 +40,7 @@ type StudentOption = {
   id: string;
   name: string;
   admission: string;
+  class_id: string | null;
   class_name: string;
 };
 
@@ -43,7 +49,8 @@ export default function TransportPage() {
   const schoolId = currentSchool?.id ?? null;
   const access = useModuleAccess("transport");
 
-  const [schemaMissing, setSchemaMissing] = useState(false);
+  const [schemaStatus, setSchemaStatus] = useState<TransportSchemaStatus | null>(null);
+  const [schemaChecking, setSchemaChecking] = useState(false);
   const [routes, setRoutes] = useState<TransportRoute[]>([]);
   const [buses, setBuses] = useState<TransportBus[]>([]);
   const [stops, setStops] = useState<TransportStop[]>([]);
@@ -52,7 +59,6 @@ export default function TransportPage() {
 
   const handleDbError = (error: { code?: string; message?: string; status?: number }) => {
     if (isMissingTableError(error)) {
-      setSchemaMissing(true);
       toast.error(operationsSchemaSetupMessage());
       return true;
     }
@@ -62,26 +68,27 @@ export default function TransportPage() {
 
   const loadAll = useCallback(async () => {
     if (!schoolId) return;
+    setSchemaChecking(true);
     try {
+      const status = await checkTransportSchema(schoolId);
+      setSchemaStatus(status);
+
       const [r, b, s, rep] = await Promise.all([
-        fetchTransportRoutes(schoolId),
-        fetchTransportBuses(schoolId).catch((e) => {
-          if (isMissingTableError(e)) throw e;
-          return [] as TransportBus[];
-        }),
-        fetchTransportStops(schoolId).catch((e) => {
-          if (isMissingTableError(e)) throw e;
-          return [] as TransportStop[];
-        }),
-        fetchTransportReport(schoolId).catch(() => [] as TransportReportRow[]),
+        status.routes ? fetchTransportRoutes(schoolId) : Promise.resolve([] as TransportRoute[]),
+        status.buses ? fetchTransportBuses(schoolId) : Promise.resolve([] as TransportBus[]),
+        status.stops ? fetchTransportStops(schoolId) : Promise.resolve([] as TransportStop[]),
+        status.rpcReport
+          ? fetchTransportReport(schoolId).catch(() => [] as TransportReportRow[])
+          : Promise.resolve([] as TransportReportRow[]),
       ]);
-      setSchemaMissing(false);
       setRoutes(r);
       setBuses(b);
       setStops(s);
       setReport(rep);
     } catch (e) {
-      handleDbError(e as { message?: string });
+      handleDbError(e as { message?: string; code?: string });
+    } finally {
+      setSchemaChecking(false);
     }
   }, [schoolId]);
 
@@ -89,7 +96,7 @@ export default function TransportPage() {
     if (!schoolId) return;
     const { data, error } = await supabase
       .from("students")
-      .select("id, full_name, admission_number, admission_no, profiles!students_user_id_fkey(full_name), classes(name)")
+      .select("id, class_id, full_name, admission_number, admission_no, profiles!students_user_id_fkey(full_name), classes(name)")
       .eq("school_id", schoolId)
       .order("full_name");
     if (error) return;
@@ -98,7 +105,8 @@ export default function TransportPage() {
         id: row.id,
         name: row.profiles?.full_name ?? row.full_name ?? "Student",
         admission: row.admission_number ?? row.admission_no ?? "—",
-        class_name: row.classes?.name ?? "—",
+        class_id: row.class_id ?? null,
+        class_name: row.classes?.name ?? "Unassigned",
       })),
     );
   }, [schoolId]);
@@ -107,6 +115,8 @@ export default function TransportPage() {
     void loadAll();
     void loadStudents();
   }, [loadAll, loadStudents]);
+
+  const schemaReady = schemaStatus ? transportSchemaReady(schemaStatus) : false;
 
   if (!access.canView) return <ModuleAccessDenied label="Transport Management" />;
 
@@ -122,15 +132,16 @@ export default function TransportPage() {
             Manage routes, buses, stops, student assignments, and transport fees.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => void loadAll()}>
-          Refresh
+        <Button variant="outline" size="sm" onClick={() => void loadAll()} disabled={schemaChecking}>
+          {schemaChecking ? "Checking…" : "Refresh"}
         </Button>
       </div>
 
-      {schemaMissing ? (
-        <OperationsSchemaSetupCard
-          moduleLabel="Transport"
-          quickScript="apply-operations-modules.sql then apply-transport-management.sql"
+      {schemaStatus && !schemaReady ? (
+        <TransportSchemaSetupCard
+          status={schemaStatus}
+          checking={schemaChecking}
+          onRecheck={() => void loadAll()}
         />
       ) : null}
 
@@ -617,11 +628,28 @@ function AssignmentsTab({
   }) => Promise<void>;
 }) {
   const [studentId, setStudentId] = useState("");
+  const [classId, setClassId] = useState("");
   const [busId, setBusId] = useState("");
   const [stopId, setStopId] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [notes, setNotes] = useState("");
   const [search, setSearch] = useState("");
+
+  const classOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const s of students) {
+      const id = s.class_id ?? "__unassigned__";
+      const label = s.class_name || "Unassigned";
+      if (!map.has(id)) map.set(id, label);
+    }
+    return [...map.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => {
+        if (a.id === "__unassigned__") return 1;
+        if (b.id === "__unassigned__") return -1;
+        return a.name.localeCompare(b.name);
+      });
+  }, [students]);
 
   const selectedBus = buses.find((b) => b.id === busId);
   const availableStops = useMemo(() => {
@@ -632,15 +660,36 @@ function AssignmentsTab({
   const selectedStop = availableStops.find((s) => s.id === stopId);
 
   const filteredStudents = useMemo(() => {
+    let list = students;
+    if (classId) {
+      if (classId === "__unassigned__") {
+        list = list.filter((s) => !s.class_id);
+      } else {
+        list = list.filter((s) => s.class_id === classId);
+      }
+    }
     const q = search.trim().toLowerCase();
-    if (!q) return students;
-    return students.filter(
+    if (!q) return list;
+    return list.filter(
       (s) =>
         s.name.toLowerCase().includes(q) ||
         s.admission.toLowerCase().includes(q) ||
         s.class_name.toLowerCase().includes(q),
     );
-  }, [students, search]);
+  }, [students, classId, search]);
+
+  const handleClassChange = (value: string) => {
+    setClassId(value);
+    const stillVisible = (() => {
+      if (!studentId) return true;
+      const current = students.find((s) => s.id === studentId);
+      if (!current) return false;
+      if (!value) return true;
+      if (value === "__unassigned__") return !current.class_id;
+      return current.class_id === value;
+    })();
+    if (!stillVisible) setStudentId("");
+  };
 
   const existing = report.find((r) => r.student_id === studentId);
 
@@ -663,21 +712,70 @@ function AssignmentsTab({
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
+            <Label>Class</Label>
+            <Select value={classId || undefined} onValueChange={handleClassChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="All classes" />
+              </SelectTrigger>
+              <SelectContent>
+                {classOptions.map((c) => {
+                  const count = students.filter((s) =>
+                    c.id === "__unassigned__" ? !s.class_id : s.class_id === c.id,
+                  ).length;
+                  return (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name} ({count})
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+            {classId ? (
+              <Button
+                type="button"
+                variant="link"
+                className="h-auto p-0 text-xs"
+                onClick={() => handleClassChange("")}
+              >
+                Clear class filter
+              </Button>
+            ) : null}
+          </div>
+          <div className="space-y-1.5">
             <Label>Search student</Label>
-            <Input placeholder="Name or admission number" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Input
+              placeholder="Name or admission number"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Student</Label>
             <Select value={studentId} onValueChange={setStudentId}>
               <SelectTrigger>
-                <SelectValue placeholder="Select student" />
+                <SelectValue
+                  placeholder={
+                    classId
+                      ? `Select student (${filteredStudents.length} in class)`
+                      : "Select class first or pick a student"
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
-                {filteredStudents.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name} — {s.admission} ({s.class_name})
-                  </SelectItem>
-                ))}
+                {filteredStudents.length === 0 ? (
+                  <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                    {classId
+                      ? "No students in this class match your search."
+                      : "Select a class to narrow the list, or search by name."}
+                  </div>
+                ) : (
+                  filteredStudents.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name} — {s.admission}
+                      {!classId ? ` (${s.class_name})` : ""}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
