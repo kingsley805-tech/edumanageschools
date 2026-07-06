@@ -39,7 +39,7 @@ export function useSchoolEntitlements(schoolId?: string | null) {
       const [modsRes, entRes, subRes] = await Promise.all([
         supabase.from("platform_modules").select("*").order("sort_order"),
         supabase.from("school_module_entitlements").select("*").eq("school_id", sid!),
-        supabase.from("school_subscriptions").select("status, read_only_on_expiry, block_login_on_expiry, expires_at, plan_id").eq("school_id", sid!).maybeSingle(),
+        supabase.from("school_subscriptions").select("status, read_only_on_expiry, block_login_on_expiry, expires_at, plan_id, entitlements_override").eq("school_id", sid!).maybeSingle(),
       ]);
 
       let planModuleCount = 0;
@@ -78,6 +78,7 @@ export function useSchoolEntitlements(schoolId?: string | null) {
           subscription: subRes.data ?? null,
           enforced: false,
           planModuleCount: 0,
+          entitlementsOverride: false,
         };
       }
 
@@ -103,13 +104,14 @@ export function useSchoolEntitlements(schoolId?: string | null) {
         subscription: subRes.data,
         enforced: Boolean(subRes.data),
         planModuleCount,
+        entitlementsOverride: Boolean((subRes.data as { entitlements_override?: boolean })?.entitlements_override),
       };
     },
     retry: (failureCount, error) => {
       if (isMissingSchemaError(error as { code?: string; message?: string })) return false;
       return failureCount < 1;
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 60 * 1000,
   });
 
   const entitlementsInitialLoading = Boolean(sid) && isPending && data === undefined;
@@ -178,8 +180,11 @@ export function useSchoolEntitlements(schoolId?: string | null) {
 
     const enabledCount = data.rows.filter((row) => row.enabled && row.portal_module_key).length;
     const planModuleCount = data.planModuleCount ?? 0;
+    const entitlementsOverride = data.entitlementsOverride ?? false;
+    // Only auto-heal when nothing is enabled, or plan modules missing and no full-access override
     const needsSync =
-      enabledCount === 0 || (planModuleCount > 0 && enabledCount < planModuleCount);
+      enabledCount === 0 ||
+      (!entitlementsOverride && planModuleCount > 0 && enabledCount < planModuleCount);
     if (!needsSync) return;
 
     const syncKey = `${sid}:${subscriptionAccess.plan_id ?? "none"}`;
@@ -208,7 +213,38 @@ export function useSchoolEntitlements(schoolId?: string | null) {
     data?.enforced,
     data?.rows,
     data?.planModuleCount,
+    data?.entitlementsOverride,
   ]);
+
+  useEffect(() => {
+    if (!sid) return;
+    const channel = supabase
+      .channel(`school-entitlements-${sid}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "school_module_entitlements",
+          filter: `school_id=eq.${sid}`,
+        },
+        () => invalidate(),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "school_subscriptions",
+          filter: `school_id=eq.${sid}`,
+        },
+        () => invalidate(),
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [sid]);
 
   return {
     loading: entitlementsInitialLoading || subscriptionInitialLoading,
@@ -319,6 +355,7 @@ export function useTenantEntitlementsEditor(schoolId: string) {
     const res = data as { ok?: boolean; error?: string };
     if (!res?.ok) throw new Error(res?.error ?? "Grant all modules failed");
     await queryClient.invalidateQueries({ queryKey: [ENTITLEMENTS_KEY] });
+    await queryClient.invalidateQueries({ queryKey: [ORGANIZATION_SUBSCRIPTION_ACCESS_KEY] });
     await queryClient.invalidateQueries({ queryKey: ["platform-tenants"] });
   };
 

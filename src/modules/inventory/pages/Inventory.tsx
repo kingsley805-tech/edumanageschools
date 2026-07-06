@@ -12,6 +12,8 @@ import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { useModuleAccess } from "@/modules/lib/useModuleAccess";
 import { ModuleAccessDenied } from "@/modules/lib/ModuleAccessDenied";
 import { downloadCsv } from "@/modules/lib/exportCsv";
+import { isMissingTableError, operationsSchemaSetupMessage } from "@/modules/lib/missingSchema";
+import { OperationsSchemaSetupCard } from "@/modules/lib/OperationsSchemaSetupCard";
 import { toast } from "sonner";
 
 type ItemRow = {
@@ -38,6 +40,17 @@ export default function InventoryPage() {
   const [unit, setUnit] = useState("pcs");
   const [location, setLocation] = useState("");
   const [reorder, setReorder] = useState("");
+  const [schemaMissing, setSchemaMissing] = useState(false);
+
+  const handleDbError = (error: { code?: string; message?: string; status?: number }) => {
+    if (isMissingTableError(error)) {
+      setSchemaMissing(true);
+      toast.error(operationsSchemaSetupMessage());
+      return true;
+    }
+    toast.error(error.message ?? "Request failed");
+    return false;
+  };
 
   const load = useCallback(async () => {
     if (!schoolId) return;
@@ -48,13 +61,10 @@ export default function InventoryPage() {
       .order("name");
 
     if (error) {
-      if (error.message.includes("inventory_items")) {
-        toast.error("Run public/sql/apply-operations-modules.sql in Supabase first.");
-      } else {
-        toast.error(error.message);
-      }
+      handleDbError(error);
       return;
     }
+    setSchemaMissing(false);
     setRows((data ?? []) as ItemRow[]);
   }, [schoolId]);
 
@@ -78,7 +88,7 @@ export default function InventoryPage() {
       reorder_level: reorder ? Number(reorder) : null,
     });
     if (error) {
-      toast.error(error.message);
+      handleDbError(error);
       return;
     }
     toast.success("Item added");
@@ -177,6 +187,8 @@ export default function InventoryPage() {
           ) : null}
         </div>
       </div>
+
+      {schemaMissing ? <OperationsSchemaSetupCard moduleLabel="Inventory" /> : null}
 
       <Card>
         <CardHeader>

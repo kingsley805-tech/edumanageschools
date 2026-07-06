@@ -12,6 +12,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { logLoginActivity } from "@/lib/auditLog";
 import { normalizeAdmissionNumber, derivePrefixFromSchoolName } from "@/lib/admission-numbers";
+import { submitStudentPasswordResetRequest } from "@/lib/studentPasswordRecovery";
 import {
   buildStudentAuthEmail,
   ensureParentChildrenLinked,
@@ -27,25 +28,25 @@ const EducationHubAnimation = () => {
   return (
     <div className="relative w-full max-w-[320px] aspect-square flex items-center justify-center scale-95 sm:scale-100">
       {/* Background glow in center */}
-      <div className="absolute w-40 h-40 rounded-full bg-emerald-500/15 blur-3xl opacity-60 pointer-events-none" />
+      <div className="absolute w-40 h-40 rounded-full bg-green-500/10 blur-3xl opacity-60 pointer-events-none" />
 
       {/* Orbit 3 (Outer) */}
       <motion.div 
-        className="absolute w-[300px] h-[300px] rounded-full border border-dashed border-slate-800/80"
+        className="absolute w-[300px] h-[300px] rounded-full border border-dashed border-white/15"
         animate={{ rotate: 360 }}
         transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
       />
 
       {/* Orbit 2 (Middle) */}
       <motion.div 
-        className="absolute w-[220px] h-[220px] rounded-full border border-dashed border-emerald-500/10"
+        className="absolute w-[220px] h-[220px] rounded-full border border-dashed border-white/10"
         animate={{ rotate: -360 }}
         transition={{ duration: 28, repeat: Infinity, ease: "linear" }}
       />
 
       {/* Orbit 1 (Inner) */}
       <motion.div 
-        className="absolute w-[140px] h-[140px] rounded-full border border-dashed border-teal-500/5"
+        className="absolute w-[140px] h-[140px] rounded-full border border-dashed border-white/5"
         animate={{ rotate: 360 }}
         transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
       />
@@ -53,20 +54,20 @@ const EducationHubAnimation = () => {
       {/* Center Cap */}
       <div className="absolute z-20 flex flex-col items-center">
         <motion.div 
-          className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-400 shadow-xl shadow-emerald-500/20 border border-white/20 relative"
+          className="flex h-16 w-16 items-center justify-center rounded-2xl bg-green-500 shadow-xl shadow-green-500/30 border border-green-400/30 relative"
           animate={{ y: [0, -4, 0] }}
           transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
         >
-          <GraduationCap className="h-8 w-8 text-slate-950" />
+          <GraduationCap className="h-8 w-8 text-white" />
           
           {/* Pulsing rings */}
           <motion.div 
-            className="absolute -inset-3 rounded-2xl border border-emerald-500/30 pointer-events-none"
+            className="absolute -inset-3 rounded-2xl border border-green-400/40 pointer-events-none"
             animate={{ scale: [0.9, 1.2, 0.9], opacity: [0.8, 0, 0.8] }}
             transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
           />
           <motion.div 
-            className="absolute -inset-6 rounded-[1.5rem] border border-teal-500/15 pointer-events-none"
+            className="absolute -inset-6 rounded-[1.5rem] border border-green-500/20 pointer-events-none"
             animate={{ scale: [0.9, 1.3, 0.9], opacity: [0.5, 0, 0.5] }}
             transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
           />
@@ -79,10 +80,10 @@ const EducationHubAnimation = () => {
         animate={{ y: [0, -8, 0], x: [0, 4, 0] }}
         transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
       >
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900/80 border border-slate-800/80 backdrop-blur-md shadow-xl relative group">
-          <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 opacity-0 group-hover:opacity-100 blur-[2px] transition-opacity" />
-          <div className="absolute w-5 h-5 rounded-full bg-emerald-500/25 blur-md pointer-events-none" />
-          <BookOpen className="h-5 w-5 text-emerald-400 relative z-10" />
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-black/80 border border-white/15 backdrop-blur-md shadow-xl relative group">
+          <div className="absolute -inset-0.5 rounded-xl bg-white/10 opacity-0 group-hover:opacity-100 blur-[2px] transition-opacity" />
+          <div className="absolute w-5 h-5 rounded-full bg-white/20 blur-md pointer-events-none" />
+          <BookOpen className="h-5 w-5 text-white relative z-10" />
         </div>
       </motion.div>
 
@@ -92,10 +93,10 @@ const EducationHubAnimation = () => {
         animate={{ y: [0, 6, 0], x: [0, -4, 0] }}
         transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
       >
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900/80 border border-slate-800/80 backdrop-blur-md shadow-xl relative group">
-          <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 opacity-0 group-hover:opacity-100 blur-[2px] transition-opacity" />
-          <div className="absolute w-5 h-5 rounded-full bg-indigo-500/25 blur-md pointer-events-none" />
-          <Shield className="h-5 w-5 text-indigo-400 relative z-10" />
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-black/80 border border-white/15 backdrop-blur-md shadow-xl relative group">
+          <div className="absolute -inset-0.5 rounded-xl bg-white/10 opacity-0 group-hover:opacity-100 blur-[2px] transition-opacity" />
+          <div className="absolute w-5 h-5 rounded-full bg-white/20 blur-md pointer-events-none" />
+          <Shield className="h-5 w-5 text-white relative z-10" />
         </div>
       </motion.div>
 
@@ -105,10 +106,10 @@ const EducationHubAnimation = () => {
         animate={{ y: [0, -6, 0], x: [0, -6, 0] }}
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
       >
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900/80 border border-slate-800/80 backdrop-blur-md shadow-xl relative group">
-          <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 opacity-0 group-hover:opacity-100 blur-[2px] transition-opacity" />
-          <div className="absolute w-5 h-5 rounded-full bg-teal-500/25 blur-md pointer-events-none" />
-          <MessageSquare className="h-5 w-5 text-teal-400 relative z-10" />
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-black/80 border border-white/15 backdrop-blur-md shadow-xl relative group">
+          <div className="absolute -inset-0.5 rounded-xl bg-white/10 opacity-0 group-hover:opacity-100 blur-[2px] transition-opacity" />
+          <div className="absolute w-5 h-5 rounded-full bg-white/20 blur-md pointer-events-none" />
+          <MessageSquare className="h-5 w-5 text-white relative z-10" />
         </div>
       </motion.div>
 
@@ -118,10 +119,10 @@ const EducationHubAnimation = () => {
         animate={{ y: [0, 8, 0], x: [0, 4, 0] }}
         transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
       >
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900/80 border border-slate-800/80 backdrop-blur-md shadow-xl relative group">
-          <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 opacity-0 group-hover:opacity-100 blur-[2px] transition-opacity" />
-          <div className="absolute w-5 h-5 rounded-full bg-amber-500/25 blur-md pointer-events-none" />
-          <TrendingUp className="h-5 w-5 text-amber-400 relative z-10" />
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-black/80 border border-white/15 backdrop-blur-md shadow-xl relative group">
+          <div className="absolute -inset-0.5 rounded-xl bg-white/10 opacity-0 group-hover:opacity-100 blur-[2px] transition-opacity" />
+          <div className="absolute w-5 h-5 rounded-full bg-white/20 blur-md pointer-events-none" />
+          <TrendingUp className="h-5 w-5 text-white relative z-10" />
         </div>
       </motion.div>
 
@@ -131,10 +132,10 @@ const EducationHubAnimation = () => {
         animate={{ y: [0, -10, 0] }}
         transition={{ duration: 5.2, repeat: Infinity, ease: "easeInOut", delay: 2 }}
       >
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900/80 border border-slate-800/80 backdrop-blur-md shadow-xl relative group">
-          <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 opacity-0 group-hover:opacity-100 blur-[2px] transition-opacity" />
-          <div className="absolute w-5 h-5 rounded-full bg-violet-500/25 blur-md pointer-events-none" />
-          <Calendar className="h-5 w-5 text-violet-400 relative z-10" />
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-black/80 border border-white/15 backdrop-blur-md shadow-xl relative group">
+          <div className="absolute -inset-0.5 rounded-xl bg-white/10 opacity-0 group-hover:opacity-100 blur-[2px] transition-opacity" />
+          <div className="absolute w-5 h-5 rounded-full bg-white/20 blur-md pointer-events-none" />
+          <Calendar className="h-5 w-5 text-white relative z-10" />
         </div>
       </motion.div>
     </div>
@@ -187,6 +188,8 @@ const Auth = () => {
   const [resetMaskedEmail, setResetMaskedEmail] = useState<string | null>(null);
   const [resetMaskedPhone, setResetMaskedPhone] = useState<string | null>(null);
   const [resetCooldown, setResetCooldown] = useState(0);
+  const [forgotPasswordMode, setForgotPasswordMode] = useState<"staff" | "student">("staff");
+  const [studentResetAdmission, setStudentResetAdmission] = useState("");
 
   useEffect(() => {
     if (resetCooldown <= 0) return;
@@ -454,6 +457,8 @@ const Auth = () => {
     setResetMaskedPhone(null);
     setResetStep("request");
     setResetCooldown(0);
+    setForgotPasswordMode("staff");
+    setStudentResetAdmission("");
   };
 
   const invokeOtp = async (payload: Record<string, unknown>) => {
@@ -462,6 +467,33 @@ const Auth = () => {
       return { ok: false, message: error.message } as { ok: boolean; message?: string } & Record<string, any>;
     }
     return data as { ok: boolean; message?: string } & Record<string, any>;
+  };
+
+  const handleStudentResetRequest = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const admission = normalizeAdmissionNumber(studentResetAdmission);
+    if (!admission) {
+      toast.error("Enter your admission number.");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const res = await submitStudentPasswordResetRequest(admission);
+      if (res.rate_limited) {
+        toast.error(res.message ?? "Too many requests today.");
+        return;
+      }
+      toast.success(
+        res.message ??
+          "Your request has been submitted. Your school administrator will verify your admission number and contact your parent/guardian.",
+      );
+      resetReset();
+      setActiveTab("login");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Could not submit request.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleRequestOtp = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -586,29 +618,29 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-[#030712] text-slate-100 font-sans relative overflow-hidden">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-black text-white font-sans relative overflow-hidden">
       {/* Background Mesh Glow Effects */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-500/10 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-teal-500/10 blur-[120px] pointer-events-none" />
-      <div className="absolute top-[30%] left-[40%] w-[40%] h-[40%] rounded-full bg-indigo-500/5 blur-[150px] pointer-events-none" />
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-25 pointer-events-none" />
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-green-500/10 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-green-500/5 blur-[120px] pointer-events-none" />
+      <div className="absolute top-[30%] left-[40%] w-[40%] h-[40%] rounded-full bg-green-500/5 blur-[150px] pointer-events-none" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-25 pointer-events-none" />
 
       {/* Left Panel - Hero Section */}
-      <div className="relative lg:w-1/2 min-h-[360px] lg:min-h-screen flex flex-col justify-between p-8 lg:p-12 overflow-hidden border-b lg:border-b-0 lg:border-r border-slate-800/40 z-10">
+      <div className="relative lg:w-1/2 min-h-[360px] lg:min-h-screen flex flex-col justify-between p-8 lg:p-12 overflow-hidden border-b lg:border-b-0 lg:border-r border-white/15 z-10">
         <div
           className="absolute inset-0 bg-cover bg-center opacity-[0.07] mix-blend-overlay pointer-events-none"
           style={{ backgroundImage: `url(${schoolPicture})` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900/90 to-slate-950 pointer-events-none" />
+        <div className="absolute inset-0 bg-black pointer-events-none" />
 
         <div className="relative z-20 flex flex-col h-full justify-between gap-12">
           {/* Logo & Title */}
           <Link to="/" className="flex items-center gap-3.5 group w-fit">
-            <div className="flex h-11 w-11 lg:h-13 lg:w-13 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 shadow-md ring-1 ring-white/10 transition-transform group-hover:scale-105 duration-300">
+            <div className="flex h-11 w-11 lg:h-13 lg:w-13 items-center justify-center rounded-2xl bg-green-500 shadow-md shadow-green-500/20 ring-1 ring-green-400/30 transition-transform group-hover:scale-105 duration-300">
               <GraduationCap className="h-6 w-6 text-white" />
             </div>
             <div>
-              <span className="text-[10px] tracking-[4px] font-bold text-emerald-400 block uppercase font-mono">
+              <span className="text-[10px] tracking-[4px] font-bold text-white block uppercase font-mono">
                 EDUMANAGE
               </span>
               <h1 className="text-lg lg:text-xl font-bold text-white tracking-tight">
@@ -624,25 +656,25 @@ const Auth = () => {
           
           {/* Feature Badges */}
           <div className="grid grid-cols-2 gap-4 mt-auto">
-            <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-2xl p-4 lg:p-5 hover:border-emerald-500/20 transition-colors duration-300">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 mb-3 border border-emerald-500/20">
-                <Shield className="h-4.5 w-4.5 text-emerald-400" />
+            <div className="bg-white/5 border border-white/15 backdrop-blur-md rounded-2xl p-4 lg:p-5 hover:border-green-500/30 transition-colors duration-300">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/10 mb-3 border border-green-500/30">
+                <Shield className="h-4.5 w-4.5 text-green-400" />
               </div>
-              <span className="text-[9px] font-bold tracking-[2px] text-emerald-400 uppercase block mb-1 font-mono">
+              <span className="text-[9px] font-bold tracking-[2px] text-white uppercase block mb-1 font-mono">
                 SECURE ACCESS
               </span>
-              <span className="text-xs lg:text-sm font-semibold text-slate-200">
+              <span className="text-xs lg:text-sm font-semibold text-white">
                 Role-based dashboards
               </span>
             </div>
-            <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-2xl p-4 lg:p-5 hover:border-teal-500/20 transition-colors duration-300">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/10 mb-3 border border-teal-500/20">
-                <CheckCircle2 className="h-4.5 w-4.5 text-teal-400" />
+            <div className="bg-white/5 border border-white/15 backdrop-blur-md rounded-2xl p-4 lg:p-5 hover:border-green-500/30 transition-colors duration-300">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/10 mb-3 border border-green-500/30">
+                <CheckCircle2 className="h-4.5 w-4.5 text-green-400" />
               </div>
-              <span className="text-[9px] font-bold tracking-[2px] text-teal-400 uppercase block mb-1 font-mono">
+              <span className="text-[9px] font-bold tracking-[2px] text-white uppercase block mb-1 font-mono">
                 SCHOOLS
               </span>
-              <span className="text-xs lg:text-sm font-semibold text-slate-200">
+              <span className="text-xs lg:text-sm font-semibold text-white">
                 Admission-based access
               </span>
             </div>
@@ -652,32 +684,32 @@ const Auth = () => {
 
       {/* Right Panel - Auth Form */}
       <div className="lg:w-1/2 flex items-center justify-center p-6 lg:p-12 relative z-10">
-        <div className="w-full max-w-lg space-y-6 bg-slate-900/30 border border-slate-800/80 backdrop-blur-xl rounded-3xl p-6 lg:p-8 shadow-2xl relative">
-          <div className="absolute top-0 left-10 right-10 h-[2px] bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent blur-[1px]" />
+        <div className="w-full max-w-lg space-y-6 bg-white/5 border border-white/15 backdrop-blur-xl rounded-3xl p-6 lg:p-8 shadow-2xl relative">
+          <div className="absolute top-0 left-10 right-10 h-[2px] bg-gradient-to-r from-transparent via-green-500/40 to-transparent blur-[1px]" />
           
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-[10px] tracking-[2px] font-bold text-emerald-400 uppercase block font-mono">
+              <span className="text-[10px] tracking-[2px] font-bold text-white uppercase block font-mono">
                 WELCOME TO EDUMANAGE
               </span>
               <h2 className="text-xl lg:text-2xl font-bold text-white tracking-tight mt-1">
                 Access your school portal
               </h2>
             </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-850 border border-slate-800">
-              <GraduationCap className="h-5 w-5 text-emerald-400" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black border border-white/15">
+              <GraduationCap className="h-5 w-5 text-white" />
             </div>
           </div>
 
           {/* Tab Toggle */}
           {activeTab !== "forgot-password" && (
-            <div className="flex bg-slate-950/60 border border-slate-800/60 rounded-xl p-1 relative">
+            <div className="flex bg-black/60 border border-white/15 rounded-xl p-1 relative">
               <button
                 type="button"
                 onClick={() => setActiveTab("login")}
                 className="flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold relative z-10 transition-colors duration-200"
-                style={{ color: activeTab === "login" ? "#0f172a" : "#94a3b8" }}
+                style={{ color: activeTab === "login" ? "#ffffff" : "rgba(255,255,255,0.5)" }}
               >
                 Login
               </button>
@@ -685,14 +717,14 @@ const Auth = () => {
                 type="button"
                 onClick={() => setActiveTab("signup")}
                 className="flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold relative z-10 transition-colors duration-200"
-                style={{ color: activeTab === "signup" ? "#0f172a" : "#94a3b8" }}
+                style={{ color: activeTab === "signup" ? "#ffffff" : "rgba(255,255,255,0.5)" }}
               >
                 Create Account
               </button>
               
               {/* Sliding active tab indicator */}
               <motion.div
-                className="absolute top-1 bottom-1 rounded-lg bg-gradient-to-r from-emerald-400 to-teal-400 shadow-md"
+                className="absolute top-1 bottom-1 rounded-lg bg-green-500 shadow-md shadow-green-500/20"
                 layout
                 initial={false}
                 animate={{
@@ -708,44 +740,44 @@ const Auth = () => {
           {activeTab === "login" && (
             <form onSubmit={handleLogin} className="space-y-5 animate-fade-in">
               <div className="space-y-2">
-                <Label htmlFor="login-identifier" className="text-xs font-semibold text-slate-300">
+                <Label htmlFor="login-identifier" className="text-xs font-semibold text-white/80">
                   Admission number or email
                 </Label>
                 <div className="relative group">
-                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
+                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
                   <Input
                     id="login-identifier"
                     type="text"
                     placeholder="MINGO-Stu-2026-001"
-                    className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl"
+                    className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl"
                     value={loginIdentifier}
                     onChange={(e) => setLoginIdentifier(e.target.value)}
                     required
                   />
                 </div>
-                <p className="text-[11px] text-slate-500 leading-normal">
+                <p className="text-[11px] text-white/50 leading-normal">
                   Students: use your admission number and password. Staff and parents may use email.
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="login-password" className="text-xs font-semibold text-slate-300">
+                <Label htmlFor="login-password" className="text-xs font-semibold text-white/80">
                   Password
                 </Label>
                 <div className="relative group">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
                   <Input
                     id="login-password"
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
-                    className="pl-10 pr-12 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl"
+                    className="pl-10 pr-12 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl"
                     value={loginPassword}
                     onChange={e => setLoginPassword(e.target.value)}
                     required
                   />
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -755,12 +787,12 @@ const Auth = () => {
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-slate-950 font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-500/15 flex items-center justify-center gap-2 group"
+                className="w-full h-12 bg-green-500 hover:bg-green-400 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-green-500/20 flex items-center justify-center gap-2 group"
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <div className="flex items-center gap-2">
-                    <div className="h-4 w-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     Signing in...
                   </div>
                 ) : (
@@ -774,42 +806,113 @@ const Auth = () => {
               <div className="text-center space-y-3 pt-2">
                 <button
                   type="button"
-                  className="text-xs font-bold text-emerald-400 hover:underline transition-all"
+                  className="text-xs font-bold text-green-400 hover:text-green-300 hover:underline transition-all"
                   onClick={() => setActiveTab("forgot-password")}
                 >
                   Forgot your password?
                 </button>
-                <p className="text-[10px] text-slate-500 leading-normal max-w-sm mx-auto">
+                <p className="text-[10px] text-white/50 leading-normal max-w-sm mx-auto">
                   Having trouble? The account may exist but be incomplete. Try password reset or contact support.
                 </p>
               </div>
             </form>
           )}
 
-          {/* Forgot Password — OTP Flow */}
+          {/* Forgot Password */}
           {activeTab === "forgot-password" && resetStep === "request" && (
-            <form onSubmit={handleRequestOtp} className="space-y-5 animate-fade-in">
+            <div className="space-y-5 animate-fade-in">
+              <div className="flex bg-black/60 border border-white/15 rounded-xl p-1 relative">
+                <button
+                  type="button"
+                  onClick={() => setForgotPasswordMode("staff")}
+                  className="flex-1 py-2.5 px-3 rounded-lg text-sm font-semibold relative z-10 transition-colors duration-200"
+                  style={{ color: forgotPasswordMode === "staff" ? "#ffffff" : "rgba(255,255,255,0.5)" }}
+                >
+                  Staff / Parent
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForgotPasswordMode("student")}
+                  className="flex-1 py-2.5 px-3 rounded-lg text-sm font-semibold relative z-10 transition-colors duration-200"
+                  style={{ color: forgotPasswordMode === "student" ? "#ffffff" : "rgba(255,255,255,0.5)" }}
+                >
+                  Student
+                </button>
+                <motion.div
+                  className="absolute top-1 bottom-1 rounded-lg bg-green-500 shadow-md shadow-green-500/20"
+                  layout
+                  initial={false}
+                  animate={{
+                    left: forgotPasswordMode === "staff" ? "4px" : "50%",
+                    right: forgotPasswordMode === "staff" ? "50%" : "4px",
+                  }}
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              </div>
+
+              {forgotPasswordMode === "student" ? (
+                <form onSubmit={handleStudentResetRequest} className="space-y-5">
+                  <div className="text-center py-1 space-y-2">
+                    <p className="text-sm font-semibold text-white">Student password recovery</p>
+                    <p className="text-xs text-white/60 leading-relaxed">
+                      Enter your admission number. Your school administrator will verify it and send a temporary password to your parent/guardian.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="student-reset-admission" className="text-xs font-semibold text-white/80">
+                      Admission number
+                    </Label>
+                    <div className="relative group">
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
+                      <Input
+                        id="student-reset-admission"
+                        type="text"
+                        placeholder="MINGO-Stu-2026-001"
+                        className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl uppercase"
+                        value={studentResetAdmission}
+                        onChange={(e) => setStudentResetAdmission(normalizeAdmissionNumber(e.target.value))}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full h-12 bg-green-500 hover:bg-green-400 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-green-500/20 flex items-center justify-center gap-2 group"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Submitting request..." : (<>Submit reset request <ArrowRight className="h-4 w-4" /></>)}
+                  </Button>
+
+                  <button
+                    type="button"
+                    className="w-full text-xs font-semibold text-white/60 hover:text-white transition-colors py-1"
+                    onClick={() => { resetReset(); setActiveTab("login"); }}
+                  >
+                    Back to Login
+                  </button>
+                </form>
+              ) : (
+            <form onSubmit={handleRequestOtp} className="space-y-5">
               <div className="text-center py-1 space-y-2">
-                <p className="text-sm font-semibold text-slate-200">Reset your password</p>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <p className="text-sm font-semibold text-white">Reset your password</p>
+                <p className="text-xs text-white/60 leading-relaxed">
                   Enter your registered email. We'll send an 8-digit code to your email and phone.
-                </p>
-                <p className="text-[11px] text-amber-300/80 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-                  Students: please contact your school administrator to recover your password.
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="reset-email" className="text-xs font-semibold text-slate-300">
+                <Label htmlFor="reset-email" className="text-xs font-semibold text-white/80">
                   Registered email or staff number
                 </Label>
                 <div className="relative group">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
                   <Input
                     id="reset-email"
                     type="text"
                     placeholder="you@school.edu"
-                    className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl"
+                    className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl"
                     value={resetEmail}
                     onChange={e => setResetEmail(e.target.value)}
                     required
@@ -819,7 +922,7 @@ const Auth = () => {
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-slate-950 font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-500/15 flex items-center justify-center gap-2 group"
+                className="w-full h-12 bg-green-500 hover:bg-green-400 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-green-500/20 flex items-center justify-center gap-2 group"
                 disabled={isLoading}
               >
                 {isLoading ? "Sending code..." : (<>Send OTP code <ArrowRight className="h-4 w-4" /></>)}
@@ -827,25 +930,27 @@ const Auth = () => {
 
               <button
                 type="button"
-                className="w-full text-xs font-semibold text-slate-400 hover:text-white transition-colors py-1"
+                className="w-full text-xs font-semibold text-white/60 hover:text-white transition-colors py-1"
                 onClick={() => { resetReset(); setActiveTab("login"); }}
               >
                 Back to Login
               </button>
             </form>
+              )}
+            </div>
           )}
 
           {activeTab === "forgot-password" && resetStep === "verify" && (
             <form onSubmit={handleVerifyAndReset} className="space-y-4 animate-fade-in">
               <div className="text-center space-y-1">
-                <p className="text-sm font-semibold text-slate-200">Enter your code</p>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-sm font-semibold text-white">Enter your code</p>
+                <p className="text-[11px] text-white/60">
                   Sent to {resetMaskedEmail ?? "your email"}{resetMaskedPhone ? ` and ${resetMaskedPhone}` : ""}. Expires in 15 minutes.
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="reset-otp" className="text-xs font-semibold text-slate-300">8-digit code</Label>
+                <Label htmlFor="reset-otp" className="text-xs font-semibold text-white/80">8-digit code</Label>
                 <Input
                   id="reset-otp"
                   type="text"
@@ -853,7 +958,7 @@ const Auth = () => {
                   pattern="\d{8}"
                   maxLength={8}
                   placeholder="••••••••"
-                  className="h-12 text-center tracking-[0.6em] text-lg font-mono border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white rounded-xl"
+                  className="h-12 text-center tracking-[0.6em] text-lg font-mono border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white rounded-xl"
                   value={resetOtp}
                   onChange={e => setResetOtp(e.target.value.replace(/\D/g, ""))}
                   required
@@ -861,14 +966,14 @@ const Auth = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="reset-new" className="text-xs font-semibold text-slate-300">New password</Label>
+                <Label htmlFor="reset-new" className="text-xs font-semibold text-white/80">New password</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50" />
                   <Input
                     id="reset-new"
                     type={showPassword ? "text" : "password"}
                     placeholder="At least 8 characters"
-                    className="pl-10 pr-12 h-12 border-slate-800 bg-slate-950/40 text-white rounded-xl"
+                    className="pl-10 pr-12 h-12 border-white/15 bg-black/40 text-white rounded-xl"
                     value={resetNewPassword}
                     onChange={e => setResetNewPassword(e.target.value)}
                     minLength={8}
@@ -876,7 +981,7 @@ const Auth = () => {
                   />
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -885,14 +990,14 @@ const Auth = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="reset-confirm" className="text-xs font-semibold text-slate-300">Confirm password</Label>
+                <Label htmlFor="reset-confirm" className="text-xs font-semibold text-white/80">Confirm password</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50" />
                   <Input
                     id="reset-confirm"
                     type={showPassword ? "text" : "password"}
                     placeholder="Re-enter password"
-                    className="pl-10 h-12 border-slate-800 bg-slate-950/40 text-white rounded-xl"
+                    className="pl-10 h-12 border-white/15 bg-black/40 text-white rounded-xl"
                     value={resetConfirmPassword}
                     onChange={e => setResetConfirmPassword(e.target.value)}
                     minLength={8}
@@ -903,7 +1008,7 @@ const Auth = () => {
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-slate-950 font-bold text-sm rounded-xl flex items-center justify-center gap-2"
+                className="w-full h-12 bg-green-500 hover:bg-green-400 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
                 disabled={isLoading}
               >
                 {isLoading ? "Verifying..." : "Verify & Reset Password"}
@@ -912,7 +1017,7 @@ const Auth = () => {
               <div className="flex items-center justify-between text-xs pt-1">
                 <button
                   type="button"
-                  className="font-semibold text-slate-400 hover:text-white"
+                  className="font-semibold text-white/60 hover:text-white"
                   onClick={() => { setResetStep("request"); setResetOtp(""); }}
                 >
                   ← Change email
@@ -920,7 +1025,7 @@ const Auth = () => {
                 <button
                   type="button"
                   disabled={resetCooldown > 0 || isLoading}
-                  className="font-semibold text-emerald-400 hover:underline disabled:text-slate-600 disabled:no-underline"
+                  className="font-semibold text-green-400 hover:text-green-300 hover:underline disabled:text-white/40 disabled:no-underline"
                   onClick={handleResendOtp}
                 >
                   {resetCooldown > 0 ? `Resend in ${resetCooldown}s` : "Resend code"}
@@ -932,18 +1037,18 @@ const Auth = () => {
 
           {/* Signup Form */}
           {activeTab === "signup" && (
-            <form onSubmit={handleSignup} className="space-y-4 animate-fade-in max-h-[60vh] overflow-y-auto pr-2 pb-2 scrollbar-thin scrollbar-thumb-slate-800">
+            <form onSubmit={handleSignup} className="space-y-4 animate-fade-in max-h-[60vh] overflow-y-auto pr-2 pb-2 scrollbar-thin scrollbar-thumb-white/20">
               <div className="space-y-2">
-                <Label htmlFor="signup-name" className="text-xs font-semibold text-slate-300">
+                <Label htmlFor="signup-name" className="text-xs font-semibold text-white/80">
                   Full Name
                 </Label>
                 <div className="relative group">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
                   <Input
                     id="signup-name"
                     type="text"
                     placeholder="John Doe"
-                    className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl"
+                    className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl"
                     value={signupFullName}
                     onChange={e => setSignupFullName(e.target.value)}
                     required
@@ -953,16 +1058,16 @@ const Auth = () => {
 
               {signupRole !== "student" && (
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email" className="text-xs font-semibold text-slate-300">
+                  <Label htmlFor="signup-email" className="text-xs font-semibold text-white/80">
                     Email Address
                   </Label>
                   <div className="relative group">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
                     <Input
                       id="signup-email"
                       type="email"
                       placeholder="you@school.edu"
-                      className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl"
+                      className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl"
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
                       required={signupRole !== "" && signupRole !== "student"}
@@ -972,23 +1077,23 @@ const Auth = () => {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="signup-password" className="text-xs font-semibold text-slate-300">
+                <Label htmlFor="signup-password" className="text-xs font-semibold text-white/80">
                   Password
                 </Label>
                 <div className="relative group">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
                   <Input
                     id="signup-password"
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
-                    className="pl-10 pr-12 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl"
+                    className="pl-10 pr-12 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl"
                     value={signupPassword}
                     onChange={e => setSignupPassword(e.target.value)}
                     required
                   />
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -998,25 +1103,25 @@ const Auth = () => {
 
               {/* Account Type Selection */}
               <div className="space-y-2">
-                <Label htmlFor="signup-role" className="text-xs font-semibold text-slate-300">
+                <Label htmlFor="signup-role" className="text-xs font-semibold text-white/80">
                   Account Type
                 </Label>
                 <Select value={signupRole} onValueChange={setSignupRole} required>
-                  <SelectTrigger id="signup-role" className="h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white rounded-xl">
+                  <SelectTrigger id="signup-role" className="h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white rounded-xl">
                     <SelectValue placeholder="Select your role" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                  <SelectContent className="bg-black border-white/15 text-white">
                     {Object.entries(roleConfig).map(([key, config]) => {
                       const IconComponent = config.icon;
                       return (
-                        <SelectItem key={key} value={key} className="py-2.5 hover:bg-slate-800 text-white focus:bg-slate-800 focus:text-white rounded-lg">
+                        <SelectItem key={key} value={key} className="py-2.5 hover:bg-white/10 text-white focus:bg-white/10 focus:text-white rounded-lg">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                              <IconComponent className="h-4 w-4 text-emerald-400" />
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 border border-white/20">
+                              <IconComponent className="h-4 w-4 text-white" />
                             </div>
                             <div className="flex flex-col text-left">
-                              <span className="font-semibold text-xs text-slate-200">{config.label}</span>
-                              <span className="text-[10px] text-slate-500">{config.description}</span>
+                              <span className="font-semibold text-xs text-white">{config.label}</span>
+                              <span className="text-[10px] text-white/50">{config.description}</span>
                             </div>
                           </div>
                         </SelectItem>
@@ -1028,18 +1133,18 @@ const Auth = () => {
 
               {/* Admin - New School Creation */}
               {signupRole === "admin" && (
-                <div className="space-y-4 animate-fade-in border-t border-slate-800/60 pt-4 mt-2">
+                <div className="space-y-4 animate-fade-in border-t border-white/15 pt-4 mt-2">
                   <div className="space-y-2">
-                    <Label htmlFor="school-name" className="text-xs font-semibold text-slate-300">
+                    <Label htmlFor="school-name" className="text-xs font-semibold text-white/80">
                       School Name
                     </Label>
                     <div className="relative group">
-                      <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
+                      <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
                       <Input
                         id="school-name"
                         type="text"
                         placeholder="Enter your school name"
-                        className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl"
+                        className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl"
                         value={schoolName}
                         onChange={(e) => {
                           const name = e.target.value;
@@ -1053,16 +1158,16 @@ const Auth = () => {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="school-code" className="text-xs font-semibold text-slate-300">
+                    <Label htmlFor="school-code" className="text-xs font-semibold text-white/80">
                       School Code (login)
                     </Label>
                     <div className="relative group">
-                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
                       <Input
                         id="school-code"
                         type="text"
                         placeholder="Create a unique school code"
-                        className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl uppercase"
+                        className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl uppercase"
                         value={schoolCode}
                         onChange={(e) => setSchoolCode(e.target.value.toUpperCase())}
                         required
@@ -1070,16 +1175,16 @@ const Auth = () => {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="admission-prefix" className="text-xs font-semibold text-slate-300">
+                    <Label htmlFor="admission-prefix" className="text-xs font-semibold text-white/80">
                       Admission number prefix
                     </Label>
                     <div className="relative group">
-                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
                       <Input
                         id="admission-prefix"
                         type="text"
                         placeholder="MINGO"
-                        className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl uppercase"
+                        className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl uppercase"
                         value={admissionPrefix}
                         onChange={(e) => {
                           setAdmissionPrefixManual(true);
@@ -1090,7 +1195,7 @@ const Auth = () => {
                         required
                       />
                     </div>
-                    <p className="text-[10px] text-slate-500 leading-normal">
+                    <p className="text-[10px] text-white/50 leading-normal">
                       Auto-filled from school name (first 3 letters), not school code. Example:{" "}
                       {admissionPrefix || derivePrefixFromSchoolName(schoolName) || "MIN"}-Stu-2026-001
                     </p>
@@ -1100,24 +1205,24 @@ const Auth = () => {
 
               {/* Teacher/Student — admission number only (school auto-detected) */}
               {(signupRole === "teacher" || signupRole === "student") && (
-                <div className="space-y-4 animate-fade-in border-t border-slate-800/60 pt-4 mt-2">
+                <div className="space-y-4 animate-fade-in border-t border-white/15 pt-4 mt-2">
                   <div className="space-y-2">
-                    <Label htmlFor="reg-number" className="text-xs font-semibold text-slate-300">
+                    <Label htmlFor="reg-number" className="text-xs font-semibold text-white/80">
                       {signupRole === "student" ? "Admission Number" : "Employee Number"}
                     </Label>
                     <div className="relative group">
-                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
                       <Input
                         id="reg-number"
                         type="text"
                         placeholder={`Enter your ${signupRole === "student" ? "student" : "employee"} number`}
-                        className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl uppercase"
+                        className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl uppercase"
                         value={registrationNumber}
                         onChange={e => setRegistrationNumber(e.target.value.toUpperCase())}
                         required
                       />
                     </div>
-                    <p className="text-[10px] text-slate-500 leading-normal">
+                    <p className="text-[10px] text-white/50 leading-normal">
                       {signupRole === "student"
                         ? "This is your login ID. You will sign in with this number and your password — no personal email."
                         : "Format: SCHOOL-Stu-2026-001 — school is detected from your number"}
@@ -1126,16 +1231,16 @@ const Auth = () => {
                   
                   {signupRole === "student" && (
                     <div className="space-y-2">
-                      <Label htmlFor="gender" className="text-xs font-semibold text-slate-300">
+                      <Label htmlFor="gender" className="text-xs font-semibold text-white/80">
                         Gender
                       </Label>
                       <Select value={gender} onValueChange={setGender} required>
-                        <SelectTrigger id="gender" className="h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white rounded-xl">
+                        <SelectTrigger id="gender" className="h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white rounded-xl">
                           <SelectValue placeholder="Select your gender" />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-900 border-slate-800 text-white">
-                          <SelectItem value="male" className="hover:bg-slate-800 text-white focus:bg-slate-800 focus:text-white rounded-lg">Male</SelectItem>
-                          <SelectItem value="female" className="hover:bg-slate-800 text-white focus:bg-slate-800 focus:text-white rounded-lg">Female</SelectItem>
+                        <SelectContent className="bg-black border-white/15 text-white">
+                          <SelectItem value="male" className="hover:bg-white/10 text-white focus:bg-white/10 focus:text-white rounded-lg">Male</SelectItem>
+                          <SelectItem value="female" className="hover:bg-white/10 text-white focus:bg-white/10 focus:text-white rounded-lg">Female</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1145,14 +1250,14 @@ const Auth = () => {
 
               {(signupRole === "parent" || signupRole === "admin") && (
                 <div className="space-y-2 animate-fade-in">
-                  <Label htmlFor="signup-phone" className="text-xs font-semibold text-slate-300">
+                  <Label htmlFor="signup-phone" className="text-xs font-semibold text-white/80">
                     Phone Number
                   </Label>
                   <Input
                     id="signup-phone"
                     type="tel"
                     placeholder="+233..."
-                    className="h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl"
+                    className="h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl"
                     value={signupPhone}
                     onChange={(e) => setSignupPhone(e.target.value)}
                     required
@@ -1161,16 +1266,16 @@ const Auth = () => {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="signup-confirm-password" className="text-xs font-semibold text-slate-300">
+                <Label htmlFor="signup-confirm-password" className="text-xs font-semibold text-white/80">
                   Confirm Password
                 </Label>
                 <div className="relative group">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
                   <Input
                     id="signup-confirm-password"
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
-                    className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl"
+                    className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl"
                     value={signupConfirmPassword}
                     onChange={(e) => setSignupConfirmPassword(e.target.value)}
                     required
@@ -1180,38 +1285,38 @@ const Auth = () => {
 
               {/* Parent — admission number links child & school */}
               {signupRole === "parent" && (
-                <div className="space-y-4 animate-fade-in border-t border-slate-800/60 pt-4 mt-2">
+                <div className="space-y-4 animate-fade-in border-t border-white/15 pt-4 mt-2">
                   <div className="space-y-2">
-                    <Label className="text-xs font-semibold text-slate-300">
+                    <Label className="text-xs font-semibold text-white/80">
                       Child&apos;s admission number
                     </Label>
-                    <p className="text-[10px] text-slate-500 leading-normal mb-2">
+                    <p className="text-[10px] text-white/50 leading-normal mb-2">
                       Enter your child&apos;s admission number — school and class are detected automatically
                     </p>
 
                     {previewLoading && (
-                      <p className="text-[11px] text-slate-400">Verifying admission number…</p>
+                      <p className="text-[11px] text-white/60">Verifying admission number…</p>
                     )}
                     {childPreview?.valid && (
-                      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-xs space-y-1 animate-fade-in">
-                        <p className="font-semibold text-emerald-400">{childPreview.student_name}</p>
-                        <p className="text-slate-400">School: {childPreview.school_name}</p>
-                        <p className="text-slate-400">Class: {childPreview.class_name}</p>
-                        <p className="font-mono text-[10px] text-slate-500">{childPreview.admission_number}</p>
+                      <div className="rounded-xl border border-white/30 bg-white/5 p-4 text-xs space-y-1 animate-fade-in">
+                        <p className="font-semibold text-white">{childPreview.student_name}</p>
+                        <p className="text-white/60">School: {childPreview.school_name}</p>
+                        <p className="text-white/60">Class: {childPreview.class_name}</p>
+                        <p className="font-mono text-[10px] text-white/50">{childPreview.admission_number}</p>
                       </div>
                     )}
                     {childPreview && !childPreview.valid && !previewLoading && (
-                      <p className="text-xs text-red-400 bg-red-500/5 border border-red-500/20 rounded-xl p-3">{childPreview.error}</p>
+                      <p className="text-xs text-white bg-white/5 border border-white/25 rounded-xl p-3">{childPreview.error}</p>
                     )}
                     
                     {childStudentNumbers.map((num, index) => (
                       <div key={index} className="flex gap-2">
                         <div className="relative flex-1 group">
-                          <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
+                          <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
                           <Input
                             type="text"
                             placeholder={`Child ${index + 1} student number`}
-                            className="pl-10 h-12 border-slate-800 focus:border-emerald-500/80 focus:ring-emerald-500/20 bg-slate-950/40 text-white placeholder-slate-600 rounded-xl uppercase"
+                            className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl uppercase"
                             value={num}
                             onChange={e => updateChildNumber(index, e.target.value)}
                             required={index === 0}
@@ -1222,7 +1327,7 @@ const Auth = () => {
                             type="button"
                             variant="outline"
                             size="icon"
-                            className="h-12 w-12 border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl shrink-0"
+                            className="h-12 w-12 border-white/15 hover:bg-white/10 text-white/60 hover:text-white rounded-xl shrink-0"
                             onClick={() => removeChildNumberField(index)}
                           >
                             <X className="h-4 w-4" />
@@ -1237,7 +1342,7 @@ const Auth = () => {
                         variant="outline"
                         size="sm"
                         onClick={addChildNumberField}
-                        className="w-full h-11 border-dashed border-slate-850 hover:bg-slate-950/60 hover:text-white rounded-xl text-slate-400 mt-2 flex items-center justify-center gap-1.5"
+                        className="w-full h-11 border-dashed border-white/20 hover:bg-black/60 hover:text-white rounded-xl text-white/60 mt-2 flex items-center justify-center gap-1.5"
                       >
                         <Plus className="h-4 w-4" />
                         Add Another Child
@@ -1249,12 +1354,12 @@ const Auth = () => {
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-slate-950 font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-500/15 flex items-center justify-center gap-2 group mt-2"
+                className="w-full h-12 bg-green-500 hover:bg-green-400 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-green-500/20 flex items-center justify-center gap-2 group mt-2"
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <div className="flex items-center gap-2">
-                    <div className="h-4 w-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     Creating account...
                   </div>
                 ) : "Create Account"}

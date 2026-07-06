@@ -154,7 +154,10 @@ AS $$
     ON sba.school_id = t.school_id AND sba.staff_user_id = t.user_id
   WHERE t.school_id = p_school_id
     AND t.user_id IS NOT NULL
-    AND p_school_id = public.get_user_school_id(auth.uid())
+    AND (
+      public.has_role(auth.uid(), 'super_admin'::app_role)
+      OR p_school_id = public.get_user_school_id(auth.uid())
+    )
     AND public.user_has_payroll_permission(auth.uid(), p_school_id, false);
 $$;
 

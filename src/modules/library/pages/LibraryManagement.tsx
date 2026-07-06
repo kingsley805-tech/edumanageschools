@@ -11,6 +11,8 @@ import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { useModuleAccess } from "@/modules/lib/useModuleAccess";
 import { ModuleAccessDenied } from "@/modules/lib/ModuleAccessDenied";
 import { downloadCsv } from "@/modules/lib/exportCsv";
+import { isMissingTableError, operationsSchemaSetupMessage } from "@/modules/lib/missingSchema";
+import { OperationsSchemaSetupCard } from "@/modules/lib/OperationsSchemaSetupCard";
 import { toast } from "sonner";
 
 type BookRow = {
@@ -36,6 +38,17 @@ export default function LibraryManagementPage() {
   const [category, setCategory] = useState("");
   const [copies, setCopies] = useState("1");
   const [shelf, setShelf] = useState("");
+  const [schemaMissing, setSchemaMissing] = useState(false);
+
+  const handleDbError = (error: { code?: string; message?: string; status?: number }) => {
+    if (isMissingTableError(error)) {
+      setSchemaMissing(true);
+      toast.error(operationsSchemaSetupMessage());
+      return true;
+    }
+    toast.error(error.message ?? "Request failed");
+    return false;
+  };
 
   const load = useCallback(async () => {
     if (!schoolId) return;
@@ -46,13 +59,10 @@ export default function LibraryManagementPage() {
       .order("title");
 
     if (error) {
-      if (error.message.includes("library_books")) {
-        toast.error("Run public/sql/apply-operations-modules.sql in Supabase first.");
-      } else {
-        toast.error(error.message);
-      }
+      handleDbError(error);
       return;
     }
+    setSchemaMissing(false);
     setRows((data ?? []) as BookRow[]);
   }, [schoolId]);
 
@@ -77,7 +87,7 @@ export default function LibraryManagementPage() {
       shelf_location: shelf.trim() || null,
     });
     if (error) {
-      toast.error(error.message);
+      handleDbError(error);
       return;
     }
     toast.success("Book added");
@@ -178,6 +188,10 @@ export default function LibraryManagementPage() {
           ) : null}
         </div>
       </div>
+
+      {schemaMissing ? (
+        <OperationsSchemaSetupCard moduleLabel="Library" quickScript="apply-library-tables.sql" />
+      ) : null}
 
       <Card>
         <CardHeader>

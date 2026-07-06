@@ -12,6 +12,8 @@ import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { useModuleAccess } from "@/modules/lib/useModuleAccess";
 import { ModuleAccessDenied } from "@/modules/lib/ModuleAccessDenied";
 import { downloadCsv } from "@/modules/lib/exportCsv";
+import { isMissingTableError, operationsSchemaSetupMessage } from "@/modules/lib/missingSchema";
+import { OperationsSchemaSetupCard } from "@/modules/lib/OperationsSchemaSetupCard";
 import { toast } from "sonner";
 
 type RouteRow = {
@@ -34,6 +36,17 @@ export default function TransportPage() {
   const [driver, setDriver] = useState("");
   const [capacity, setCapacity] = useState("");
   const [description, setDescription] = useState("");
+  const [schemaMissing, setSchemaMissing] = useState(false);
+
+  const handleDbError = (error: { code?: string; message?: string; status?: number }) => {
+    if (isMissingTableError(error)) {
+      setSchemaMissing(true);
+      toast.error(operationsSchemaSetupMessage());
+      return true;
+    }
+    toast.error(error.message ?? "Request failed");
+    return false;
+  };
 
   const load = useCallback(async () => {
     if (!schoolId) return;
@@ -44,13 +57,10 @@ export default function TransportPage() {
       .order("name");
 
     if (error) {
-      if (error.message.includes("transport_routes")) {
-        toast.error("Run public/sql/apply-operations-modules.sql in Supabase first.");
-      } else {
-        toast.error(error.message);
-      }
+      handleDbError(error);
       return;
     }
+    setSchemaMissing(false);
     setRows((data ?? []) as RouteRow[]);
   }, [schoolId]);
 
@@ -72,7 +82,7 @@ export default function TransportPage() {
       description: description.trim() || null,
     });
     if (error) {
-      toast.error(error.message);
+      handleDbError(error);
       return;
     }
     toast.success("Route added");
@@ -159,6 +169,13 @@ export default function TransportPage() {
           ) : null}
         </div>
       </div>
+
+      {schemaMissing ? (
+        <OperationsSchemaSetupCard
+          moduleLabel="Transport"
+          quickScript="apply-transport-tables.sql"
+        />
+      ) : null}
 
       <Card>
         <CardHeader>

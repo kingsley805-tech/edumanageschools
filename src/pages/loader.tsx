@@ -8,7 +8,6 @@ export default function SchoolLoader() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Complete progress bar in 800ms (800ms / 100 = 8ms per percent)
     const progressInterval = setInterval(() => {
       setProgress(prev => {
         if (prev >= 100) {
@@ -22,13 +21,11 @@ export default function SchoolLoader() {
     return () => clearInterval(progressInterval);
   }, []);
 
-  // Show loader for exactly 800ms, then navigate to Landing
   useEffect(() => {
     const t = setTimeout(() => setLoaded(true), 800);
     return () => clearTimeout(t);
   }, []);
 
-  // When loading completes, navigate to the landing route
   useEffect(() => {
     if (loaded) {
       navigate('/landing');
@@ -44,144 +41,109 @@ export default function SchoolLoader() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-blue-50 flex items-center justify-center overflow-hidden relative">
-      {/* Animated background circles */}
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black text-white">
       <div className="absolute inset-0 overflow-hidden">
-        <div 
-          className="absolute w-96 h-96 rounded-full opacity-10"
-          style={{
-            background: '#1E3A8A',
-            top: '-10%',
-            left: '-10%',
-            animation: 'float 6s ease-in-out infinite'
-          }}
+        <div
+          className="absolute -left-[10%] -top-[10%] h-96 w-96 rounded-full bg-green-500/10 blur-[80px]"
+          style={{ animation: 'float 6s ease-in-out infinite' }}
         />
-        <div 
-          className="absolute w-80 h-80 rounded-full opacity-10"
-          style={{
-            background: '#1E3A8A',
-            bottom: '-15%',
-            right: '-10%',
-            animation: 'float 8s ease-in-out infinite reverse'
-          }}
+        <div
+          className="absolute -bottom-[15%] -right-[10%] h-80 w-80 rounded-full bg-green-500/5 blur-[100px]"
+          style={{ animation: 'float 8s ease-in-out infinite reverse' }}
         />
       </div>
 
-      {/* Main loader container */}
       <div className="relative z-10 text-center">
-        {/* Animated book icon */}
-        <div className="mb-8 relative inline-block">
-          <div 
-            className="w-24 h-24 mx-auto relative"
+        <div className="relative mb-8 inline-block">
+          <div
+            className="relative mx-auto h-24 w-24"
             style={{ animation: 'bounce 2s ease-in-out infinite' }}
           >
-            {/* Book pages */}
-            <div 
-              className="absolute inset-0 rounded-lg shadow-2xl"
-              style={{
-                background: '#1E3A8A',
-                animation: 'pageFlip 2s ease-in-out infinite'
-              }}
+            <div
+              className="absolute inset-0 rounded-lg border border-green-500/30 bg-white shadow-2xl shadow-green-500/10"
+              style={{ animation: 'pageFlip 2s ease-in-out infinite' }}
             >
-              <div className="absolute top-0 left-1/2 w-px h-full bg-white opacity-30" />
-              {/* Page lines */}
+              <div className="absolute left-1/2 top-0 h-full w-px bg-black/20" />
               {[...Array(5)].map((_, i) => (
                 <div
                   key={i}
-                  className="absolute left-3 right-3 h-px bg-white opacity-20"
+                  className="absolute left-3 right-3 h-px bg-black/15"
                   style={{ top: `${20 + i * 12}%` }}
                 />
               ))}
             </div>
-            
-            {/* Floating graduation cap */}
-            <div 
-              className="absolute -top-6 -right-6 w-12 h-12"
+
+            <div
+              className="absolute -right-6 -top-6 h-12 w-12"
               style={{ animation: 'float 3s ease-in-out infinite' }}
             >
-              <div 
-                className="w-full h-full relative"
-                style={{ 
-                  background: '#1E3A8A',
-                  clipPath: 'polygon(50% 0%, 0% 50%, 50% 50%, 100% 50%)'
+              <div
+                className="relative h-full w-full bg-green-500"
+                style={{
+                  clipPath: 'polygon(50% 0%, 0% 50%, 50% 50%, 100% 50%)',
                 }}
               >
-                <div 
-                  className="absolute w-8 h-8 rounded-full"
-                  style={{
-                    background: '#1E3A8A',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -25%)'
-                  }}
+                <div
+                  className="absolute left-1/2 top-1/2 h-8 w-8 rounded-full bg-green-400"
+                  style={{ transform: 'translate(-50%, -25%)' }}
                 />
               </div>
-              <div 
-                className="absolute bottom-0 left-1/2 w-px h-4 bg-yellow-500"
+              <div
+                className="absolute bottom-0 left-1/2 h-4 w-px bg-green-400/70"
                 style={{ transform: 'translateX(-50%)' }}
               >
-                <div className="absolute bottom-0 left-1/2 w-2 h-2 rounded-full bg-yellow-500" 
-                     style={{ transform: 'translateX(-50%)' }} />
+                <div
+                  className="absolute bottom-0 left-1/2 h-2 w-2 rounded-full bg-green-400/70"
+                  style={{ transform: 'translateX(-50%)' }}
+                />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Title with stagger animation */}
-        <h1 
-          className="text-4xl font-bold mb-2"
-          style={{ 
-            color: '#1E3A8A',
-            animation: 'fadeInUp 0.8s ease-out'
-          }}
+        <h1
+          className="mb-2 text-4xl font-bold text-white"
+          style={{ animation: 'fadeInUp 0.8s ease-out' }}
         >
-          School Management System
+          School <span className="text-green-400">Management</span> System
         </h1>
-        
-        <p 
-          className="text-lg mb-8 text-gray-600"
+
+        <p
+          className="mb-8 text-lg text-white/60"
           style={{ animation: 'fadeInUp 0.8s ease-out 0.2s backwards' }}
         >
           Loading{dots}
         </p>
 
-        {/* Progress bar */}
-        <div 
-          className="w-80 mx-auto mb-4"
+        <div
+          className="mx-auto mb-4 w-80"
           style={{ animation: 'fadeInUp 0.8s ease-out 0.4s backwards' }}
         >
-          <div className="h-2 bg-gray-200 rounded-full overflow-hidden shadow-inner">
-            <div 
-              className="h-full rounded-full transition-all duration-300 ease-out relative overflow-hidden"
-              style={{ 
-                width: `${progress}%`,
-                background: `linear-gradient(90deg, #1E3A8A 0%, #3B82F6 100%)`
-              }}
+          <div className="h-2 overflow-hidden rounded-full bg-white/15 shadow-inner">
+            <div
+              className="relative h-full rounded-full bg-green-500 transition-all duration-300 ease-out"
+              style={{ width: `${progress}%` }}
             >
-              <div 
+              <div
                 className="absolute inset-0 opacity-30"
                 style={{
                   background: 'linear-gradient(90deg, transparent, white, transparent)',
-                  animation: 'shimmer 2s infinite'
+                  animation: 'shimmer 2s infinite',
                 }}
               />
             </div>
           </div>
-          <p className="text-sm mt-2 font-medium" style={{ color: '#1E3A8A' }}>
-            {progress}%
-          </p>
+          <p className="mt-2 text-sm font-medium text-green-400">{progress}%</p>
         </div>
 
-        {/* Animated icons */}
-        <div className="flex justify-center gap-6 mt-8">
+        <div className="mt-8 flex justify-center gap-6">
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className="w-3 h-3 rounded-full"
+              className="h-3 w-3 rounded-full bg-green-500"
               style={{
-                background: '#1E3A8A',
-                animation: `pulse 1.5s ease-in-out infinite`,
-                animationDelay: `${i * 0.2}s`
+                animation: 'pulse 1.5s ease-in-out infinite',
+                animationDelay: `${i * 0.2}s`,
               }}
             />
           ))}
@@ -221,11 +183,11 @@ export default function SchoolLoader() {
         }
 
         @keyframes pulse {
-          0%, 100% { 
+          0%, 100% {
             transform: scale(1);
             opacity: 1;
           }
-          50% { 
+          50% {
             transform: scale(1.5);
             opacity: 0.5;
           }
@@ -234,5 +196,3 @@ export default function SchoolLoader() {
     </div>
   );
 }
-
-

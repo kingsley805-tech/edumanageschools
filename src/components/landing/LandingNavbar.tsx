@@ -3,9 +3,12 @@ import { motion } from "framer-motion";
 import { GraduationCap, Menu, X } from "lucide-react";
 import { useState } from "react";
 
+import { landingPalette } from "@/components/landing/landingPalette";
+
 const navLinks = [
   { label: "Features", href: "#features" },
-  { label: "About", href: "/about" },
+  { label: "About", href: "#about" },
+  { label: "Partners", href: "#partners" },
 ];
 
 export default function LandingNavbar() {
@@ -18,9 +21,9 @@ export default function LandingNavbar() {
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
     >
-      <nav className="mx-auto flex max-w-7xl items-center justify-between rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2.5 shadow-lg shadow-black/10 backdrop-blur-xl sm:px-5">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between rounded-2xl border border-white/15 bg-black/80 px-4 py-2.5 shadow-lg shadow-black/40 backdrop-blur-xl sm:px-5">
         <Link to="/landing" className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 shadow-sm ring-1 ring-white/20">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-500 shadow-sm shadow-green-500/30 ring-1 ring-green-400/30">
             <GraduationCap className="h-5 w-5 text-white" />
           </div>
           <span className="text-base font-bold tracking-tight text-white sm:text-lg">EduManage</span>
@@ -37,7 +40,7 @@ export default function LandingNavbar() {
               <a
                 key={link.label}
                 href={link.href}
-                className="text-sm font-medium text-white/70 transition-colors hover:text-white"
+                className="text-sm font-medium text-white/70 transition-colors hover:text-green-400"
               >
                 {link.label}
               </a>
@@ -45,7 +48,7 @@ export default function LandingNavbar() {
               <Link
                 key={link.label}
                 to={link.href}
-                className="text-sm font-medium text-white/70 transition-colors hover:text-white"
+                className="text-sm font-medium text-white/70 transition-colors hover:text-green-400"
               >
                 {link.label}
               </Link>
@@ -53,13 +56,13 @@ export default function LandingNavbar() {
           )}
           <Link
             to="/auth"
-            className="text-sm font-medium text-white/70 transition-colors hover:text-white"
+            className="text-sm font-medium text-white/70 transition-colors hover:text-green-400"
           >
             Sign in
           </Link>
           <Link
             to="/auth"
-            className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all hover:shadow-emerald-500/40 hover:brightness-110"
+            className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all ${landingPalette.btnPrimary}`}
           >
             Get Started
           </Link>
@@ -77,7 +80,7 @@ export default function LandingNavbar() {
 
       {mobileOpen ? (
         <motion.div
-          className="mx-auto mt-2 max-w-7xl rounded-2xl border border-white/10 bg-slate-900/90 p-4 backdrop-blur-xl md:hidden"
+          className="mx-auto mt-2 max-w-7xl rounded-2xl border border-white/15 bg-black/95 p-4 backdrop-blur-xl md:hidden"
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
         >
@@ -108,7 +111,7 @@ export default function LandingNavbar() {
             </Link>
             <Link
               to="/auth"
-              className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 px-4 py-2.5 text-center text-sm font-semibold text-white"
+              className={`rounded-xl px-4 py-2.5 text-center text-sm font-semibold ${landingPalette.btnPrimary}`}
               onClick={() => setMobileOpen(false)}
             >
               Get Started

@@ -248,9 +248,9 @@ export function describeAttendanceSmsResult(result: AttendanceSmsSendResult): {
   }
   if (sent > 0) {
     return {
-      variant: "success",
-      title: "Parent SMS sent",
-      description: `${sent} notification${sent === 1 ? "" : "s"} sent to parents.`,
+      variant: "success" as const,
+      title: "Parent SMS delivered",
+      description: result.message || `${sent} SMS delivered to linked parent contact${sent === 1 ? "" : "s"}.`,
     };
   }
   if (result?.message) {
@@ -265,7 +265,7 @@ export function describeAttendanceSmsResult(result: AttendanceSmsSendResult): {
       variant: "default",
       title: "Attendance saved — no SMS sent",
       description:
-        "No parent SMS was sent. Mark absent/late (or enable Present in Register Settings), and ensure the parent phone is linked.",
+        "No SMS was delivered. Mark absent/late (or enable Present in Register Settings), ensure the child is linked to a parent, and that the parent has a valid phone number.",
     };
   }
   return null;

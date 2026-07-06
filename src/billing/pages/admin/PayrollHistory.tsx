@@ -12,14 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { downloadPayrollCsv, downloadPayrollPdf, payoutSummaryFromSnapshot } from "@/billing/lib/payrollExport";
+import { fetchStaffSalaries, fetchTeachersForPayroll, type PayrollTeacherRow } from "@/billing/lib/payrollTeachers";
 import { FileSpreadsheet, Loader2 } from "lucide-react";
 
-type TeacherRow = {
-  user_id: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-};
+type TeacherRow = Pick<PayrollTeacherRow, "user_id" | "email" | "first_name" | "last_name">;
 
 type SalaryRow = {
   id: string;
@@ -49,9 +45,7 @@ export default function PayrollHistoryPage() {
     queryKey: ["payroll-teachers", schoolId],
     queryFn: async () => {
       if (!schoolId) return [];
-      const { data, error } = await supabase.rpc("list_teachers_for_payroll", { p_school_id: schoolId });
-      if (error) throw error;
-      return (data ?? []) as TeacherRow[];
+      return fetchTeachersForPayroll(schoolId);
     },
     enabled: !!schoolId && perm.view,
   });
@@ -60,15 +54,7 @@ export default function PayrollHistoryPage() {
     queryKey: ["payroll-salaries", schoolId],
     queryFn: async () => {
       if (!schoolId) return [];
-      const { data, error } = await supabase
-        .from("staff_salaries")
-        .select(
-          "id, staff_user_id, month, amount, allowances, deductions, status, method, gateway, gateway_ref, paid_at, notes, payout_snapshot",
-        )
-        .eq("school_id", schoolId)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as SalaryRow[];
+      return fetchStaffSalaries(schoolId);
     },
     enabled: !!schoolId && perm.view,
   });

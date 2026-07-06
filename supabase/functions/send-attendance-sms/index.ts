@@ -191,6 +191,17 @@ async function loadSmsSettings(admin: SupabaseClient, schoolId: string): Promise
   };
 }
 
+function arkeselDeliveryOk(httpOk: boolean, body: Record<string, unknown>): boolean {
+  if (!httpOk) return false;
+  const code = String(body.code ?? "").toLowerCase();
+  if (code && code !== "ok") return false;
+  const status = String(body.status ?? "").toLowerCase();
+  if (status && status !== "success" && status !== "ok") return false;
+  const message = String(body.message ?? "").toLowerCase();
+  if (message.includes("successfully")) return true;
+  return code === "ok" || status === "success" || status === "ok";
+}
+
 async function resolveParentsForStudent(
   admin: SupabaseClient,
   studentId: string,
@@ -205,7 +216,7 @@ async function resolveParentsForStudent(
   }> = [];
   const seen = new Set<string>();
 
-  const addParent = (p: {
+  const addParent = async (p: {
     id: string;
     user_id?: string | null;
     phone?: string | null;
@@ -215,10 +226,15 @@ async function resolveParentsForStudent(
     if (!p?.id || seen.has(p.id)) return;
     seen.add(p.id);
     const profilePhone = p.profiles?.phone?.trim() || null;
+    let authPhone: string | null = null;
+    if (p.user_id) {
+      const { data: authData } = await admin.auth.admin.getUserById(p.user_id);
+      authPhone = authData?.user?.phone?.trim() || null;
+    }
     parents.push({
       id: p.id,
       user_id: p.user_id ?? null,
-      phone: p.phone?.trim() || profilePhone || null,
+      phone: p.phone?.trim() || profilePhone || authPhone || null,
       emergency_contact: p.emergency_contact?.trim() || null,
       full_name: p.profiles?.full_name ?? null,
     });
@@ -230,7 +246,7 @@ async function resolveParentsForStudent(
       .select("id, user_id, phone, emergency_contact, profiles:user_id(full_name, phone)")
       .eq("id", guardianId)
       .maybeSingle();
-    addParent(guardian as Parameters<typeof addParent>[0]);
+    await addParent(guardian as Parameters<typeof addParent>[0]);
   }
 
   const { data: links } = await admin
@@ -239,7 +255,7 @@ async function resolveParentsForStudent(
     .eq("student_id", studentId);
 
   for (const link of links ?? []) {
-    addParent((link as { parents?: Parameters<typeof addParent>[0] }).parents ?? null);
+    await addParent((link as { parents?: Parameters<typeof addParent>[0] }).parents ?? null);
   }
 
   return parents;
@@ -482,13 +498,13 @@ async function processAttendanceSmsBatch(opts: {
         } catch {
           body = { raw: rawBody };
         }
-        const ok = res.ok;
+        const ok = arkeselDeliveryOk(res.ok, body);
 
         const updates = {
           sms_status: ok ? "sent" : "failed",
           provider_response: body,
           sent_at: ok ? new Date().toISOString() : null,
-          error_message: ok ? null : JSON.stringify(body),
+          error_message: ok ? null : String(body.message ?? body.code ?? JSON.stringify(body)),
         };
 
         if (attendanceLogId) {
@@ -499,7 +515,7 @@ async function processAttendanceSmsBatch(opts: {
         }
 
         if (ok) sent++;
-        else errors.push(`${studentName}: ${JSON.stringify(body)}`);
+        else errors.push(`${studentName}: ${String(body.message ?? body.code ?? JSON.stringify(body))}`);
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
         const failUpdate = {
@@ -515,8 +531,6 @@ async function processAttendanceSmsBatch(opts: {
         }
         errors.push(`${studentName}: ${errMsg}`);
       }
-
-      break;
     }
   }
 

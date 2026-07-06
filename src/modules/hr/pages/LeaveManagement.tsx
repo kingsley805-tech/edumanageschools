@@ -14,6 +14,8 @@ import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { useModuleAccess } from "@/modules/lib/useModuleAccess";
 import { ModuleAccessDenied } from "@/modules/lib/ModuleAccessDenied";
 import { downloadCsv } from "@/modules/lib/exportCsv";
+import { isMissingTableError, operationsSchemaSetupMessage } from "@/modules/lib/missingSchema";
+import { OperationsSchemaSetupCard } from "@/modules/lib/OperationsSchemaSetupCard";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -42,6 +44,17 @@ export default function LeaveManagementPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
+  const [schemaMissing, setSchemaMissing] = useState(false);
+
+  const handleDbError = (error: { code?: string; message?: string; status?: number }) => {
+    if (isMissingTableError(error)) {
+      setSchemaMissing(true);
+      toast.error(operationsSchemaSetupMessage());
+      return true;
+    }
+    toast.error(error.message ?? "Request failed");
+    return false;
+  };
 
   const load = useCallback(async () => {
     if (!schoolId) return;
@@ -52,13 +65,11 @@ export default function LeaveManagementPage() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      if (error.message.includes("hr_leave_requests")) {
-        toast.error("Run public/sql/apply-operations-modules.sql in Supabase first.");
-      } else {
-        toast.error(error.message);
-      }
+      handleDbError(error);
       return;
     }
+
+    setSchemaMissing(false);
 
     const staffIds = [...new Set((data ?? []).map((r) => r.staff_user_id))];
     const nameMap = new Map<string, string>();
@@ -227,6 +238,8 @@ export default function LeaveManagementPage() {
           ) : null}
         </div>
       </div>
+
+      {schemaMissing ? <OperationsSchemaSetupCard moduleLabel="Leave Management" /> : null}
 
       <Card>
         <CardHeader>

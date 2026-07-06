@@ -26,44 +26,19 @@ import {
   validateContactPhone,
   validateMobileMoneyPair,
 } from "@/billing/lib/staffPaymentValidation";
+import {
+  fetchStaffSalaries,
+  fetchTeachersForPayroll,
+  isPayrollSetupError,
+  throwIfPayrollSetupMissing,
+  type PayrollTeacherRow,
+  type StaffSalaryRow,
+} from "@/billing/lib/payrollTeachers";
+import { PayrollSetupBanner } from "@/billing/components/PayrollSetupBanner";
 
-type TeacherRow = {
-  user_id: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  phone: string | null;
-  admission_number: string;
-  class_label: string;
-  subject_label: string | null;
-  base_monthly_salary: number;
-  default_allowances: number;
-  default_deductions: number;
-  payment_bank_name?: string | null;
-  payment_bank_code?: string | null;
-  payment_account_number?: string | null;
-  payment_account_holder?: string | null;
-  payment_mobile_money_number?: string | null;
-  payment_mobile_money_provider?: string | null;
-  payment_notes?: string | null;
-  preferred_payout_method?: string | null;
-};
+type TeacherRow = PayrollTeacherRow;
 
-type SalaryRow = {
-  id: string;
-  staff_user_id: string;
-  month: string;
-  amount: number;
-  allowances: number | null;
-  deductions: number | null;
-  status: string;
-  method: string;
-  gateway: string;
-  gateway_ref: string | null;
-  paid_at: string | null;
-  notes: string | null;
-  payout_snapshot: Record<string, unknown> | null;
-};
+type SalaryRow = StaffSalaryRow;
 
 function ym(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -163,26 +138,16 @@ export default function PayrollPage() {
     queryKey: ["payroll-teachers", schoolId],
     queryFn: async () => {
       if (!schoolId) return [];
-      const { data, error } = await supabase.rpc("list_teachers_for_payroll", { p_school_id: schoolId });
-      if (error) throw error;
-      return (data ?? []) as TeacherRow[];
+      return fetchTeachersForPayroll(schoolId);
     },
     enabled: !!schoolId && perm.view,
   });
 
-  const { data: salaries = [] } = useQuery({
+  const { data: salaries = [], error: salariesError } = useQuery({
     queryKey: ["payroll-salaries", schoolId],
     queryFn: async () => {
       if (!schoolId) return [];
-      const { data, error } = await supabase
-        .from("staff_salaries")
-        .select(
-          "id, staff_user_id, month, amount, allowances, deductions, status, method, gateway, gateway_ref, paid_at, notes, payout_snapshot",
-        )
-        .eq("school_id", schoolId)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as SalaryRow[];
+      return fetchStaffSalaries(schoolId);
     },
     enabled: !!schoolId && perm.view,
   });
@@ -231,7 +196,7 @@ export default function PayrollPage() {
         } as never,
         { onConflict: "school_id,staff_user_id" },
       );
-      if (error) throw error;
+      if (error) throwIfPayrollSetupMissing(error);
     },
     onSuccess: () => {
       toast.success("Payroll settings saved");
@@ -278,10 +243,10 @@ export default function PayrollPage() {
       if (exErr) throw exErr;
       if (existing?.id) {
         const { error } = await supabase.from("staff_bank_accounts").update(payload as never).eq("id", (existing as { id: string }).id);
-        if (error) throw error;
+        if (error) throwIfPayrollSetupMissing(error);
       } else {
         const { error } = await supabase.from("staff_bank_accounts").insert(payload as never);
-        if (error) throw error;
+        if (error) throwIfPayrollSetupMissing(error);
       }
     },
     onSuccess: () => {
@@ -321,7 +286,7 @@ export default function PayrollPage() {
         .eq("staff_user_id", teacher.user_id)
         .eq("month", payMonth)
         .in("status", ["paid", "processing", "pending"]);
-      if (dupErr) throw dupErr;
+      if (dupErr) throwIfPayrollSetupMissing(dupErr);
       if ((dupRows?.length ?? 0) > 0 && !payOverrideDup) {
         throw new Error("DUPLICATE_MONTH");
       }
@@ -351,7 +316,7 @@ export default function PayrollPage() {
         } as never)
         .select("id")
         .single();
-      if (insErr) throw insErr;
+      if (insErr) throwIfPayrollSetupMissing(insErr);
 
       if (payMethod === "paystack") {
         const { data: sessionData } = await supabase.auth.getSession();
@@ -478,12 +443,18 @@ export default function PayrollPage() {
 
   const fmt = (n: number) => formatMoney(Number(n || 0), currency, { maximumFractionDigits: 2 });
 
+  const setupErrorMessage =
+    [teachersError, salariesError]
+      .map((err) => (err instanceof Error ? err.message : ""))
+      .find((message) => isPayrollSetupError(message)) ?? null;
+
   if (!perm.view) {
     return <div className="py-16 text-center text-muted-foreground">You do not have access to payroll.</div>;
   }
 
   return (
     <div className="space-y-6">
+      {setupErrorMessage ? <PayrollSetupBanner /> : null}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Payroll</h1>
@@ -527,7 +498,7 @@ export default function PayrollPage() {
 
       <Card>
         <CardContent className="p-0">
-          {teachersError ? (
+          {teachersError && !setupErrorMessage ? (
             <div className="space-y-2 p-4 text-sm">
               <p className="text-destructive">Could not load teachers: {(teachersError as Error).message}</p>
               <Button type="button" variant="outline" size="sm" onClick={() => void refetchTeachers()}>

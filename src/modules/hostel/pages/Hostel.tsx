@@ -12,6 +12,8 @@ import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { useModuleAccess } from "@/modules/lib/useModuleAccess";
 import { ModuleAccessDenied } from "@/modules/lib/ModuleAccessDenied";
 import { downloadCsv } from "@/modules/lib/exportCsv";
+import { isMissingTableError, operationsSchemaSetupMessage } from "@/modules/lib/missingSchema";
+import { OperationsSchemaSetupCard } from "@/modules/lib/OperationsSchemaSetupCard";
 import { toast } from "sonner";
 
 type RoomRow = {
@@ -33,6 +35,17 @@ export default function HostelPage() {
   const [roomNumber, setRoomNumber] = useState("");
   const [capacity, setCapacity] = useState("4");
   const [gender, setGender] = useState("mixed");
+  const [schemaMissing, setSchemaMissing] = useState(false);
+
+  const handleDbError = (error: { code?: string; message?: string; status?: number }) => {
+    if (isMissingTableError(error)) {
+      setSchemaMissing(true);
+      toast.error(operationsSchemaSetupMessage());
+      return true;
+    }
+    toast.error(error.message ?? "Request failed");
+    return false;
+  };
 
   const load = useCallback(async () => {
     if (!schoolId) return;
@@ -43,18 +56,23 @@ export default function HostelPage() {
       .order("room_number");
 
     if (error) {
-      if (error.message.includes("hostel_rooms")) {
-        toast.error("Run public/sql/apply-operations-modules.sql in Supabase first.");
-      } else {
-        toast.error(error.message);
-      }
+      handleDbError(error);
       return;
     }
+
+    setSchemaMissing(false);
 
     const blockIds = [...new Set((data ?? []).map((r) => r.block_id))];
     const blockMap = new Map<string, string>();
     if (blockIds.length) {
-      const { data: blocks } = await supabase.from("hostel_blocks").select("id, name").in("id", blockIds);
+      const { data: blocks, error: blocksError } = await supabase
+        .from("hostel_blocks")
+        .select("id, name")
+        .in("id", blockIds);
+      if (blocksError) {
+        handleDbError(blocksError);
+        return;
+      }
       for (const b of blocks ?? []) {
         blockMap.set(b.id, b.name);
       }
@@ -83,12 +101,17 @@ export default function HostelPage() {
     }
 
     let blockId: string | null = null;
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from("hostel_blocks")
       .select("id")
       .eq("school_id", schoolId)
       .eq("name", blockName.trim())
       .maybeSingle();
+
+    if (existingError) {
+      handleDbError(existingError);
+      return;
+    }
 
     if (existing?.id) {
       blockId = existing.id;
@@ -99,7 +122,7 @@ export default function HostelPage() {
         .select("id")
         .single();
       if (blockErr) {
-        toast.error(blockErr.message);
+        handleDbError(blockErr);
         return;
       }
       blockId = created.id;
@@ -114,7 +137,7 @@ export default function HostelPage() {
       gender: gender === "mixed" ? null : gender,
     });
     if (error) {
-      toast.error(error.message);
+      handleDbError(error);
       return;
     }
     toast.success("Room added");
@@ -205,6 +228,10 @@ export default function HostelPage() {
           ) : null}
         </div>
       </div>
+
+      {schemaMissing ? (
+        <OperationsSchemaSetupCard moduleLabel="Hostel" quickScript="apply-hostel-tables.sql" />
+      ) : null}
 
       <Card>
         <CardHeader>
