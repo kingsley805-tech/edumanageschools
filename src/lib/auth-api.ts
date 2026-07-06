@@ -25,6 +25,7 @@ export type StudentAdmissionPreview = {
 export type LoginResolveResult = {
   ok: boolean;
   error?: string;
+  error_code?: string;
   email?: string;
   role?: string;
 };

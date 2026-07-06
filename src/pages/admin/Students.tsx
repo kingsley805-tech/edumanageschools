@@ -3,8 +3,9 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Filter, Pencil, Trash2, RefreshCw, Hash, Phone, Mail, UserRound } from "lucide-react";
+import { Plus, Search, Filter, Pencil, Trash2, RefreshCw, Hash, Phone, Mail, UserRound, Bus } from "lucide-react";
 import { Link } from "react-router-dom";
+import { StudentTransportSection } from "@/modules/transport/components/StudentTransportSection";
 import { generateRegistrationNumber } from "@/lib/registration-numbers";
 import { formatExample, fetchSchoolPrefixById } from "@/lib/admission-numbers";
 import { buildStudentAuthEmail } from "@/lib/auth-api";
@@ -982,6 +983,14 @@ const Students = () => {
                       ))}
                     </div>
                   )}
+                </div>
+
+                <div className="border-t pt-4">
+                  <p className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Bus className="h-4 w-4 text-primary" />
+                    School transport
+                  </p>
+                  <StudentTransportSection studentId={selectedStudent.id} />
                 </div>
               </div>
             )}

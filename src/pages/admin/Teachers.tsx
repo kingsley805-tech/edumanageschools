@@ -2,7 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Pencil, Trash2, RefreshCw, Hash } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, RefreshCw, Hash, UserX, UserCheck } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { generateRegistrationNumber } from "@/lib/registration-numbers";
 import { formatExample, fetchSchoolPrefixById } from "@/lib/admission-numbers";
@@ -18,6 +18,7 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
+import { setTeacherAccountStatus } from "@/lib/teacherAccountStatus";
 
 const teacherSchema = z.object({
   employee_no: z.string().min(1, "Employee number is required"),
@@ -40,8 +41,10 @@ type SubjectOption = { id: string; name: string; code: string | null };
 
 type TeacherRow = {
   id: string;
+  user_id?: string | null;
   employee_no: string | null;
   subject_specialty: string | null;
+  is_active?: boolean;
   profiles?: { full_name?: string; email?: string } | null;
   class_subjects?: Array<{
     subjects?: { name?: string; code?: string } | null;
@@ -124,6 +127,7 @@ const Teachers = () => {
   const [assignClassId, setAssignClassId] = useState("");
   const [assignSubjectIds, setAssignSubjectIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [statusChangingId, setStatusChangingId] = useState<string | null>(null);
   const [employeePlaceholder, setEmployeePlaceholder] = useState("MINGO-Tea-2026-001");
   const { toast } = useToast();
   
@@ -505,6 +509,39 @@ const Teachers = () => {
     }
   };
 
+  const handleToggleTeacherStatus = async (teacher: TeacherRow, activate: boolean) => {
+    setStatusChangingId(teacher.id);
+    try {
+      const result = await setTeacherAccountStatus(teacher.id, activate);
+      if (!result.ok) {
+        throw new Error(result.error ?? "Failed to update account status");
+      }
+
+      toast({
+        title: activate ? "Teacher activated" : "Teacher deactivated",
+        description:
+          result.message ??
+          `${teacher.profiles?.full_name ?? "Teacher"} can ${activate ? "log in again" : "no longer access the system"}.`,
+      });
+
+      await fetchTeachers();
+      if (selectedTeacher?.id === teacher.id) {
+        setSelectedTeacher((prev) => (prev ? { ...prev, is_active: activate } : prev));
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to update account status";
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setStatusChangingId(null);
+    }
+  };
+
+  const isTeacherActive = (teacher: TeacherRow) => teacher.is_active !== false;
+
   return (
     <DashboardLayout role="admin">
       <div className="space-y-4 md:space-y-6">
@@ -747,10 +784,68 @@ const Teachers = () => {
                         <TableCell className="hidden md:table-cell">{formatTeacherSubjects(teacher)}</TableCell>
                         <TableCell className="hidden lg:table-cell text-sm">{teacher.profiles?.email}</TableCell>
                         <TableCell>
-                          <Badge className="bg-success text-xs">Active</Badge>
+                          {isTeacherActive(teacher) ? (
+                            <Badge className="bg-success text-xs">Active</Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className={`h-8 md:h-9 ${isTeacherActive(teacher) ? "text-amber-600 hover:text-amber-700" : "text-green-600 hover:text-green-700"}`}
+                                  disabled={statusChangingId === teacher.id || deleting}
+                                  title={isTeacherActive(teacher) ? "Deactivate account" : "Activate account"}
+                                >
+                                  {isTeacherActive(teacher) ? (
+                                    <UserX className="h-4 w-4" />
+                                  ) : (
+                                    <UserCheck className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    {isTeacherActive(teacher) ? "Deactivate teacher account?" : "Activate teacher account?"}
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    {isTeacherActive(teacher) ? (
+                                      <>
+                                        This will deactivate <strong>{teacher.profiles?.full_name}</strong>&apos;s account.
+                                        They will be signed out immediately and cannot log in until you reactivate the account.
+                                      </>
+                                    ) : (
+                                      <>
+                                        This will reactivate <strong>{teacher.profiles?.full_name}</strong>&apos;s account.
+                                        They can sign in again using their existing credentials.
+                                      </>
+                                    )}
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => void handleToggleTeacherStatus(teacher, !isTeacherActive(teacher))}
+                                    className={
+                                      isTeacherActive(teacher)
+                                        ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        : undefined
+                                    }
+                                  >
+                                    {statusChangingId === teacher.id
+                                      ? "Updating…"
+                                      : isTeacherActive(teacher)
+                                        ? "Deactivate"
+                                        : "Activate"}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                             <Button 
                               variant="ghost" 
                               size="sm"
@@ -876,7 +971,11 @@ const Teachers = () => {
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Status</Label>
-                    <Badge className="bg-success">Active</Badge>
+                    {isTeacherActive(selectedTeacher) ? (
+                      <Badge className="bg-success">Active</Badge>
+                    ) : (
+                      <Badge variant="secondary">Inactive</Badge>
+                    )}
                   </div>
                 </div>
               </div>

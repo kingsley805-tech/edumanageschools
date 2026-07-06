@@ -46,6 +46,7 @@ import { Badge } from "@/components/ui/badge";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { useUserRole } from "@/hooks/useUserRole";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useTeacherAccountGuard } from "@/hooks/useTeacherAccountGuard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { SchoolSwitcher } from "./SchoolSwitcher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -160,6 +161,7 @@ const DashboardLayout = ({ children, role, hideSidebar = false }: DashboardLayou
   const { navItems: dynamicNavItems } = usePortalAccess();
   const { access: subscriptionAccess } = useOrganizationSubscription();
   const { resetPersonalTheme } = useTheme();
+  useTeacherAccountGuard();
   const usesDynamicAdminNav = (ADMIN_SHELL_ROLES as readonly string[]).includes(role);
 
   const canShow = (permission?: string) =>

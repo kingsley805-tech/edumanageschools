@@ -21,6 +21,7 @@ import {
   validateUnusedRegistrationNumber,
   type StudentAdmissionPreview,
 } from "@/lib/auth-api";
+import { TEACHER_DEACTIVATED_MESSAGE } from "@/lib/teacherAccountStatus";
 import schoolPicture from "@/assets/School Picture.webp";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -190,6 +191,12 @@ const Auth = () => {
   const [resetCooldown, setResetCooldown] = useState(0);
   const [forgotPasswordMode, setForgotPasswordMode] = useState<"staff" | "student">("staff");
   const [studentResetAdmission, setStudentResetAdmission] = useState("");
+  const [deactivatedNotice, setDeactivatedNotice] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    setDeactivatedNotice(params.get("deactivated") === "teacher");
+  }, [location.search]);
 
   useEffect(() => {
     if (resetCooldown <= 0) return;
@@ -218,15 +225,22 @@ const Auth = () => {
 
     const resolved = await resolveLoginIdentifier(loginIdentifier);
     if (!resolved.ok || !resolved.email) {
-      toast.error(resolved.error ?? "Could not sign in with those credentials.");
+      const message =
+        resolved.error_code === "teacher_account_deactivated"
+          ? TEACHER_DEACTIVATED_MESSAGE
+          : (resolved.error ?? "Could not sign in with those credentials.");
+      toast.error(message, { duration: 8000 });
       setIsLoading(false);
       return;
     }
 
     const { error } = await signIn(resolved.email, loginPassword);
     if (error) {
-      await logLoginActivity(false, loginIdentifier, error.message);
-      toast.error(error.message);
+      const errMsg = String((error as { message?: string })?.message ?? error);
+      const isBanned =
+        errMsg.toLowerCase().includes("banned") || errMsg.toLowerCase().includes("disabled");
+      await logLoginActivity(false, loginIdentifier, errMsg);
+      toast.error(isBanned ? TEACHER_DEACTIVATED_MESSAGE : errMsg, { duration: isBanned ? 8000 : undefined });
       setIsLoading(false);
       return;
     }
@@ -739,6 +753,11 @@ const Auth = () => {
           {/* Login Form */}
           {activeTab === "login" && (
             <form onSubmit={handleLogin} className="space-y-5 animate-fade-in">
+              {deactivatedNotice && (
+                <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                  {TEACHER_DEACTIVATED_MESSAGE}
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="login-identifier" className="text-xs font-semibold text-white/80">
                   Admission number or email
