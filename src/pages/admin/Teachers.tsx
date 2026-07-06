@@ -83,35 +83,7 @@ function formatTeacherSubjects(teacher: TeacherRow): string {
   return "N/A";
 }
 
-async function assignTeacherClassSubjects(
-  teacherId: string,
-  classId: string,
-  subjectIds: string[]
-): Promise<number> {
-  let assigned = 0;
-  for (const subjectId of subjectIds) {
-    const { data: existing } = await supabase
-      .from("class_subjects")
-      .select("id")
-      .eq("teacher_id", teacherId)
-      .eq("class_id", classId)
-      .eq("subject_id", subjectId)
-      .maybeSingle();
-
-    if (existing) continue;
-
-    const { error } = await supabase.from("class_subjects").insert({
-      teacher_id: teacherId,
-      class_id: classId,
-      subject_id: subjectId,
-    });
-
-    if (!error) assigned += 1;
-  }
-  return assigned;
-}
-
-const Teachers = () => {
+import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
   const [open, setOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -387,14 +359,14 @@ const Teachers = () => {
           throw new Error("Teacher created but class assignments could not be saved");
         }
 
-        const assignedCount = await assignTeacherClassSubjects(
+        const { assigned } = await assignTeacherClassSubjects(
           teacherRow.id,
           assignClassId,
           assignSubjectIds
         );
         assignmentNote =
-          assignedCount > 0
-            ? ` Assigned to ${assignedCount} subject${assignedCount === 1 ? "" : "s"}.`
+          assigned > 0
+            ? ` Assigned to ${assigned} subject${assigned === 1 ? "" : "s"}.`
             : "";
       }
 
