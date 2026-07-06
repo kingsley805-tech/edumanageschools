@@ -99,6 +99,22 @@ export function resolveReportThemePrimary(
   return school;
 }
 
+/** System font stack — unaffected by portal theme toggle */
+export const REPORT_CARD_SYSTEM_FONT =
+  'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+
+/** Fixed on-screen / print document colors: black header, white body, black text */
+export const REPORT_CARD_FIXED_COLORS: ReportBrandColors = {
+  primary: "#000000",
+  primaryDark: "#000000",
+  primaryLight: "#333333",
+  white: "#ffffff",
+  black: "#000000",
+  mutedBg: "#f5f5f5",
+  border: "rgba(0, 0, 0, 0.15)",
+  shadow: "rgba(0, 0, 0, 0.12)",
+};
+
 /** Build full report card palette from a single primary hex */
 export function buildReportBrandColors(primaryHex: string): ReportBrandColors {
   const primary = isValidHexColor(primaryHex)
@@ -123,17 +139,22 @@ export function gradeStyleFromBrand(brand: ReportBrandColors, _g?: string) {
   return { bg: brand.primaryDark, text: brand.white, bar: brand.primary };
 }
 
-/** Inline CSS for Shepherd report card (print + PDF + screen) */
-export function buildReportCardCss(c: ReportBrandColors): string {
+/** Inline CSS for Shepherd report card (print + PDF + screen) — always black header, white body */
+export function buildReportCardCss(
+  c: ReportBrandColors = REPORT_CARD_FIXED_COLORS,
+): string {
   const accent = c.primary;
   const dark = c.primaryDark;
   const light = c.primaryLight;
-  const pageBg = "#000000";
+  const pageBg = "transparent";
+  const fontStack = REPORT_CARD_SYSTEM_FONT;
   return `
-.rc-page-shell{background:${pageBg};width:100%;max-width:100%;margin:0;box-sizing:border-box;border-radius:12px;overflow:hidden}
-.rc-page{background:transparent;min-height:auto;padding:16px 12px 32px;display:flex;flex-direction:column;align-items:center;gap:16px;font-family:'Manrope',sans-serif;color:${c.white};color-scheme:dark;forced-color-adjust:none;width:100%;max-width:100%;box-sizing:border-box}
-.rc-toolbar{width:100%;max-width:860px;background:${dark};border-radius:10px;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;border:1px solid ${dark}}
-.rc-toolbar-title{color:${c.white};font-family:'Manrope',sans-serif;font-size:14px;display:block;font-weight:700}
+[data-report-card-root]{color-scheme:light;font-family:${fontStack};-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;font-synthesis:none}
+[data-report-card-root] *{font-family:${fontStack};font-synthesis:none}
+.rc-page-shell{background:${pageBg};width:100%;max-width:100%;margin:0 auto;box-sizing:border-box;border-radius:12px;overflow:visible;padding:0;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.rc-page{background:transparent;min-height:auto;padding:8px 0 24px;display:flex;flex-direction:column;align-items:center;gap:14px;font-family:${fontStack};color:${c.black};width:100%;max-width:100%;box-sizing:border-box}
+.rc-toolbar{width:100%;max-width:860px;background:${dark};border-radius:10px;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;border:1px solid ${accent};backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.rc-toolbar-title{color:${c.white};font-family:${fontStack};font-size:14px;display:block;font-weight:700}
 .rc-status-row{display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap}
 .rc-status-pill{background:${c.white};color:${dark};font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px}
 .rc-status-saved{color:${c.white};font-size:11px;opacity:.85}
@@ -164,45 +185,46 @@ export function buildReportCardCss(c: ReportBrandColors): string {
 .rc-btn-print{background:${c.white};color:${dark};border:1.5px solid ${c.white}}
 .rc-btn-pdf{background:transparent;color:${c.white};border:1.5px solid ${c.white}}
 .rc-btn-save{background:${c.white};color:${dark}}
-.rc-card{width:100%;max-width:860px;background:${c.white};border-radius:14px;overflow:hidden;box-shadow:0 8px 48px rgba(0,0,0,0.45);border:1px solid ${accent}}
-.rc-header{background:${dark};padding:28px 40px 20px}
+.rc-card{width:100%;max-width:860px;background:${c.white};border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08),0 12px 32px rgba(0,0,0,0.12);border:1px solid ${accent};backdrop-filter:none!important;-webkit-backdrop-filter:none!important;filter:none!important}
+.rc-header{background:${dark};padding:28px 40px 20px;color:#fff}
 .rc-header-inner{display:flex;align-items:center;gap:20px}
 .rc-logo{width:90px;height:90px;border-radius:50%;background:#fff;padding:4px;box-shadow:0 0 0 3px #ffffff55;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .rc-logo img{width:80px;height:80px;object-fit:contain;image-rendering:auto}
-.rc-school-name{font-family:'Manrope',sans-serif;font-size:clamp(16px,4vw,24px);font-weight:900;color:#ffffff;letter-spacing:1px;text-transform:uppercase}
+.rc-school-name{font-family:${fontStack};font-size:clamp(16px,4vw,24px);font-weight:800;color:#ffffff;letter-spacing:1px;text-transform:uppercase}
 .rc-school-motto{color:#ffffff;font-size:11px;font-style:italic;margin-top:4px;opacity:.9}
 .rc-school-contact{color:#ffffff;font-size:11px;margin-top:6px;opacity:.95;font-weight:600;word-break:break-word}
 .rc-school-addr{color:#ffffff;font-size:12px;margin-top:3px;opacity:.9}
 .rc-header-right{text-align:right}
 .rc-header-label{color:#ffffff;font-size:10px;letter-spacing:2px;text-transform:uppercase;opacity:.8}
-.rc-header-value{color:#ffffff;font-family:'Manrope',sans-serif;font-size:15px;font-weight:700}
+.rc-header-value{color:#ffffff;font-family:${fontStack};font-size:15px;font-weight:700}
 .rc-gold-stripe{height:4px;background:${light}}
 .rc-term-period{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;padding:10px 24px;background:${accent};color:#fff;font-size:13px}
 .rc-term-period-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;opacity:.85;font-weight:700}
-.rc-term-period-value{font-family:'Manrope',sans-serif;font-weight:800;font-size:14px}
-.rc-body{padding:28px 36px;color:${c.black}}
-.rc-info-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;background:${c.white};border:1px solid ${accent};border-radius:10px;padding:18px;margin-bottom:24px}
+.rc-term-period-value{font-family:${fontStack};font-weight:800;font-size:14px}
+.rc-body{padding:28px 36px;color:${c.black};background:${c.white}}
+.rc-info-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;background:${c.white};border:1px solid ${accent};border-radius:10px;padding:18px;margin-bottom:24px;box-shadow:0 1px 0 rgba(0,0,0,0.04)}
 .rc-info-full{grid-column:1/-1}
 .rc-info-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:${accent};font-weight:700;display:block;margin-bottom:4px}
 .rc-info-value{font-size:14px;font-weight:600;color:${c.black}}
-.rc-info-value.big{font-family:'Manrope',sans-serif;font-size:18px;color:${c.black}}
-.rc-inline-input{border:1px solid ${accent};border-radius:4px;padding:4px 8px;font-size:14px;width:100%;background:#fff;color:${c.black}}
-.rc-cell-input{width:64px;padding:4px;border:1px solid ${accent};border-radius:4px;text-align:center;color:${c.black};background:#fff}
+.rc-info-value.big{font-family:${fontStack};font-size:18px;color:${c.black}}
+.rc-inline-input{border:1px solid ${accent};border-radius:4px;padding:4px 8px;font-size:14px;font-family:${fontStack};width:100%;background:#fff !important;color:${c.black} !important;-webkit-text-fill-color:${c.black}}
+.rc-cell-input{width:64px;padding:4px;border:1px solid ${accent};border-radius:4px;text-align:center;font-family:${fontStack};color:${c.black} !important;background:#fff !important;-webkit-text-fill-color:${c.black}}
+.rc-hint{display:block;font-size:10px;line-height:1.35;color:#525252;margin-top:4px}
 .rc-cell-sm{width:48px}
 .rc-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
 .rc-stat{background:${dark};border-radius:10px;padding:14px;text-align:center;border:1px solid ${dark}}
-.rc-stat-value{font-family:'Manrope',sans-serif;font-size:22px;font-weight:700;color:#ffffff;display:block}
-.rc-stat-input{width:100%;background:transparent;border:none;color:#ffffff;font-family:'Manrope',sans-serif;font-size:20px;font-weight:700;text-align:center}
+.rc-stat-value{font-family:${fontStack};font-size:22px;font-weight:700;color:#ffffff;display:block}
+.rc-stat-input{width:100%;background:transparent;border:none;color:#ffffff !important;font-family:${fontStack};font-size:20px;font-weight:700;text-align:center;-webkit-text-fill-color:#ffffff}
 .rc-stat-label{font-size:10px;text-transform:uppercase;color:#ffffff;margin-top:6px;display:block;opacity:.85}
-.rc-sec-title{font-family:'Manrope',sans-serif;font-size:13px;font-weight:700;color:${accent};margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.rc-sec-title{font-family:${fontStack};font-size:13px;font-weight:700;color:${accent};margin-bottom:14px;display:flex;align-items:center;gap:10px}
 .rc-sec-title::after{content:'';flex:1;height:1px;background:${accent};opacity:.35}
 .rc-sec-title-dot{width:8px;height:8px;border-radius:50%;background:${accent}}
 .rc-table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px;color:${c.black}}
 .rc-table thead th{background:${dark};color:${c.white};font-size:10px;padding:9px 10px;text-align:left;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
-.rc-table tbody td{padding:8px 10px;border-bottom:1px solid ${c.border};vertical-align:middle;color:${c.black}}
+.rc-table tbody td{padding:8px 10px;border-bottom:1px solid #e5e5e5;vertical-align:middle;color:${c.black};background:${c.white}}
 .rc-subj{font-weight:700;color:${c.black};font-size:12px}
 .rc-score-cell{display:flex;align-items:center;gap:8px}
-.rc-score-num{font-family:'Manrope',sans-serif;font-weight:700;min-width:36px;color:${c.black}}
+.rc-score-num{font-family:${fontStack};font-weight:700;min-width:36px;color:${c.black}}
 .rc-bar-track{flex:1;height:6px;background:#e8ecea;border-radius:3px;overflow:hidden;min-width:50px}
 .rc-bar-fill{height:100%;border-radius:3px;background:${accent} !important}
 .rc-badge{display:inline-block;padding:2px 10px;border-radius:20px;font-weight:700;font-size:12px;background:${dark} !important;color:${c.white} !important}
@@ -223,7 +245,7 @@ export function buildReportCardCss(c: ReportBrandColors): string {
 .rc-remark-box{border:1px solid ${accent};border-radius:10px;padding:18px;background:${c.white};margin-bottom:22px;color:${c.black}}
 .rc-remark-stack{display:flex;flex-direction:column;gap:20px}
 .rc-quote-block{background:${c.mutedBg};border-left:4px solid ${accent};padding:12px 16px;font-style:italic;margin-top:8px;color:${c.black}}
-.rc-textarea{width:100%;border:1px solid ${accent};border-radius:8px;padding:10px;font-family:inherit;margin-top:8px;resize:vertical;color:${c.black};background:#fff}
+.rc-textarea{width:100%;border:1px solid ${accent};border-radius:8px;padding:10px;font-family:${fontStack};margin-top:8px;resize:vertical;color:${c.black} !important;background:#fff !important;-webkit-text-fill-color:${c.black}}
 .rc-sig-box{text-align:center}
 .rc-sig-box-centered{width:100%;max-width:320px;margin-left:auto;margin-right:auto}
 .rc-sig-area{width:100%;height:70px;border:1px dashed ${accent};border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;padding:8px 12px;margin-top:8px;overflow:hidden;box-sizing:border-box}
@@ -241,7 +263,7 @@ export function buildReportCardCss(c: ReportBrandColors): string {
 .rc-date-label{font-size:9px;text-transform:uppercase;color:${accent};margin-bottom:4px;font-weight:700;letter-spacing:.5px}
 .rc-footer{background:${dark};padding:14px 36px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
 .rc-footer-text{color:#ffffff;font-size:11px;opacity:.9}
-.rc-footer-seal{width:52px;height:52px;border-radius:50%;border:1.5px solid #ffffff;display:flex;align-items:center;justify-content:center;font-size:8px;color:#ffffff;text-align:center;font-family:'Manrope',sans-serif;font-weight:700;flex-shrink:0}
+.rc-footer-seal{width:52px;height:52px;border-radius:50%;border:1.5px solid #ffffff;display:flex;align-items:center;justify-content:center;font-size:8px;color:#ffffff;text-align:center;font-family:${fontStack};font-weight:700;flex-shrink:0}
 .rc-exporting,.rc-exporting *{animation:none!important;transition:none!important}
 .rc-exporting .rc-bar-fill{transition:none!important}
 @media print{

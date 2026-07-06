@@ -12,7 +12,6 @@ import { getGradeScale } from "@/report/lib/grading";
 import { exportElementToPdf, waitForReportAssets } from "@/report/lib/report-pdf";
 import { canExportPdf, statusLabel } from "@/report/lib/report-card-status";
 import { useGradingFormat, useSchool, useSchoolSettings } from "@/report/hooks/use-school-data";
-import { useReportTheme } from "@/report/hooks/use-report-theme";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { resolveReportAssetUrl } from "@/report/lib/report-assets";
@@ -65,8 +64,7 @@ export function ShepherdReportCard({
   const printRef = useRef<HTMLDivElement>(null);
   const { data: school } = useSchool(schoolId);
   const { data: schoolSettings } = useSchoolSettings(schoolId);
-  const { brand } = useReportTheme(schoolId);
-  const reportCss = useMemo(() => buildReportCardCss(brand), [brand]);
+  const reportCss = useMemo(() => buildReportCardCss(), []);
   const gradingFormat = useGradingFormat();
   const footerNote = (schoolSettings as { report_card_footer?: string | null } | null | undefined)
     ?.report_card_footer?.trim();
@@ -163,7 +161,7 @@ export function ShepherdReportCard({
   return (
     <>
       <style data-report-export>{reportCss}</style>
-      <div className="rc-page-shell no-print-root">
+      <div className="rc-page-shell no-print-root" data-report-card-root data-report-in-portal>
       <div className="rc-page">
         {showToolbar && (
           <div className="rc-toolbar no-print">
@@ -288,7 +286,7 @@ export function ShepherdReportCard({
                       }
                       onChange={(e) => update({ totalStudentsInClassManual: e.target.value })}
                     />
-                    <span className="block text-[10px] leading-tight text-muted-foreground">
+                    <span className="rc-hint">
                       {data.totalStudentsInClassManual.trim()
                         ? "Manual override"
                         : data.totalStudentsInClassAuto != null && data.totalStudentsInClassAuto > 0
@@ -345,7 +343,7 @@ export function ShepherdReportCard({
                 {data.subjects.map((s, i) => {
                   const pct = Math.min((s.total / 100) * 100, 100);
                   return (
-                    <tr key={`${s.name}-${i}`} style={{ animationDelay: `${i * 0.05}s` }}>
+                    <tr key={`${s.name}-${i}`}>
                       <td><span className="rc-subj">{s.name}</span></td>
                       <td>
                         {editable ? (
@@ -380,7 +378,7 @@ export function ShepherdReportCard({
                           <input className="rc-cell-input rc-cell-sm" value={s.position}
                             onChange={(e) => updateSubject(i, { position: e.target.value })} />
                         ) : (
-                          <span style={{ fontWeight: 700, color: brand.black }}>{s.position}</span>
+                          <span style={{ fontWeight: 700, color: "#000000" }}>{s.position}</span>
                         )}
                       </td>
                       <td style={{ textAlign: "center" }}>
@@ -391,7 +389,7 @@ export function ShepherdReportCard({
                           <span className="rc-badge">{s.grade}</span>
                         )}
                       </td>
-                      <td style={{ fontSize: 12, fontStyle: "italic", color: brand.black }}>
+                      <td style={{ fontSize: 12, fontStyle: "italic", color: "#000000" }}>
                         {editable ? (
                           <input className="rc-cell-input" style={{ width: "100%" }} value={s.remark}
                             onChange={(e) => updateSubject(i, { remark: e.target.value })} />
