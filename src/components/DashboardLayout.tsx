@@ -313,6 +313,11 @@ const DashboardLayout = ({
               label: "Report Settings",
               path: "/admin/report-settings",
             },
+            {
+              icon: GraduationCap,
+              label: "WAEC Question Bank",
+              path: "/admin/waec",
+            },
           ],
         },
         {
@@ -854,6 +859,11 @@ const DashboardLayout = ({
           label: "Examinations",
           icon: MonitorPlay,
           items: [
+            {
+              icon: GraduationCap,
+              label: "Solve WAEC Past Questions",
+              path: "/student/waec-practice",
+            },
             {
               icon: MonitorPlay,
               label: "Online Exams",

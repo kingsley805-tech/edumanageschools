@@ -26,7 +26,10 @@ const sections = [
     description: "Online exams & assessments",
     icon: MonitorPlay,
     accent: "text-violet-600 bg-violet-500/10 dark:text-violet-400",
-    links: [{ label: "Online exams", path: "/student/online-exams" }],
+    links: [
+      { label: "Solve WAEC past questions", path: "/student/waec-practice" },
+      { label: "Online exams", path: "/student/online-exams" },
+    ],
   },
   {
     id: "finance",

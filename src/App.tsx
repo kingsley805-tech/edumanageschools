@@ -82,6 +82,8 @@ import GradeScales from "./pages/admin/GradeScales";
 import QuestionBank from "./pages/teacher/QuestionBank";
 import TeacherOnlineExams from "./pages/teacher/OnlineExams";
 import StudentOnlineExams from "./pages/student/OnlineExams";
+import WaecPracticePage from "@/modules/waec/pages/WaecPractice";
+import WaecAdminPage from "@/modules/waec/pages/WaecAdmin";
 import StudentBilling from "./pages/student/Billing";
 import StudentPaymentHistory from "./pages/student/PaymentHistory";
 import ParentPaymentHistory from "./pages/parent/PaymentHistory";
@@ -498,6 +500,14 @@ function App() {
                         allowedRoles={["admin", "super_admin", "accountant"]}
                       >
                         <AdminStats />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/waec"
+                    element={
+                      <ProtectedRoute allowedRoles={["admin", "super_admin", "teacher"]}>
+                        <WaecAdminPage />
                       </ProtectedRoute>
                     }
                   />
@@ -1030,6 +1040,14 @@ function App() {
                     element={
                       <ProtectedRoute allowedRoles={["student"]}>
                         <StudentResources />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/student/waec-practice"
+                    element={
+                      <ProtectedRoute allowedRoles={["student"]}>
+                        <WaecPracticePage />
                       </ProtectedRoute>
                     }
                   />
