@@ -1,6 +1,83 @@
--- Fix admin "delete student/teacher" failing with 400 due to FK constraints.
+-- Fix admin "Database error deleting user" caused by foreign keys on auth.users.
 -- Also allows logging failed login attempts without an authenticated session.
 -- Run in Supabase SQL Editor, then: NOTIFY pgrst, 'reload schema';
+
+-- 1) Repair every FK that points at auth.users but blocks deletion.
+--    Nullable columns become ON DELETE SET NULL; NOT NULL columns become ON DELETE CASCADE.
+DO $repair$
+DECLARE
+  r RECORD;
+  v_col text;
+  v_notnull boolean;
+  v_action text;
+BEGIN
+  FOR r IN
+    SELECT c.conname,
+           c.conrelid::regclass AS tbl,
+           c.conrelid,
+           c.conkey
+    FROM pg_constraint c
+    WHERE c.contype = 'f'
+      AND c.confrelid = 'auth.users'::regclass
+      AND c.confdeltype IN ('a', 'r')          -- NO ACTION / RESTRICT
+      AND array_length(c.conkey, 1) = 1
+  LOOP
+    SELECT a.attname, a.attnotnull
+      INTO v_col, v_notnull
+    FROM pg_attribute a
+    WHERE a.attrelid = r.conrelid
+      AND a.attnum = r.conkey[1];
+
+    v_action := CASE WHEN v_notnull THEN 'CASCADE' ELSE 'SET NULL' END;
+
+    EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', r.tbl, r.conname);
+    EXECUTE format(
+      'ALTER TABLE %s ADD CONSTRAINT %I FOREIGN KEY (%I) REFERENCES auth.users(id) ON DELETE %s',
+      r.tbl, r.conname, v_col, v_action
+    );
+
+    RAISE NOTICE 'Repaired % on % (%.%) -> ON DELETE %', r.conname, r.tbl, r.tbl, v_col, v_action;
+  END LOOP;
+END;
+$repair$;
+
+-- 2) Same repair for FKs that point at public.profiles (delete cascades auth.users -> profiles).
+DO $repair_profiles$
+DECLARE
+  r RECORD;
+  v_col text;
+  v_notnull boolean;
+  v_action text;
+BEGIN
+  FOR r IN
+    SELECT c.conname,
+           c.conrelid::regclass AS tbl,
+           c.conrelid,
+           c.conkey
+    FROM pg_constraint c
+    WHERE c.contype = 'f'
+      AND c.confrelid = 'public.profiles'::regclass
+      AND c.confdeltype IN ('a', 'r')
+      AND array_length(c.conkey, 1) = 1
+  LOOP
+    SELECT a.attname, a.attnotnull
+      INTO v_col, v_notnull
+    FROM pg_attribute a
+    WHERE a.attrelid = r.conrelid
+      AND a.attnum = r.conkey[1];
+
+    v_action := CASE WHEN v_notnull THEN 'CASCADE' ELSE 'SET NULL' END;
+
+    EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', r.tbl, r.conname);
+    EXECUTE format(
+      'ALTER TABLE %s ADD CONSTRAINT %I FOREIGN KEY (%I) REFERENCES public.profiles(id) ON DELETE %s',
+      r.tbl, r.conname, v_col, v_action
+    );
+
+    RAISE NOTICE 'Repaired % on % (%.%) -> ON DELETE %', r.conname, r.tbl, r.tbl, v_col, v_action;
+  END LOOP;
+END;
+$repair_profiles$;
 
 CREATE OR REPLACE FUNCTION public._safe_exec(p_sql text)
 RETURNS void
