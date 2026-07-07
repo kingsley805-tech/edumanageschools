@@ -1,15 +1,60 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Pencil, Trash2, RefreshCw, Hash, UserX, UserCheck } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Plus,
+  Search,
+  Pencil,
+  Trash2,
+  RefreshCw,
+  Hash,
+  UserX,
+  UserCheck,
+} from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { generateRegistrationNumber } from "@/lib/registration-numbers";
 import { formatExample, fetchSchoolPrefixById } from "@/lib/admission-numbers";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useForm } from "react-hook-form";
@@ -19,6 +64,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { setTeacherAccountStatus } from "@/lib/teacherAccountStatus";
+import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
 
 const teacherSchema = z.object({
   employee_no: z.string().min(1, "Employee number is required"),
@@ -62,7 +108,7 @@ function formatTeacherClasses(teacher: TeacherRow): string {
           if (!name) return null;
           return level ? `${name} (${level})` : name;
         })
-        .filter((label): label is string => Boolean(label))
+        .filter((label): label is string => Boolean(label)),
     ),
   ];
   if (fromAssignments.length > 0) return fromAssignments.join(", ");
@@ -74,7 +120,7 @@ function formatTeacherSubjects(teacher: TeacherRow): string {
     ...new Set(
       (teacher.class_subjects ?? [])
         .map((cs) => cs.subjects?.name?.trim())
-        .filter((name): name is string => Boolean(name))
+        .filter((name): name is string => Boolean(name)),
     ),
   ];
   if (fromAssignments.length > 0) return fromAssignments.join(", ");
@@ -83,7 +129,7 @@ function formatTeacherSubjects(teacher: TeacherRow): string {
   return "N/A";
 }
 
-import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
+const Teachers = () => {
   const [open, setOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -91,7 +137,9 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
   const [teachers, setTeachers] = useState<any[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [schoolId, setSchoolId] = useState<string | null>(null);
-  const [unusedEmployeeNumbers, setUnusedEmployeeNumbers] = useState<string[]>([]);
+  const [unusedEmployeeNumbers, setUnusedEmployeeNumbers] = useState<string[]>(
+    [],
+  );
   const [loadingEmployeeNo, setLoadingEmployeeNo] = useState(false);
   const [generatingEmployeeNo, setGeneratingEmployeeNo] = useState(false);
   const [classes, setClasses] = useState<ClassOption[]>([]);
@@ -100,20 +148,28 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
   const [assignSubjectIds, setAssignSubjectIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [statusChangingId, setStatusChangingId] = useState<string | null>(null);
-  const [employeePlaceholder, setEmployeePlaceholder] = useState("MINGO-Tea-2026-001");
+  const [employeePlaceholder, setEmployeePlaceholder] =
+    useState("MINGO-Tea-2026-001");
   const { toast } = useToast();
-  
-  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<TeacherFormData>({
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    setValue,
+    watch,
+  } = useForm<TeacherFormData>({
     resolver: zodResolver(teacherSchema),
   });
 
   const employeeNoValue = watch("employee_no");
 
-  const { 
-    register: registerEdit, 
-    handleSubmit: handleEditSubmit, 
-    formState: { errors: editErrors }, 
-    reset: resetEdit 
+  const {
+    register: registerEdit,
+    handleSubmit: handleEditSubmit,
+    formState: { errors: editErrors },
+    reset: resetEdit,
   } = useForm<EditTeacherFormData>({
     resolver: zodResolver(editTeacherSchema),
   });
@@ -125,7 +181,9 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
 
   const resolveSchoolId = async (): Promise<string | null> => {
     if (schoolId) return schoolId;
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return null;
     const { data: profileData } = await supabase
       .from("profiles")
@@ -172,7 +230,10 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
         setValue("employee_no", "");
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Failed to load employee numbers";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to load employee numbers";
       toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setLoadingEmployeeNo(false);
@@ -185,7 +246,9 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
       const sid = await resolveSchoolId();
       if (!sid) throw new Error("School not found");
 
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
       const registrationNumber = await generateRegistrationNumber({
@@ -201,7 +264,10 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
         description: `${registrationNumber} is ready to use`,
       });
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Failed to generate employee number";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to generate employee number";
       toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setGeneratingEmployeeNo(false);
@@ -213,18 +279,34 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
     if (!sid) return;
 
     const [classesRes, subjectsRes] = await Promise.all([
-      supabase.from("classes").select("id, name, level").eq("school_id", sid).order("name"),
-      supabase.from("subjects").select("id, name, code").eq("school_id", sid).order("name"),
+      supabase
+        .from("classes")
+        .select("id, name, level")
+        .eq("school_id", sid)
+        .order("name"),
+      supabase
+        .from("subjects")
+        .select("id, name, code")
+        .eq("school_id", sid)
+        .order("name"),
     ]);
 
     if (classesRes.error) {
-      toast({ title: "Error loading classes", description: classesRes.error.message, variant: "destructive" });
+      toast({
+        title: "Error loading classes",
+        description: classesRes.error.message,
+        variant: "destructive",
+      });
     } else {
       setClasses((classesRes.data ?? []) as ClassOption[]);
     }
 
     if (subjectsRes.error) {
-      toast({ title: "Error loading subjects", description: subjectsRes.error.message, variant: "destructive" });
+      toast({
+        title: "Error loading subjects",
+        description: subjectsRes.error.message,
+        variant: "destructive",
+      });
     } else {
       setSubjects((subjectsRes.data ?? []) as SubjectOption[]);
     }
@@ -232,7 +314,7 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
 
   const toggleAssignSubject = (subjectId: string, checked: boolean) => {
     setAssignSubjectIds((prev) =>
-      checked ? [...prev, subjectId] : prev.filter((id) => id !== subjectId)
+      checked ? [...prev, subjectId] : prev.filter((id) => id !== subjectId),
     );
   };
 
@@ -270,7 +352,9 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
   };
 
   const fetchTeachers = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return;
 
     const { data: profileData } = await supabase
@@ -286,16 +370,18 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
 
     const { data, error } = await supabase
       .from("teachers")
-      .select(`
+      .select(
+        `
         *,
         profiles(full_name, email),
         class_subjects(
           subjects(name, code),
           classes(name, level)
         )
-      `)
+      `,
+      )
       .eq("school_id", profileData.school_id);
-    
+
     if (!error && data) {
       setTeachers(data as TeacherRow[]);
     } else if (error) {
@@ -306,7 +392,9 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
   const onSubmit = async (data: TeacherFormData) => {
     setSubmitting(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
       const { data: profileData } = await supabase
@@ -327,25 +415,31 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
         .maybeSingle();
 
       if (regCheck?.status === "used") {
-        throw new Error("This employee number is already in use. Generate or pick another.");
+        throw new Error(
+          "This employee number is already in use. Generate or pick another.",
+        );
       }
 
-      const { data: result, error } = await supabase.functions.invoke('create-user-account', {
-        body: {
-          email: data.email,
-          password: data.password,
-          full_name: data.full_name,
-          role: 'teacher',
-          school_code: schoolCode,
-          employee_no: data.employee_no,
+      const { data: result, error } = await supabase.functions.invoke(
+        "create-user-account",
+        {
+          body: {
+            email: data.email,
+            password: data.password,
+            full_name: data.full_name,
+            role: "teacher",
+            school_code: schoolCode,
+            employee_no: data.employee_no,
+          },
         },
-      });
+      );
 
       if (error) throw error;
       if (result?.error) throw new Error(result.error);
 
       const userId = result?.user?.id as string | undefined;
-      if (!userId) throw new Error("Teacher account created but user id was not returned");
+      if (!userId)
+        throw new Error("Teacher account created but user id was not returned");
 
       let assignmentNote = "";
       if (assignClassId && assignSubjectIds.length > 0) {
@@ -356,13 +450,15 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
           .single();
 
         if (teacherLookupError || !teacherRow) {
-          throw new Error("Teacher created but class assignments could not be saved");
+          throw new Error(
+            "Teacher created but class assignments could not be saved",
+          );
         }
 
         const { assigned } = await assignTeacherClassSubjects(
           teacherRow.id,
           assignClassId,
-          assignSubjectIds
+          assignSubjectIds,
         );
         assignmentNote =
           assigned > 0
@@ -454,19 +550,23 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
 
     setDeleting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('delete-user-account', {
-        body: {
-          user_id: teacher.user_id,
-          user_role: 'teacher',
-          user_name: teacher.profiles?.full_name,
+      const { data, error } = await supabase.functions.invoke(
+        "delete-user-account",
+        {
+          body: {
+            user_id: teacher.user_id,
+            user_role: "teacher",
+            user_name: teacher.profiles?.full_name,
+          },
         },
-      });
+      );
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "Teacher deleted successfully. Employee number remains locked.",
+        description:
+          "Teacher deleted successfully. Employee number remains locked.",
       });
 
       fetchTeachers();
@@ -481,7 +581,10 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
     }
   };
 
-  const handleToggleTeacherStatus = async (teacher: TeacherRow, activate: boolean) => {
+  const handleToggleTeacherStatus = async (
+    teacher: TeacherRow,
+    activate: boolean,
+  ) => {
     setStatusChangingId(teacher.id);
     try {
       const result = await setTeacherAccountStatus(teacher.id, activate);
@@ -498,10 +601,15 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
 
       await fetchTeachers();
       if (selectedTeacher?.id === teacher.id) {
-        setSelectedTeacher((prev) => (prev ? { ...prev, is_active: activate } : prev));
+        setSelectedTeacher((prev) =>
+          prev ? { ...prev, is_active: activate } : prev,
+        );
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Failed to update account status";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to update account status";
       toast({
         title: "Error",
         description: message,
@@ -519,8 +627,12 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
       <div className="space-y-4 md:space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Teachers</h2>
-            <p className="text-sm md:text-base text-muted-foreground">Manage teaching staff</p>
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">
+              Teachers
+            </h2>
+            <p className="text-sm md:text-base text-muted-foreground">
+              Manage teaching staff
+            </p>
           </div>
           <Dialog open={open} onOpenChange={handleAddDialogChange}>
             <DialogTrigger asChild>
@@ -532,7 +644,9 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add New Teacher</DialogTitle>
-                <DialogDescription>Enter teacher information to create a new account</DialogDescription>
+                <DialogDescription>
+                  Enter teacher information to create a new account
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -548,7 +662,9 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
                           onClick={() => void handleGenerateEmployeeNumber()}
                           disabled={loadingEmployeeNo || generatingEmployeeNo}
                         >
-                          <Hash className={`h-3.5 w-3.5 ${generatingEmployeeNo ? "animate-pulse" : ""}`} />
+                          <Hash
+                            className={`h-3.5 w-3.5 ${generatingEmployeeNo ? "animate-pulse" : ""}`}
+                          />
                           Generate
                         </Button>
                         <Button
@@ -559,7 +675,9 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
                           onClick={() => void loadUnusedEmployeeNumbers()}
                           disabled={loadingEmployeeNo || generatingEmployeeNo}
                         >
-                          <RefreshCw className={`h-3.5 w-3.5 ${loadingEmployeeNo ? "animate-spin" : ""}`} />
+                          <RefreshCw
+                            className={`h-3.5 w-3.5 ${loadingEmployeeNo ? "animate-spin" : ""}`}
+                          />
                           Refresh
                         </Button>
                       </div>
@@ -567,7 +685,11 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
                     {unusedEmployeeNumbers.length > 1 ? (
                       <Select
                         value={employeeNoValue || undefined}
-                        onValueChange={(value) => setValue("employee_no", value, { shouldValidate: true })}
+                        onValueChange={(value) =>
+                          setValue("employee_no", value, {
+                            shouldValidate: true,
+                          })
+                        }
                         disabled={loadingEmployeeNo || generatingEmployeeNo}
                       >
                         <SelectTrigger id="employee_no">
@@ -585,45 +707,85 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
                       <Input
                         id="employee_no"
                         {...register("employee_no")}
-                        placeholder={loadingEmployeeNo ? "Loading next number…" : employeePlaceholder}
+                        placeholder={
+                          loadingEmployeeNo
+                            ? "Loading next number…"
+                            : employeePlaceholder
+                        }
                         disabled={loadingEmployeeNo || generatingEmployeeNo}
                         readOnly={unusedEmployeeNumbers.length === 1}
-                        className={unusedEmployeeNumbers.length === 1 ? "bg-muted font-mono" : "font-mono"}
+                        className={
+                          unusedEmployeeNumbers.length === 1
+                            ? "bg-muted font-mono"
+                            : "font-mono"
+                        }
                       />
                     )}
-                    {!loadingEmployeeNo && !generatingEmployeeNo && unusedEmployeeNumbers.length === 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        No employee numbers yet. Click <span className="font-medium">Generate</span> to create one.
+                    {!loadingEmployeeNo &&
+                      !generatingEmployeeNo &&
+                      unusedEmployeeNumbers.length === 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          No employee numbers yet. Click{" "}
+                          <span className="font-medium">Generate</span> to
+                          create one.
+                        </p>
+                      )}
+                    {!loadingEmployeeNo &&
+                      !generatingEmployeeNo &&
+                      unusedEmployeeNumbers.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          {unusedEmployeeNumbers.length} unused number
+                          {unusedEmployeeNumbers.length === 1 ? "" : "s"}{" "}
+                          available
+                        </p>
+                      )}
+                    {errors.employee_no && (
+                      <p className="text-sm text-destructive">
+                        {errors.employee_no.message}
                       </p>
                     )}
-                    {!loadingEmployeeNo && !generatingEmployeeNo && unusedEmployeeNumbers.length > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        {unusedEmployeeNumbers.length} unused number{unusedEmployeeNumbers.length === 1 ? "" : "s"} available
-                      </p>
-                    )}
-                    {errors.employee_no && <p className="text-sm text-destructive">{errors.employee_no.message}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="full_name">Full Name</Label>
                     <Input id="full_name" {...register("full_name")} />
-                    {errors.full_name && <p className="text-sm text-destructive">{errors.full_name.message}</p>}
+                    {errors.full_name && (
+                      <p className="text-sm text-destructive">
+                        {errors.full_name.message}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
                     <Input id="email" type="email" {...register("email")} />
-                    {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+                    {errors.email && (
+                      <p className="text-sm text-destructive">
+                        {errors.email.message}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
-                    <Input id="password" type="password" {...register("password")} />
-                    {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
+                    <Input
+                      id="password"
+                      type="password"
+                      {...register("password")}
+                    />
+                    {errors.password && (
+                      <p className="text-sm text-destructive">
+                        {errors.password.message}
+                      </p>
+                    )}
                   </div>
 
                   <div className="col-span-2 space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                       <div>
-                        <p className="text-sm font-semibold">Class & subject assignment</p>
-                        <p className="text-xs text-muted-foreground">Optional — assign now or later via Teacher–Class Link</p>
+                        <p className="text-sm font-semibold">
+                          Class & subject assignment
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Optional — assign now or later via Teacher–Class Link
+                        </p>
                       </div>
                       <Button
                         type="button"
@@ -659,18 +821,24 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
                         </SelectContent>
                       </Select>
                       {classes.length === 0 && (
-                        <p className="text-xs text-muted-foreground">No classes found. Create classes first.</p>
+                        <p className="text-xs text-muted-foreground">
+                          No classes found. Create classes first.
+                        </p>
                       )}
                     </div>
 
                     <div className="space-y-2">
                       <Label>
                         Subjects
-                        {assignSubjectIds.length > 0 ? ` (${assignSubjectIds.length} selected)` : ""}
+                        {assignSubjectIds.length > 0
+                          ? ` (${assignSubjectIds.length} selected)`
+                          : ""}
                       </Label>
                       <div className="max-h-44 overflow-y-auto rounded-md border bg-background p-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {subjects.length === 0 ? (
-                          <p className="text-xs text-muted-foreground col-span-full">No subjects available.</p>
+                          <p className="text-xs text-muted-foreground col-span-full">
+                            No subjects available.
+                          </p>
                         ) : (
                           subjects.map((subject) => (
                             <label
@@ -680,7 +848,10 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
                               <Checkbox
                                 checked={assignSubjectIds.includes(subject.id)}
                                 onCheckedChange={(checked) =>
-                                  toggleAssignSubject(subject.id, checked === true)
+                                  toggleAssignSubject(
+                                    subject.id,
+                                    checked === true,
+                                  )
                                 }
                                 disabled={!assignClassId}
                               />
@@ -693,13 +864,20 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
                         )}
                       </div>
                       {!assignClassId && (
-                        <p className="text-xs text-muted-foreground">Select a class to choose subjects.</p>
+                        <p className="text-xs text-muted-foreground">
+                          Select a class to choose subjects.
+                        </p>
                       )}
                     </div>
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={submitting}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setOpen(false)}
+                    disabled={submitting}
+                  >
                     Cancel
                   </Button>
                   <Button type="submit" disabled={submitting}>
@@ -715,12 +893,19 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
           <CardHeader className="p-4 md:p-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <CardTitle className="text-lg md:text-xl">All Teachers</CardTitle>
-                <CardDescription className="text-sm md:text-base">View and manage teacher information</CardDescription>
+                <CardTitle className="text-lg md:text-xl">
+                  All Teachers
+                </CardTitle>
+                <CardDescription className="text-sm md:text-base">
+                  View and manage teacher information
+                </CardDescription>
               </div>
               <div className="relative w-full sm:w-auto">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search teachers..." className="pl-10 w-full sm:w-64 text-base" />
+                <Input
+                  placeholder="Search teachers..."
+                  className="pl-10 w-full sm:w-64 text-base"
+                />
               </div>
             </div>
           </CardHeader>
@@ -729,37 +914,65 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="min-w-[120px]">Employee No.</TableHead>
+                    <TableHead className="min-w-[120px]">
+                      Employee No.
+                    </TableHead>
                     <TableHead className="min-w-[150px]">Name</TableHead>
-                    <TableHead className="hidden md:table-cell">Assigned Class</TableHead>
-                    <TableHead className="hidden md:table-cell">Subject</TableHead>
-                    <TableHead className="hidden lg:table-cell">Email</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Assigned Class
+                    </TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Subject
+                    </TableHead>
+                    <TableHead className="hidden lg:table-cell">
+                      Email
+                    </TableHead>
                     <TableHead className="min-w-[80px]">Status</TableHead>
-                    <TableHead className="text-right min-w-[120px]">Actions</TableHead>
+                    <TableHead className="text-right min-w-[120px]">
+                      Actions
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {teachers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                        No teachers found. Add your first teacher to get started.
+                      <TableCell
+                        colSpan={7}
+                        className="text-center text-muted-foreground py-8"
+                      >
+                        No teachers found. Add your first teacher to get
+                        started.
                       </TableCell>
                     </TableRow>
                   ) : (
                     teachers.map((teacher) => (
                       <TableRow key={teacher.id}>
                         <TableCell className="font-medium">
-                          {teacher.employee_no || <Badge variant="outline" className="text-xs">Not assigned</Badge>}
+                          {teacher.employee_no || (
+                            <Badge variant="outline" className="text-xs">
+                              Not assigned
+                            </Badge>
+                          )}
                         </TableCell>
-                        <TableCell className="font-medium">{teacher.profiles?.full_name}</TableCell>
-                        <TableCell className="hidden md:table-cell">{formatTeacherClasses(teacher)}</TableCell>
-                        <TableCell className="hidden md:table-cell">{formatTeacherSubjects(teacher)}</TableCell>
-                        <TableCell className="hidden lg:table-cell text-sm">{teacher.profiles?.email}</TableCell>
+                        <TableCell className="font-medium">
+                          {teacher.profiles?.full_name}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {formatTeacherClasses(teacher)}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {formatTeacherSubjects(teacher)}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell text-sm">
+                          {teacher.profiles?.email}
+                        </TableCell>
                         <TableCell>
                           {isTeacherActive(teacher) ? (
                             <Badge className="bg-success text-xs">Active</Badge>
                           ) : (
-                            <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              Inactive
+                            </Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-right">
@@ -770,8 +983,14 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
                                   variant="ghost"
                                   size="sm"
                                   className={`h-8 md:h-9 ${isTeacherActive(teacher) ? "text-amber-600 hover:text-amber-700" : "text-green-600 hover:text-green-700"}`}
-                                  disabled={statusChangingId === teacher.id || deleting}
-                                  title={isTeacherActive(teacher) ? "Deactivate account" : "Activate account"}
+                                  disabled={
+                                    statusChangingId === teacher.id || deleting
+                                  }
+                                  title={
+                                    isTeacherActive(teacher)
+                                      ? "Deactivate account"
+                                      : "Activate account"
+                                  }
                                 >
                                   {isTeacherActive(teacher) ? (
                                     <UserX className="h-4 w-4" />
@@ -783,18 +1002,29 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
                               <AlertDialogContent>
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>
-                                    {isTeacherActive(teacher) ? "Deactivate teacher account?" : "Activate teacher account?"}
+                                    {isTeacherActive(teacher)
+                                      ? "Deactivate teacher account?"
+                                      : "Activate teacher account?"}
                                   </AlertDialogTitle>
                                   <AlertDialogDescription>
                                     {isTeacherActive(teacher) ? (
                                       <>
-                                        This will deactivate <strong>{teacher.profiles?.full_name}</strong>&apos;s account.
-                                        They will be signed out immediately and cannot log in until you reactivate the account.
+                                        This will deactivate{" "}
+                                        <strong>
+                                          {teacher.profiles?.full_name}
+                                        </strong>
+                                        &apos;s account. They will be signed out
+                                        immediately and cannot log in until you
+                                        reactivate the account.
                                       </>
                                     ) : (
                                       <>
-                                        This will reactivate <strong>{teacher.profiles?.full_name}</strong>&apos;s account.
-                                        They can sign in again using their existing credentials.
+                                        This will reactivate{" "}
+                                        <strong>
+                                          {teacher.profiles?.full_name}
+                                        </strong>
+                                        &apos;s account. They can sign in again
+                                        using their existing credentials.
                                       </>
                                     )}
                                   </AlertDialogDescription>
@@ -802,7 +1032,12 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                                   <AlertDialogAction
-                                    onClick={() => void handleToggleTeacherStatus(teacher, !isTeacherActive(teacher))}
+                                    onClick={() =>
+                                      void handleToggleTeacherStatus(
+                                        teacher,
+                                        !isTeacherActive(teacher),
+                                      )
+                                    }
                                     className={
                                       isTeacherActive(teacher)
                                         ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -818,16 +1053,16 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="sm"
                               onClick={() => openEditDialog(teacher)}
                               className="h-8 md:h-9"
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="sm"
                               onClick={() => {
                                 setSelectedTeacher(teacher);
@@ -839,8 +1074,8 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
                             </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
+                                <Button
+                                  variant="ghost"
                                   size="sm"
                                   className="h-8 md:h-9 text-destructive hover:text-destructive"
                                   disabled={deleting}
@@ -850,16 +1085,19 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Teacher</AlertDialogTitle>
+                                  <AlertDialogTitle>
+                                    Delete Teacher
+                                  </AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Are you sure you want to delete {teacher.profiles?.full_name}? 
-                                    This action cannot be undone. The employee number will remain 
-                                    locked and cannot be reused.
+                                    Are you sure you want to delete{" "}
+                                    {teacher.profiles?.full_name}? This action
+                                    cannot be undone. The employee number will
+                                    remain locked and cannot be reused.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction 
+                                  <AlertDialogAction
                                     onClick={() => handleDeleteTeacher(teacher)}
                                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                   >
@@ -886,25 +1124,51 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
               <DialogTitle>Edit Teacher</DialogTitle>
               <DialogDescription>Update teacher information</DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleEditSubmit(onEditSubmit)} className="space-y-4">
+            <form
+              onSubmit={handleEditSubmit(onEditSubmit)}
+              className="space-y-4"
+            >
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit_employee_no">Employee Number</Label>
-                  <Input id="edit_employee_no" {...registerEdit("employee_no")} />
-                  {editErrors.employee_no && <p className="text-sm text-destructive">{editErrors.employee_no.message}</p>}
+                  <Input
+                    id="edit_employee_no"
+                    {...registerEdit("employee_no")}
+                  />
+                  {editErrors.employee_no && (
+                    <p className="text-sm text-destructive">
+                      {editErrors.employee_no.message}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit_full_name">Full Name</Label>
                   <Input id="edit_full_name" {...registerEdit("full_name")} />
-                  {editErrors.full_name && <p className="text-sm text-destructive">{editErrors.full_name.message}</p>}
+                  {editErrors.full_name && (
+                    <p className="text-sm text-destructive">
+                      {editErrors.full_name.message}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2 col-span-2">
-                  <Label htmlFor="edit_subject_specialty">Subject Specialty</Label>
-                  <Input id="edit_subject_specialty" {...registerEdit("subject_specialty")} placeholder="e.g. Mathematics, Physics" />
+                  <Label htmlFor="edit_subject_specialty">
+                    Subject Specialty
+                  </Label>
+                  <Input
+                    id="edit_subject_specialty"
+                    {...registerEdit("subject_specialty")}
+                    placeholder="e.g. Mathematics, Physics"
+                  />
                 </div>
               </div>
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
                 <Button type="submit">Save Changes</Button>
               </div>
             </form>
@@ -916,30 +1180,48 @@ import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Teacher Details</DialogTitle>
-              <DialogDescription>View complete teacher information</DialogDescription>
+              <DialogDescription>
+                View complete teacher information
+              </DialogDescription>
             </DialogHeader>
             {selectedTeacher && (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-muted-foreground">Employee Number</Label>
-                    <p className="font-medium">{selectedTeacher.employee_no || "Not assigned"}</p>
+                    <Label className="text-muted-foreground">
+                      Employee Number
+                    </Label>
+                    <p className="font-medium">
+                      {selectedTeacher.employee_no || "Not assigned"}
+                    </p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Full Name</Label>
-                    <p className="font-medium">{selectedTeacher.profiles?.full_name}</p>
+                    <p className="font-medium">
+                      {selectedTeacher.profiles?.full_name}
+                    </p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Email</Label>
-                    <p className="font-medium">{selectedTeacher.profiles?.email}</p>
+                    <p className="font-medium">
+                      {selectedTeacher.profiles?.email}
+                    </p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">Assigned Class</Label>
-                    <p className="font-medium">{formatTeacherClasses(selectedTeacher)}</p>
+                    <Label className="text-muted-foreground">
+                      Assigned Class
+                    </Label>
+                    <p className="font-medium">
+                      {formatTeacherClasses(selectedTeacher)}
+                    </p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">Assigned Subject</Label>
-                    <p className="font-medium">{formatTeacherSubjects(selectedTeacher)}</p>
+                    <Label className="text-muted-foreground">
+                      Assigned Subject
+                    </Label>
+                    <p className="font-medium">
+                      {formatTeacherSubjects(selectedTeacher)}
+                    </p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Status</Label>

@@ -26,6 +26,7 @@ import {
   useMonthlyAttendanceTrend,
 } from "@/register/hooks/use-attendance-summary";
 import { AttendanceAnalyticsPanel } from "@/register/components/AttendanceAnalyticsPanel";
+import { ClassSubjectTeachersPanel } from "@/components/class-subjects/ClassSubjectTeachersPanel";
 
 const ParentDashboard = () => {
   const navigate = useNavigate();
@@ -198,6 +199,19 @@ const ParentDashboard = () => {
             />
           </div>
         ) : null}
+
+        {children.length > 0
+          ? children.map((child) =>
+              child.class_id ? (
+                <ClassSubjectTeachersPanel
+                  key={child.id}
+                  classId={child.class_id}
+                  title={`Subjects & teachers — ${studentDisplayNameForParent(child)}`}
+                  description="Teachers assigned to your child's class"
+                />
+              ) : null,
+            )
+          : null}
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Recent Grades */}

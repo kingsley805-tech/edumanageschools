@@ -1,24 +1,17 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { TrendComparisonChart } from "@/components/charts/TrendComparisonChart";
+import { AnimatedBarChart } from "@/components/charts/AnimatedBarChart";
 import { RegisterAttendanceChart } from "@/register/components/RegisterAttendanceChart";
 import type { AttendanceSummary } from "@/register/lib/attendance";
 
-type MonthlyPoint = { month: string; present: number; absent: number; late: number; rate: number };
+type MonthlyPoint = {
+  month: string;
+  present: number;
+  absent: number;
+  late: number;
+  rate: number;
+};
 
 type Props = {
   summary: AttendanceSummary | null | undefined;
@@ -51,30 +44,35 @@ export function AttendanceAnalyticsPanel({
   const late = summary?.late_count ?? 0;
   const excused = summary?.excused_count ?? 0;
 
-  const compareData = [
-    { name: "Present", value: present, color: "#22c55e" },
-    { name: "Absent", value: absent, color: "#ef4444" },
-    { name: "Late", value: late, color: "#f97316" },
-    { name: "Excused", value: excused, color: "#3b82f6" },
-  ].filter((d) => d.value > 0);
+  const compareData = [{ name: "Breakdown", present, absent, late, excused }];
 
   const rateComparison = [
     { label: "Student", rate: studentPct },
     { label: "Class", rate: classPct },
   ].filter((d) => d.rate > 0 || summary || classSummary);
 
+  const monthlyTrendData = monthlyTrend.map((row, index, arr) => ({
+    label: row.month,
+    current: row.present,
+    previous: index > 0 ? arr[index - 1]?.present ?? 0 : 0,
+    secondary: row.absent,
+  }));
+
   if (!summary && !classSummary && monthlyTrend.length === 0) {
     return (
       <Card>
         <CardContent className="py-8 text-center text-sm text-muted-foreground">
-          Attendance statistics will appear here once teachers start recording attendance.
+          Attendance statistics will appear here once teachers start recording
+          attendance.
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <div className={`grid gap-4 ${compact ? "md:grid-cols-2" : "lg:grid-cols-2"}`}>
+    <div
+      className={`grid gap-4 ${compact ? "md:grid-cols-2" : "lg:grid-cols-2"}`}
+    >
       <RegisterAttendanceChart
         percent={Math.round(studentPct)}
         present={present}
@@ -82,81 +80,67 @@ export function AttendanceAnalyticsPanel({
         late={late}
       />
 
-      <Card className="border-border/80">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Present vs absent</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[180px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={
-                    compareData.length
-                      ? compareData
-                      : [{ name: "No data", value: 1, color: "#94a3b8" }]
-                  }
-                  dataKey="value"
-                  innerRadius={48}
-                  outerRadius={72}
-                  strokeWidth={0}
-                >
-                  {(compareData.length ? compareData : [{ color: "#94a3b8" }]).map((entry, i) => (
-                    <Cell key={i} fill={(entry as { color: string }).color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+      <div className="overflow-hidden rounded-xl border border-border/70 bg-card dark:border-white/10 dark:bg-[#0b0f0d]">
+        <div className="border-b border-border/50 px-4 py-4 dark:border-white/10">
+          <h3 className="text-sm font-semibold">Present vs absent vs late</h3>
+          <p className="text-xs text-muted-foreground">Term breakdown</p>
+        </div>
+        <div className="p-4">
+          <AnimatedBarChart
+            data={compareData}
+            categoryKey="name"
+            height={200}
+            stacked
+            series={[
+              { key: "present", label: "Present", color: "#34d399" },
+              { key: "absent", label: "Absent", color: "#f87171" },
+              { key: "late", label: "Late", color: "#fbbf24" },
+              { key: "excused", label: "Excused", color: "#60a5fa" },
+            ]}
+          />
+        </div>
+      </div>
+
+      {monthlyTrend.length > 0 ? (
+        <div className="lg:col-span-2">
+          <TrendComparisonChart
+            title="Monthly attendance trend"
+            subtitle="Present students — current month vs previous"
+            data={monthlyTrendData}
+            currentLabel="Present"
+            previousLabel="Previous"
+            secondaryLabel="Absent"
+            valueFormatter={(v) => String(v)}
+            height={280}
+          />
+        </div>
+      ) : null}
+
+      {rateComparison.length > 0 ? (
+        <div className="overflow-hidden rounded-xl border border-border/70 bg-card lg:col-span-2 dark:border-white/10 dark:bg-[#0b0f0d]">
+          <div className="border-b border-border/50 px-4 py-4 dark:border-white/10">
+            <h3 className="text-sm font-semibold">Attendance percentage</h3>
+            <p className="text-xs text-muted-foreground">Student vs class average</p>
           </div>
-        </CardContent>
-      </Card>
-
-      {monthlyTrend.length > 0 && (
-        <Card className="border-border/80 lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Monthly attendance trend</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[220px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthlyTrend}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="present" stroke="#22c55e" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="absent" stroke="#ef4444" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="rate" stroke="#6366f1" strokeWidth={2} dot={false} name="Rate %" />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {rateComparison.length > 0 && (
-        <Card className="border-border/80 lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Attendance percentage</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[160px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={rateComparison} layout="vertical" margin={{ left: 8, right: 24 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="label" width={72} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} />
-                  <Bar dataKey="rate" fill="#6366f1" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          <div className="p-4">
+            <AnimatedBarChart
+              data={rateComparison}
+              categoryKey="label"
+              layout="vertical"
+              height={160}
+              showLegend={false}
+              valueFormatter={(v) => `${v}%`}
+              series={[
+                {
+                  key: "rate",
+                  label: "Attendance rate",
+                  color: "#34d399",
+                },
+              ]}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

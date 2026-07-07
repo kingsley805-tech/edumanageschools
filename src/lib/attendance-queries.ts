@@ -296,10 +296,11 @@ export async function fetchSchoolAttendanceStats(
 export async function fetchSchoolAttendanceTrend(
   schoolId: string,
   days = 7,
+  offsetDays = 0,
 ): Promise<{ date: string; present: number; absent: number }[]> {
   const dates = Array.from({ length: days }, (_, i) => {
     const d = new Date();
-    d.setDate(d.getDate() - (days - 1 - i));
+    d.setDate(d.getDate() - offsetDays - (days - 1 - i));
     return d.toISOString().split("T")[0];
   });
 
@@ -336,4 +337,22 @@ export async function fetchSchoolAttendanceTrend(
       };
     }),
   );
+}
+
+/** Align current period attendance with the immediately preceding period for trend charts. */
+export async function fetchSchoolAttendanceTrendComparison(
+  schoolId: string,
+  days = 14,
+): Promise<{ label: string; current: number; previous: number; secondary: number }[]> {
+  const [current, previous] = await Promise.all([
+    fetchSchoolAttendanceTrend(schoolId, days, 0),
+    fetchSchoolAttendanceTrend(schoolId, days, days),
+  ]);
+
+  return current.map((row, index) => ({
+    label: row.date,
+    current: row.present,
+    previous: previous[index]?.present ?? 0,
+    secondary: row.absent,
+  }));
 }

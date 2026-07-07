@@ -16,6 +16,7 @@ import {
   useMonthlyAttendanceTrend,
 } from "@/register/hooks/use-attendance-summary";
 import { AttendanceAnalyticsPanel } from "@/register/components/AttendanceAnalyticsPanel";
+import { ClassSubjectTeachersPanel } from "@/components/class-subjects/ClassSubjectTeachersPanel";
 
 const StudentDashboard = () => {
   const { studentId, classId, loading } = useStudentData();
@@ -82,6 +83,12 @@ const StudentDashboard = () => {
         />
 
         <StudentPortalSections />
+
+        <ClassSubjectTeachersPanel
+          classId={classId}
+          title="My subjects & teachers"
+          description="Teachers assigned to your class"
+        />
 
         {/* Stats */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">

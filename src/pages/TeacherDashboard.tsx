@@ -10,6 +10,7 @@ import { useCurrentTerm } from "@/report/hooks/use-school-data";
 import { useClassAttendanceSummary } from "@/register/hooks/use-attendance-summary";
 import { RegisterAttendanceChart } from "@/register/components/RegisterAttendanceChart";
 import { fetchSchoolAttendanceTrend } from "@/lib/attendance-queries";
+import { TeacherAssignmentsPanel } from "@/components/class-subjects/TeacherAssignmentsPanel";
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ const TeacherDashboard = () => {
   const [upcomingClasses, setUpcomingClasses] = useState<any[]>([]);
   const [recentAssignments, setRecentAssignments] = useState<any[]>([]);
   const [primaryClassId, setPrimaryClassId] = useState<string | null>(null);
+  const [teacherId, setTeacherId] = useState<string | null>(null);
   const { data: term } = useCurrentTerm();
   const { data: classSummary } = useClassAttendanceSummary(primaryClassId, term?.id);
 
@@ -41,6 +43,8 @@ const TeacherDashboard = () => {
       .single();
 
     if (!teacherData) return;
+
+    setTeacherId(teacherData.id);
 
     // Fetch only classes assigned to this teacher
     const { data: classSubjectsData } = await supabase
@@ -119,6 +123,8 @@ const TeacherDashboard = () => {
             />
           </div>
         ) : null}
+
+        <TeacherAssignmentsPanel teacherId={teacherId} />
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Today's Schedule */}

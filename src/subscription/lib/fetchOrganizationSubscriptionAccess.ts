@@ -17,15 +17,75 @@ export function isMissingSchemaError(error: SupabaseErrorLike): boolean {
     code === "PGRST202" ||
     code === "PGRST205" ||
     code === "PGRST204" ||
+    code === "42703" ||
     code === "42883" ||
     error.status === 404 ||
+    (error.status === 400 &&
+      (msg.includes("column") ||
+        msg.includes("schema cache") ||
+        msg.includes("could not find"))) ||
     msg.includes("could not find the function") ||
     msg.includes("could not find the table") ||
     msg.includes("could not find the column") ||
-    msg.includes("column") && msg.includes("does not exist") ||
+    (msg.includes("column") && msg.includes("does not exist")) ||
     msg.includes("does not exist") ||
     msg.includes("get_organization_subscription_access")
   );
+}
+
+export type SchoolSubscriptionEntitlementsRow = {
+  status: string | null;
+  read_only_on_expiry: boolean | null;
+  block_login_on_expiry: boolean | null;
+  expires_at: string | null;
+  plan_id: string | null;
+  entitlements_override?: boolean | null;
+};
+
+/** Subscription row for module gating; falls back when newer columns are not migrated yet. */
+export async function fetchSchoolSubscriptionForEntitlements(
+  schoolId: string,
+): Promise<{ data: SchoolSubscriptionEntitlementsRow | null; entitlementsOverride: boolean }> {
+  const fullSelect =
+    "status, read_only_on_expiry, block_login_on_expiry, expires_at, plan_id, entitlements_override";
+
+  const fullRes = await supabase
+    .from("school_subscriptions")
+    .select(fullSelect)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+
+  if (!fullRes.error) {
+    return {
+      data: fullRes.data as SchoolSubscriptionEntitlementsRow | null,
+      entitlementsOverride: Boolean(
+        (fullRes.data as { entitlements_override?: boolean } | null)?.entitlements_override,
+      ),
+    };
+  }
+
+  if (!isMissingSchemaError(fullRes.error)) {
+    throw fullRes.error;
+  }
+
+  const baseSelect = "status, read_only_on_expiry, block_login_on_expiry, expires_at, plan_id";
+  const baseRes = await supabase
+    .from("school_subscriptions")
+    .select(baseSelect)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+
+  if (baseRes.error) {
+    if (isMissingSchemaError(baseRes.error)) {
+      return { data: null, entitlementsOverride: false };
+    }
+    throw baseRes.error;
+  }
+
+  return {
+    data: baseRes.data as SchoolSubscriptionEntitlementsRow | null,
+    entitlementsOverride: false,
+  };
 }
 
 /** After first 404/missing-function response, skip RPC for the rest of the session. */

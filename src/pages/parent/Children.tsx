@@ -31,6 +31,7 @@ import {
   studentDisplayNameForParent,
 } from "@/lib/parent-students";
 import { fetchStudentAttendanceRate } from "@/lib/attendance-queries";
+import { ClassSubjectTeachersPanel } from "@/components/class-subjects/ClassSubjectTeachersPanel";
 
 interface Child {
   id: string;
@@ -383,6 +384,17 @@ const Children = () => {
               </Card>
             ))}
           </div>
+        )}
+
+        {children.map((child) =>
+          child.class_id ? (
+            <ClassSubjectTeachersPanel
+              key={`subjects-${child.id}`}
+              classId={child.class_id}
+              title={`Subjects & teachers — ${studentDisplayNameForParent(child)}`}
+              description="Teachers assigned to this class"
+            />
+          ) : null,
         )}
       </div>
     </DashboardLayout>

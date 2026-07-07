@@ -7,7 +7,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import type { ModuleEntitlementRow } from "@/platform/lib/types";
 import { moduleByPath } from "@/lib/rbac/permissionCatalog";
 import { isPathGatedByPlatformPackage } from "@/platform/lib/portalModuleEntitlements";
-import { isMissingSchemaError } from "@/subscription/lib/fetchOrganizationSubscriptionAccess";
+import { isMissingSchemaError, fetchSchoolSubscriptionForEntitlements } from "@/subscription/lib/fetchOrganizationSubscriptionAccess";
 import {
   ORGANIZATION_SUBSCRIPTION_ACCESS_KEY,
   SCHOOL_MODULE_ENTITLEMENTS_KEY,
@@ -36,11 +36,13 @@ export function useSchoolEntitlements(schoolId?: string | null) {
     queryKey: [ENTITLEMENTS_KEY, sid],
     enabled: Boolean(sid),
     queryFn: async () => {
-      const [modsRes, entRes, subRes] = await Promise.all([
+      const [modsRes, entRes, subFetch] = await Promise.all([
         supabase.from("platform_modules").select("*").order("sort_order"),
         supabase.from("school_module_entitlements").select("*").eq("school_id", sid!),
-        supabase.from("school_subscriptions").select("status, read_only_on_expiry, block_login_on_expiry, expires_at, plan_id, entitlements_override").eq("school_id", sid!).maybeSingle(),
+        fetchSchoolSubscriptionForEntitlements(sid!),
       ]);
+      const subRes = { data: subFetch.data, error: null as null };
+      const entitlementsOverride = subFetch.entitlementsOverride;
 
       let planModuleCount = 0;
       if (subRes.data?.plan_id) {
@@ -70,7 +72,6 @@ export function useSchoolEntitlements(schoolId?: string | null) {
 
       if (modsRes.error && !isMissingSchemaError(modsRes.error)) throw modsRes.error;
       if (entRes.error && !isMissingSchemaError(entRes.error)) throw entRes.error;
-      if (subRes.error && !isMissingSchemaError(subRes.error)) throw subRes.error;
 
       if (!platformReady || !subRes.data) {
         return {
@@ -104,7 +105,7 @@ export function useSchoolEntitlements(schoolId?: string | null) {
         subscription: subRes.data,
         enforced: Boolean(subRes.data),
         planModuleCount,
-        entitlementsOverride: Boolean((subRes.data as { entitlements_override?: boolean })?.entitlements_override),
+        entitlementsOverride,
       };
     },
     retry: (failureCount, error) => {

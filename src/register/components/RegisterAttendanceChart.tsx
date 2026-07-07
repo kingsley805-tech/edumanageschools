@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
+import { AnimatedBarChart } from "@/components/charts/AnimatedBarChart";
+import { StatCounter } from "@/components/charts/StatCounter";
 
 export function RegisterAttendanceChart({
   percent,
@@ -12,33 +13,34 @@ export function RegisterAttendanceChart({
   absent: number;
   late: number;
 }) {
-  const data = [
-    { name: "Present", value: present, color: "#22c55e" },
-    { name: "Absent", value: absent, color: "#ef4444" },
-    { name: "Late", value: late, color: "#f97316" },
-  ].filter((d) => d.value > 0);
+  const data = [{ name: "Term", present, absent, late }];
 
   return (
-    <Card className="border-border/80">
-      <CardHeader className="pb-2">
+    <Card className="card-interactive overflow-hidden border-border/80 dark:border-white/10 dark:bg-[#0b0f0d]">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-base">Term attendance summary</CardTitle>
+        <div className="text-right">
+          <StatCounter
+            value={percent}
+            formatter={(v) => `${Math.round(v)}%`}
+            className="text-2xl font-bold text-emerald-400 tabular-nums"
+          />
+          <p className="text-[11px] text-muted-foreground">attendance rate</p>
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="h-[180px] relative">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={data.length ? data : [{ name: "No data", value: 1, color: "#94a3b8" }]} innerRadius={52} outerRadius={72} dataKey="value" strokeWidth={0}>
-                {(data.length ? data : [{ color: "#94a3b8" }]).map((entry, i) => (
-                  <Cell key={i} fill={(entry as { color: string }).color} />
-                ))}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <span className="text-2xl font-bold">{percent}%</span>
-          </div>
-        </div>
-        <p className="text-center text-sm text-muted-foreground mt-2">
+        <AnimatedBarChart
+          data={data}
+          categoryKey="name"
+          height={200}
+          showLegend
+          series={[
+            { key: "present", label: "Present", color: "#34d399" },
+            { key: "absent", label: "Absent", color: "#f87171" },
+            { key: "late", label: "Late", color: "#fbbf24" },
+          ]}
+        />
+        <p className="mt-2 text-center text-sm text-muted-foreground">
           {present} present · {absent} absent · {late} late
         </p>
       </CardContent>
