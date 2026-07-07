@@ -27,6 +27,10 @@ export function WaecSchemaSetupCard({ checking, onRecheck }: Props) {
             <span className="text-foreground/80"> — removes exam-year dependency (curriculum-style questions)</span>
           </li>
           <li>
+            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">public/sql/apply-waec-student-generate.sql</code>
+            <span className="text-foreground/80"> — lets students generate their own AI exams</span>
+          </li>
+          <li>
             <code className="rounded bg-muted px-1.5 py-0.5 text-xs">NOTIFY pgrst, &apos;reload schema&apos;;</code>
           </li>
         </ol>

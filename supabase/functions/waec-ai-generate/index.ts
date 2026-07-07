@@ -205,25 +205,35 @@ serve(async (req) => {
       .eq("user_id", userData.user.id);
     const roles = (roleRows ?? []).map((r) => r.role);
     const isStaff = roles.some((r) => ["admin", "super_admin", "teacher"].includes(r));
-    if (!isStaff) return json({ error: "Only staff can generate questions." }, 403);
+    const isStudent = roles.includes("student");
+    if (!isStaff && !isStudent) {
+      return json({ error: "You are not allowed to generate questions." }, 403);
+    }
 
     const body = (await req.json()) as GenParams;
     if (!body.subjectId || !body.subjectName || !body.level) {
       return json({ error: "subjectId, subjectName and level are required." }, 400);
     }
 
-    const count = Math.min(Math.max(Number(body.count) || 10, 1), 25);
+    // Students get a smaller per-request cap to protect AI quota.
+    const maxCount = isStaff ? 25 : 20;
+    const count = Math.min(Math.max(Number(body.count) || 10, 1), maxCount);
 
     const apiKey = await resolveGeminiApiKey(admin);
     if (!apiKey) {
       return json(
-        { error: "Platform AI is not configured. The Super Admin must add the Gemini API key in AI Assistant." },
+        { error: "AI is not configured yet. Ask your Super Admin to add the Gemini API key in AI Assistant." },
         500,
       );
     }
 
-    let schoolId: string | null = body.schoolId !== undefined ? body.schoolId : null;
-    if (body.schoolId === undefined) {
+    // Students always write to their own school and publish immediately.
+    // Staff may target the shared platform bank (schoolId: null) and choose approval.
+    let schoolId: string | null;
+    const autoApprove = isStaff ? body.autoApprove === true : true;
+    if (isStaff && body.schoolId !== undefined) {
+      schoolId = body.schoolId;
+    } else {
       const { data: profile } = await admin
         .from("profiles")
         .select("school_id")
@@ -251,7 +261,7 @@ serve(async (req) => {
         p_school_id: schoolId,
         p_ai_model: MODEL,
         p_rows: rows,
-        p_auto_approve: body.autoApprove === true,
+        p_auto_approve: autoApprove,
       },
     );
 
@@ -259,7 +269,13 @@ serve(async (req) => {
       return json({ error: insertErr.message }, 500);
     }
 
-    const result = (insertRes ?? {}) as { ok?: boolean; inserted?: number; skipped?: number; error?: string };
+    const result = (insertRes ?? {}) as {
+      ok?: boolean;
+      inserted?: number;
+      skipped?: number;
+      ids?: string[];
+      error?: string;
+    };
     if (!result.ok) {
       return json({ error: result.error ?? "Insert failed." }, 500);
     }
@@ -281,6 +297,7 @@ serve(async (req) => {
       requested: count,
       inserted: result.inserted ?? 0,
       skipped: result.skipped ?? 0,
+      questionIds: result.ids ?? [],
       tokens,
     });
   } catch (e) {

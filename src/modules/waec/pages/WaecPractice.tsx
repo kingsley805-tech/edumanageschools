@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BrainCircuit, GraduationCap, History, LayoutGrid, RefreshCw } from "lucide-react";
+import { BrainCircuit, GraduationCap, History, LayoutGrid, RefreshCw, Wand2 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,6 +9,7 @@ import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { supabase } from "@/integrations/supabase/client";
 import { WaecSchemaSetupCard } from "@/modules/waec/components/WaecSchemaSetupCard";
 import { WaecPracticeSetup } from "@/modules/waec/components/WaecPracticeSetup";
+import { WaecAiExamGenerator, type WaecGenerateExamParams } from "@/modules/waec/components/WaecAiExamGenerator";
 import { WaecExamSession } from "@/modules/waec/components/WaecExamSession";
 import { WaecResultReview } from "@/modules/waec/components/WaecResultReview";
 import { WaecStudentDashboardPanel } from "@/modules/waec/components/WaecStudentDashboardPanel";
@@ -21,7 +22,9 @@ import {
   fetchWaecSubjects,
   fetchWaecTopics,
   fetchStudentWaecSessions,
+  generateWaecQuestions,
   startWaecSession,
+  startWaecSessionFromQuestions,
   submitWaecSession,
 } from "@/modules/waec/lib/api";
 import { checkWaecSchema, waecSchemaReady, type WaecSchemaStatus } from "@/modules/waec/lib/schema";
@@ -64,6 +67,8 @@ export default function WaecPracticePage() {
   const [resultAnswers, setResultAnswers] = useState<WaecSessionAnswer[]>([]);
   const [starting, setStarting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [genProgress, setGenProgress] = useState<{ done: number; total: number } | null>(null);
 
   const loadHub = useCallback(async () => {
     if (!user?.id) return;
@@ -149,6 +154,63 @@ export default function WaecPracticePage() {
     }
   };
 
+  const handleGenerateExam = async (params: WaecGenerateExamParams) => {
+    if (!user?.id) return;
+    setGenerating(true);
+    const BATCH = 10;
+    const target = params.count;
+    setGenProgress({ done: 0, total: target });
+    const ids: string[] = [];
+    try {
+      const batches = Math.ceil(target / BATCH);
+      for (let i = 0; i < batches; i++) {
+        const count = Math.min(BATCH, target - i * BATCH);
+        const res = await generateWaecQuestions({
+          subjectId: params.subject.id,
+          subjectName: params.subject.name,
+          level: params.subject.level,
+          topic: params.topic,
+          difficulty: params.difficulty,
+          questionType: params.questionType,
+          count,
+        });
+        if (res.questionIds?.length) ids.push(...res.questionIds);
+        setGenProgress({ done: Math.min((i + 1) * BATCH, target), total: target });
+      }
+
+      if (ids.length === 0) {
+        toast.error("The AI could not generate questions right now. Please try again.");
+        return;
+      }
+
+      const { session, questions: qs } = await startWaecSessionFromQuestions(
+        user.id,
+        schoolId,
+        studentId,
+        {
+          level: params.subject.level,
+          subjectId: params.subject.id,
+          paperType: params.paperType,
+          topic: params.topic,
+          questionCount: ids.length,
+          mode: params.mode,
+          durationMinutes: params.durationMinutes,
+        },
+        ids,
+      );
+      setActiveSession(session);
+      setQuestions(qs);
+      setAnswers({});
+      setView("exam");
+      toast.success(`Your AI ${params.mode === "exam" ? "mock exam" : "practice set"} is ready — ${qs.length} questions.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not generate your exam");
+    } finally {
+      setGenerating(false);
+      setGenProgress(null);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!activeSession) return;
     setSubmitting(true);
@@ -207,7 +269,7 @@ export default function WaecPracticePage() {
           </p>
         ) : schemaReady ? (
           <p className="text-sm text-amber-700 dark:text-amber-400">
-            No questions yet. Ask your admin to generate the question bank from Admin → WAEC → AI Generator.
+            No questions in the shared bank yet — use the <span className="font-medium">Generate with AI</span> tab to create your own exam instantly.
           </p>
         ) : null}
 
@@ -238,6 +300,10 @@ export default function WaecPracticePage() {
                 <GraduationCap className="h-3.5 w-3.5" />
                 Practice
               </TabsTrigger>
+              <TabsTrigger value="generate" className="gap-1.5">
+                <Wand2 className="h-3.5 w-3.5" />
+                Generate with AI
+              </TabsTrigger>
               <TabsTrigger value="dashboard" className="gap-1.5">
                 <LayoutGrid className="h-3.5 w-3.5" />
                 My Performance
@@ -260,6 +326,15 @@ export default function WaecPracticePage() {
                 onTopicsNeeded={loadTopics}
                 onStart={handleStart}
                 loading={starting}
+              />
+            </TabsContent>
+
+            <TabsContent value="generate">
+              <WaecAiExamGenerator
+                subjects={subjects}
+                generating={generating}
+                progress={genProgress}
+                onGenerate={handleGenerateExam}
               />
             </TabsContent>
 

@@ -249,6 +249,63 @@ export async function startWaecSession(
   };
 }
 
+/** Start a session from an explicit set of question IDs (used by the AI exam generator). */
+export async function startWaecSessionFromQuestions(
+  userId: string,
+  schoolId: string | null,
+  studentId: string | null,
+  config: WaecPracticeConfig,
+  questionIds: string[],
+): Promise<{ session: WaecPracticeSession; questions: WaecQuestion[] }> {
+  const uniqueIds = [...new Set(questionIds)].filter(Boolean);
+  if (uniqueIds.length === 0) {
+    throw new Error("No questions were generated. Try again.");
+  }
+
+  const { data: rows, error: qErr } = await supabase
+    .from("waec_questions")
+    .select("*, waec_subjects(name, level)")
+    .in("id", uniqueIds);
+  if (qErr) throw qErr;
+
+  const byId = new Map((rows ?? []).map((r) => [r.id as string, mapQuestionRow(r)]));
+  const selected = uniqueIds.map((id) => byId.get(id)).filter(Boolean) as WaecQuestion[];
+  if (selected.length === 0) {
+    throw new Error("Generated questions could not be loaded. Try again.");
+  }
+
+  const orderedIds = selected.map((q) => q.id);
+
+  const { data: session, error } = await supabase
+    .from("waec_practice_sessions")
+    .insert({
+      user_id: userId,
+      school_id: schoolId,
+      student_id: studentId,
+      subject_id: config.subjectId,
+      level: config.level,
+      mode: config.mode,
+      year_filter: null,
+      paper_type: config.paperType,
+      topic_filter: config.topic ?? null,
+      question_count: selected.length,
+      duration_minutes: config.durationMinutes ?? (config.mode === "exam" ? 120 : null),
+      question_ids: orderedIds,
+      max_score: selected.reduce((s, q) => s + q.marks, 0),
+      status: "in_progress",
+    })
+    .select("*")
+    .single();
+
+  if (error) throw error;
+
+  const answerRows = orderedIds.map((qid) => ({ session_id: session.id, question_id: qid }));
+  const { error: ansErr } = await supabase.from("waec_session_answers").insert(answerRows);
+  if (ansErr) throw ansErr;
+
+  return { session: session as WaecPracticeSession, questions: selected };
+}
+
 export async function saveWaecAnswer(sessionId: string, questionId: string, answer: string) {
   const { error } = await supabase
     .from("waec_session_answers")

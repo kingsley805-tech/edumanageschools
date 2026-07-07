@@ -62,6 +62,7 @@ export type WaecGenerationResult = {
   requested: number;
   inserted: number;
   skipped: number;
+  questionIds?: string[];
   tokens?: number;
 };
 
