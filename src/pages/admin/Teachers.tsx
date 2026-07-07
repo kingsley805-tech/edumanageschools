@@ -61,6 +61,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { setTeacherAccountStatus } from "@/lib/teacherAccountStatus";
@@ -550,18 +551,11 @@ const Teachers = () => {
 
     setDeleting(true);
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "delete-user-account",
-        {
-          body: {
-            user_id: teacher.user_id,
-            user_role: "teacher",
-            user_name: teacher.profiles?.full_name,
-          },
-        },
-      );
-
-      if (error) throw error;
+      await invokeEdgeFunction("delete-user-account", {
+        user_id: teacher.user_id,
+        user_role: "teacher",
+        user_name: teacher.profiles?.full_name,
+      });
 
       toast({
         title: "Success",

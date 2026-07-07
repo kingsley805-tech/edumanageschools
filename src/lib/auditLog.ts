@@ -37,24 +37,33 @@ export async function logLoginActivity(
   failureReason?: string
 ) {
   const { data: { user } } = await supabase.auth.getUser();
-  let schoolId: string | null = null;
-  if (user) {
+  const { error } = await supabase.rpc("log_login_activity_event", {
+    p_email: email ?? user?.email ?? null,
+    p_success: success,
+    p_failure_reason: failureReason ?? null,
+    p_user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+  });
+
+  // Fall back to direct insert when RPC is not migrated yet.
+  if (error && success && user) {
+    let schoolId: string | null = null;
     const { data: profile } = await supabase
       .from("profiles")
       .select("school_id")
       .eq("id", user.id)
       .single();
     schoolId = profile?.school_id ?? null;
+
+    await supabase.from("login_activity").insert({
+      user_id: user.id,
+      school_id: schoolId,
+      email: email ?? user.email ?? null,
+      success,
+      failure_reason: failureReason ?? null,
+      ip_address: null,
+      user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+    });
   }
-  await supabase.from("login_activity").insert({
-    user_id: user?.id ?? null,
-    school_id: schoolId,
-    email: email ?? user?.email ?? null,
-    success,
-    failure_reason: failureReason ?? null,
-    ip_address: null,
-    user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
-  });
 }
 
 /** System owner portal login — separate from tenant /auth (audited). */

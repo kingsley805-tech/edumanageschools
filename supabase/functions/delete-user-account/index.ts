@@ -6,6 +6,65 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+async function cleanupMemberRecords(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  userId: string,
+  userRole?: string,
+) {
+  if (userRole === 'teacher') {
+    const { data: teacher } = await supabaseAdmin
+      .from('teachers')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (teacher?.id) {
+      const { error } = await supabaseAdmin.rpc('cleanup_teacher_before_delete', {
+        p_teacher_id: teacher.id,
+      });
+      if (error) {
+        const msg = (error.message ?? '').toLowerCase();
+        if (!msg.includes('cleanup_teacher_before_delete') && !msg.includes('could not find')) {
+          throw error;
+        }
+        await supabaseAdmin.from('class_subjects').delete().eq('teacher_id', teacher.id);
+        await supabaseAdmin.from('teachers').delete().eq('id', teacher.id);
+      }
+    }
+    return;
+  }
+
+  const { data: student } = await supabaseAdmin
+    .from('students')
+    .select('id')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (student?.id) {
+    const { error } = await supabaseAdmin.rpc('cleanup_student_before_delete', {
+      p_student_id: student.id,
+    });
+    if (error) {
+      const msg = (error.message ?? '').toLowerCase();
+      if (!msg.includes('cleanup_student_before_delete') && !msg.includes('could not find')) {
+        throw error;
+      }
+      const legacyTables = [
+        'enrollments',
+        'attendance',
+        'grades',
+        'submissions',
+        'exam_results',
+        'online_exam_attempts',
+      ];
+      for (const table of legacyTables) {
+        await supabaseAdmin.from(table).delete().eq('student_id', student.id);
+      }
+      await supabaseAdmin.from('students').delete().eq('id', student.id);
+    }
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -110,6 +169,9 @@ serve(async (req) => {
         timestamp: new Date().toISOString(),
       },
     });
+
+    // Remove dependent rows that block auth/profile cascade delete.
+    await cleanupMemberRecords(supabaseAdmin, user_id, user_role);
 
     // Delete the user using admin API
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user_id);
