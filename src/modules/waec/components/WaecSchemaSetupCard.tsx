@@ -19,6 +19,10 @@ export function WaecSchemaSetupCard({ checking, onRecheck }: Props) {
             <code className="rounded bg-muted px-1.5 py-0.5 text-xs">public/sql/apply-waec-platform.sql</code>
           </li>
           <li>
+            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">public/sql/apply-waec-questions-bank.sql</code>
+            <span className="text-foreground/80"> — all BECE & WASSCE subjects, years 2010–2025</span>
+          </li>
+          <li>
             <code className="rounded bg-muted px-1.5 py-0.5 text-xs">NOTIFY pgrst, &apos;reload schema&apos;;</code>
           </li>
         </ol>

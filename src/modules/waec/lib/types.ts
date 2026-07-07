@@ -87,6 +87,20 @@ export type WaecLeaderboardEntry = {
   avg_percentage: number;
 };
 
+export type WaecCatalogEntry = {
+  subject_id: string;
+  subject_name: string;
+  level: WaecLevel;
+  category: string | null;
+  years: { year: number; question_count: number; paper_types: string[] }[];
+  total_questions: number;
+};
+
+export type WaecLevelYears = {
+  level: WaecLevel;
+  years: number[];
+};
+
 export type WaecPracticeConfig = {
   level: WaecLevel;
   subjectId: string;

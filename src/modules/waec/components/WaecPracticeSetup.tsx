@@ -12,8 +12,11 @@ type Props = {
   subjects: WaecSubject[];
   years: number[];
   topics: string[];
+  availableCount?: number;
+  levelYears?: number[];
   onYearsNeeded: (subjectId: string) => void;
   onTopicsNeeded: (subjectId: string) => void;
+  onLevelChange?: (level: WaecLevel) => void;
   onStart: (config: WaecPracticeConfig) => void;
   loading?: boolean;
 };
@@ -22,8 +25,11 @@ export function WaecPracticeSetup({
   subjects,
   years,
   topics,
+  availableCount,
+  levelYears,
   onYearsNeeded,
   onTopicsNeeded,
+  onLevelChange,
   onStart,
   loading,
 }: Props) {
@@ -77,6 +83,7 @@ export function WaecPracticeSetup({
             year={year}
             setYear={setYear}
             years={years}
+            levelYears={levelYears}
             paperType={paperType}
             setPaperType={setPaperType}
             topic={topic}
@@ -84,6 +91,8 @@ export function WaecPracticeSetup({
             topics={topics}
             questionCount={questionCount}
             setQuestionCount={setQuestionCount}
+            availableCount={availableCount}
+            onLevelChange={onLevelChange}
           />
           <Button
             className="w-full gap-2"
@@ -114,6 +123,7 @@ export function WaecPracticeSetup({
             year={year}
             setYear={setYear}
             years={years}
+            levelYears={levelYears}
             paperType={paperType}
             setPaperType={setPaperType}
             topic={topic}
@@ -121,6 +131,8 @@ export function WaecPracticeSetup({
             topics={topics}
             questionCount={questionCount}
             setQuestionCount={setQuestionCount}
+            availableCount={availableCount}
+            onLevelChange={onLevelChange}
             showDuration
             duration={duration}
             setDuration={setDuration}
@@ -149,6 +161,7 @@ function SetupFields({
   year,
   setYear,
   years,
+  levelYears,
   paperType,
   setPaperType,
   topic,
@@ -156,6 +169,8 @@ function SetupFields({
   topics,
   questionCount,
   setQuestionCount,
+  availableCount,
+  onLevelChange,
   showDuration,
   duration,
   setDuration,
@@ -168,6 +183,7 @@ function SetupFields({
   year: string;
   setYear: (v: string) => void;
   years: number[];
+  levelYears?: number[];
   paperType: WaecPaperType;
   setPaperType: (v: WaecPaperType) => void;
   topic: string;
@@ -175,15 +191,24 @@ function SetupFields({
   topics: string[];
   questionCount: string;
   setQuestionCount: (v: string) => void;
+  availableCount?: number;
+  onLevelChange?: (level: WaecLevel) => void;
   showDuration?: boolean;
   duration?: string;
   setDuration?: (v: string) => void;
 }) {
+  const yearOptions = years.length > 0 ? years : (levelYears ?? []);
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <div className="space-y-1.5">
         <Label>Level</Label>
-        <Select value={level} onValueChange={(v) => setLevel(v as WaecLevel)}>
+        <Select value={level} onValueChange={(v) => {
+          const lv = v as WaecLevel;
+          setLevel(lv);
+          setSubjectId("");
+          setYear("all");
+          onLevelChange?.(lv);
+        }}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="bece">{WAEC_LEVEL_LABELS.bece}</SelectItem>
@@ -209,7 +234,7 @@ function SetupFields({
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All years</SelectItem>
-            {years.map((y) => (
+            {yearOptions.map((y) => (
               <SelectItem key={y} value={String(y)}>{y}</SelectItem>
             ))}
           </SelectContent>
@@ -249,6 +274,11 @@ function SetupFields({
           <Label>Duration (minutes)</Label>
           <Input type="number" min={30} max={180} value={duration} onChange={(e) => setDuration(e.target.value)} />
         </div>
+      ) : null}
+      {subjectId && availableCount != null ? (
+        <p className="text-xs text-muted-foreground sm:col-span-2">
+          {availableCount.toLocaleString()} question(s) available for this selection
+        </p>
       ) : null}
     </div>
   );

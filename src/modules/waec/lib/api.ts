@@ -1,6 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import type {
+  WaecCatalogEntry,
   WaecLeaderboardEntry,
+  WaecLevel,
   WaecPracticeConfig,
   WaecPracticeSession,
   WaecQuestion,
@@ -9,6 +11,8 @@ import type {
   WaecStudentDashboard,
   WaecSubject,
 } from "@/modules/waec/lib/types";
+
+const PAGE_SIZE = 1000;
 
 const EMPTY_DASHBOARD: WaecStudentDashboard = {
   total_attempts: 0,
@@ -31,34 +35,91 @@ export async function fetchWaecSubjects(level?: string): Promise<WaecSubject[]> 
   return (data ?? []) as WaecSubject[];
 }
 
+function mapQuestionRow(row: Record<string, unknown>): WaecQuestion {
+  return {
+    ...(row as WaecQuestion),
+    marks: Number(row.marks ?? 1),
+    options: parseOptions(row.options),
+    subject_name: (row.waec_subjects as { name?: string } | null)?.name,
+  };
+}
+
+/** Fetch every matching question with pagination (no arbitrary cap). */
 export async function fetchWaecQuestions(filters: {
-  subjectId: string;
+  subjectId?: string;
+  level?: WaecLevel;
   year?: number;
   paperType?: string;
   topic?: string;
   limit?: number;
 }): Promise<WaecQuestion[]> {
-  let q = supabase
-    .from("waec_questions")
-    .select("*, waec_subjects(name)")
-    .eq("subject_id", filters.subjectId)
-    .eq("is_active", true)
-    .order("year", { ascending: false });
+  if (filters.level && !filters.subjectId) {
+    const subjects = await fetchWaecSubjects(filters.level);
+    const batches = await Promise.all(
+      subjects.map((s) =>
+        fetchWaecQuestions({ ...filters, subjectId: s.id, level: undefined }),
+      ),
+    );
+    const merged = batches.flat();
+    return filters.limit ? merged.slice(0, filters.limit) : merged;
+  }
 
-  if (filters.year) q = q.eq("year", filters.year);
-  if (filters.paperType) q = q.eq("paper_type", filters.paperType);
-  if (filters.topic) q = q.ilike("topic", `%${filters.topic}%`);
-  if (filters.limit) q = q.limit(filters.limit);
+  if (!filters.subjectId) {
+    return filters.limit ? [] : [];
+  }
 
+  const all: WaecQuestion[] = [];
+  let from = 0;
+
+  while (true) {
+    let q = supabase
+      .from("waec_questions")
+      .select("*, waec_subjects(name, level)")
+      .eq("subject_id", filters.subjectId)
+      .eq("is_active", true)
+      .order("year", { ascending: false })
+      .order("id")
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (filters.year) q = q.eq("year", filters.year);
+    if (filters.paperType) q = q.eq("paper_type", filters.paperType);
+    if (filters.topic) q = q.ilike("topic", `%${filters.topic}%`);
+
+    const { data, error } = await q;
+    if (error) throw error;
+
+    const batch = (data ?? []).map((row) => mapQuestionRow(row));
+    all.push(...batch);
+
+    if (filters.limit && all.length >= filters.limit) {
+      return all.slice(0, filters.limit);
+    }
+    if (batch.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return filters.limit ? all.slice(0, filters.limit) : all;
+}
+
+export async function fetchWaecExamYears(level?: WaecLevel): Promise<number[]> {
+  let q = supabase.from("waec_exam_years").select("year").eq("is_active", true).order("year", { ascending: false });
+  if (level) q = q.eq("level", level);
   const { data, error } = await q;
-  if (error) throw error;
-
-  return (data ?? []).map((row) => ({
-    ...row,
-    marks: Number(row.marks ?? 1),
-    options: parseOptions(row.options),
-    subject_name: (row.waec_subjects as { name?: string } | null)?.name,
-  }));
+  if (error) {
+    // Fallback if catalog table not installed yet
+    const { data: fromQuestions } = await supabase
+      .from("waec_questions")
+      .select("year, waec_subjects(level)")
+      .eq("is_active", true);
+    const years = new Set<number>();
+    for (const r of fromQuestions ?? []) {
+      if (!level || (r.waec_subjects as { level?: string } | null)?.level === level) {
+        years.add(r.year as number);
+      }
+    }
+    return [...years].sort((a, b) => b - a);
+  }
+  return [...new Set((data ?? []).map((r) => r.year))];
 }
 
 export async function fetchWaecQuestionYears(subjectId: string): Promise<number[]> {
@@ -69,6 +130,66 @@ export async function fetchWaecQuestionYears(subjectId: string): Promise<number[
     .eq("is_active", true);
   if (error) throw error;
   return [...new Set((data ?? []).map((r) => r.year))].sort((a, b) => b - a);
+}
+
+export async function fetchWaecQuestionCount(filters: {
+  subjectId: string;
+  year?: number;
+  paperType?: string;
+  topic?: string;
+}): Promise<number> {
+  let q = supabase
+    .from("waec_questions")
+    .select("id", { count: "exact", head: true })
+    .eq("subject_id", filters.subjectId)
+    .eq("is_active", true);
+  if (filters.year) q = q.eq("year", filters.year);
+  if (filters.paperType) q = q.eq("paper_type", filters.paperType);
+  if (filters.topic) q = q.ilike("topic", `%${filters.topic}%`);
+  const { count, error } = await q;
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/** Full catalogue: every subject with available years and question counts. */
+export async function fetchWaecCatalog(level?: WaecLevel): Promise<WaecCatalogEntry[]> {
+  const { data, error } = await supabase.rpc("get_waec_question_catalog", {
+    p_level: level ?? null,
+  });
+  if (!error && data) {
+    return data as WaecCatalogEntry[];
+  }
+
+  // Client-side fallback when RPC not yet deployed
+  const subjects = await fetchWaecSubjects(level);
+  const entries: WaecCatalogEntry[] = [];
+
+  for (const subject of subjects) {
+    const questions = await fetchWaecQuestions({ subjectId: subject.id });
+    const yearMap = new Map<number, { count: number; papers: Set<string> }>();
+    for (const q of questions) {
+      const cur = yearMap.get(q.year) ?? { count: 0, papers: new Set<string>() };
+      cur.count += 1;
+      cur.papers.add(q.paper_type);
+      yearMap.set(q.year, cur);
+    }
+    entries.push({
+      subject_id: subject.id,
+      subject_name: subject.name,
+      level: subject.level,
+      category: subject.category,
+      years: [...yearMap.entries()]
+        .map(([year, v]) => ({
+          year,
+          question_count: v.count,
+          paper_types: [...v.papers],
+        }))
+        .sort((a, b) => b.year - a.year),
+      total_questions: questions.length,
+    });
+  }
+
+  return entries.sort((a, b) => a.subject_name.localeCompare(b.subject_name));
 }
 
 export async function fetchWaecTopics(subjectId: string): Promise<string[]> {
@@ -93,7 +214,6 @@ export async function startWaecSession(
     year: config.year,
     paperType: config.paperType,
     topic: config.topic,
-    limit: 200,
   });
 
   if (pool.length === 0) {
@@ -304,26 +424,14 @@ export async function deleteWaecQuestion(id: string) {
 export async function fetchAllWaecQuestionsAdmin(filters?: {
   subjectId?: string;
   year?: number;
+  level?: WaecLevel;
   search?: string;
 }): Promise<WaecQuestion[]> {
-  let q = supabase
-    .from("waec_questions")
-    .select("*, waec_subjects(name, level)")
-    .order("year", { ascending: false })
-    .limit(500);
-
-  if (filters?.subjectId) q = q.eq("subject_id", filters.subjectId);
-  if (filters?.year) q = q.eq("year", filters.year);
-
-  const { data, error } = await q;
-  if (error) throw error;
-
-  let rows = (data ?? []).map((row) => ({
-    ...row,
-    marks: Number(row.marks ?? 1),
-    options: parseOptions(row.options),
-    subject_name: (row.waec_subjects as { name?: string } | null)?.name,
-  }));
+  let rows = await fetchWaecQuestions({
+    subjectId: filters?.subjectId,
+    level: filters?.level,
+    year: filters?.year,
+  });
 
   if (filters?.search) {
     const s = filters.search.toLowerCase();

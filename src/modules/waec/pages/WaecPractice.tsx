@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BrainCircuit, GraduationCap, History, LayoutGrid, RefreshCw } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -13,8 +13,11 @@ import { WaecExamSession } from "@/modules/waec/components/WaecExamSession";
 import { WaecResultReview } from "@/modules/waec/components/WaecResultReview";
 import { WaecStudentDashboardPanel } from "@/modules/waec/components/WaecStudentDashboardPanel";
 import {
+  fetchWaecCatalog,
   fetchWaecDashboard,
+  fetchWaecExamYears,
   fetchWaecLeaderboard,
+  fetchWaecQuestionCount,
   fetchWaecQuestionYears,
   fetchWaecSession,
   fetchWaecSubjects,
@@ -25,7 +28,9 @@ import {
 } from "@/modules/waec/lib/api";
 import { checkWaecSchema, waecSchemaReady, type WaecSchemaStatus } from "@/modules/waec/lib/schema";
 import type {
+  WaecCatalogEntry,
   WaecLeaderboardEntry,
+  WaecLevel,
   WaecPracticeConfig,
   WaecPracticeSession,
   WaecQuestion,
@@ -52,6 +57,12 @@ export default function WaecPracticePage() {
   const [leaderboard, setLeaderboard] = useState<WaecLeaderboardEntry[]>([]);
   const [history, setHistory] = useState<WaecPracticeSession[]>([]);
   const [studentId, setStudentId] = useState<string | null>(null);
+  const [catalog, setCatalog] = useState<WaecCatalogEntry[]>([]);
+  const [levelYears, setLevelYears] = useState<number[]>([]);
+  const [filterLevel, setFilterLevel] = useState<WaecLevel>("bece");
+  const [filterSubjectId, setFilterSubjectId] = useState("");
+  const [filterYear, setFilterYear] = useState<number | undefined>();
+  const [availableCount, setAvailableCount] = useState<number | null>(null);
 
   const [view, setView] = useState<View>("hub");
   const [activeSession, setActiveSession] = useState<WaecPracticeSession | null>(null);
@@ -69,16 +80,20 @@ export default function WaecPracticePage() {
       setSchemaStatus(status);
       if (!status.subjects) return;
 
-      const [subRows, dash, hist, board] = await Promise.all([
+      const [subRows, dash, hist, board, cat, examYears] = await Promise.all([
         fetchWaecSubjects(),
         status.rpcDashboard ? fetchWaecDashboard(user.id).catch(() => null) : Promise.resolve(null),
         status.sessions ? fetchStudentWaecSessions(user.id).catch(() => []) : Promise.resolve([]),
         fetchWaecLeaderboard(schoolId).catch(() => []),
+        status.questions ? fetchWaecCatalog().catch(() => []) : Promise.resolve([]),
+        status.questions ? fetchWaecExamYears("bece").catch(() => []) : Promise.resolve([]),
       ]);
       setSubjects(subRows);
       setDashboard(dash);
       setHistory(hist);
       setLeaderboard(board);
+      setCatalog(cat);
+      setLevelYears(examYears);
 
       const { data: student } = await supabase
         .from("students")
@@ -98,8 +113,14 @@ export default function WaecPracticePage() {
   }, [loadHub]);
 
   const loadYears = async (subjectId: string) => {
+    setFilterSubjectId(subjectId);
     try {
-      setYears(await fetchWaecQuestionYears(subjectId));
+      const entry = catalog.find((c) => c.subject_id === subjectId);
+      if (entry?.years?.length) {
+        setYears(entry.years.map((y) => y.year));
+      } else {
+        setYears(await fetchWaecQuestionYears(subjectId));
+      }
     } catch {
       setYears([]);
     }
@@ -112,6 +133,38 @@ export default function WaecPracticePage() {
       setTopics([]);
     }
   };
+
+  const handleLevelChange = async (level: WaecLevel) => {
+    setFilterLevel(level);
+    setFilterSubjectId("");
+    setFilterYear(undefined);
+    try {
+      setLevelYears(await fetchWaecExamYears(level));
+    } catch {
+      setLevelYears([]);
+    }
+  };
+
+  const subjectYears = useMemo(() => {
+    if (!filterSubjectId) return years;
+    return years;
+  }, [filterSubjectId, years]);
+
+  useEffect(() => {
+    if (!filterSubjectId) {
+      setAvailableCount(null);
+      return;
+    }
+    void fetchWaecQuestionCount({
+      subjectId: filterSubjectId,
+      year: filterYear,
+    }).then(setAvailableCount).catch(() => setAvailableCount(null));
+  }, [filterSubjectId, filterYear]);
+
+  const totalBankQuestions = useMemo(
+    () => catalog.reduce((s, c) => s + (c.total_questions ?? 0), 0),
+    [catalog],
+  );
 
   const handleStart = async (config: WaecPracticeConfig) => {
     if (!user?.id) return;
@@ -186,6 +239,15 @@ export default function WaecPracticePage() {
 
         {schemaStatus && !schemaReady ? (
           <WaecSchemaSetupCard status={schemaStatus} checking={checking} onRecheck={() => void loadHub()} />
+        ) : totalBankQuestions > 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Question bank loaded: <span className="font-medium text-foreground">{totalBankQuestions.toLocaleString()}</span> questions
+            across BECE & WASSCE (2010–2025)
+          </p>
+        ) : schemaReady ? (
+          <p className="text-sm text-amber-700 dark:text-amber-400">
+            Run <code className="rounded bg-muted px-1 text-xs">apply-waec-questions-bank.sql</code> in Supabase to load all past questions.
+          </p>
         ) : null}
 
         {view === "exam" && activeSession ? (
@@ -232,10 +294,13 @@ export default function WaecPracticePage() {
             <TabsContent value="practice">
               <WaecPracticeSetup
                 subjects={subjects}
-                years={years}
+                years={subjectYears}
                 topics={topics}
+                levelYears={levelYears}
+                availableCount={availableCount ?? undefined}
                 onYearsNeeded={loadYears}
                 onTopicsNeeded={loadTopics}
+                onLevelChange={handleLevelChange}
                 onStart={handleStart}
                 loading={starting}
               />
