@@ -28,10 +28,9 @@ const ParentStudentLink = () => {
     }
   }, [selectedParent]);
 
-  const fetchParents = async () => {
-    // Get current user's school_id for filtering
+  const getSchoolId = async (): Promise<string | null> => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) return null;
 
     const { data: profileData } = await supabase
       .from("profiles")
@@ -39,46 +38,49 @@ const ParentStudentLink = () => {
       .eq("id", user.id)
       .single();
 
-    if (!profileData?.school_id) return;
+    return profileData?.school_id ?? null;
+  };
 
-    const { data } = await supabase
+  const fetchParents = async () => {
+    const schoolId = await getSchoolId();
+    if (!schoolId) return;
+
+    const { data, error } = await supabase
       .from("parents")
-      .select("id, profiles(full_name, email)")
-      .eq("school_id", profileData.school_id);
-    
-    if (data) setParents(data);
+      .select("id, profiles:profiles!parents_user_id_fkey(full_name, email)")
+      .eq("school_id", schoolId);
+
+    if (error) {
+      toast({ title: "Error loading parents", description: error.message, variant: "destructive" });
+      return;
+    }
+    setParents(data ?? []);
   };
 
   const fetchStudents = async () => {
-    // Get current user's school_id for filtering
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const schoolId = await getSchoolId();
+    if (!schoolId) return;
 
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("school_id")
-      .eq("id", user.id)
-      .single();
-
-    if (!profileData?.school_id) return;
-
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("students")
-      .select("id, admission_no, profiles(full_name)")
-      .eq("school_id", profileData.school_id);
-    
-    if (data) setStudents(data);
+      .select("id, admission_no, profiles:profiles!students_user_id_fkey(full_name)")
+      .eq("school_id", schoolId);
+
+    if (error) {
+      toast({ title: "Error loading students", description: error.message, variant: "destructive" });
+      return;
+    }
+    setStudents(data ?? []);
   };
 
   const fetchLinkedStudents = async () => {
-    const { data: links } = await supabase
+    const { data: links, error: linksError } = await supabase
       .from("parent_student_links")
       .select(`
-        student:students(
+        student:students!parent_student_links_student_id_fkey(
           id,
           admission_no,
-          admission_number,
-          profiles(full_name, email),
+          profiles:profiles!students_user_id_fkey(full_name, email),
           classes(name)
         )
       `)
@@ -93,18 +95,20 @@ const ParentStudentLink = () => {
       return;
     }
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("students")
       .select(`
         id,
         admission_no,
-        admission_number,
-        profiles(full_name, email),
+        profiles:profiles!students_user_id_fkey(full_name, email),
         classes(name)
       `)
       .eq("guardian_id", selectedParent);
 
-    if (data) setLinkedStudents(data);
+    if (linksError && error) {
+      toast({ title: "Error loading linked students", description: error.message, variant: "destructive" });
+    }
+    setLinkedStudents(data ?? []);
   };
 
   const handleLinkStudent = async () => {

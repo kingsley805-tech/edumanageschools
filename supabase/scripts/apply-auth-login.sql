@@ -78,10 +78,26 @@ BEGIN
     'admission_number', v_student.admission_number,
     'class_name', coalesce(v_class_name, 'Not assigned'),
     'school_name', v_student.school_name,
-    'has_guardian', v_student.guardian_id IS NOT NULL
+    -- Only "has guardian" when a real, existing parent is linked (ignore orphaned guardian_id).
+    'has_guardian',
+      EXISTS (
+        SELECT 1 FROM public.parents pa WHERE pa.id = v_student.guardian_id
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM public.parent_student_links psl
+        JOIN public.parents pa ON pa.id = psl.parent_id
+        WHERE psl.student_id = v_student.id
+      )
   );
 END;
 $$;
+
+-- Clear guardian_id values that point at parents which no longer exist.
+UPDATE public.students s
+SET guardian_id = NULL
+WHERE s.guardian_id IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM public.parents pa WHERE pa.id = s.guardian_id);
 
 GRANT EXECUTE ON FUNCTION public.resolve_student_by_admission_number(text) TO anon, authenticated;
 
