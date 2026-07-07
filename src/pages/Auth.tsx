@@ -417,8 +417,43 @@ const Auth = () => {
 
     if (error) {
       const err = error as { message?: string; code?: string };
+      const rawMsg = (err.message ?? "").toLowerCase();
+      const alreadyExists =
+        err.code === "user_already_exists" ||
+        rawMsg.includes("already registered") ||
+        rawMsg.includes("already been registered") ||
+        rawMsg.includes("user already exists");
+
+      // A parent whose email is already registered is almost always the same
+      // guardian returning to link a child — sign them in and link instead of failing.
+      if (alreadyExists && signupRole === "parent") {
+        const { error: signInError } = await signIn(emailForAuth, signupPassword);
+        if (!signInError) {
+          const numbers = childStudentNumbers.filter((n) => n.trim());
+          const linkResult = await ensureParentChildrenLinked(numbers);
+          if (linkResult.ok) {
+            toast.success(
+              `Welcome back — ${linkResult.linked} child${linkResult.linked === 1 ? "" : "ren"} linked to your account.`,
+            );
+          } else {
+            toast.success(
+              "Signed in. Open My Children to finish linking your child.",
+            );
+          }
+          setIsLoading(false);
+          return;
+        }
+        toast.error(
+          "An account with this email already exists. Enter the correct password to sign in and link your child, or use the Login tab.",
+        );
+        setIsLoading(false);
+        return;
+      }
+
       let msg = err.message ?? "Failed to create account";
-      if (msg.toLowerCase().includes("database error")) {
+      if (alreadyExists) {
+        msg = "An account with this email already exists. Please use the Login tab to sign in.";
+      } else if (rawMsg.includes("database error")) {
         msg =
           "Account setup failed on the server. Ask your admin to run fix-student-signup-500.sql in Supabase, then try again.";
       }
