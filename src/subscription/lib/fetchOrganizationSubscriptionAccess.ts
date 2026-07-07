@@ -42,49 +42,50 @@ export type SchoolSubscriptionEntitlementsRow = {
   entitlements_override?: boolean | null;
 };
 
-/** Subscription row for module gating; falls back when newer columns are not migrated yet. */
+const BASE_SUBSCRIPTION_SELECT =
+  "status, read_only_on_expiry, block_login_on_expiry, expires_at, plan_id";
+
+/** After a failed probe, skip selecting entitlements_override for the session. */
+let entitlementsOverrideColumnAvailable: boolean | undefined;
+
+/** Subscription row for module gating; avoids 400 when entitlements_override is not migrated yet. */
 export async function fetchSchoolSubscriptionForEntitlements(
   schoolId: string,
 ): Promise<{ data: SchoolSubscriptionEntitlementsRow | null; entitlementsOverride: boolean }> {
-  const fullSelect =
-    "status, read_only_on_expiry, block_login_on_expiry, expires_at, plan_id, entitlements_override";
-
-  const fullRes = await supabase
+  const { data, error } = await supabase
     .from("school_subscriptions")
-    .select(fullSelect)
+    .select(BASE_SUBSCRIPTION_SELECT)
     .eq("school_id", schoolId)
     .maybeSingle();
 
-  if (!fullRes.error) {
-    return {
-      data: fullRes.data as SchoolSubscriptionEntitlementsRow | null,
-      entitlementsOverride: Boolean(
-        (fullRes.data as { entitlements_override?: boolean } | null)?.entitlements_override,
-      ),
-    };
-  }
-
-  if (!isMissingSchemaError(fullRes.error)) {
-    throw fullRes.error;
-  }
-
-  const baseSelect = "status, read_only_on_expiry, block_login_on_expiry, expires_at, plan_id";
-  const baseRes = await supabase
-    .from("school_subscriptions")
-    .select(baseSelect)
-    .eq("school_id", schoolId)
-    .maybeSingle();
-
-  if (baseRes.error) {
-    if (isMissingSchemaError(baseRes.error)) {
+  if (error) {
+    if (isMissingSchemaError(error)) {
       return { data: null, entitlementsOverride: false };
     }
-    throw baseRes.error;
+    throw error;
+  }
+
+  let entitlementsOverride = false;
+  if (entitlementsOverrideColumnAvailable !== false) {
+    const overrideRes = await supabase
+      .from("school_subscriptions")
+      .select("entitlements_override")
+      .eq("school_id", schoolId)
+      .maybeSingle();
+
+    if (!overrideRes.error) {
+      entitlementsOverrideColumnAvailable = true;
+      entitlementsOverride = Boolean(overrideRes.data?.entitlements_override);
+    } else if (isMissingSchemaError(overrideRes.error)) {
+      entitlementsOverrideColumnAvailable = false;
+    } else {
+      throw overrideRes.error;
+    }
   }
 
   return {
-    data: baseRes.data as SchoolSubscriptionEntitlementsRow | null,
-    entitlementsOverride: false,
+    data: data as SchoolSubscriptionEntitlementsRow | null,
+    entitlementsOverride,
   };
 }
 
