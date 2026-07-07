@@ -12,7 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { WaecSchemaSetupCard } from "@/modules/waec/components/WaecSchemaSetupCard";
+import { WaecAiGeneratorPanel } from "@/modules/waec/components/WaecAiGeneratorPanel";
+import { WaecApprovalQueue } from "@/modules/waec/components/WaecApprovalQueue";
 import {
+  countWaecDrafts,
   deleteWaecQuestion,
   fetchAllWaecQuestionsAdmin,
   fetchWaecSubjects,
@@ -50,6 +53,15 @@ export default function WaecAdminPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [draftCount, setDraftCount] = useState(0);
+
+  const refreshDraftCount = useCallback(async () => {
+    try {
+      setDraftCount(await countWaecDrafts());
+    } catch {
+      /* status column may not be migrated yet */
+    }
+  }, []);
 
   const load = useCallback(async () => {
     const status = await checkWaecSchema();
@@ -61,7 +73,8 @@ export default function WaecAdminPage() {
     ]);
     setSubjects(subs);
     setQuestions(qs);
-  }, [filterSubject, search]);
+    void refreshDraftCount();
+  }, [filterSubject, search, refreshDraftCount]);
 
   useEffect(() => {
     void load();
@@ -131,10 +144,34 @@ export default function WaecAdminPage() {
         ) : null}
 
         <Tabs defaultValue="questions">
-          <TabsList>
+          <TabsList className="flex h-auto flex-wrap gap-1">
             <TabsTrigger value="questions">Questions</TabsTrigger>
+            <TabsTrigger value="generate">AI Generator</TabsTrigger>
+            <TabsTrigger value="approval">
+              Approval Queue{draftCount ? ` (${draftCount})` : ""}
+            </TabsTrigger>
             <TabsTrigger value="subjects">Subjects ({subjects.length})</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="generate" className="space-y-4">
+            <WaecAiGeneratorPanel
+              subjects={subjects}
+              schoolId={schoolId}
+              onGenerated={() => {
+                void refreshDraftCount();
+              }}
+            />
+          </TabsContent>
+
+          <TabsContent value="approval" className="space-y-4">
+            <WaecApprovalQueue
+              subjects={subjects}
+              onChange={() => {
+                void refreshDraftCount();
+                void load();
+              }}
+            />
+          </TabsContent>
 
           <TabsContent value="questions" className="space-y-4">
             <Card>

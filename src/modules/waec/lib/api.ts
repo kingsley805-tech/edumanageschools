@@ -1,12 +1,16 @@
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import type {
   WaecCatalogEntry,
+  WaecGenerationRequest,
+  WaecGenerationResult,
   WaecLeaderboardEntry,
   WaecLevel,
   WaecPracticeConfig,
   WaecPracticeSession,
   WaecQuestion,
   WaecQuestionOption,
+  WaecQuestionStatus,
   WaecSessionAnswer,
   WaecStudentDashboard,
   WaecSubject,
@@ -439,4 +443,82 @@ export async function fetchAllWaecQuestionsAdmin(filters?: {
   }
 
   return rows;
+}
+
+// ---------------------------------------------------------------------------
+// AI Question Generation Engine
+// ---------------------------------------------------------------------------
+
+/** Ask the AI to generate a batch of questions for a subject (inserted as drafts). */
+export async function generateWaecQuestions(
+  req: WaecGenerationRequest,
+): Promise<WaecGenerationResult> {
+  return invokeEdgeFunction<WaecGenerationResult>("waec-ai-generate", {
+    subjectId: req.subjectId,
+    subjectName: req.subjectName,
+    level: req.level,
+    topic: req.topic,
+    subTopic: req.subTopic,
+    difficulty: req.difficulty,
+    questionType: req.questionType,
+    count: req.count,
+    year: req.year,
+    schoolId: req.schoolId ?? null,
+  });
+}
+
+/** Draft/rejected questions for the admin review queue (bypasses is_active filter). */
+export async function fetchWaecQuestionsByStatus(
+  status: WaecQuestionStatus,
+  filters?: { subjectId?: string; search?: string; limit?: number },
+): Promise<WaecQuestion[]> {
+  let q = supabase
+    .from("waec_questions")
+    .select("*, waec_subjects(name, level)")
+    .eq("status", status)
+    .order("updated_at", { ascending: false })
+    .limit(filters?.limit ?? 300);
+
+  if (filters?.subjectId) q = q.eq("subject_id", filters.subjectId);
+
+  const { data, error } = await q;
+  if (error) throw error;
+
+  let rows = (data ?? []).map((row) => mapQuestionRow(row));
+  if (filters?.search) {
+    const s = filters.search.toLowerCase();
+    rows = rows.filter((r) => r.question_text.toLowerCase().includes(s));
+  }
+  return rows;
+}
+
+export async function countWaecDrafts(subjectId?: string): Promise<number> {
+  let q = supabase
+    .from("waec_questions")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "draft");
+  if (subjectId) q = q.eq("subject_id", subjectId);
+  const { count, error } = await q;
+  if (error) throw error;
+  return count ?? 0;
+}
+
+export async function setWaecQuestionStatus(id: string, status: WaecQuestionStatus): Promise<void> {
+  const { data, error } = await supabase.rpc("set_waec_question_status", {
+    p_question_id: id,
+    p_status: status,
+  });
+  if (error) throw error;
+  const res = data as { ok?: boolean; error?: string };
+  if (!res?.ok) throw new Error(res?.error ?? "Failed to update question status.");
+}
+
+export async function approveWaecDraftsForSubject(subjectId: string): Promise<number> {
+  const { data, error } = await supabase.rpc("approve_waec_drafts_for_subject", {
+    p_subject_id: subjectId,
+  });
+  if (error) throw error;
+  const res = data as { ok?: boolean; approved?: number; error?: string };
+  if (!res?.ok) throw new Error(res?.error ?? "Failed to approve drafts.");
+  return res.approved ?? 0;
 }

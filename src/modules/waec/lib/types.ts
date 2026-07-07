@@ -1,6 +1,9 @@
 export type WaecLevel = "bece" | "wassce";
 export type WaecPaperType = "paper_1" | "paper_2" | "paper_3";
-export type WaecDifficulty = "easy" | "medium" | "hard";
+export type WaecDifficulty = "easy" | "medium" | "hard" | "advanced";
+export type WaecQuestionType = "objective" | "structured" | "mock";
+export type WaecQuestionStatus = "draft" | "approved" | "rejected";
+export type WaecGeneratedBy = "manual" | "ai";
 export type WaecSessionMode = "practice" | "exam";
 export type WaecSessionStatus = "in_progress" | "submitted" | "abandoned";
 
@@ -22,15 +25,44 @@ export type WaecQuestion = {
   year: number;
   paper_type: WaecPaperType;
   topic: string | null;
+  sub_topic?: string | null;
   difficulty: WaecDifficulty;
+  question_type?: WaecQuestionType;
   question_text: string;
   options: WaecQuestionOption[] | null;
   correct_answer: string;
   explanation: string | null;
   marking_scheme: string | null;
+  learning_objective?: string | null;
+  estimated_time_seconds?: number | null;
+  keywords?: string[] | null;
   marks: number;
   is_active: boolean;
+  status?: WaecQuestionStatus;
+  generated_by?: WaecGeneratedBy;
+  ai_model?: string | null;
   subject_name?: string;
+};
+
+export type WaecGenerationRequest = {
+  subjectId: string;
+  subjectName: string;
+  level: WaecLevel;
+  topic?: string;
+  subTopic?: string;
+  difficulty?: WaecDifficulty | "mixed";
+  questionType?: WaecQuestionType;
+  count?: number;
+  year?: number;
+  schoolId?: string | null;
+};
+
+export type WaecGenerationResult = {
+  ok: boolean;
+  requested: number;
+  inserted: number;
+  skipped: number;
+  tokens?: number;
 };
 
 export type WaecPracticeSession = {

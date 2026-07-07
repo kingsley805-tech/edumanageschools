@@ -114,16 +114,19 @@ type MenuItemDef =
   | MenuLinkDef
   | { type: "group"; label: string; icon: typeof Users; items: MenuLinkDef[] };
 
+type PortalRole =
+  | "admin"
+  | "teacher"
+  | "parent"
+  | "student"
+  | "super_admin"
+  | "accountant"
+  | "auditor";
+
 interface DashboardLayoutProps {
   children: ReactNode;
-  role:
-    | "admin"
-    | "teacher"
-    | "parent"
-    | "student"
-    | "super_admin"
-    | "accountant"
-    | "auditor";
+  /** Optional — falls back to the signed-in user's role when omitted. */
+  role?: PortalRole;
   hideSidebar?: boolean;
 }
 
@@ -173,7 +176,7 @@ function filterDynamicNav(
 
 const DashboardLayout = ({
   children,
-  role,
+  role: roleProp,
   hideSidebar = false,
 }: DashboardLayoutProps) => {
   const { signOut } = useAuth();
@@ -190,6 +193,8 @@ const DashboardLayout = ({
   const { role: userRole } = useUserRole();
   const { hasPermission, isSuperAdmin: isSuperAdminPerm } = usePermissions();
   const isSuperAdmin = userRole === "super_admin" || isSuperAdminPerm;
+  // Fall back to the signed-in user's role when the prop is omitted.
+  const role = (roleProp ?? userRole ?? undefined) as PortalRole | undefined;
   const { navItems: dynamicNavItems } = usePortalAccess();
   const { access: subscriptionAccess } = useOrganizationSubscription();
   const { resetPersonalTheme } = useTheme();
