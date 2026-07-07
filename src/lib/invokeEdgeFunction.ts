@@ -44,6 +44,13 @@ export function formatEdgeFunctionError(error: unknown, functionName: string): s
     const e = error as { message?: string; name?: string; context?: unknown };
     const msg = (e.message ?? "").trim();
 
+    const aiFunctions = new Set(["waec-ai-generate", "gemini-chat", "paystack"]);
+    const secretHint = functionName === "waec-ai-generate" || functionName === "paystack"
+      ? "Ensure the Gemini API key is set in AI Assistant (Super Admin), or run: supabase secrets set GEMINI_API_KEY=your_key"
+      : aiFunctions.has(functionName)
+        ? "Ensure the Gemini API key is set in AI Assistant (Super Admin)."
+        : `Then set any required secrets for "${functionName}".`;
+
     if (
       msg.includes("Failed to send a request to the Edge Function") ||
       e.name === "FunctionsFetchError" ||
@@ -53,11 +60,17 @@ export function formatEdgeFunctionError(error: unknown, functionName: string): s
       return (
         `The "${functionName}" Edge Function is not reachable. ` +
         `Deploy it in Supabase Dashboard → Edge Functions, or run: supabase functions deploy ${functionName}. ` +
-        `Then set any required secrets (e.g. Paystack keys for "${functionName}").`
+        secretHint
       );
     }
 
     if (msg.includes("404") || msg.toLowerCase().includes("not found")) {
+      if (functionName === "waec-ai-generate") {
+        return (
+          `WAEC AI generation is not deployed yet. Deploy with: supabase functions deploy paystack ` +
+          `(includes waec_generate) or supabase functions deploy waec-ai-generate. ${secretHint}`
+        );
+      }
       return `Edge Function "${functionName}" was not found. Deploy it with: supabase functions deploy ${functionName}`;
     }
 

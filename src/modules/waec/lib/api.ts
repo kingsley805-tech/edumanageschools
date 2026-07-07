@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
+import { invokeEdgeFunction, isEdgeFunctionUnreachable } from "@/lib/invokeEdgeFunction";
 import type {
   WaecCatalogEntry,
   WaecGenerationRequest,
@@ -493,7 +493,7 @@ export async function fetchAllWaecQuestionsAdmin(filters?: {
 export async function generateWaecQuestions(
   req: WaecGenerationRequest,
 ): Promise<WaecGenerationResult> {
-  return invokeEdgeFunction<WaecGenerationResult>("waec-ai-generate", {
+  const payload = {
     subjectId: req.subjectId,
     subjectName: req.subjectName,
     level: req.level,
@@ -504,7 +504,18 @@ export async function generateWaecQuestions(
     count: req.count,
     schoolId: req.schoolId ?? null,
     autoApprove: req.autoApprove === true,
-  });
+  };
+
+  // Prefer paystack (already deployed on most projects); fall back to dedicated function.
+  const paystackPayload = { action: "waec_generate" as const, ...payload };
+  try {
+    return await invokeEdgeFunction<WaecGenerationResult>("paystack", paystackPayload);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message.toLowerCase() : "";
+    const notDeployed = isEdgeFunctionUnreachable(e) || msg.includes("not found");
+    if (!notDeployed) throw e;
+    return invokeEdgeFunction<WaecGenerationResult>("waec-ai-generate", payload);
+  }
 }
 
 /** Count approved active questions for a subject. */

@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleGoogleMeet, isGoogleMeetAction } from "../_shared/googleMeet.ts";
 import { handleGeminiChat, isGeminiChatAction } from "../_shared/geminiChat.ts";
+import { handleWaecAiGenerate, isWaecGenerateAction } from "../_shared/waecAiGenerate.ts";
 
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -2069,6 +2070,16 @@ serve(async (req) => {
     if (req.method === "POST" && isGeminiChatAction(jsonBody.action)) {
       const authHeader = req.headers.get("Authorization");
       return handleGeminiChat(
+        jsonBody,
+        authHeader,
+        { supabaseUrl, supabaseAnon: supabaseKey, serviceKey },
+        jsonResponse,
+      );
+    }
+
+    if (req.method === "POST" && isWaecGenerateAction(jsonBody.action)) {
+      const authHeader = req.headers.get("Authorization");
+      return handleWaecAiGenerate(
         jsonBody,
         authHeader,
         { supabaseUrl, supabaseAnon: supabaseKey, serviceKey },
