@@ -23,75 +23,93 @@ type GenParams = {
   level: "bece" | "wassce";
   topic?: string;
   subTopic?: string;
-  difficulty?: "easy" | "medium" | "hard" | "advanced";
+  difficulty?: "easy" | "medium" | "hard" | "advanced" | "mixed";
   questionType?: "objective" | "structured" | "mock";
   count?: number;
-  year?: number;
   schoolId?: string | null;
+  autoApprove?: boolean;
 };
 
-const LEVEL_LABEL: Record<string, string> = {
-  bece: "BECE (Junior High School, Ghana)",
-  wassce: "WASSCE (Senior High School, Ghana)",
-};
+const BECE_STYLE = [
+  "Write in authentic BECE (JHS) examination style used in Ghana.",
+  "Use clear, age-appropriate language for Junior High School candidates (JHS 1–3).",
+  "Paper 1 objective items: one stem, four options A–D, exactly one correct answer.",
+  "Paper 2 structured items: short-answer, problem-solving, or reasoning with Ghanaian context where natural.",
+  "Reference Ghana Education Service (GES) JHS curriculum objectives.",
+  "Do NOT mention exam years, past papers, or 'this question is from 20XX'.",
+].join(" ");
+
+const WASSCE_STYLE = [
+  "Write in authentic WASSCE (SHS) examination style used in Ghana.",
+  "Use formal academic language appropriate for Senior High School candidates.",
+  "Paper 1 objective items: one stem, four options A–D, exactly one correct answer.",
+  "Paper 2 structured items: extended reasoning, calculations, or essay-style short answers with marking points.",
+  "Align to WAEC WASSCE syllabus and Ghana Education Service SHS curriculum.",
+  "Do NOT mention exam years, past papers, or 'this question is from 20XX'.",
+].join(" ");
 
 function buildPrompt(p: GenParams, count: number): string {
-  const level = LEVEL_LABEL[p.level] ?? p.level;
+  const examStyle = p.level === "bece" ? BECE_STYLE : WASSCE_STYLE;
+  const levelLabel = p.level === "bece" ? "BECE (JHS)" : "WASSCE (SHS)";
   const qtype = p.questionType ?? "objective";
   const difficulty = p.difficulty ?? "mixed";
-  const topicLine = p.topic ? `Topic: ${p.topic}` : "Cover a spread of core syllabus topics.";
-  const subTopicLine = p.subTopic ? `Sub-topic focus: ${p.subTopic}` : "";
+  const topicLine = p.topic
+    ? `Focus topic: ${p.topic}${p.subTopic ? ` — ${p.subTopic}` : ""}.`
+    : "Cover a proportional spread across the full syllabus for this subject.";
+
+  const difficultyLine =
+    difficulty === "mixed"
+      ? "Difficulty mix: 30% easy, 40% medium, 20% hard, 10% advanced."
+      : `Difficulty: ${difficulty}.`;
 
   const typeInstructions =
     qtype === "objective"
       ? [
-          "Produce four-option multiple-choice questions.",
-          'Each question MUST include "options" as an array of exactly four objects: [{"id":"A","text":"..."},{"id":"B","text":"..."},{"id":"C","text":"..."},{"id":"D","text":"..."}].',
-          '"correct_answer" MUST be one of "A","B","C","D".',
+          "Generate ONLY Paper 1 multiple-choice questions.",
+          'Each question MUST have "options" as exactly four objects: [{"id":"A","text":"..."},{"id":"B","text":"..."},{"id":"C","text":"..."},{"id":"D","text":"..."}].',
+          '"correct_answer" MUST be "A", "B", "C", or "D".',
           'Set "question_type" to "objective" and "paper_type" to "paper_1".',
+          "Distractors must be plausible common mistakes.",
         ].join(" ")
       : qtype === "structured"
         ? [
-            "Produce short-answer / structured problem-solving questions (no multiple-choice options).",
+            "Generate ONLY Paper 2 structured/theory questions (no multiple-choice).",
             'Set "options" to null.',
-            '"correct_answer" MUST contain the full model answer.',
-            '"marking_scheme" MUST describe how marks are awarded point-by-point.',
+            '"correct_answer" MUST be the full model answer.',
+            '"marking_scheme" MUST list mark allocations point-by-point.',
             'Set "question_type" to "structured" and "paper_type" to "paper_2".',
           ].join(" ")
         : [
-            "Produce a mixed mock-examination set combining multiple-choice and short structured items.",
-            'For multiple-choice items include four "options" and a letter "correct_answer"; for structured items set "options" to null and put the model answer in "correct_answer" with a "marking_scheme".',
-            'Set "question_type" to "objective" or "structured" per item, and "paper_type" accordingly.',
+            "Generate a mixed mock-examination set: mostly objective with some structured items.",
+            "Objective items need four options; structured items need model answer and marking_scheme.",
           ].join(" ");
 
   return [
-    `You are a senior WAEC examiner and Ghanaian curriculum expert. Generate ${count} ORIGINAL examination questions.`,
-    `Examination: ${level}. Subject: ${p.subjectName}.`,
+    `You are a senior WAEC examiner for Ghana. Generate ${count} ORIGINAL, high-quality ${levelLabel} questions for ${p.subjectName}.`,
+    examStyle,
     topicLine,
-    subTopicLine,
-    `Difficulty: ${difficulty}. When "mixed", spread across easy/medium/hard/advanced.`,
+    difficultyLine,
     typeInstructions,
-    "Requirements: questions must be original (never copy real past papers verbatim), curriculum-aligned to the Ghana Education Service syllabus and WAEC objectives, unambiguous, and factually correct.",
-    "Return ONLY a JSON array (no prose, no markdown fences). Each element MUST have these keys:",
+    "Every question must be unique, factually correct, unambiguous, and never copied from real past papers.",
+    "Use Ghanaian contexts (cedis, local examples, GES terminology) where appropriate.",
+    "Return ONLY a JSON array. Each element MUST include:",
     JSON.stringify({
       question_text: "string",
-      question_type: "objective | structured | mock",
-      paper_type: "paper_1 | paper_2 | paper_3",
-      options: '[{"id":"A","text":"..."}] or null',
+      question_type: "objective | structured",
+      paper_type: "paper_1 | paper_2",
+      options: "[{id,text}×4] or null",
       correct_answer: "string",
-      explanation: "step-by-step solution and reasoning",
-      marking_scheme: "how marks are awarded (structured) or null",
+      explanation: "step-by-step solution",
+      marking_scheme: "string or null",
       topic: "string",
       sub_topic: "string",
       difficulty: "easy | medium | hard | advanced",
-      learning_objective: "syllabus learning outcome",
+      learning_objective: "GES syllabus outcome",
       estimated_time_seconds: "integer",
       keywords: ["string"],
-      marks: "integer",
+      marks: "integer 1-5",
     }),
-  ]
-    .filter(Boolean)
-    .join("\n");
+  ].join("\n");
 }
 
 async function resolveGeminiApiKey(admin: ReturnType<typeof createClient>): Promise<string | null> {
@@ -117,7 +135,7 @@ async function callGeminiJson(apiKey: string, prompt: string): Promise<{ text: s
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.9,
+          temperature: 0.85,
           maxOutputTokens: 8192,
           responseMimeType: "application/json",
         },
@@ -144,11 +162,9 @@ async function callGeminiJson(apiKey: string, prompt: string): Promise<{ text: s
 
 function parseQuestions(raw: string): Record<string, unknown>[] {
   let text = raw.trim();
-  // Strip accidental markdown fences.
   if (text.startsWith("```")) {
     text = text.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
   }
-  // Extract the first JSON array if extra text sneaks in.
   const start = text.indexOf("[");
   const end = text.lastIndexOf("]");
   if (start !== -1 && end !== -1 && end > start) {
@@ -197,7 +213,6 @@ serve(async (req) => {
     }
 
     const count = Math.min(Math.max(Number(body.count) || 10, 1), 25);
-    const year = Number(body.year) || new Date().getFullYear();
 
     const apiKey = await resolveGeminiApiKey(admin);
     if (!apiKey) {
@@ -207,10 +222,8 @@ serve(async (req) => {
       );
     }
 
-    // Resolve the target school (default to the caller's school).
-    let schoolId = body.schoolId ?? null;
-    if (schoolId === undefined) schoolId = null;
-    if (schoolId === null && body.schoolId !== null) {
+    let schoolId: string | null = body.schoolId !== undefined ? body.schoolId : null;
+    if (body.schoolId === undefined) {
       const { data: profile } = await admin
         .from("profiles")
         .select("school_id")
@@ -231,15 +244,14 @@ serve(async (req) => {
 
     if (!rows.length) return json({ error: "No questions were generated. Try again." }, 502);
 
-    // Insert via RPC (runs as the caller so RLS/staff check applies + dedup).
     const { data: insertRes, error: insertErr } = await userClient.rpc(
       "insert_waec_generated_questions",
       {
         p_subject_id: body.subjectId,
         p_school_id: schoolId,
-        p_year: year,
         p_ai_model: MODEL,
         p_rows: rows,
+        p_auto_approve: body.autoApprove === true,
       },
     );
 
@@ -252,7 +264,6 @@ serve(async (req) => {
       return json({ error: result.error ?? "Insert failed." }, 500);
     }
 
-    // Log usage best-effort.
     try {
       await admin.from("ai_usage_logs").insert({
         school_id: schoolId,

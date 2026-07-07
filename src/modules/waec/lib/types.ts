@@ -22,7 +22,7 @@ export type WaecQuestion = {
   id: string;
   school_id: string | null;
   subject_id: string;
-  year: number;
+  year?: number | null;
   paper_type: WaecPaperType;
   topic: string | null;
   sub_topic?: string | null;
@@ -53,8 +53,8 @@ export type WaecGenerationRequest = {
   difficulty?: WaecDifficulty | "mixed";
   questionType?: WaecQuestionType;
   count?: number;
-  year?: number;
   schoolId?: string | null;
+  autoApprove?: boolean;
 };
 
 export type WaecGenerationResult = {
@@ -124,19 +124,13 @@ export type WaecCatalogEntry = {
   subject_name: string;
   level: WaecLevel;
   category: string | null;
-  years: { year: number; question_count: number; paper_types: string[] }[];
   total_questions: number;
-};
-
-export type WaecLevelYears = {
-  level: WaecLevel;
-  years: number[];
+  topics?: string[];
 };
 
 export type WaecPracticeConfig = {
   level: WaecLevel;
   subjectId: string;
-  year?: number;
   paperType: WaecPaperType;
   topic?: string;
   questionCount: number;

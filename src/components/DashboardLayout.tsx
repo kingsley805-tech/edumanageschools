@@ -866,7 +866,7 @@ const DashboardLayout = ({
           items: [
             {
               icon: GraduationCap,
-              label: "Solve WAEC Past Questions",
+              label: "Solve BECE & WASSCE Questions",
               path: "/student/waec-practice",
             },
             {

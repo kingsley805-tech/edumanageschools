@@ -10,11 +10,8 @@ import { WAEC_LEVEL_LABELS, WAEC_PAPER_LABELS } from "@/modules/waec/lib/types";
 
 type Props = {
   subjects: WaecSubject[];
-  years: number[];
   topics: string[];
   availableCount?: number;
-  levelYears?: number[];
-  onYearsNeeded: (subjectId: string) => void;
   onTopicsNeeded: (subjectId: string) => void;
   onLevelChange?: (level: WaecLevel) => void;
   onStart: (config: WaecPracticeConfig) => void;
@@ -23,11 +20,8 @@ type Props = {
 
 export function WaecPracticeSetup({
   subjects,
-  years,
   topics,
   availableCount,
-  levelYears,
-  onYearsNeeded,
   onTopicsNeeded,
   onLevelChange,
   onStart,
@@ -35,7 +29,6 @@ export function WaecPracticeSetup({
 }: Props) {
   const [level, setLevel] = useState<WaecLevel>("bece");
   const [subjectId, setSubjectId] = useState("");
-  const [year, setYear] = useState<string>("all");
   const [paperType, setPaperType] = useState<WaecPaperType>("paper_1");
   const [topic, setTopic] = useState<string>("all");
   const [questionCount, setQuestionCount] = useState("10");
@@ -48,14 +41,12 @@ export function WaecPracticeSetup({
 
   const handleSubjectChange = (id: string) => {
     setSubjectId(id);
-    onYearsNeeded(id);
     onTopicsNeeded(id);
   };
 
   const buildConfig = (mode: "practice" | "exam"): WaecPracticeConfig => ({
     level,
     subjectId,
-    year: year !== "all" ? Number(year) : undefined,
     paperType,
     topic: topic !== "all" ? topic : undefined,
     questionCount: Number(questionCount) || 10,
@@ -71,7 +62,7 @@ export function WaecPracticeSetup({
             <BookOpen className="h-4 w-4" />
             Practice Mode
           </CardTitle>
-          <CardDescription>Select level, subject, year, and topics — no time limit</CardDescription>
+          <CardDescription>Select level, subject, and topics — no time limit</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <SetupFields
@@ -80,10 +71,6 @@ export function WaecPracticeSetup({
             subjectId={subjectId}
             setSubjectId={handleSubjectChange}
             levelSubjects={levelSubjects}
-            year={year}
-            setYear={setYear}
-            years={years}
-            levelYears={levelYears}
             paperType={paperType}
             setPaperType={setPaperType}
             topic={topic}
@@ -109,9 +96,9 @@ export function WaecPracticeSetup({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Timer className="h-4 w-4" />
-            Real Examination Mode
+            Mock Examination Mode
           </CardTitle>
-          <CardDescription>Timed WAEC simulator with countdown and auto-submit</CardDescription>
+          <CardDescription>Timed BECE/WASSCE simulator with countdown and auto-submit</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <SetupFields
@@ -120,10 +107,6 @@ export function WaecPracticeSetup({
             subjectId={subjectId}
             setSubjectId={handleSubjectChange}
             levelSubjects={levelSubjects}
-            year={year}
-            setYear={setYear}
-            years={years}
-            levelYears={levelYears}
             paperType={paperType}
             setPaperType={setPaperType}
             topic={topic}
@@ -158,10 +141,6 @@ function SetupFields({
   subjectId,
   setSubjectId,
   levelSubjects,
-  year,
-  setYear,
-  years,
-  levelYears,
   paperType,
   setPaperType,
   topic,
@@ -180,10 +159,6 @@ function SetupFields({
   subjectId: string;
   setSubjectId: (v: string) => void;
   levelSubjects: WaecSubject[];
-  year: string;
-  setYear: (v: string) => void;
-  years: number[];
-  levelYears?: number[];
   paperType: WaecPaperType;
   setPaperType: (v: WaecPaperType) => void;
   topic: string;
@@ -197,7 +172,6 @@ function SetupFields({
   duration?: string;
   setDuration?: (v: string) => void;
 }) {
-  const yearOptions = years.length > 0 ? years : (levelYears ?? []);
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <div className="space-y-1.5">
@@ -206,7 +180,6 @@ function SetupFields({
           const lv = v as WaecLevel;
           setLevel(lv);
           setSubjectId("");
-          setYear("all");
           onLevelChange?.(lv);
         }}>
           <SelectTrigger><SelectValue /></SelectTrigger>
@@ -228,19 +201,7 @@ function SetupFields({
           </SelectContent>
         </Select>
       </div>
-      <div className="space-y-1.5">
-        <Label>Year</Label>
-        <Select value={year} onValueChange={setYear}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All years</SelectItem>
-            {yearOptions.map((y) => (
-              <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-1.5">
+      <div className="space-y-1.5 sm:col-span-2">
         <Label>Paper type</Label>
         <Select value={paperType} onValueChange={(v) => setPaperType(v as WaecPaperType)}>
           <SelectTrigger><SelectValue /></SelectTrigger>
@@ -277,7 +238,7 @@ function SetupFields({
       ) : null}
       {subjectId && availableCount != null ? (
         <p className="text-xs text-muted-foreground sm:col-span-2">
-          {availableCount.toLocaleString()} question(s) available for this selection
+          {availableCount.toLocaleString()} WAEC-style question(s) available for this subject
         </p>
       ) : null}
     </div>

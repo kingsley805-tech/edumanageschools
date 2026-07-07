@@ -29,7 +29,6 @@ import { toast } from "sonner";
 
 const emptyForm = {
   subject_id: "",
-  year: String(new Date().getFullYear()),
   paper_type: "paper_1",
   topic: "",
   difficulty: "medium",
@@ -96,7 +95,6 @@ export default function WaecAdminPage() {
       await saveWaecQuestion(
         {
           subject_id: form.subject_id,
-          year: Number(form.year),
           paper_type: form.paper_type as WaecQuestion["paper_type"],
           topic: form.topic || null,
           difficulty: form.difficulty as WaecQuestion["difficulty"],
@@ -136,7 +134,7 @@ export default function WaecAdminPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">WAEC Question Bank</h1>
-          <p className="text-sm text-muted-foreground">Manage BECE & WASSCE past questions, marking schemes & explanations</p>
+          <p className="text-sm text-muted-foreground">Manage BECE (JHS) & WASSCE (SHS) questions, marking schemes & explanations</p>
         </div>
 
         {schemaStatus && !schemaReady ? (
@@ -191,8 +189,8 @@ export default function WaecAdminPage() {
                   <Button variant="outline" size="sm" className="gap-1.5" onClick={() =>
                     downloadCsv(
                       "waec-questions.csv",
-                      ["Subject", "Year", "Paper", "Topic", "Question", "Answer"],
-                      questions.map((q) => [q.subject_name, q.year, q.paper_type, q.topic, q.question_text, q.correct_answer]),
+                      ["Subject", "Paper", "Topic", "Question", "Answer"],
+                      questions.map((q) => [q.subject_name, q.paper_type, q.topic, q.question_text, q.correct_answer]),
                     )
                   }>
                     <Download className="h-4 w-4" />
@@ -215,10 +213,6 @@ export default function WaecAdminPage() {
                               ))}
                             </SelectContent>
                           </Select>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label>Year</Label>
-                          <Input type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
                         </div>
                         <div className="space-y-1.5">
                           <Label>Paper</Label>
@@ -273,7 +267,6 @@ export default function WaecAdminPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Subject</TableHead>
-                      <TableHead>Year</TableHead>
                       <TableHead>Question</TableHead>
                       <TableHead>Answer</TableHead>
                       <TableHead />
@@ -283,7 +276,6 @@ export default function WaecAdminPage() {
                     {questions.map((q) => (
                       <TableRow key={q.id}>
                         <TableCell className="text-xs">{q.subject_name}</TableCell>
-                        <TableCell>{q.year}</TableCell>
                         <TableCell className="max-w-[300px] truncate">{q.question_text}</TableCell>
                         <TableCell>{q.correct_answer}</TableCell>
                         <TableCell>

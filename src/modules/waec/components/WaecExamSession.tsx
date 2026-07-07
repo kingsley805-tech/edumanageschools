@@ -95,7 +95,6 @@ export function WaecExamSession({
             </CardTitle>
             <p className="text-xs text-muted-foreground">
               {WAEC_PAPER_LABELS[session.paper_type]}
-              {session.year_filter ? ` · ${session.year_filter}` : ""}
               {" · "}
               {session.mode === "exam" ? "Mock Examination" : "Practice"}
             </p>

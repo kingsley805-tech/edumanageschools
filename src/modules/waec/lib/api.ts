@@ -81,11 +81,10 @@ export async function fetchWaecQuestions(filters: {
       .select("*, waec_subjects(name, level)")
       .eq("subject_id", filters.subjectId)
       .eq("is_active", true)
-      .order("year", { ascending: false })
       .order("id")
       .range(from, from + PAGE_SIZE - 1);
 
-    if (filters.year) q = q.eq("year", filters.year);
+    if (filters.year != null) q = q.eq("year", filters.year);
     if (filters.paperType) q = q.eq("paper_type", filters.paperType);
     if (filters.topic) q = q.ilike("topic", `%${filters.topic}%`);
 
@@ -155,7 +154,7 @@ export async function fetchWaecQuestionCount(filters: {
   return count ?? 0;
 }
 
-/** Full catalogue: every subject with available years and question counts. */
+/** Full catalogue: every subject with question counts (no year grouping). */
 export async function fetchWaecCatalog(level?: WaecLevel): Promise<WaecCatalogEntry[]> {
   const { data, error } = await supabase.rpc("get_waec_question_catalog", {
     p_level: level ?? null,
@@ -164,32 +163,19 @@ export async function fetchWaecCatalog(level?: WaecLevel): Promise<WaecCatalogEn
     return data as WaecCatalogEntry[];
   }
 
-  // Client-side fallback when RPC not yet deployed
   const subjects = await fetchWaecSubjects(level);
   const entries: WaecCatalogEntry[] = [];
 
   for (const subject of subjects) {
     const questions = await fetchWaecQuestions({ subjectId: subject.id });
-    const yearMap = new Map<number, { count: number; papers: Set<string> }>();
-    for (const q of questions) {
-      const cur = yearMap.get(q.year) ?? { count: 0, papers: new Set<string>() };
-      cur.count += 1;
-      cur.papers.add(q.paper_type);
-      yearMap.set(q.year, cur);
-    }
+    const topics = [...new Set(questions.map((q) => q.topic).filter(Boolean) as string[])].sort();
     entries.push({
       subject_id: subject.id,
       subject_name: subject.name,
       level: subject.level,
       category: subject.category,
-      years: [...yearMap.entries()]
-        .map(([year, v]) => ({
-          year,
-          question_count: v.count,
-          paper_types: [...v.papers],
-        }))
-        .sort((a, b) => b.year - a.year),
       total_questions: questions.length,
+      topics,
     });
   }
 
@@ -215,13 +201,12 @@ export async function startWaecSession(
 ): Promise<{ session: WaecPracticeSession; questions: WaecQuestion[] }> {
   const pool = await fetchWaecQuestions({
     subjectId: config.subjectId,
-    year: config.year,
     paperType: config.paperType,
     topic: config.topic,
   });
 
   if (pool.length === 0) {
-    throw new Error("No questions found for this selection. Try a different year or subject.");
+    throw new Error("No questions found for this subject. Ask your teacher to generate the question bank.");
   }
 
   const shuffled = [...pool].sort(() => Math.random() - 0.5);
@@ -237,7 +222,7 @@ export async function startWaecSession(
       subject_id: config.subjectId,
       level: config.level,
       mode: config.mode,
-      year_filter: config.year ?? null,
+      year_filter: null,
       paper_type: config.paperType,
       topic_filter: config.topic ?? null,
       question_count: selected.length,
@@ -395,7 +380,7 @@ export async function saveWaecQuestion(
   const row = {
     school_id: schoolId,
     subject_id: payload.subject_id,
-    year: payload.year ?? new Date().getFullYear(),
+    year: null,
     paper_type: payload.paper_type ?? "paper_1",
     topic: payload.topic ?? null,
     difficulty: payload.difficulty ?? "medium",
@@ -427,14 +412,12 @@ export async function deleteWaecQuestion(id: string) {
 
 export async function fetchAllWaecQuestionsAdmin(filters?: {
   subjectId?: string;
-  year?: number;
   level?: WaecLevel;
   search?: string;
 }): Promise<WaecQuestion[]> {
   let rows = await fetchWaecQuestions({
     subjectId: filters?.subjectId,
     level: filters?.level,
-    year: filters?.year,
   });
 
   if (filters?.search) {
@@ -449,7 +432,7 @@ export async function fetchAllWaecQuestionsAdmin(filters?: {
 // AI Question Generation Engine
 // ---------------------------------------------------------------------------
 
-/** Ask the AI to generate a batch of questions for a subject (inserted as drafts). */
+/** Ask the AI to generate a batch of questions for a subject. */
 export async function generateWaecQuestions(
   req: WaecGenerationRequest,
 ): Promise<WaecGenerationResult> {
@@ -462,9 +445,110 @@ export async function generateWaecQuestions(
     difficulty: req.difficulty,
     questionType: req.questionType,
     count: req.count,
-    year: req.year,
     schoolId: req.schoolId ?? null,
+    autoApprove: req.autoApprove === true,
   });
+}
+
+/** Count approved active questions for a subject. */
+export async function countWaecSubjectQuestions(subjectId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from("waec_questions")
+    .select("id", { count: "exact", head: true })
+    .eq("subject_id", subjectId)
+    .eq("is_active", true);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/** Standard WAEC bank: 300 objective + 150 structured + 50 mock = 500 per subject. */
+export const WAEC_BANK_TARGET = 500;
+export const WAEC_BANK_MIX: { questionType: "objective" | "structured" | "mock"; count: number }[] = [
+  { questionType: "objective", count: 300 },
+  { questionType: "structured", count: 150 },
+  { questionType: "mock", count: 50 },
+];
+
+export type WaecBankProgress = {
+  subjectName: string;
+  phase: string;
+  done: number;
+  total: number;
+  inserted: number;
+  skipped: number;
+};
+
+/** Generate the full 500-question bank for one subject (batched). */
+export async function generateWaecSubjectBank(
+  subject: WaecSubject,
+  opts: {
+    schoolId: string | null;
+    autoApprove?: boolean;
+    onProgress?: (p: WaecBankProgress) => void;
+    existingCount?: number;
+  },
+): Promise<{ inserted: number; skipped: number }> {
+  const BATCH = 15;
+  let inserted = 0;
+  let skipped = 0;
+  const existing = opts.existingCount ?? (await countWaecSubjectQuestions(subject.id));
+  const needed = Math.max(0, WAEC_BANK_TARGET - existing);
+  if (needed === 0) {
+    return { inserted: 0, skipped: 0 };
+  }
+
+  // Scale mix proportionally if we only need a partial top-up.
+  const scale = needed / WAEC_BANK_TARGET;
+  const phases = WAEC_BANK_MIX.map((m) => ({
+    questionType: m.questionType,
+    count: Math.max(1, Math.round(m.count * scale)),
+  }));
+  // Adjust last phase so total ~= needed
+  const phaseTotal = phases.reduce((s, p) => s + p.count, 0);
+  if (phaseTotal > needed) {
+    phases[phases.length - 1].count -= phaseTotal - needed;
+  }
+
+  let done = 0;
+  for (const phase of phases) {
+    let phaseDone = 0;
+    while (phaseDone < phase.count) {
+      const batchCount = Math.min(BATCH, phase.count - phaseDone);
+      opts.onProgress?.({
+        subjectName: subject.name,
+        phase: phase.questionType,
+        done,
+        total: needed,
+        inserted,
+        skipped,
+      });
+      const res = await generateWaecQuestions({
+        subjectId: subject.id,
+        subjectName: subject.name,
+        level: subject.level,
+        difficulty: "mixed",
+        questionType: phase.questionType,
+        count: batchCount,
+        schoolId: opts.schoolId,
+        autoApprove: opts.autoApprove ?? true,
+      });
+      inserted += res.inserted ?? 0;
+      skipped += res.skipped ?? 0;
+      phaseDone += batchCount;
+      done += batchCount;
+    }
+  }
+
+  opts.onProgress?.({
+    subjectName: subject.name,
+    phase: "done",
+    done: needed,
+    total: needed,
+    inserted,
+    skipped,
+  });
+
+  return { inserted, skipped };
 }
 
 /** Draft/rejected questions for the admin review queue (bypasses is_active filter). */
