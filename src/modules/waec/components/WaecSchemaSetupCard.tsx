@@ -31,6 +31,10 @@ export function WaecSchemaSetupCard({ checking, onRecheck }: Props) {
             <span className="text-foreground/80"> — lets students generate their own AI exams</span>
           </li>
           <li>
+            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">public/sql/apply-waec-generate-rpc.sql</code>
+            <span className="text-foreground/80"> — AI generation without any edge-function deploy</span>
+          </li>
+          <li>
             <code className="rounded bg-muted px-1.5 py-0.5 text-xs">NOTIFY pgrst, &apos;reload schema&apos;;</code>
           </li>
         </ol>

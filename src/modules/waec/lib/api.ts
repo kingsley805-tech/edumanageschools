@@ -489,10 +489,65 @@ export async function fetchAllWaecQuestionsAdmin(filters?: {
 // AI Question Generation Engine
 // ---------------------------------------------------------------------------
 
-/** Ask the AI to generate a batch of questions for a subject. */
+type RawGenerationResult = {
+  ok?: boolean;
+  error?: string;
+  requested?: number;
+  inserted?: number;
+  skipped?: number;
+  questionIds?: string[];
+  tokens?: number;
+};
+
+function normalizeGenerationResult(raw: RawGenerationResult, requested: number): WaecGenerationResult {
+  return {
+    ok: raw.ok !== false,
+    requested: raw.requested ?? requested,
+    inserted: raw.inserted ?? 0,
+    skipped: raw.skipped ?? 0,
+    questionIds: raw.questionIds ?? [],
+    tokens: raw.tokens,
+  };
+}
+
+/**
+ * Ask the AI to generate a batch of questions for a subject.
+ * Primary path is a Postgres RPC (works with no edge-function deploy — same as AI chat).
+ * Falls back to edge functions only if the RPC isn't installed yet.
+ */
 export async function generateWaecQuestions(
   req: WaecGenerationRequest,
 ): Promise<WaecGenerationResult> {
+  const requested = req.count ?? 10;
+
+  // 1) Preferred: database RPC via the http extension (no deployment needed).
+  const { data, error } = await supabase.rpc("waec_generate_questions", {
+    p_subject_id: req.subjectId,
+    p_subject_name: req.subjectName,
+    p_level: req.level,
+    p_topic: req.topic ?? null,
+    p_sub_topic: req.subTopic ?? null,
+    p_difficulty: req.difficulty ?? "mixed",
+    p_question_type: req.questionType ?? "objective",
+    p_count: requested,
+    p_auto_approve: req.autoApprove === true,
+  });
+
+  if (!error) {
+    const raw = (data ?? {}) as RawGenerationResult;
+    if (raw.ok === false) throw new Error(raw.error ?? "Generation failed.");
+    return normalizeGenerationResult(raw, requested);
+  }
+
+  // If the RPC exists but returned a business error, surface it (don't fall back).
+  const rpcMissing =
+    (error.message ?? "").toLowerCase().includes("could not find") ||
+    (error.message ?? "").toLowerCase().includes("does not exist") ||
+    error.code === "PGRST202" ||
+    error.code === "42883";
+  if (!rpcMissing) throw error;
+
+  // 2) Fallback: edge functions (paystack bundle, then dedicated function).
   const payload = {
     subjectId: req.subjectId,
     subjectName: req.subjectName,
@@ -505,16 +560,18 @@ export async function generateWaecQuestions(
     schoolId: req.schoolId ?? null,
     autoApprove: req.autoApprove === true,
   };
-
-  // Prefer paystack (already deployed on most projects); fall back to dedicated function.
-  const paystackPayload = { action: "waec_generate" as const, ...payload };
   try {
-    return await invokeEdgeFunction<WaecGenerationResult>("paystack", paystackPayload);
+    const res = await invokeEdgeFunction<RawGenerationResult>("paystack", {
+      action: "waec_generate",
+      ...payload,
+    });
+    return normalizeGenerationResult(res, requested);
   } catch (e) {
     const msg = e instanceof Error ? e.message.toLowerCase() : "";
     const notDeployed = isEdgeFunctionUnreachable(e) || msg.includes("not found");
     if (!notDeployed) throw e;
-    return invokeEdgeFunction<WaecGenerationResult>("waec-ai-generate", payload);
+    const res = await invokeEdgeFunction<RawGenerationResult>("waec-ai-generate", payload);
+    return normalizeGenerationResult(res, requested);
   }
 }
 
