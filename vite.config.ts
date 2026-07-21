@@ -16,24 +16,31 @@ function googleSiteVerificationPlugin() {
 }
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  server: {
-    host: "::",
-    port: 8080,
-  },
-  plugins: [react(), googleSiteVerificationPlugin()],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+export default defineConfig(({ mode }) => {
+  const electronMode =
+    mode === "electron" ||
+    mode === "capacitor" ||
+    process.env.VITE_RELATIVE_BASE === "true";
+
+  return {
+    server: {
+      host: "::",
+      port: 8080,
     },
-    dedupe: ["react", "react-dom"],
-  },
-  build: {
-    outDir: "dist",
-    emptyOutDir: true,
-  },
-  // Absolute base for web hosting (Vercel, etc.). Deep routes like /teacher/report-cards
-  // break with relative "./" because assets resolve under the URL path.
-  // For Capacitor: npm run build:capacitor (sets VITE_RELATIVE_BASE=true)
-  base: process.env.VITE_RELATIVE_BASE === "true" ? "./" : "/",
+    plugins: [react(), googleSiteVerificationPlugin()],
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
+      dedupe: ["react", "react-dom"],
+    },
+    build: {
+      outDir: "dist",
+      emptyOutDir: true,
+    },
+    // Absolute base for web hosting (Vercel, etc.). Deep routes like /teacher/report-cards
+    // break with relative "./" because assets resolve under the URL path.
+    // For Capacitor / Electron: relative base so file:// and packaged assets resolve.
+    base: electronMode ? "./" : "/",
+  };
 });

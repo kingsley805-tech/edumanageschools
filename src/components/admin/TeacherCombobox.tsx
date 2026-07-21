@@ -68,25 +68,25 @@ export function TeacherCombobox({ teachers, value, onChange, placeholder = "Sele
               </div>
             </div>
           ) : (
-            <span className="text-[#a3a3a3]">{placeholder}</span>
+            <span className="text-muted-foreground">{placeholder}</span>
           )}
-          <ChevronsUpDown className="h-4 w-4 shrink-0 text-[#a3a3a3]" />
+          <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
         </button>
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-[var(--radix-popover-trigger-width)] border-[#2a2a2a] bg-[#141414] p-0 text-[#fafafa]"
+        className="w-[var(--radix-popover-trigger-width)] border-border bg-popover p-0 text-popover-foreground"
       >
         <Command className="bg-transparent">
-          <div className="flex items-center border-b border-[#2a2a2a] px-3">
-            <Search className="h-4 w-4 text-[#a3a3a3]" />
+          <div className="flex items-center border-b border-border px-3">
+            <Search className="h-4 w-4 text-muted-foreground" />
             <CommandInput
               placeholder="Search by name, email or staff ID…"
-              className="h-10 border-0 bg-transparent text-sm text-[#fafafa] placeholder:text-[#6b6b6b] focus:ring-0"
+              className="h-10 border-0 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:ring-0"
             />
           </div>
           <CommandList className="max-h-[320px]">
-            <CommandEmpty className="py-6 text-center text-sm text-[#a3a3a3]">
+            <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
               No teachers found.
             </CommandEmpty>
             <CommandGroup>
@@ -100,7 +100,7 @@ export function TeacherCombobox({ teachers, value, onChange, placeholder = "Sele
                       onChange(t.id);
                       setOpen(false);
                     }}
-                    className="flex items-center gap-3 px-3 py-2 text-[#fafafa] aria-selected:bg-[#222]"
+                    className="flex items-center gap-3 px-3 py-2 text-foreground aria-selected:bg-muted"
                   >
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={t.avatar_url ?? undefined} alt={t.full_name} />

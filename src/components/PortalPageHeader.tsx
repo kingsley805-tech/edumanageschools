@@ -8,22 +8,26 @@ type Props = {
   className?: string;
 };
 
-/** Consistent page title block for portal inner pages */
+/** Page title block — mingo page-head (no card chrome) */
 export function PortalPageHeader({ title, description, actions, className }: Props) {
   return (
     <div
       className={cn(
-        "portal-page-header mb-6 flex flex-col gap-4 rounded-xl border border-border/80 bg-card/80 p-4 shadow-sm backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between sm:p-5 md:mb-8",
+        "portal-page-header mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between",
         className,
       )}
     >
       <div className="min-w-0 space-y-1">
-        <h1 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">{title}</h1>
+        <h1 className="font-display text-[21px] font-semibold leading-tight tracking-tight text-foreground">
+          {title}
+        </h1>
         {description ? (
-          <p className="text-sm text-muted-foreground md:text-base">{description}</p>
+          <p className="text-[12.5px] text-muted-foreground">{description}</p>
         ) : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? (
+        <div className="flex flex-wrap items-center gap-2.5">{actions}</div>
+      ) : null}
     </div>
   );
 }

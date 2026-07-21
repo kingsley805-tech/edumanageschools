@@ -30,8 +30,9 @@ export default {
     extend: {
       fontFamily: {
         sans: ["Inter", "sans-serif"],
-        display: ["Manrope", "Inter", "sans-serif"],
-        report: ["Manrope", "Inter", "sans-serif"],
+        display: ["Space Grotesk", "Inter", "sans-serif"],
+        mono: ["IBM Plex Mono", "ui-monospace", "monospace"],
+        report: ["Space Grotesk", "Inter", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -39,6 +40,21 @@ export default {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        /* mingo aliases — prefer these over one-off hex */
+        bg: "hsl(var(--background))",
+        surface: "hsl(var(--surface))",
+        ink: "hsl(var(--foreground))",
+        "ink-soft": "hsl(var(--ink-soft))",
+        "ink-faint": "hsl(var(--ink-faint))",
+        line: "hsl(var(--border))",
+        "line-strong": "hsl(var(--line-strong))",
+        critical: "hsl(var(--critical))",
+        "critical-bg": "hsl(var(--critical-bg))",
+        warn: "hsl(var(--warn))",
+        "warn-bg": "hsl(var(--warn-bg))",
+        positive: "hsl(var(--positive))",
+        "positive-bg": "hsl(var(--positive-bg))",
+        "info-bg": "hsl(var(--info-bg))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
@@ -66,6 +82,10 @@ export default {
         warning: {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
         },
         popover: {
           DEFAULT: "hsl(var(--popover))",

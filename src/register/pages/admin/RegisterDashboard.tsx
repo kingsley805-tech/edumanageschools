@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,6 +22,7 @@ import { RegisterSettings } from "@/register/pages/admin/RegisterSettings";
 export default function RegisterDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [schoolId, setSchoolId] = useState<string | null>(null);
   const [schoolName, setSchoolName] = useState("School");
   const [tab, setTab] = useState("dashboard");
@@ -56,6 +57,13 @@ export default function RegisterDashboard() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const t = new URLSearchParams(location.search).get("tab");
+    if (t && ["dashboard", "approval", "archive", "settings"].includes(t)) {
+      setTab(t);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     if (!schoolId) return;

@@ -10,140 +10,162 @@ All colors MUST be HSL.
 
 @layer base {
     :root {
-        /* Platform default: black & white on dark portal canvas (#0a0a0a) */
-        --background: 0 0% 4%;
-        --foreground: 0 0% 98%;
-        --card: 0 0% 8%;
-        --card-foreground: 0 0% 98%;
-        --popover: 0 0% 8%;
-        --popover-foreground: 0 0% 98%;
-        --primary: 0 0% 98%;
-        --primary-foreground: 0 0% 9%;
-        --primary-glow: 0 0% 90%;
-        --secondary: 0 0% 12%;
-        --secondary-foreground: 0 0% 98%;
-        --muted: 0 0% 14%;
-        --muted-foreground: 0 0% 72%;
-        --accent: 0 0% 85%;
-        --accent-foreground: 0 0% 9%;
-        --destructive: 0 84% 60%;
+        /*
+         * mingo design system (portal + system UI)
+         * Tokens: bg/surface/ink/line + critical/warn/positive/info
+         * Prefer these over one-off custom colors.
+         */
+        --background: 0 0% 100%;
+        --foreground: 0 0% 4%;
+        --bg: 0 0% 100%;
+        --ink: 0 0% 4%;
+        --line: 240 5% 90%;
+        --card: 0 0% 100%;
+        --card-foreground: 0 0% 4%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 0 0% 4%;
+        --primary: 142 71% 45%;
+        --primary-foreground: 0 0% 100%;
+        --primary-glow: 142 69% 58%;
+        --secondary: 0 0% 98%;
+        --secondary-foreground: 0 0% 4%;
+        --muted: 0 0% 98%;
+        --muted-foreground: 240 5% 34%;
+        --accent: 138 76% 97%;
+        --accent-foreground: 0 0% 4%;
+        --destructive: 0 72% 42%;
         --destructive-foreground: 0 0% 100%;
-        --border: 0 0% 22%;
-        --input: 0 0% 11%;
-        --ring: 0 0% 98%;
-        --radius: 0.75rem;
-        --success: 142 71% 45%;
+        --border: 240 5% 90%;
+        --input: 240 5% 90%;
+        --ring: 142 71% 45%;
+        --radius: 0.125rem;
+
+        --success: 142 72% 24%;
         --success-foreground: 0 0% 100%;
-        --warning: 38 92% 50%;
+        --warning: 32 95% 31%;
         --warning-foreground: 0 0% 100%;
-        --info: 199 89% 48%;
+        --info: 221 83% 48%;
         --info-foreground: 0 0% 100%;
+
+        --critical: 0 72% 42%;
+        --critical-bg: 0 86% 97%;
+        --warn: 32 95% 31%;
+        --warn-bg: 48 96% 89%;
+        --positive: 142 72% 24%;
+        --positive-bg: 138 76% 97%;
+        --info-bg: 214 100% 97%;
+        --ink-soft: 240 5% 34%;
+        --ink-faint: 240 4% 65%;
+        --line-strong: 240 6% 10%;
+        --brand: 142 71% 45%;
+        --brand-hover: 142 69% 58%;
+        --surface: 0 0% 98%;
+
         --gradient-hero: linear-gradient(
             135deg,
-            hsl(0 0% 98% / 0.12),
-            hsl(0 0% 4% / 0.98)
+            hsl(0 0% 100%),
+            hsl(138 76% 97%)
         );
-        --gradient-card: linear-gradient(135deg, hsl(0 0% 8%), hsl(0 0% 10%));
-        --shadow-sm:
-            0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-        --shadow-md:
-            0 4px 6px -1px rgb(0 0 0 / 0.12), 0 2px 4px -2px rgb(0 0 0 / 0.08);
-        --shadow-lg:
-            0 10px 15px -3px rgb(0 0 0 / 0.12), 0 4px 6px -4px rgb(0 0 0 / 0.08);
-        --shadow-xl:
-            0 20px 25px -5px rgb(0 0 0 / 0.12),
-            0 8px 10px -6px rgb(0 0 0 / 0.08);
-        --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.2);
-        --shadow-glow: 0 0 30px -5px hsl(0 0% 100% / 0.12);
-        --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
-        --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(0 0% 98%));
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+        --shadow-md: 0 2px 6px -1px rgb(0 0 0 / 0.06);
+        --shadow-lg: 0 8px 16px -4px rgb(0 0 0 / 0.08);
+        --shadow-xl: 0 12px 24px -6px rgb(0 0 0 / 0.1);
+        --shadow-2xl: 0 20px 40px -12px rgb(0 0 0 / 0.12);
+        --shadow-glow: 0 0 24px -6px hsl(142 71% 45% / 0.25);
+        --shadow-inner: inset 0 1px 2px 0 rgb(0 0 0 / 0.04);
+        --transition-smooth: all 0.12s ease;
+
+        /* Dark sidebar on light shell */
         --sidebar-background: 0 0% 4%;
-        --sidebar-foreground: 0 0% 98%;
-        --sidebar-primary: 0 0% 98%;
-        --sidebar-primary-foreground: 0 0% 9%;
-        --sidebar-accent: 0 0% 12%;
-        --sidebar-accent-foreground: 0 0% 98%;
-        --sidebar-border: 0 0% 22%;
-        --sidebar-ring: 0 0% 98%;
-        --chart-1: 0 0% 98%;
-        --chart-2: 0 0% 20%;
-        --chart-3: 0 0% 60%;
-        --chart-4: 0 0% 40%;
-        --chart-5: 0 0% 75%;
+        --sidebar-foreground: 240 5% 90%;
+        --sidebar-primary: 142 71% 45%;
+        --sidebar-primary-foreground: 0 0% 100%;
+        --sidebar-accent: 240 5% 12%;
+        --sidebar-accent-foreground: 0 0% 100%;
+        --sidebar-border: 240 4% 16%;
+        --sidebar-ring: 142 71% 45%;
+        --chart-1: 142 71% 45%;
+        --chart-2: 142 69% 58%;
+        --chart-3: 240 4% 65%;
+        --chart-4: 240 5% 90%;
+        --chart-5: 0 0% 98%;
+
+        /* Match Auth/Landing green accent */
+        --portal-accent: 142 71% 45%;
+        --portal-accent-soft: 142 71% 45% / 0.15;
     }
     .dark {
+        /* mingo inverted — still uses the same token palette, no custom accents */
         --background: 0 0% 4%;
         --foreground: 0 0% 98%;
-        --card: 0 0% 8%;
+        --card: 240 5% 12%;
         --card-foreground: 0 0% 98%;
-        --popover: 0 0% 8%;
+        --popover: 240 5% 12%;
         --popover-foreground: 0 0% 98%;
-        --primary: 217 91% 60%;
-        --primary-foreground: 0 0% 100%;
-
-        --primary-glow: 189 94% 43%;
-
-        --secondary: 0 0% 12%;
+        --primary: 0 0% 100%;
+        --primary-foreground: 0 0% 4%;
+        --primary-glow: 0 0% 100%;
+        --secondary: 240 5% 12%;
         --secondary-foreground: 0 0% 98%;
-        --muted: 0 0% 14%;
-        --muted-foreground: 0 0% 72%;
-        --accent: 189 94% 43%;
-        --accent-foreground: 0 0% 100%;
-        --destructive: 0 63% 31%;
-        --destructive-foreground: 210 40% 98%;
-        --border: 0 0% 22%;
-        --input: 0 0% 11%;
-        --ring: 217 91% 60%;
-        --radius: 0.75rem;
+        --muted: 240 5% 12%;
+        --muted-foreground: 240 4% 65%;
+        --accent: 240 5% 12%;
+        --accent-foreground: 0 0% 98%;
+        --destructive: 0 72% 42%;
+        --destructive-foreground: 0 0% 100%;
+        --border: 240 4% 16%;
+        --input: 240 4% 16%;
+        --ring: 0 0% 100%;
+        --radius: 0.125rem;
 
-        --success: 142 71% 45%;
+        --success: 142 72% 29%;
         --success-foreground: 0 0% 100%;
-
-        --warning: 38 92% 50%;
+        --warning: 32 95% 44%;
         --warning-foreground: 0 0% 100%;
-
-        --info: 199 89% 48%;
+        --info: 221 83% 53%;
         --info-foreground: 0 0% 100%;
 
-        --gradient-hero: linear-gradient(
-            135deg,
-            hsl(217 91% 60% / 0.9),
-            hsl(189 94% 43% / 0.9)
-        );
-        --gradient-card: linear-gradient(
-            135deg,
-            hsl(220 13% 11%),
-            hsl(220 13% 13%)
-        );
+        --critical: 0 72% 42%;
+        --critical-bg: 0 50% 12%;
+        --warn: 32 95% 44%;
+        --warn-bg: 40 50% 12%;
+        --positive: 142 72% 29%;
+        --positive-bg: 142 40% 10%;
+        --info-bg: 221 50% 14%;
+        --ink-soft: 240 4% 65%;
+        --ink-faint: 240 4% 46%;
+        --line-strong: 0 0% 100%;
+        --surface: 240 5% 12%;
 
-        --shadow-sm:
-            0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
-        --shadow-md:
-            0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
-        --shadow-lg:
-            0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.3);
-        --shadow-xl:
-            0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.3);
-        --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.5);
-        --shadow-glow: 0 0 30px -5px hsl(217 91% 60% / 0.4);
-        --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.2);
-
-        --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        --gradient-hero: linear-gradient(135deg, hsl(0 0% 4%), hsl(240 5% 12%));
+        --gradient-card: linear-gradient(135deg, hsl(240 5% 12%), hsl(0 0% 4%));
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+        --shadow-md: 0 2px 6px -1px rgb(0 0 0 / 0.4);
+        --shadow-lg: 0 8px 16px -4px rgb(0 0 0 / 0.45);
+        --shadow-xl: 0 12px 24px -6px rgb(0 0 0 / 0.5);
+        --shadow-2xl: 0 20px 40px -12px rgb(0 0 0 / 0.55);
+        --shadow-glow: none;
+        --shadow-inner: inset 0 1px 2px 0 rgb(0 0 0 / 0.25);
+        --transition-smooth: all 0.12s ease;
 
         --sidebar-background: 0 0% 4%;
-        --sidebar-foreground: 210 40% 98%;
-        --sidebar-primary: 217 91% 60%;
-        --sidebar-primary-foreground: 0 0% 100%;
-        --sidebar-accent: 220 13% 15%;
-        --sidebar-accent-foreground: 210 40% 98%;
-        --sidebar-border: 220 13% 18%;
-        --sidebar-ring: 217 91% 60%;
+        --sidebar-foreground: 240 5% 90%;
+        --sidebar-primary: 0 0% 100%;
+        --sidebar-primary-foreground: 0 0% 4%;
+        --sidebar-accent: 240 5% 12%;
+        --sidebar-accent-foreground: 0 0% 100%;
+        --sidebar-border: 240 4% 16%;
+        --sidebar-ring: 0 0% 100%;
 
-        --chart-1: 142 71% 45%;
-        --chart-2: 0 63% 50%;
-        --chart-3: 38 92% 50%;
-        --chart-4: 199 89% 48%;
-        --chart-5: 271 81% 56%;
+        --chart-1: 0 0% 100%;
+        --chart-2: 240 4% 65%;
+        --chart-3: 240 5% 34%;
+        --chart-4: 142 72% 29%;
+        --chart-5: 0 72% 42%;
+
+        --portal-accent: 142 71% 45%;
+        --portal-accent-soft: 142 71% 45% / 0.2;
     }
     .blue {
         --background: 210 100% 97%;
@@ -190,14 +212,15 @@ All colors MUST be HSL.
 
         --shadow-glow: 0 0 30px -5px hsl(221 83% 53% / 0.3);
 
-        --sidebar-background: 210 100% 97%;
-        --sidebar-foreground: 222 47% 11%;
-        --sidebar-primary: 221 83% 53%;
-        --sidebar-primary-foreground: 0 0% 100%;
-        --sidebar-accent: 210 40% 96%;
-        --sidebar-accent-foreground: 222 47% 11%;
-        --sidebar-border: 214 32% 91%;
-        --sidebar-ring: 221 83% 53%;
+        /* Keep mingo dark sidebar */
+        --sidebar-background: 0 0% 4%;
+        --sidebar-foreground: 240 5% 90%;
+        --sidebar-primary: 0 0% 100%;
+        --sidebar-primary-foreground: 0 0% 4%;
+        --sidebar-accent: 240 5% 12%;
+        --sidebar-accent-foreground: 0 0% 100%;
+        --sidebar-border: 240 4% 16%;
+        --sidebar-ring: 0 0% 100%;
     }
     .purple {
         --background: 270 20% 97%;
@@ -244,14 +267,15 @@ All colors MUST be HSL.
 
         --shadow-glow: 0 0 30px -5px hsl(271 81% 56% / 0.3);
 
-        --sidebar-background: 270 20% 97%;
-        --sidebar-foreground: 270 30% 11%;
-        --sidebar-primary: 271 81% 56%;
-        --sidebar-primary-foreground: 0 0% 100%;
-        --sidebar-accent: 270 20% 96%;
-        --sidebar-accent-foreground: 270 30% 11%;
-        --sidebar-border: 270 20% 91%;
-        --sidebar-ring: 271 81% 56%;
+        /* Keep mingo dark sidebar */
+        --sidebar-background: 0 0% 4%;
+        --sidebar-foreground: 240 5% 90%;
+        --sidebar-primary: 0 0% 100%;
+        --sidebar-primary-foreground: 0 0% 4%;
+        --sidebar-accent: 240 5% 12%;
+        --sidebar-accent-foreground: 0 0% 100%;
+        --sidebar-border: 240 4% 16%;
+        --sidebar-ring: 0 0% 100%;
     }
     .green {
         --background: 120 20% 97%;
@@ -298,14 +322,15 @@ All colors MUST be HSL.
 
         --shadow-glow: 0 0 30px -5px hsl(142 76% 36% / 0.3);
 
-        --sidebar-background: 120 20% 97%;
-        --sidebar-foreground: 120 30% 11%;
-        --sidebar-primary: 142 76% 36%;
-        --sidebar-primary-foreground: 0 0% 100%;
-        --sidebar-accent: 120 20% 96%;
-        --sidebar-accent-foreground: 120 30% 11%;
-        --sidebar-border: 120 20% 91%;
-        --sidebar-ring: 142 76% 36%;
+        /* Keep mingo dark sidebar */
+        --sidebar-background: 0 0% 4%;
+        --sidebar-foreground: 240 5% 90%;
+        --sidebar-primary: 0 0% 100%;
+        --sidebar-primary-foreground: 0 0% 4%;
+        --sidebar-accent: 240 5% 12%;
+        --sidebar-accent-foreground: 0 0% 100%;
+        --sidebar-border: 240 4% 16%;
+        --sidebar-ring: 0 0% 100%;
     }
     .custom {
         /* Custom theme uses CSS variables set dynamically by ThemeContext */
@@ -320,7 +345,7 @@ All colors MUST be HSL.
         scroll-behavior: smooth;
     }
     body {
-        @apply bg-background text-foreground;
+        @apply bg-background text-foreground font-sans text-sm;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         text-rendering: optimizeLegibility;
@@ -332,7 +357,7 @@ All colors MUST be HSL.
     h4,
     h5,
     h6 {
-        @apply tracking-tight;
+        @apply font-display tracking-tight;
     }
 
     ::selection {
@@ -386,97 +411,740 @@ All colors MUST be HSL.
         display: none !important;
     }
 
-    /* Role accent colors — visible nav highlights per portal */
-    [data-portal-layout].portal-accent-admin {
+    /* Match Auth/Landing green accent across roles */
+    [data-portal-layout][class*="portal-accent-"] {
         --portal-accent: 142 71% 45%;
         --portal-accent-soft: 142 71% 45% / 0.15;
-    }
-    [data-portal-layout].portal-accent-teacher {
-        --portal-accent: 217 91% 60%;
-        --portal-accent-soft: 217 91% 60% / 0.15;
-    }
-    [data-portal-layout].portal-accent-parent {
-        --portal-accent: 271 81% 62%;
-        --portal-accent-soft: 271 81% 62% / 0.15;
-    }
-    [data-portal-layout].portal-accent-student {
-        --portal-accent: 32 95% 52%;
-        --portal-accent-soft: 32 95% 52% / 0.15;
-    }
-    [data-portal-layout].portal-accent-accountant {
-        --portal-accent: 173 80% 40%;
-        --portal-accent-soft: 173 80% 40% / 0.15;
-    }
-    [data-portal-layout].portal-accent-auditor {
-        --portal-accent: 199 89% 48%;
-        --portal-accent-soft: 199 89% 48% / 0.15;
     }
 }
 
 @layer components {
-    .ai-brand-icon {
-        background: linear-gradient(
-            135deg,
-            hsl(var(--primary)),
-            hsl(var(--accent))
-        );
-        color: hsl(var(--primary-foreground));
-    }
-
+    /* mingo AI chrome — Auth/Landing green */
+    .ai-brand-icon,
     .ai-brand-gradient {
-        background: linear-gradient(
-            135deg,
-            hsl(var(--primary)),
-            hsl(var(--accent))
-        );
-        color: hsl(var(--primary-foreground));
+        background: hsl(var(--brand, var(--primary)));
+        color: #fff;
     }
 
     .ai-surface-card {
-        border-color: hsl(var(--primary) / 0.22);
-        background: linear-gradient(
-            135deg,
-            hsl(var(--primary) / 0.08),
-            hsl(var(--accent) / 0.06)
-        );
+        border-color: hsl(var(--border));
+        background: hsl(var(--surface));
     }
 
     .ai-accent-text {
-        color: hsl(var(--primary));
+        color: hsl(var(--brand-hover, var(--primary)));
     }
 
     [data-portal-layout] .portal-nav-link,
     [data-portal-layout] .portal-nav-sublink {
-        box-shadow: inset 0 0 0 0
-            hsl(var(--portal-accent, var(--sidebar-primary)));
+        border-left: 2px solid transparent;
+        border-radius: 0;
         transition:
-            background-color 0.2s ease,
-            color 0.2s ease,
-            box-shadow 0.2s ease,
-            transform 0.2s ease;
+            background-color 0.12s ease,
+            color 0.12s ease,
+            border-color 0.12s ease;
     }
 
     [data-portal-layout] .portal-nav-link-active,
     [data-portal-layout] .portal-nav-sublink.portal-nav-link-active {
         background-color: hsl(var(--sidebar-accent));
-        color: hsl(var(--sidebar-foreground));
+        color: #fff;
         font-weight: 500;
-        box-shadow: inset 2px 0 0 0
-            hsl(var(--portal-accent, var(--sidebar-primary)));
+        border-left-color: hsl(var(--portal-accent));
+        box-shadow: none;
     }
 
     [data-portal-layout] .portal-role-badge {
-        background: hsl(var(--sidebar-accent));
-        color: hsl(var(--sidebar-foreground));
-        border: 1px solid hsl(var(--sidebar-border));
+        background: transparent;
+        color: #d4d4d8;
+        border: 1px solid #3f3f46;
+        border-radius: 0;
+        letter-spacing: 0.07em;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    /* Sidebar edge collapse control — straddles black/white boundary */
+    [data-portal-layout] .portal-sidebar-toggle {
+        position: absolute;
+        top: 16px;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        transform: translateX(-50%);
+        border-radius: 6px;
+        border: 1px solid #e4e4e7;
+        background: #fff;
+        color: #a1a1aa;
+        box-shadow: 0 1px 3px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.04);
+        cursor: pointer;
+        padding: 0;
+        transition: left 0.3s ease-out, color 0.12s ease, box-shadow 0.12s ease;
+    }
+    [data-portal-layout] .portal-sidebar-toggle:hover {
+        color: #52525b;
+        box-shadow: 0 2px 6px rgb(0 0 0 / 0.1);
+    }
+    [data-portal-layout] .portal-sidebar-toggle:focus-visible {
+        outline: 2px solid hsl(var(--ring));
+        outline-offset: 2px;
+    }
+    [data-portal-layout] .portal-sidebar-toggle svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    /* Collapsed icon rail — keep icons, hide labels */
+    [data-portal-layout][data-sidebar-collapsed="true"] .portal-sidebar-brand {
+        align-items: center;
+        padding: 16px 0 12px;
+        gap: 0;
+    }
+    [data-portal-layout][data-sidebar-collapsed="true"] .portal-sidebar-brand > div {
+        justify-content: center;
+    }
+    [data-portal-layout][data-sidebar-collapsed="true"] .portal-sidebar-brand-text,
+    [data-portal-layout][data-sidebar-collapsed="true"] .portal-role-badge,
+    [data-portal-layout][data-sidebar-collapsed="true"] .portal-nav-label,
+    [data-portal-layout][data-sidebar-collapsed="true"] .portal-nav-chevron,
+    [data-portal-layout][data-sidebar-collapsed="true"] .portal-nav-badge,
+    [data-portal-layout][data-sidebar-collapsed="true"] .portal-nav-group-label {
+        display: none !important;
+    }
+    [data-portal-layout][data-sidebar-collapsed="true"] .portal-nav-link,
+    [data-portal-layout][data-sidebar-collapsed="true"] .portal-nav-sublink,
+    [data-portal-layout][data-sidebar-collapsed="true"] .portal-nav-group {
+        justify-content: center;
+        gap: 0;
+        padding-left: 0;
+        padding-right: 0;
+        width: 100%;
+    }
+    [data-portal-layout][data-sidebar-collapsed="true"] .portal-nav-sublink {
+        padding-left: 0;
+        padding-right: 0;
+    }
+    [data-portal-layout][data-sidebar-collapsed="true"] .portal-sidebar-foot {
+        padding-left: 0;
+        padding-right: 0;
+        display: flex;
+        justify-content: center;
+    }
+    [data-portal-layout][data-sidebar-collapsed="true"] .portal-sign-out {
+        justify-content: center;
+        gap: 0;
+        width: auto;
+        padding: 8px;
     }
 
     [data-portal-layout] .portal-sidebar-brand {
         background: hsl(var(--sidebar-background));
     }
 
+    /* Portal surfaces: sharp mingo panels (no soft card chrome) */
+    [data-portal-layout] [data-card],
+    [data-portal-layout] .portal-panel {
+        border-radius: 0 !important;
+        border: 1px solid hsl(var(--border)) !important;
+        background: hsl(var(--background)) !important;
+        box-shadow: none !important;
+    }
+
+    [data-portal-layout] [data-card]:hover {
+        box-shadow: none !important;
+    }
+
+    /* Keep report cards / avatars / dots round where needed */
+    [data-portal-layout] [data-report-card-root] .rounded-full,
+    [data-portal-layout] [data-report-card-root] [class*="rounded"] {
+        border-radius: revert-layer;
+    }
+
+    [data-portal-layout] button:not([class*="rounded-full"]),
+    [data-portal-layout] .rounded-md,
+    [data-portal-layout] .rounded-lg,
+    [data-portal-layout] .rounded-xl {
+        border-radius: 0;
+    }
+
+    [data-portal-layout] .rounded-full {
+        border-radius: 9999px;
+    }
+
+    [data-portal-layout] .portal-kpi-row {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        border: 1px solid hsl(var(--border));
+        margin-bottom: 22px;
+        background: hsl(var(--background));
+    }
+
+    [data-portal-layout] .portal-kpi {
+        border-right: 1px solid hsl(var(--border));
+        padding: 16px;
+        background: hsl(var(--background));
+    }
+
+    [data-portal-layout] .portal-kpi:nth-child(4n) {
+        border-right: none;
+    }
+
+    [data-portal-layout] .portal-kpi .portal-kpi-label {
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: hsl(var(--ink-faint));
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+
+    [data-portal-layout] .portal-kpi .portal-kpi-val {
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 26px;
+        font-weight: 600;
+        line-height: 1;
+        color: hsl(var(--foreground));
+        font-variant-numeric: tabular-nums;
+    }
+
+    [data-portal-layout] .portal-kpi .portal-kpi-sub {
+        margin-top: 8px;
+        font-size: 11px;
+        font-family: "IBM Plex Mono", monospace;
+        color: hsl(var(--positive));
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    @media (max-width: 1180px) {
+        [data-portal-layout] .portal-kpi-row {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        [data-portal-layout] .portal-kpi:nth-child(2n) {
+            border-right: none;
+        }
+        [data-portal-layout] .portal-kpi:nth-child(1),
+        [data-portal-layout] .portal-kpi:nth-child(2) {
+            border-bottom: 1px solid hsl(var(--border));
+        }
+    }
+
     [data-portal-layout] .portal-stat-card {
-        border-left: 3px solid hsl(var(--portal-accent, var(--primary)));
+        border-left: none;
+    }
+
+    /* ---------- mingo exact dashboard surfaces ---------- */
+    @keyframes portal-ticker-scroll {
+        from { transform: translateX(0); }
+        to { transform: translateX(-50%); }
+    }
+
+    [data-portal-layout] .portal-ticker-wrap {
+        display: flex;
+        align-items: stretch;
+        overflow: hidden;
+        min-width: 0;
+    }
+
+    /* Track must be content-width (not flex-shrunk) or translateX(-50%) barely moves */
+    [data-portal-layout] .portal-ticker-track {
+        display: flex;
+        align-items: center;
+        flex: 0 0 auto;
+        width: max-content;
+        will-change: transform;
+        animation: portal-ticker-scroll 46s linear infinite;
+    }
+
+    [data-portal-layout] .portal-ticker-wrap:hover .portal-ticker-track {
+        animation-play-state: paused;
+    }
+
+    [data-portal-layout] .portal-tick {
+        flex: 0 0 auto;
+    }
+
+    /* Keep LIVE FEED roaming even when OS prefers reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+        [data-portal-layout] .portal-ticker-track {
+            animation-duration: 46s !important;
+            animation-iteration-count: infinite !important;
+        }
+    }
+
+    [data-portal-layout] .portal-tick-tag {
+        font-size: 9.5px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        padding: 2px 5px;
+    }
+    [data-portal-layout] .portal-tick-tag.tag-att { background: #0f2e1c; color: #4ade80; }
+    [data-portal-layout] .portal-tick-tag.tag-fee { background: #3b2f0f; color: #fcd34d; }
+    [data-portal-layout] .portal-tick-tag.tag-exm { background: #1e293b; color: #93c5fd; }
+    [data-portal-layout] .portal-tick-tag.tag-hr { background: #241a30; color: #c084fc; }
+    [data-portal-layout] .portal-tick-tag.tag-alt { background: #3b1616; color: #fca5a5; }
+    [data-portal-layout] .portal-tick-tag.tag-sys { background: #27272a; color: #e4e4e7; }
+
+    [data-portal-layout] .portal-nav-group-label {
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #52525b;
+        padding: 16px 20px 7px;
+        font-weight: 600;
+    }
+
+    [data-portal-layout] .mingo-content {
+        padding: 0 0 16px;
+    }
+    [data-portal-layout] .mingo-page-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+    [data-portal-layout] .mingo-page-head h1 {
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 21px;
+        font-weight: 600;
+        color: hsl(var(--foreground));
+    }
+    [data-portal-layout] .mingo-page-head p {
+        font-size: 12.5px;
+        color: hsl(var(--ink-faint));
+        margin-top: 3px;
+    }
+    [data-portal-layout] .mingo-head-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    [data-portal-layout] .mingo-btn {
+        font-size: 12.5px;
+        font-weight: 500;
+        padding: 8px 14px;
+        border: 1px solid hsl(var(--line-strong));
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: hsl(var(--background));
+        color: hsl(var(--foreground));
+        border-radius: 0;
+    }
+    [data-portal-layout] .mingo-btn-primary {
+        background: hsl(var(--primary));
+        color: #fff;
+        border-color: hsl(var(--primary));
+    }
+    [data-portal-layout] .mingo-btn-primary:hover {
+        background: hsl(var(--brand-hover, var(--primary-glow)));
+        border-color: hsl(var(--brand-hover, var(--primary-glow)));
+    }
+    [data-portal-layout] .mingo-btn-ghost {
+        background: hsl(var(--card));
+        color: hsl(var(--foreground));
+        border-color: hsl(var(--border));
+    }
+
+    [data-portal-layout] .mingo-kpi-row {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        border: 1px solid hsl(var(--border));
+        margin-bottom: 22px;
+        background: hsl(var(--card));
+    }
+    [data-portal-layout] .mingo-kpi {
+        border-right: 1px solid hsl(var(--border));
+        padding: 16px;
+        background: hsl(var(--card));
+    }
+    [data-portal-layout] .mingo-kpi-row .mingo-kpi:nth-child(4n) {
+        border-right: none;
+    }
+    [data-portal-layout] .mingo-kpi .label {
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: hsl(var(--ink-faint));
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+    [data-portal-layout] .mingo-kpi .val {
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 26px;
+        font-weight: 600;
+        line-height: 1;
+        color: hsl(var(--foreground));
+    }
+    [data-portal-layout] .mingo-kpi .val.mono,
+    [data-portal-layout] .mono {
+        font-family: "IBM Plex Mono", monospace;
+        font-variant-numeric: tabular-nums;
+    }
+    [data-portal-layout] .mingo-kpi .sub {
+        margin-top: 8px;
+        font-size: 11px;
+        font-family: "IBM Plex Mono", monospace;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    [data-portal-layout] .mingo-kpi.warn .val { color: hsl(var(--warn)); }
+    [data-portal-layout] .mingo-kpi.crit .val { color: hsl(var(--critical)); }
+    [data-portal-layout] .mingo-kpi .sub.up { color: hsl(var(--positive)); }
+    [data-portal-layout] .mingo-kpi .sub.down { color: hsl(var(--critical)); }
+
+    [data-portal-layout] .mingo-grid-2 {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 18px;
+        margin-bottom: 18px;
+    }
+    [data-portal-layout] .mingo-grid-2b {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr;
+        gap: 18px;
+        margin-bottom: 18px;
+    }
+    [data-portal-layout] .mingo-charts-row {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 18px;
+        margin-bottom: 18px;
+        align-items: stretch;
+    }
+    [data-portal-layout] .mingo-charts-line .mingo-panel-body,
+    [data-portal-layout] .mingo-charts-cat .mingo-panel-body {
+        padding-top: 14px;
+    }
+    [data-portal-layout] .mingo-line-chart-card {
+        width: 100%;
+        max-width: 100%;
+    }
+    [data-portal-layout] .mingo-cat-card {
+        width: 100%;
+        max-width: 100%;
+    }
+    [data-portal-layout] .mingo-panel {
+        border: 1px solid hsl(var(--border));
+        background: hsl(var(--card));
+    }
+    [data-portal-layout] .mingo-panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 18px;
+        border-bottom: 1px solid hsl(var(--border));
+    }
+    [data-portal-layout] .mingo-panel-head h2 {
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        color: hsl(var(--foreground));
+    }
+    [data-portal-layout] .mingo-panel-head .meta {
+        font-size: 11px;
+        color: hsl(var(--ink-faint));
+        font-family: "IBM Plex Mono", monospace;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+    }
+    [data-portal-layout] .mingo-panel-body { padding: 18px; }
+
+    [data-portal-layout] .mingo-range-toggle {
+        display: flex;
+        gap: 4px;
+        background: hsl(var(--surface));
+        border: 1px solid hsl(var(--border));
+        padding: 3px;
+    }
+    [data-portal-layout] .mingo-range-toggle span {
+        font-size: 11px;
+        padding: 4px 9px;
+        color: hsl(var(--ink-faint));
+        cursor: pointer;
+        user-select: none;
+    }
+    [data-portal-layout] .mingo-range-toggle span.active {
+        background: hsl(var(--line-strong));
+        color: #fff;
+        font-weight: 600;
+    }
+
+    [data-portal-layout] .mingo-legend {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 14px;
+    }
+    [data-portal-layout] .mingo-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11.5px;
+        color: hsl(var(--ink-soft));
+    }
+    [data-portal-layout] .mingo-legend-item .sw {
+        width: 10px;
+        height: 3px;
+        display: inline-block;
+    }
+
+    [data-portal-layout] .mingo-bar-chart {
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+        height: 150px;
+        padding-top: 10px;
+    }
+    [data-portal-layout] .mingo-bar-col {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        height: 100%;
+        justify-content: flex-end;
+    }
+    [data-portal-layout] .mingo-bar {
+        width: 100%;
+        background: hsl(var(--line-strong));
+        min-height: 2px;
+    }
+    [data-portal-layout] .mingo-bar-col .lbl {
+        font-size: 10.5px;
+        color: hsl(var(--ink-faint));
+        font-family: "IBM Plex Mono", monospace;
+    }
+
+    [data-portal-layout] .mingo-rate-display {
+        text-align: center;
+        padding: 6px 0 18px;
+    }
+    [data-portal-layout] .mingo-rate-display .num {
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 38px;
+        font-weight: 700;
+        color: hsl(var(--foreground));
+    }
+    [data-portal-layout] .mingo-rate-display .lbl {
+        font-size: 11.5px;
+        color: hsl(var(--ink-faint));
+        margin-top: 2px;
+    }
+
+    [data-portal-layout] .mingo-cat-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 9px 0;
+    }
+    [data-portal-layout] .mingo-cat-row:not(:last-child) {
+        border-bottom: 1px solid #f4f4f5;
+    }
+    [data-portal-layout] .mingo-cat-row .cat-name {
+        width: 96px;
+        font-size: 12px;
+        color: hsl(var(--ink-soft));
+        flex-shrink: 0;
+    }
+    [data-portal-layout] .mingo-cat-row .cat-bar-track {
+        flex: 1;
+        height: 8px;
+        background: #f4f4f5;
+        position: relative;
+    }
+    [data-portal-layout] .mingo-cat-row .cat-bar-fill {
+        height: 100%;
+        background: #0a0a0a;
+    }
+    [data-portal-layout] .mingo-cat-row .cat-val {
+        width: 56px;
+        text-align: right;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11.5px;
+        color: hsl(var(--foreground));
+    }
+
+    [data-portal-layout] .mingo-activity-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 11px 0;
+        border-bottom: 1px solid #f4f4f5;
+    }
+    [data-portal-layout] .mingo-activity-row:last-child { border-bottom: none; }
+    [data-portal-layout] .mingo-a-tag {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 9.5px;
+        font-weight: 600;
+        padding: 3px 6px;
+        letter-spacing: 0.03em;
+        flex-shrink: 0;
+        width: 52px;
+        text-align: center;
+    }
+    [data-portal-layout] .mingo-a-tag.att { background: hsl(var(--positive-bg)); color: hsl(var(--positive)); }
+    [data-portal-layout] .mingo-a-tag.fee { background: hsl(var(--warn-bg)); color: hsl(var(--warn)); }
+    [data-portal-layout] .mingo-a-tag.exm { background: hsl(var(--info-bg)); color: hsl(var(--info)); }
+    [data-portal-layout] .mingo-a-tag.hr { background: #f4f4f5; color: hsl(var(--ink-soft)); }
+    [data-portal-layout] .mingo-activity-row .a-desc {
+        flex: 1;
+        font-size: 12.5px;
+        color: hsl(var(--foreground));
+        min-width: 0;
+    }
+    [data-portal-layout] .mingo-activity-row .a-desc .who {
+        color: hsl(var(--ink-faint));
+        font-size: 11.5px;
+    }
+    [data-portal-layout] .mingo-activity-row .a-time {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        color: hsl(var(--ink-faint));
+        flex-shrink: 0;
+    }
+
+    [data-portal-layout] .mingo-alert-block { margin-bottom: 16px; }
+    [data-portal-layout] .mingo-alert-block:last-child { margin-bottom: 0; }
+    [data-portal-layout] .mingo-alert-block h3 {
+        font-size: 10.5px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: hsl(var(--foreground));
+    }
+    [data-portal-layout] .mingo-alert-block h3 .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    [data-portal-layout] .mingo-alert-block.fee h3 .dot { background: hsl(var(--warn)); }
+    [data-portal-layout] .mingo-alert-block.att h3 .dot { background: hsl(var(--critical)); }
+    [data-portal-layout] .mingo-alert-block .alert-line {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 7px 10px;
+        margin-bottom: 5px;
+        background: hsl(var(--surface));
+        border-left: 2px solid transparent;
+    }
+    [data-portal-layout] .mingo-alert-block.fee .alert-line { border-left-color: hsl(var(--warn)); }
+    [data-portal-layout] .mingo-alert-block.att .alert-line { border-left-color: hsl(var(--critical)); }
+    [data-portal-layout] .mingo-alert-block .p-name { font-size: 12px; color: hsl(var(--foreground)); }
+    [data-portal-layout] .mingo-alert-block .p-sub {
+        font-size: 10px;
+        color: hsl(var(--ink-faint));
+        font-family: "IBM Plex Mono", monospace;
+    }
+    [data-portal-layout] .mingo-alert-block .p-val {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    [data-portal-layout] .mingo-alert-block.fee .p-val { color: hsl(var(--warn)); }
+    [data-portal-layout] .mingo-alert-block.att .p-val { color: hsl(var(--critical)); }
+
+    [data-portal-layout] .mingo-table-cap {
+        border: 1px solid hsl(var(--border));
+        border-bottom: none;
+        background: hsl(var(--card));
+    }
+    [data-portal-layout] .mingo-table-wrap {
+        border: 1px solid hsl(var(--border));
+        background: hsl(var(--card));
+        margin-bottom: 8px;
+        overflow-x: auto;
+    }
+    [data-portal-layout] .mingo-table-wrap table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    [data-portal-layout] .mingo-table-wrap thead th {
+        text-align: left;
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: hsl(var(--ink-faint));
+        font-weight: 600;
+        padding: 11px 18px;
+        border-bottom: 1px solid hsl(var(--border));
+        background: hsl(var(--surface));
+    }
+    [data-portal-layout] .mingo-table-wrap thead th.num { text-align: right; }
+    [data-portal-layout] .mingo-table-wrap tbody td {
+        padding: 12px 18px;
+        font-size: 12.5px;
+        border-bottom: 1px solid #f4f4f5;
+        color: hsl(var(--foreground));
+    }
+    [data-portal-layout] .mingo-table-wrap tbody tr:last-child td { border-bottom: none; }
+    [data-portal-layout] .mingo-table-wrap tbody tr:hover { background: #fafafa; }
+    [data-portal-layout] .mingo-table-wrap td.mono-cell {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+    }
+    [data-portal-layout] .mingo-table-wrap td.num {
+        text-align: right;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+    }
+    [data-portal-layout] .mingo-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+        font-weight: 500;
+        padding: 3px 8px;
+    }
+    [data-portal-layout] .mingo-status-pill .dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    [data-portal-layout] .mingo-status-pill.paid {
+        background: hsl(var(--positive-bg));
+        color: hsl(var(--positive));
+    }
+    [data-portal-layout] .mingo-status-pill.paid .dot { background: hsl(var(--positive)); }
+    [data-portal-layout] .mingo-status-pill.pending {
+        background: hsl(var(--warn-bg));
+        color: hsl(var(--warn));
+    }
+    [data-portal-layout] .mingo-status-pill.pending .dot { background: hsl(var(--warn)); }
+    [data-portal-layout] .mingo-status-pill.overdue {
+        background: hsl(var(--critical-bg));
+        color: hsl(var(--critical));
+    }
+    [data-portal-layout] .mingo-status-pill.overdue .dot { background: hsl(var(--critical)); }
+
+    @media (max-width: 1180px) {
+        [data-portal-layout] .mingo-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        [data-portal-layout] .mingo-kpi-row .mingo-kpi:nth-child(2n) { border-right: none; }
+        [data-portal-layout] .mingo-kpi-row .mingo-kpi:nth-child(1),
+        [data-portal-layout] .mingo-kpi-row .mingo-kpi:nth-child(2) {
+            border-bottom: 1px solid hsl(var(--border));
+        }
+        [data-portal-layout] .mingo-grid-2,
+        [data-portal-layout] .mingo-grid-2b,
+        [data-portal-layout] .mingo-charts-row { grid-template-columns: 1fr; }
     }
 
     /* Report cards must stay inside portal main — never bleed under sidebar */
@@ -624,6 +1292,7 @@ All colors MUST be HSL.
     [data-portal-layout] [data-report-card-root] .rc-sec-title-dot,
     [data-portal-layout] [data-report-card-root] .rc-badge {
         background: #000000 !important;
+        padding: 4px 4px !important;
     }
 
     [data-portal-layout] [data-report-card-root] .rc-body,
@@ -671,6 +1340,27 @@ All colors MUST be HSL.
             "Helvetica Neue",
             Arial,
             sans-serif;
+    }
+
+    /* Stat cards (Class Position, Attendance, Conduct): dark box — inputs must stay transparent */
+    [data-report-card-root] .rc-stat-input {
+        background: transparent !important;
+        background-color: transparent !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border: none !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    [data-report-card-root] .rc-stat-input.rc-field-accent {
+        color: #4ade80 !important;
+        -webkit-text-fill-color: #4ade80 !important;
+    }
+
+    [data-report-card-root] .rc-stat-input::placeholder {
+        color: rgba(255, 255, 255, 0.55) !important;
+        opacity: 1;
     }
 
     [data-report-card-root] input::placeholder,
@@ -1080,4 +1770,24 @@ All colors MUST be HSL.
     body.printing-single .bulk-report-page:not(.print-active) {
         display: none !important;
     }
+}
+
+/* Electron desktop shell */
+html.electron-desktop body {
+    overflow: hidden;
+}
+
+html.electron-desktop .electron-shell {
+    height: 100vh;
+    max-height: 100vh;
+}
+
+html.electron-desktop .electron-shell-content {
+    overflow: auto;
+    height: calc(100vh - 2.25rem);
+}
+
+.electron-titlebar {
+    -webkit-app-region: drag;
+    app-region: drag;
 }

@@ -19,8 +19,8 @@ import {
   Calendar,
   DollarSign,
   LogOut,
-  PanelLeft,
-  PanelRight,
+  ArrowLeftToLine,
+  ArrowRightFromLine,
   Copy,
   Check,
   UserCircle,
@@ -47,10 +47,9 @@ import {
   BrainCircuit,
   Activity,
 } from "lucide-react";
-import { NavLink } from "@/components/NavLink";
+import { SidebarIconTooltip } from "@/components/SidebarIconTooltip";
 import { NotificationCenter } from "./NotificationCenter";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
-import { Badge } from "@/components/ui/badge";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { useUserRole } from "@/hooks/useUserRole";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -58,7 +57,6 @@ import { useTeacherAccountGuard } from "@/hooks/useTeacherAccountGuard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { SchoolSwitcher } from "./SchoolSwitcher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { SidebarMenuGroup } from "@/components/SidebarMenuGroup";
 import { DynamicAdminSidebarNav } from "@/components/layout/DynamicAdminSidebarNav";
 import {
   ensurePaymentGatewaysInNav,
@@ -68,6 +66,7 @@ import { usePortalAccess } from "@/hooks/usePortalAccess";
 import { ADMIN_SHELL_ROLES } from "@/lib/rbac/routeGuards";
 import { toast } from "sonner";
 import { ParentAdmissionNav } from "@/components/parent/ParentAdmissionNav";
+import { PortalLiveFeedTicker } from "@/components/PortalLiveFeedTicker";
 import SubscriptionExpiryBanner from "@/subscription/components/SubscriptionExpiryBanner";
 import { useOrganizationSubscription } from "@/subscription/hooks/useOrganizationSubscription";
 import { PortalSidebarSearch } from "@/components/PortalSidebarSearch";
@@ -78,6 +77,7 @@ import {
   portalNavLinkBase,
   portalNavSubLinkBase,
 } from "@/lib/portalNavStyles";
+import { MINGO } from "@/lib/designTokens";
 import type { AdminNavGroup, AdminNavItem } from "@/lib/rbac/adminNavConfig";
 import { AiFloatingButton } from "@/ai-assistant/components/AiFloatingButton";
 
@@ -85,7 +85,8 @@ const SIDEBAR_WIDTH_KEY = "portal-sidebar-width";
 const SIDEBAR_OPEN_KEY = "portal-sidebar-open";
 const SIDEBAR_MIN = 220;
 const SIDEBAR_MAX = 400;
-const SIDEBAR_DEFAULT = 280;
+const SIDEBAR_DEFAULT = 252;
+const SIDEBAR_COLLAPSED = 56;
 
 function readSidebarOpen(): boolean {
   if (typeof window === "undefined") return true;
@@ -135,24 +136,6 @@ function navMatchesQuery(label: string | undefined, query: string) {
   return label.toLowerCase().includes(query);
 }
 
-function filterStaticMenu(items: MenuItemDef[], query: string): MenuItemDef[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return items;
-  return items
-    .map((item) => {
-      if (item.type === "group") {
-        const childMatches = item.items.filter((sub) =>
-          navMatchesQuery(sub.label, q),
-        );
-        if (childMatches.length) return { ...item, items: childMatches };
-        if (navMatchesQuery(item.label, q)) return item;
-        return null;
-      }
-      return navMatchesQuery(item.label, q) ? item : null;
-    })
-    .filter(Boolean) as MenuItemDef[];
-}
-
 function filterDynamicNav(
   items: (AdminNavItem | AdminNavGroup)[],
   query: string,
@@ -172,6 +155,34 @@ function filterDynamicNav(
       return navMatchesQuery(item.label, q) ? item : null;
     })
     .filter(Boolean) as (AdminNavItem | AdminNavGroup)[];
+}
+
+/** Convert static role menus into the admin sidebar format */
+function menuItemsToAdminNav(
+  items: MenuItemDef[],
+): (AdminNavItem | AdminNavGroup)[] {
+  return items.map((item) => {
+    if (item.type === "group") {
+      return {
+        label: item.label,
+        icon: item.icon,
+        items: item.items.map((sub) => ({
+          label: sub.label,
+          path: sub.path,
+          icon: sub.icon,
+          viewPermission: sub.permission ?? "",
+          showBadge: sub.showBadge,
+        })),
+      };
+    }
+    return {
+      label: item.label,
+      path: item.path,
+      icon: item.icon,
+      viewPermission: item.permission ?? "",
+      showBadge: item.showBadge,
+    };
+  });
 }
 
 const DashboardLayout = ({
@@ -926,20 +937,23 @@ const DashboardLayout = ({
       : undefined;
 
   const roleMeta = PORTAL_ROLE_META[role] ?? PORTAL_ROLE_META.admin;
-  const filteredDynamicNav = useMemo(
-    () =>
-      filterDynamicNav(
-        ensureClassTeacherActivityInNav(
-          ensurePaymentGatewaysInNav(dynamicNavItems),
-        ),
-        navQuery,
-      ),
-    [dynamicNavItems, navQuery],
-  );
-  const filteredStaticMenu = useMemo(
-    () =>
-      config?.menuItems ? filterStaticMenu(config.menuItems, navQuery) : [],
-    [config?.menuItems, navQuery],
+
+  /** All roles use the admin sidebar format (sections + collapsible groups) */
+  const sidebarNavItems = useMemo(() => {
+    if (usesDynamicAdminNav) {
+      return ensureClassTeacherActivityInNav(
+        ensurePaymentGatewaysInNav(dynamicNavItems),
+      );
+    }
+    const staticItems = config?.menuItems
+      ? filterMenu(config.menuItems as MenuItemDef[])
+      : [];
+    return menuItemsToAdminNav(staticItems);
+  }, [usesDynamicAdminNav, dynamicNavItems, config?.menuItems]);
+
+  const filteredSidebarNav = useMemo(
+    () => filterDynamicNav(sidebarNavItems, navQuery),
+    [sidebarNavItems, navQuery],
   );
 
   const handleLogout = async () => {
@@ -965,7 +979,7 @@ const DashboardLayout = ({
   const navSubLinkBase = portalNavSubLinkBase;
 
   // Guard against invalid or missing role
-  if (!config) {
+  if (!role || (usesDynamicAdminNav ? false : !config)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -976,256 +990,233 @@ const DashboardLayout = ({
   return (
     <div
       className={cn(
-        "flex h-screen max-h-screen w-full overflow-hidden bg-background",
+        "relative flex h-screen max-h-screen w-full overflow-hidden bg-background",
         roleMeta.accentClass,
       )}
       data-portal-layout
       data-portal-role={role}
-      style={{ "--portal-sidebar-width": `${sidebarWidth}px` }}
+      data-sidebar-collapsed={sidebarOpen ? undefined : "true"}
+      style={{ "--portal-sidebar-width": `${sidebarOpen ? sidebarWidth : SIDEBAR_COLLAPSED}px` }}
     >
-      {/* Sidebar — fixed height; nav scrolls inside sidebar only */}
+      {/* Sidebar — expanded labels, or icon rail when collapsed */}
       {!hideSidebar && (
-        <aside
-          className={cn(
-            "flex h-full max-h-screen shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-300 ease-out",
-            !sidebarOpen && "w-0 border-r-0",
-          )}
-          style={sidebarOpen ? { width: sidebarWidth } : undefined}
-          aria-hidden={!sidebarOpen}
+        <div
+          className="relative h-full max-h-screen shrink-0 transition-[width] duration-300 ease-out"
+          style={{ width: sidebarOpen ? sidebarWidth : SIDEBAR_COLLAPSED }}
         >
-          <div
-            className="flex h-full min-h-0 flex-col"
-            style={{ width: sidebarWidth }}
+          <aside
+            className="flex h-full max-h-screen w-full flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground"
+            style={{ width: sidebarOpen ? sidebarWidth : SIDEBAR_COLLAPSED }}
+            aria-label={sidebarOpen ? "Main navigation" : "Icon navigation"}
           >
+            <div
+              className="flex h-full min-h-0 flex-col"
+              style={{ width: sidebarOpen ? sidebarWidth : SIDEBAR_COLLAPSED }}
+            >
             {/* Brand + role */}
-            <div className="portal-sidebar-brand flex flex-col gap-3 border-b border-sidebar-border px-4 py-4">
-              <div className="flex items-center gap-3">
+            <div className="portal-sidebar-brand flex flex-col gap-3 border-b border-sidebar-border px-5 py-[22px]">
+              <div className="flex items-center gap-2.5">
                 {currentSchool?.logo_url ? (
-                  <Avatar className="h-10 w-10 border border-sidebar-border">
+                  <Avatar className="h-7 w-7 shrink-0 rounded-none border border-sidebar-border">
                     <AvatarImage
                       src={currentSchool.logo_url}
                       alt={currentSchool.school_name}
                     />
-                    <AvatarFallback className="bg-sidebar-accent text-sidebar-foreground text-xs font-semibold">
-                      {currentSchool.school_name.substring(0, 2).toUpperCase()}
+                    <AvatarFallback className="rounded-none bg-white text-sidebar-background text-[13px] font-display font-bold">
+                      {currentSchool.school_name.substring(0, 1).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                 ) : (
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar-accent text-sidebar-foreground">
-                    <GraduationCap className="h-5 w-5" />
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center bg-white text-sidebar-background font-display text-[13px] font-bold">
+                    {(currentSchool?.school_name ?? "E").substring(0, 1).toUpperCase()}
                   </div>
                 )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-sidebar-foreground">
-                    {currentSchool?.school_name ?? "EduManage"}
+                <div className="portal-sidebar-brand-text min-w-0 flex-1 leading-tight">
+                  <p className="truncate font-display text-sm font-semibold text-white">
+                    {currentSchool?.school_name ?? "mingo"}
                   </p>
-                  <p className="text-xs text-sidebar-foreground/65">
-                    School portal
+                  <p className="text-[11px] text-sidebar-foreground/50">
+                    {role === "admin" || role === "super_admin"
+                      ? "School Admin portal"
+                      : role === "teacher"
+                        ? "Teacher portal"
+                        : role === "parent"
+                          ? "Parent portal"
+                          : role === "student"
+                            ? "Student portal"
+                            : role === "accountant"
+                              ? "Finance portal"
+                              : role === "auditor"
+                                ? "Auditor portal"
+                                : "School portal"}
                   </p>
                 </div>
               </div>
-              <span className="portal-role-badge inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide">
-                {roleMeta.label}
-              </span>
             </div>
 
-            <PortalSidebarSearch value={navQuery} onChange={setNavQuery} />
+            {sidebarOpen ? (
+              <PortalSidebarSearch value={navQuery} onChange={setNavQuery} />
+            ) : null}
 
-            {/* Menu Items */}
-            <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-2 pb-2 pt-1 custom-scrollbar">
-              {usesDynamicAdminNav ? (
-                <DynamicAdminSidebarNav
-                  items={filteredDynamicNav}
-                  unreadMessages={unreadMessages}
-                  navLinkBase={navLinkBase}
-                  navLinkActive={navLinkActive}
-                  navSubLinkBase={navSubLinkBase}
-                  emptyMessage={
-                    navQuery.trim()
-                      ? "No menu items match your search."
-                      : "No modules assigned. Contact your administrator."
-                  }
-                />
-              ) : (
-                filteredStaticMenu.map((item: MenuItemDef, index: number) => {
-                  if (item.type === "group") {
-                    return (
-                      <SidebarMenuGroup
-                        key={`group-${index}-${item.label}`}
-                        label={item.label}
-                        icon={item.icon}
-                        items={item.items}
-                        unreadMessages={unreadMessages}
-                        navSubLinkBase={navSubLinkBase}
-                        navLinkActive={navLinkActive}
-                      />
-                    );
-                  }
-
-                  return (
-                    <NavLink
-                      key={item.path}
-                      to={item.path}
-                      end={item.path === `/${role}`}
-                      className={navLinkBase}
-                      activeClassName={navLinkActive}
-                    >
-                      <item.icon className="h-[18px] w-[18px] shrink-0 text-sidebar-foreground/70" />
-                      <span className="flex-1 truncate">{item.label}</span>
-                      {item.showBadge && unreadMessages > 0 && (
-                        <Badge
-                          variant="destructive"
-                          className="h-5 min-w-5 px-1 flex items-center justify-center text-[10px] flex-shrink-0"
-                        >
-                          {unreadMessages > 9 ? "9+" : unreadMessages}
-                        </Badge>
-                      )}
-                    </NavLink>
-                  );
-                })
-              )}
-              {!usesDynamicAdminNav &&
-              filteredStaticMenu.length === 0 &&
-              navQuery.trim() ? (
-                <p className="px-3 py-6 text-center text-xs text-sidebar-foreground/60">
-                  No menu items match your search.
-                </p>
-              ) : null}
+            {/* Menu Items — admin format for every portal role */}
+            <nav className="flex-1 space-y-0 overflow-y-auto overflow-x-hidden pb-2 pt-1 custom-scrollbar">
+              <DynamicAdminSidebarNav
+                items={filteredSidebarNav}
+                unreadMessages={unreadMessages}
+                navLinkBase={navLinkBase}
+                navLinkActive={navLinkActive}
+                navSubLinkBase={navSubLinkBase}
+                collapsed={!sidebarOpen}
+                emptyMessage={
+                  navQuery.trim()
+                    ? "No menu items match your search."
+                    : "No modules assigned. Contact your administrator."
+                }
+              />
             </nav>
 
-            {/* Sidebar footer */}
-            <div className="border-t border-sidebar-border px-2 py-3 space-y-1">
-              {role === "parent" && <ParentAdmissionNav variant="sidebar" />}
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive/90 transition-all duration-200 hover:bg-destructive/10 hover:text-destructive"
-              >
-                <LogOut className="h-[18px] w-[18px]" />
-                Sign out
-              </button>
+            {/* Sidebar footer — mingo sticky foot */}
+            <div className="portal-sidebar-foot sticky bottom-0 mt-auto space-y-1 border-t border-sidebar-border bg-sidebar px-5 py-3.5">
+              {role === "parent" && sidebarOpen ? (
+                <ParentAdmissionNav variant="sidebar" />
+              ) : null}
+              <SidebarIconTooltip label="Sign out" collapsed={!sidebarOpen}>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="portal-sign-out flex w-full items-center gap-2.5 text-[13px] transition-opacity hover:opacity-90"
+                  style={{ color: MINGO.signOut }}
+                >
+                  <LogOut className="h-4 w-4 shrink-0" />
+                  <span className="portal-nav-label">Sign out</span>
+                </button>
+              </SidebarIconTooltip>
             </div>
-          </div>
+            </div>
+          </aside>
 
-          {/* Drag handle to resize sidebar */}
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize sidebar"
-            title="Drag to resize sidebar"
-            onMouseDown={handleResizeStart}
-            className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize bg-transparent transition-colors hover:bg-sidebar-border active:bg-sidebar-border/80"
-          />
-        </aside>
+          {/* Drag handle to resize sidebar (expanded only) */}
+          {sidebarOpen ? (
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize sidebar"
+              title="Drag to resize sidebar"
+              onMouseDown={handleResizeStart}
+              className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize bg-transparent transition-colors hover:bg-sidebar-border active:bg-sidebar-border/80"
+            />
+          ) : null}
+        </div>
       )}
+
+      {/* Edge toggle — sits on the sidebar/content seam */}
+      {!hideSidebar ? (
+        <button
+          type="button"
+          className="portal-sidebar-toggle"
+          style={{
+            left: sidebarOpen ? sidebarWidth : SIDEBAR_COLLAPSED,
+          }}
+          onClick={toggleSidebar}
+          aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+          title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+        >
+          {sidebarOpen ? (
+            <ArrowLeftToLine aria-hidden strokeWidth={1.75} />
+          ) : (
+            <ArrowRightFromLine aria-hidden strokeWidth={1.75} />
+          )}
+        </button>
+      ) : null}
 
       {/* Main content — only this column scrolls vertically */}
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
         {/* Top Bar */}
         <header
-          className={`z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border/80 bg-background/95 backdrop-blur-md px-3 shadow-sm md:h-16 md:gap-4 md:px-6 ${hideSidebar ? "justify-end" : ""}`}
+          className={`z-30 flex h-[60px] shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-3 md:px-7 ${hideSidebar ? "" : ""}`}
         >
-          {!hideSidebar && (
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleSidebar}
-                className="h-9 w-9 rounded-lg bg-muted/50 hover:bg-muted border border-border/60"
-                aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
-                title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
-              >
-                {sidebarOpen ? (
-                  <PanelRight className="h-[18px] w-[18px] text-foreground/80" />
-                ) : (
-                  <PanelLeft className="h-[18px] w-[18px] text-foreground/80" />
-                )}
-              </Button>
-              {role === "parent" && <ParentAdmissionNav variant="header" />}
-              {currentSchool?.school_code &&
-                role !== "student" &&
-                role !== "parent" && (
-                  <div className="flex items-center gap-0.5 rounded-lg border border-border/60 bg-muted/30 pl-2.5 pr-0.5 h-9">
-                    <span className="text-xs font-medium text-muted-foreground hidden sm:inline">
-                      Code
-                    </span>
-                    <span className="text-xs font-mono font-semibold text-foreground px-1 sm:px-1.5 max-w-[100px] truncate sm:max-w-none">
-                      {currentSchool.school_code}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 shrink-0 hover:bg-background/80"
-                      onClick={handleCopySchoolCode}
-                      aria-label="Copy school code"
-                      title="Copy school code"
-                    >
-                      {schoolCodeCopied ? (
-                        <Check className="h-3.5 w-3.5 text-primary" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                      )}
-                    </Button>
-                  </div>
-                )}
-            </div>
-          )}
-
-          {!hideSidebar && (
-            <div className="flex-1 flex items-center gap-2 md:gap-3 min-w-0">
-              {isSuperAdmin ? (
-                <SchoolSwitcher />
-              ) : currentSchool ? (
-                <>
-                  <div className="hidden sm:flex min-w-0 flex-col">
-                    <h1 className="truncate text-base font-bold md:text-lg">
+          <div className="topbar-left flex min-w-0 flex-1 items-center gap-3.5">
+            {!hideSidebar && (
+              <>
+                {role === "parent" && <ParentAdmissionNav variant="header" />}
+                {currentSchool?.school_code &&
+                  role !== "student" &&
+                  role !== "parent" && (
+                    <div className="flex h-8 items-center gap-1.5 border border-border px-3 text-xs text-muted-foreground">
+                      <span className="hidden sm:inline">Code</span>
+                      <span className="font-mono font-semibold text-foreground">
+                        {currentSchool.school_code}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0 rounded-none hover:bg-muted"
+                        onClick={handleCopySchoolCode}
+                        aria-label="Copy school code"
+                        title="Copy school code"
+                      >
+                        {schoolCodeCopied ? (
+                          <Check className="h-3.5 w-3.5 text-foreground" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                {isSuperAdmin ? (
+                  <SchoolSwitcher />
+                ) : currentSchool ? (
+                  <div className="hidden min-w-0 flex-col sm:flex">
+                    <div className="truncate font-display text-sm font-semibold text-foreground">
                       {currentSchool.school_name}
-                    </h1>
-                    <p className="truncate text-xs text-muted-foreground md:text-sm">
+                    </div>
+                    <div className="truncate text-[11px] text-[hsl(var(--ink-faint))]">
                       {roleMeta.label}
-                    </p>
+                    </div>
                   </div>
-                </>
-              ) : (
-                <div className="min-w-0">
-                  <h2 className="text-sm font-bold md:text-lg">
-                    {config.title}
-                  </h2>
-                  <p className="text-xs text-muted-foreground">
-                    {roleMeta.label}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
+                ) : (
+                  <div className="min-w-0">
+                    <div className="font-display text-sm font-semibold">
+                      {config.title}
+                    </div>
+                    <div className="text-[11px] text-[hsl(var(--ink-faint))]">
+                      {roleMeta.label}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
 
-          <div className="ml-auto flex items-center gap-1.5 md:gap-2 flex-shrink-0">
+          <div className="topbar-right ml-auto flex shrink-0 items-center gap-3 md:gap-4">
             <Button
               variant="outline"
               size="sm"
-              className="h-9 gap-1.5"
+              className="h-8 gap-1.5 rounded-none border-border bg-background px-3.5 text-[12.5px] font-medium"
               onClick={() => {
                 resetPersonalTheme();
-                toast.success("Default black & white theme applied");
+                toast.success("Default Auth/Landing theme applied");
               }}
-              title="Reset to default black & white theme"
+              title="Reset to default Auth/Landing theme"
             >
-              <Palette className="h-4 w-4" />
+              <Palette className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Theme</span>
             </Button>
             <Button
               variant="ghost"
               size="icon"
               onClick={handleLogout}
-              className="h-9 w-9 md:h-10 md:w-10"
+              className="h-8 w-8 rounded-none border border-border text-muted-foreground hover:bg-muted"
               title="Sign out"
             >
-              <LogOut className="h-4 w-4 md:h-5 md:w-5" />
+              <LogOut className="h-4 w-4" />
             </Button>
             <NotificationCenter />
           </div>
         </header>
+
+        {!hideSidebar ? <PortalLiveFeedTicker /> : null}
 
         {/* Page Content */}
         <main
@@ -1233,7 +1224,7 @@ const DashboardLayout = ({
             "portal-main-scroll relative z-10 min-h-0 flex-1 overflow-x-hidden bg-background",
             hideSidebar
               ? "overflow-hidden p-0"
-              : "overflow-y-auto p-3 md:p-6 lg:p-8",
+              : "overflow-y-auto px-7 pb-10 pt-[26px]",
           )}
         >
           {role === "admin" && subscriptionAccess?.can_use_platform ? (
@@ -1242,7 +1233,7 @@ const DashboardLayout = ({
           <div
             className={cn(
               "mx-auto w-full min-w-0",
-              hideSidebar ? "h-full max-w-none" : "max-w-[1400px]",
+              hideSidebar ? "h-full max-w-none" : "max-w-none",
             )}
           >
             {children}

@@ -1,0 +1,34 @@
+{
+  "appId": "com.edumanage.desktop",
+  "productName": "EduManage Desktop",
+  "copyright": "Copyright © EduManage",
+  "directories": {
+    "output": "release",
+    "buildResources": "electron/assets"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*",
+    "package.json"
+  ],
+  "extraResources": [],
+  "win": {
+    "target": ["nsis"],
+    "icon": "electron/assets/icon.png"
+  },
+  "mac": {
+    "target": ["dmg"],
+    "icon": "electron/assets/icon.png",
+    "category": "public.app-category.education"
+  },
+  "linux": {
+    "target": ["AppImage"],
+    "icon": "electron/assets/icon.png",
+    "category": "Education"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true
+  },
+  "publish": null
+}

@@ -1,20 +1,81 @@
-/** Platform default: black & white portal canvas */
+import { MINGO, MINGO_HSL } from "@/lib/designTokens";
+
+/** Platform default brand — Auth/Landing green + ink sidebar */
 export const BRAND_DEFAULTS = {
-  primary: "#fafafa",
-  secondary: "#0a0a0a",
-  accent: "#141414",
+  primary: MINGO.brand,
+  secondary: MINGO.ink,
+  accent: MINGO.brandHover,
 } as const;
 
-/** Roles & Permissions page canvas — used for all portal shells */
-export const PORTAL_CANVAS = "#0a0a0a";
-export const PORTAL_PANEL = "#141414";
-export const PORTAL_BORDER = "#2a2a2a";
+/** Portal shell surfaces from mingo (light content, dark sidebar) */
+export const PORTAL_CANVAS = MINGO.bg;
+export const PORTAL_PANEL = MINGO.bg;
+export const PORTAL_BORDER = MINGO.line;
+export const PORTAL_SURFACE = MINGO.surface;
+export const PORTAL_SIDEBAR = MINGO.ink;
 
 export type BrandColors = {
   primary: string;
   secondary: string;
   accent: string;
 };
+
+/** Inline CSS vars written by applyBrandTheme / personal themes */
+export const THEME_INLINE_VARS = [
+  "--primary",
+  "--primary-foreground",
+  "--accent",
+  "--accent-foreground",
+  "--background",
+  "--foreground",
+  "--card",
+  "--card-foreground",
+  "--popover",
+  "--popover-foreground",
+  "--secondary",
+  "--secondary-foreground",
+  "--muted",
+  "--muted-foreground",
+  "--border",
+  "--input",
+  "--ring",
+  "--primary-glow",
+  "--sidebar-background",
+  "--sidebar-foreground",
+  "--sidebar-primary",
+  "--sidebar-primary-foreground",
+  "--sidebar-accent",
+  "--sidebar-accent-foreground",
+  "--sidebar-border",
+  "--sidebar-ring",
+  "--gradient-hero",
+  "--gradient-card",
+  "--shadow-glow",
+  "--success",
+  "--warning",
+  "--info",
+  "--destructive",
+  "--chart-1",
+  "--chart-2",
+  "--chart-3",
+  "--chart-4",
+  "--chart-5",
+  "--surface",
+  "--ink-soft",
+  "--ink-faint",
+  "--line-strong",
+  "--critical",
+  "--critical-bg",
+  "--warn",
+  "--warn-bg",
+  "--positive",
+  "--positive-bg",
+  "--info-bg",
+  "--brand",
+  "--brand-hover",
+  "--portal-accent",
+  "--portal-accent-soft",
+] as const;
 
 export function normalizeHex(hex: string): string {
   let h = hex.trim();
@@ -68,75 +129,114 @@ export function contrastForeground(hex: string): string {
   const g = parseInt(n.slice(2, 4), 16);
   const b = parseInt(n.slice(4, 6), 16);
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.55 ? "0 0% 9%" : "0 0% 100%";
+  return luminance > 0.55 ? MINGO_HSL.ink : "0 0% 100%";
+}
+
+export function getStoredPersonalTheme(): string {
+  if (typeof window === "undefined") return "default";
+  return localStorage.getItem("theme") || "default";
+}
+
+/** True when a non-default personal theme owns CSS vars (dark/color/custom) */
+export function isPersonalThemeActive(): boolean {
+  const t = getStoredPersonalTheme();
+  return t !== "default";
+}
+
+/** @deprecated use isPersonalThemeActive */
+export function isDarkThemeActive(): boolean {
+  return getStoredPersonalTheme() === "dark";
 }
 
 /**
- * Apply school brand colors on the dark portal canvas used across admin/teacher/parent/student shells.
- * primary = actions, secondary = sidebar/canvas base, accent = elevated panels (optional school tint)
+ * Apply portal black & white theme (light content + dark sidebar).
+ * Skipped while a personal theme is active so switching works.
  */
-export function applyBrandTheme(colors: BrandColors): void {
+export function applyBrandTheme(_colors?: BrandColors): void {
+  if (isPersonalThemeActive()) return;
+
   const root = document.documentElement;
-  const primary = hslString(colors.primary);
-  const canvas = hslString(PORTAL_CANVAS);
-  const panel = hslString(PORTAL_PANEL);
-  const secondaryParts = hexToHsl(colors.secondary);
-  const accentParts = hexToHsl(colors.accent);
-  const panelL = Math.min(Math.max(accentParts.l, 8), 14);
 
   root.classList.add("school-branded");
-  root.dataset.brandPrimary = colors.primary;
-  root.dataset.brandSecondary = colors.secondary;
-  root.dataset.brandAccent = colors.accent;
+  root.dataset.brandPrimary = BRAND_DEFAULTS.primary;
+  root.dataset.brandSecondary = BRAND_DEFAULTS.secondary;
+  root.dataset.brandAccent = BRAND_DEFAULTS.accent;
 
-  root.style.setProperty("--primary", primary);
-  root.style.setProperty("--primary-foreground", contrastForeground(colors.primary));
-  root.style.setProperty("--ring", primary);
-  root.style.setProperty("--primary-glow", primary);
+  root.style.setProperty("--primary", MINGO_HSL.brand);
+  root.style.setProperty("--primary-foreground", "0 0% 100%");
+  root.style.setProperty("--ring", MINGO_HSL.brand);
+  root.style.setProperty("--primary-glow", MINGO_HSL.brandHover);
 
-  root.style.setProperty("--foreground", "0 0% 98%");
-  root.style.setProperty("--background", canvas);
-  root.style.setProperty("--card", `${accentParts.h} ${Math.min(accentParts.s, 8)}% ${panelL}%`);
-  root.style.setProperty("--card-foreground", "0 0% 98%");
-  root.style.setProperty("--popover", panel);
-  root.style.setProperty("--popover-foreground", "0 0% 98%");
+  root.style.setProperty("--background", MINGO_HSL.bg);
+  root.style.setProperty("--foreground", MINGO_HSL.ink);
+  root.style.setProperty("--card", MINGO_HSL.bg);
+  root.style.setProperty("--card-foreground", MINGO_HSL.ink);
+  root.style.setProperty("--popover", MINGO_HSL.bg);
+  root.style.setProperty("--popover-foreground", MINGO_HSL.ink);
+  root.style.setProperty("--secondary", MINGO_HSL.surface);
+  root.style.setProperty("--secondary-foreground", MINGO_HSL.ink);
+  root.style.setProperty("--muted", MINGO_HSL.surface);
+  root.style.setProperty("--muted-foreground", MINGO_HSL.inkSoft);
+  root.style.setProperty("--accent", MINGO_HSL.brandSoft);
+  root.style.setProperty("--accent-foreground", MINGO_HSL.ink);
+  root.style.setProperty("--border", MINGO_HSL.line);
+  root.style.setProperty("--input", MINGO_HSL.line);
 
-  root.style.setProperty("--secondary", "0 0% 12%");
-  root.style.setProperty("--secondary-foreground", "0 0% 98%");
-  root.style.setProperty("--muted", "0 0% 14%");
-  root.style.setProperty("--muted-foreground", "0 0% 72%");
-  root.style.setProperty("--accent", primary);
-  root.style.setProperty("--accent-foreground", contrastForeground(colors.primary));
-  root.style.setProperty("--border", hslString(PORTAL_BORDER));
-  root.style.setProperty("--input", "0 0% 11%");
+  root.style.setProperty("--sidebar-background", MINGO_HSL.ink);
+  root.style.setProperty("--sidebar-foreground", "240 5% 90%");
+  root.style.setProperty("--sidebar-primary", MINGO_HSL.brand);
+  root.style.setProperty("--sidebar-primary-foreground", "0 0% 100%");
+  root.style.setProperty("--sidebar-accent", MINGO_HSL.sidebarHover);
+  root.style.setProperty("--sidebar-accent-foreground", "0 0% 100%");
+  root.style.setProperty("--sidebar-border", MINGO_HSL.sidebarMute);
+  root.style.setProperty("--sidebar-ring", MINGO_HSL.brand);
 
-  root.style.setProperty("--sidebar-background", hslString(colors.secondary));
-  root.style.setProperty("--sidebar-foreground", "0 0% 98%");
-  root.style.setProperty("--sidebar-primary", primary);
-  root.style.setProperty("--sidebar-primary-foreground", contrastForeground(colors.primary));
-  root.style.setProperty(
-    "--sidebar-accent",
-    `${secondaryParts.h} ${secondaryParts.s}% ${Math.min(secondaryParts.l + 8, 22)}%`,
-  );
-  root.style.setProperty("--sidebar-accent-foreground", "0 0% 98%");
-  root.style.setProperty(
-    "--sidebar-border",
-    `${secondaryParts.h} ${secondaryParts.s}% ${Math.min(secondaryParts.l + 12, 25)}%`,
-  );
-  root.style.setProperty("--sidebar-ring", primary);
+  root.style.setProperty("--destructive", MINGO_HSL.critical);
+  root.style.setProperty("--success", MINGO_HSL.positive);
+  root.style.setProperty("--warning", MINGO_HSL.warn);
+  root.style.setProperty("--info", MINGO_HSL.info);
+
+  root.style.setProperty("--surface", MINGO_HSL.surface);
+  root.style.setProperty("--ink-soft", MINGO_HSL.inkSoft);
+  root.style.setProperty("--ink-faint", MINGO_HSL.inkFaint);
+  root.style.setProperty("--line-strong", MINGO_HSL.lineStrong);
+  root.style.setProperty("--brand", MINGO_HSL.brand);
+  root.style.setProperty("--brand-hover", MINGO_HSL.brandHover);
+  root.style.setProperty("--portal-accent", MINGO_HSL.brand);
+  root.style.setProperty("--portal-accent-soft", `${MINGO_HSL.brand} / 0.15`);
+  root.style.setProperty("--critical", MINGO_HSL.critical);
+  root.style.setProperty("--critical-bg", MINGO_HSL.criticalBg);
+  root.style.setProperty("--warn", MINGO_HSL.warn);
+  root.style.setProperty("--warn-bg", MINGO_HSL.warnBg);
+  root.style.setProperty("--positive", MINGO_HSL.positive);
+  root.style.setProperty("--positive-bg", MINGO_HSL.positiveBg);
+  root.style.setProperty("--info-bg", MINGO_HSL.infoBg);
 
   root.style.setProperty(
     "--gradient-hero",
-    `linear-gradient(135deg, hsl(${primary} / 0.95), hsl(${canvas} / 0.98))`,
+    `linear-gradient(135deg, hsl(${MINGO_HSL.bg}), hsl(${MINGO_HSL.brandSoft}))`,
   );
   root.style.setProperty(
     "--gradient-card",
-    `linear-gradient(135deg, hsl(${panel}), hsl(0 0% 10%))`,
+    `linear-gradient(135deg, hsl(${MINGO_HSL.bg}), hsl(${MINGO_HSL.surface}))`,
   );
-  root.style.setProperty("--shadow-glow", `0 0 30px -5px hsl(${primary} / 0.35)`);
+  root.style.setProperty("--shadow-glow", `0 0 24px -6px hsl(${MINGO_HSL.brand} / 0.25)`);
+  root.style.setProperty("--chart-1", MINGO_HSL.brand);
+  root.style.setProperty("--chart-2", MINGO_HSL.brandHover);
+  root.style.setProperty("--chart-3", MINGO_HSL.inkSoft);
+  root.style.setProperty("--chart-4", MINGO_HSL.line);
+  root.style.setProperty("--chart-5", MINGO_HSL.surface);
+}
 
-  root.style.setProperty("--success", primary);
-  root.style.setProperty("--chart-1", primary);
+/** Force mingo light theme (used by boot/reset helpers). */
+export function forceMingoTheme(): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("theme", "default");
+  }
+  const root = document.documentElement;
+  root.classList.remove("dark", "blue", "purple", "green", "custom");
+  clearBrandTheme();
+  applyBrandTheme(BRAND_DEFAULTS);
 }
 
 export function clearBrandTheme(): void {
@@ -145,39 +245,9 @@ export function clearBrandTheme(): void {
   delete root.dataset.brandPrimary;
   delete root.dataset.brandSecondary;
   delete root.dataset.brandAccent;
-  [
-    "--primary",
-    "--primary-foreground",
-    "--accent",
-    "--accent-foreground",
-    "--background",
-    "--foreground",
-    "--card",
-    "--card-foreground",
-    "--popover",
-    "--popover-foreground",
-    "--secondary",
-    "--secondary-foreground",
-    "--muted",
-    "--muted-foreground",
-    "--border",
-    "--input",
-    "--ring",
-    "--primary-glow",
-    "--sidebar-background",
-    "--sidebar-foreground",
-    "--sidebar-primary",
-    "--sidebar-primary-foreground",
-    "--sidebar-accent",
-    "--sidebar-accent-foreground",
-    "--sidebar-border",
-    "--sidebar-ring",
-    "--gradient-hero",
-    "--gradient-card",
-    "--shadow-glow",
-    "--success",
-    "--chart-1",
-  ].forEach((prop) => root.style.removeProperty(prop));
+  for (const prop of THEME_INLINE_VARS) {
+    root.style.removeProperty(prop);
+  }
 }
 
 export function parseSchoolBrand(row: {
@@ -185,10 +255,17 @@ export function parseSchoolBrand(row: {
   theme_secondary?: string | null;
   theme_accent?: string | null;
 } | null): BrandColors {
+  // Stored school colors (logos / report metadata). Portal chrome stays mingo.
   if (!row) return { ...BRAND_DEFAULTS };
   return {
-    primary: normalizeHex(row.theme_primary || BRAND_DEFAULTS.primary),
-    secondary: normalizeHex(row.theme_secondary || BRAND_DEFAULTS.secondary),
-    accent: normalizeHex(row.theme_accent || BRAND_DEFAULTS.accent),
+    primary: row.theme_primary?.trim()
+      ? normalizeHex(row.theme_primary)
+      : BRAND_DEFAULTS.primary,
+    secondary: row.theme_secondary?.trim()
+      ? normalizeHex(row.theme_secondary)
+      : BRAND_DEFAULTS.secondary,
+    accent: row.theme_accent?.trim()
+      ? normalizeHex(row.theme_accent)
+      : BRAND_DEFAULTS.accent,
   };
 }

@@ -89,6 +89,18 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
     ],
   },
   {
+    key: "library",
+    label: "Library Modules",
+    modules: [
+      {
+        key: "library_management",
+        label: "Library Management",
+        path: "/admin/library",
+        actions: OPS_MODULE_ACTIONS,
+      },
+    ],
+  },
+  {
     key: "finance",
     label: "Financial Management",
     modules: [
@@ -144,18 +156,6 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
         key: "staff_attendance",
         label: "Staff Attendance",
         path: "/admin/hr/attendance",
-        actions: OPS_MODULE_ACTIONS,
-      },
-    ],
-  },
-  {
-    key: "library",
-    label: "Library Modules",
-    modules: [
-      {
-        key: "library_management",
-        label: "Library Management",
-        path: "/admin/library",
         actions: OPS_MODULE_ACTIONS,
       },
     ],

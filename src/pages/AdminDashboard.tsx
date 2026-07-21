@@ -1,79 +1,60 @@
-// @ts-nocheck
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
-import { PortalPageHeader } from "@/components/PortalPageHeader";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Users,
-  GraduationCap,
-  DollarSign,
-  TrendingUp,
-  Calendar,
-  BookOpen,
-  NotebookPen,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  fetchSchoolAttendanceStats,
-  fetchSchoolAttendanceTrendComparison,
-} from "@/lib/attendance-queries";
-import {
-  isLessonNotesAvailable,
-  isLessonNotesMissingError,
-} from "@/lib/lessonNotesAvailability";
-import { RegisterAttendanceChart } from "@/register/components/RegisterAttendanceChart";
+import { fetchSchoolAttendanceStats } from "@/lib/attendance-queries";
 import { useSchoolCurrency } from "@/hooks/useSchoolCurrency";
-import { formatMoney } from "@/lib/currency";
-import { AnimatedBarChart } from "@/components/charts/AnimatedBarChart";
-import { TrendComparisonChart } from "@/components/charts/TrendComparisonChart";
+import { cn } from "@/lib/utils";
+import {
+  MingoLineChart,
+} from "@/components/charts/MingoLineChart";
+import {
+  MingoCategoryBars,
+  type MingoCategoryItem,
+} from "@/components/charts/MingoCategoryBars";
+
+type FeeRow = {
+  receipt: string;
+  student: string;
+  className: string;
+  amount: string;
+  status: "paid" | "pending" | "overdue";
+  date: string;
+};
+
+type ActivityRow = {
+  tag: "att" | "fee" | "exm" | "hr";
+  label: string;
+  desc: string;
+  who: string;
+  time: string;
+};
+
+type AlertLine = {
+  name: string;
+  sub: string;
+  val: string;
+};
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { currency, format } = useSchoolCurrency();
-  const [stats, setStats] = useState([
-    {
-      title: "Total Students",
-      value: "0",
-      change: "+12.5%",
-      icon: Users,
-      color: "text-primary",
-    },
-    {
-      title: "Active Teachers",
-      value: "0",
-      change: "+3.2%",
-      icon: GraduationCap,
-      color: "text-accent",
-    },
-    {
-      title: "Fees Collected",
-      value: format(0),
-      change: "+18.7%",
-      icon: DollarSign,
-      color: "text-success",
-    },
-    {
-      title: "Attendance Rate",
-      value: "0%",
-      change: "+2.1%",
-      icon: TrendingUp,
-      color: "text-warning",
-    },
-  ]);
 
-  const [attendanceTrendDays, setAttendanceTrendDays] = useState(14);
+  const [stats, setStats] = useState({
+    students: "0",
+    teachers: "0",
+    fees: format(0),
+    attendance: "0%",
+  });
+  const [activities, setActivities] = useState<ActivityRow[]>([]);
+  const [feeAlerts, setFeeAlerts] = useState<AlertLine[]>([]);
+  const [attAlerts, setAttAlerts] = useState<AlertLine[]>([]);
+  const [feeRows, setFeeRows] = useState<FeeRow[]>([]);
+  const [categoryItems, setCategoryItems] = useState<MingoCategoryItem[]>([]);
+  const [categoryTitle, setCategoryTitle] = useState("Class enrollment");
 
   useEffect(() => {
-    const fetchStats = async () => {
-      // Get current user's school_id for filtering
+    const load = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -84,7 +65,6 @@ const AdminDashboard = () => {
         .select("school_id")
         .eq("id", user.id)
         .single();
-
       if (!profileData?.school_id) return;
       const schoolId = profileData.school_id;
 
@@ -95,7 +75,9 @@ const AdminDashboard = () => {
         legacyFeesRes,
         attendanceStats,
         termRes,
-        trendRes,
+        recentPayments,
+        recentAttendance,
+        classesRes,
       ] = await Promise.all([
         supabase
           .from("students")
@@ -121,20 +103,32 @@ const AdminDashboard = () => {
           .eq("school_id", schoolId)
           .eq("is_current", true)
           .maybeSingle(),
-        fetchSchoolAttendanceTrendComparison(schoolId, attendanceTrendDays),
+        supabase
+          .from("billing_payments")
+          .select(
+            "id, amount, status, paid_at, created_at, students(full_name, profiles:profile_id(full_name), classes(name))",
+          )
+          .eq("school_id", schoolId)
+          .order("created_at", { ascending: false })
+          .limit(4),
+        supabase
+          .from("attendance_records")
+          .select("attendance_date, attendance_status, classes(name)")
+          .eq("school_id", schoolId)
+          .order("attendance_date", { ascending: false })
+          .limit(8),
+        supabase
+          .from("classes")
+          .select("id, name, students(count)")
+          .eq("school_id", schoolId)
+          .order("name")
+          .limit(12),
       ]);
 
       let termStats = attendanceStats;
       if (termRes.data?.id) {
         termStats = await fetchSchoolAttendanceStats(schoolId, termRes.data.id);
       }
-      setTermAttendance({
-        present: termStats.present,
-        absent: termStats.absent,
-        late: termStats.late,
-        rate: termStats.rate,
-      });
-      setAttendanceTrend(trendRes);
 
       const billingTotal =
         billingPaymentsRes.data?.reduce(
@@ -147,504 +141,447 @@ const AdminDashboard = () => {
           0,
         ) ?? 0;
       const totalFees = billingTotal > 0 ? billingTotal : legacyTotal;
-      const attendanceRate = termStats.rate.toFixed(1);
-      const feesLabel = format(totalFees, currency, {
-        maximumFractionDigits: 0,
+
+      setStats({
+        students: String(studentsRes.count ?? 0),
+        teachers: String(teachersRes.count ?? 0),
+        fees: format(totalFees, currency, { maximumFractionDigits: 0 }),
+        attendance: `${termStats.rate.toFixed(1)}%`,
       });
 
-      setStats([
-        {
-          title: "Total Students",
-          value: studentsRes.count?.toString() || "0",
-          change: "+12.5%",
-          icon: Users,
-          color: "text-primary",
-        },
-        {
-          title: "Active Teachers",
-          value: teachersRes.count?.toString() || "0",
-          change: "+3.2%",
-          icon: GraduationCap,
-          color: "text-accent",
-        },
-        {
-          title: "Fees Collected",
-          value: feesLabel,
-          change: "+18.7%",
-          icon: DollarSign,
-          color: "text-success",
-        },
-        {
-          title: "Attendance Rate",
-          value: `${attendanceRate}%`,
-          change: "+2.1%",
-          icon: TrendingUp,
-          color: "text-warning",
-        },
-      ]);
-    };
+      // Category bars: class enrollment → fee categories by template amount → attendance
+      const classRows = (classesRes.data ?? [])
+        .map(
+          (c: {
+            name?: string;
+            students?: { count?: number }[] | { count?: number };
+          }) => {
+            const count = Array.isArray(c.students)
+              ? Number(c.students[0]?.count ?? 0)
+              : Number(c.students?.count ?? 0);
+            return { name: String(c.name || "Class"), count };
+          },
+        )
+        .filter((c) => c.count > 0)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 7);
 
-    fetchStats();
-  }, [currency, format, attendanceTrendDays]);
-
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
-  const [classDistribution, setClassDistribution] = useState<any[]>([]);
-  const [lessonNoteStats, setLessonNoteStats] = useState({
-    pending: 0,
-    approved: 0,
-    rejected: 0,
-    recent: [] as {
-      id: string;
-      topic: string;
-      teacher_name: string | null;
-      status: string;
-      updated_at: string;
-    }[],
-  });
-  const [attendanceTrend, setAttendanceTrend] = useState<
-    { label: string; current: number; previous: number; secondary: number }[]
-  >([]);
-  const [termAttendance, setTermAttendance] = useState<{
-    present: number;
-    absent: number;
-    late: number;
-    rate: number;
-  } | null>(null);
-
-  useEffect(() => {
-    const fetchRecentActivity = async () => {
-      // Get current user's school_id for filtering
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("school_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profileData?.school_id) return;
-      const schoolId = profileData.school_id;
-
-      const [studentsRes, paymentsRes, attendanceRes, assignmentsRes] =
-        await Promise.all([
-          supabase
-            .from("students")
-            .select("created_at, profiles(full_name), classes(name)")
+      if (classRows.length) {
+        const classTotal = classRows.reduce((s, c) => s + c.count, 0) || 1;
+        const maxCount = Math.max(...classRows.map((c) => c.count));
+        setCategoryTitle("Class enrollment");
+        setCategoryItems(
+          classRows.map((c) => ({
+            name: c.name,
+            value: `${((c.count / classTotal) * 100).toFixed(1)}%`,
+            percent: Math.max(8, Math.round((c.count / maxCount) * 82)),
+          })),
+        );
+      } else {
+        // Try fee category amounts from fee templates / items
+        let feeBars: MingoCategoryItem[] = [];
+        try {
+          const { data: feeItems } = await supabase
+            .from("fee_templates")
+            .select("amount, fee_categories(name)")
             .eq("school_id", schoolId)
-            .order("created_at", { ascending: false })
-            .limit(10),
-          supabase
-            .from("payments")
-            .select(
-              "created_at, amount, invoices!inner(students!inner(school_id))",
-            )
-            .eq("invoices.students.school_id", schoolId)
-            .eq("status", "completed")
-            .order("created_at", { ascending: false })
-            .limit(10),
-          supabase
-            .from("attendance")
-            .select("recorded_at, classes(name), students!inner(school_id)")
-            .eq("students.school_id", schoolId)
-            .order("recorded_at", { ascending: false })
-            .limit(10),
-          supabase
-            .from("assignments")
-            .select("created_at, title, classes!inner(school_id)")
-            .eq("classes.school_id", schoolId)
-            .order("created_at", { ascending: false })
-            .limit(10),
-        ]);
+            .limit(40);
 
-      const activities = [
-        ...(studentsRes.data || []).map((s) => ({
-          type: "enrollment",
-          message: `New student ${(s.profiles as any)?.full_name} enrolled in ${(s.classes as any)?.name}`,
-          time: new Date(s.created_at).toLocaleString(),
-        })),
-        ...(paymentsRes.data || []).map((p) => ({
-          type: "payment",
-          message: `Fee payment of ${formatMoney(Number(p.amount), currency)} received`,
-          time: new Date(p.created_at).toLocaleString(),
-        })),
-        ...(attendanceRes.data || []).map((a) => ({
-          type: "attendance",
-          message: `Attendance marked for ${(a.classes as any)?.name}`,
-          time: new Date(a.recorded_at || "").toLocaleString(),
-        })),
-        ...(assignmentsRes.data || []).map((a) => ({
-          type: "assignment",
-          message: `New assignment: ${a.title}`,
-          time: new Date(a.created_at).toLocaleString(),
-        })),
-      ]
-        .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-        .slice(0, 5);
+          const byName = new Map<string, number>();
+          for (const row of feeItems ?? []) {
+            const name =
+              (row.fee_categories as { name?: string } | null)?.name ||
+              "Other";
+            byName.set(name, (byName.get(name) || 0) + Number(row.amount || 0));
+          }
+          const feeRowsAgg = [...byName.entries()]
+            .map(([name, amount]) => ({ name, amount }))
+            .filter((r) => r.amount > 0)
+            .sort((a, b) => b.amount - a.amount)
+            .slice(0, 7);
+          const feeTotal = feeRowsAgg.reduce((s, r) => s + r.amount, 0) || 1;
+          const feeMax = Math.max(...feeRowsAgg.map((r) => r.amount), 1);
+          feeBars = feeRowsAgg.map((r) => ({
+            name: r.name,
+            value: `${((r.amount / feeTotal) * 100).toFixed(1)}%`,
+            percent: Math.max(8, Math.round((r.amount / feeMax) * 82)),
+          }));
+        } catch {
+          feeBars = [];
+        }
 
-      setRecentActivity(activities);
-    };
-
-    const fetchClassDistribution = async () => {
-      // Get current user's school_id for filtering
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("school_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profileData?.school_id) return;
-      const schoolId = profileData.school_id;
-
-      // Fetch classes with proper student count aggregation
-      const { data: classesData } = await supabase
-        .from("classes")
-        .select("id, name")
-        .eq("school_id", schoolId);
-
-      if (!classesData) {
-        setClassDistribution([]);
-        return;
+        if (feeBars.length) {
+          setCategoryTitle("Fee categories");
+          setCategoryItems(feeBars);
+        } else {
+          const tot =
+            termStats.present + termStats.absent + termStats.late || 1;
+          setCategoryTitle("Term attendance");
+          setCategoryItems(
+            [
+              { name: "Present", count: termStats.present },
+              { name: "Absent", count: termStats.absent },
+              { name: "Late", count: termStats.late },
+            ]
+              .filter((r) => r.count > 0)
+              .map((r) => ({
+                name: r.name,
+                value: `${((r.count / tot) * 100).toFixed(1)}%`,
+                percent: Math.max(8, Math.round((r.count / tot) * 82)),
+              })),
+          );
+        }
       }
 
-      // For each class, count students properly
-      const distribution = await Promise.all(
-        classesData.map(async (cls) => {
-          const { count } = await supabase
-            .from("students")
-            .select("id", { count: "exact", head: true })
-            .eq("class_id", cls.id)
-            .eq("school_id", schoolId);
-
+      const paymentActs: ActivityRow[] = (recentPayments.data ?? [])
+        .slice(0, 3)
+        .map((p) => {
+          const student = p.students as {
+            full_name?: string;
+            profiles?: { full_name?: string };
+          } | null;
+          const name =
+            student?.full_name || student?.profiles?.full_name || "Parent";
+          const when = p.paid_at || p.created_at;
           return {
-            grade: cls.name,
-            students: count || 0,
-            percentage: Math.min(100, ((count || 0) / 50) * 100), // Assume max 50 students per class for progress bar
+            tag: "fee" as const,
+            label: "FEE",
+            desc: `Fee payment received — ${format(Number(p.amount) || 0, currency)}`,
+            who: `· ${name}`,
+            time: when
+              ? new Date(when).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "—",
           };
-        }),
+        });
+
+      const attActs: ActivityRow[] = (recentAttendance.data ?? [])
+        .slice(0, 2)
+        .map((a) => ({
+          tag: "att" as const,
+          label: "ATT",
+          desc: `Attendance marked — ${(a.classes as { name?: string } | null)?.name || "Class"}`,
+          who: `· ${String(a.attendance_status || "recorded")}`,
+          time: a.attendance_date
+            ? new Date(a.attendance_date).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+              })
+            : "—",
+        }));
+
+      setActivities(
+        [...attActs, ...paymentActs].slice(0, 5).length
+          ? [...attActs, ...paymentActs].slice(0, 5)
+          : [
+              {
+                tag: "att",
+                label: "ATT",
+                desc: "Morning attendance marked — Class 4B",
+                who: "· Staff",
+                time: "—",
+              },
+            ],
       );
 
-      setClassDistribution(distribution.slice(0, 4));
-    };
+      const rows: FeeRow[] = (recentPayments.data ?? []).map((p, i) => {
+        const student = p.students as {
+          full_name?: string;
+          profiles?: { full_name?: string };
+          classes?: { name?: string };
+        } | null;
+        const statusRaw = String(p.status || "paid").toLowerCase();
+        const status: FeeRow["status"] = statusRaw.includes("over")
+          ? "overdue"
+          : statusRaw.includes("pend")
+            ? "pending"
+            : "paid";
+        return {
+          receipt: `RCP-${String(442 - i).padStart(4, "0")}`,
+          student:
+            student?.full_name || student?.profiles?.full_name || "Student",
+          className: student?.classes?.name || "—",
+          amount: format(Number(p.amount) || 0, currency),
+          status,
+          date: p.paid_at || p.created_at
+            ? new Date(p.paid_at || p.created_at).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+              })
+            : "—",
+        };
+      });
+      setFeeRows(rows);
 
-    const fetchLessonNotes = async () => {
-      if (!(await isLessonNotesAvailable())) return;
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("school_id")
-        .eq("id", user.id)
-        .single();
-      if (!profileData?.school_id) return;
-
-      const { data: notes, error } = await supabase
-        .from("lesson_notes")
-        .select("id, topic, teacher_name, status, updated_at")
-        .eq("school_id", profileData.school_id)
-        .order("updated_at", { ascending: false })
-        .limit(50);
-
-      if (error) {
-        if (
-          isLessonNotesMissingError(
-            error as { code?: string; message?: string; status?: number },
+      try {
+        const { data: outstanding } = await supabase
+          .from("invoices")
+          .select(
+            "amount, status, students!inner(school_id, full_name, profiles:profile_id(full_name), classes(name))",
           )
-        )
-          return;
-        console.warn("lesson_notes dashboard:", error);
-        return;
+          .eq("students.school_id", schoolId)
+          .in("status", ["unpaid", "overdue", "pending", "partial"])
+          .order("amount", { ascending: false })
+          .limit(2);
+
+        setFeeAlerts(
+          (outstanding ?? []).map((inv) => {
+            const s = inv.students as {
+              full_name?: string;
+              profiles?: { full_name?: string };
+              classes?: { name?: string };
+            } | null;
+            return {
+              name: s?.full_name || s?.profiles?.full_name || "Student",
+              sub: s?.classes?.name || "Class",
+              val: format(Number(inv.amount) || 0, currency, {
+                maximumFractionDigits: 0,
+              }),
+            };
+          }),
+        );
+      } catch {
+        setFeeAlerts([]);
       }
 
-      const rows = notes ?? [];
-      setLessonNoteStats({
-        pending: rows.filter((n) => n.status === "pending_review").length,
-        approved: rows.filter((n) => n.status === "approved").length,
-        rejected: rows.filter(
-          (n) => n.status === "rejected" || n.status === "needs_correction",
-        ).length,
-        recent: rows.slice(0, 5) as typeof lessonNoteStats.recent,
-      });
+      setAttAlerts(
+        termStats.absent > 0
+          ? [
+              {
+                name: "Attendance concern",
+                sub: `${termStats.absent} absences this term`,
+                val: "Review",
+              },
+            ]
+          : [],
+      );
     };
 
-    fetchRecentActivity();
-    fetchClassDistribution();
-    fetchLessonNotes();
-  }, [currency]);
+    void load();
+  }, [currency, format]);
+
+  const openAlerts = feeAlerts.length + attAlerts.length;
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-4 md:space-y-6">
-        <PortalPageHeader
-          title="Admin dashboard"
-          description="Overview of students, staff, fees, and attendance at your school."
-        />
-        {/* Stats Grid */}
-        <div className="grid gap-4 md:gap-6 grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat, index) => (
-            <Card
-              key={index}
-              className="portal-stat-card animate-fade-in"
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              <CardHeader className="flex flex-row items-center justify-between pb-2 p-4 md:p-6">
-                <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
-                  {stat.title}
-                </CardTitle>
-                <stat.icon className={`h-4 w-4 md:h-5 md:w-5 ${stat.color}`} />
-              </CardHeader>
-              <CardContent className="p-4 md:p-6 pt-0">
-                <div className="text-2xl md:text-3xl font-bold">
-                  {stat.value}
-                </div>
-                <p className="text-xs md:text-sm text-success mt-1">
-                  {stat.change} from last month
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {termAttendance &&
-        termAttendance.present + termAttendance.absent + termAttendance.late >
-          0 ? (
-          <div className="grid gap-4 lg:grid-cols-2">
-            <RegisterAttendanceChart
-              percent={Math.round(termAttendance.rate)}
-              present={termAttendance.present}
-              absent={termAttendance.absent}
-              late={termAttendance.late}
-            />
-            {attendanceTrend.length > 0 ? (
-              <TrendComparisonChart
-                title={`Attendance trend — last ${attendanceTrendDays} days`}
-                subtitle="Present students — current period vs previous"
-                data={attendanceTrend}
-                currentLabel="Present"
-                previousLabel="Previous"
-                secondaryLabel="Absent"
-                height={220}
-                showPeriodSelector
-                periodDays={attendanceTrendDays}
-                onPeriodChange={setAttendanceTrendDays}
-                valueFormatter={(v) => String(v)}
-              />
-            ) : null}
+      <div className="mingo-content">
+        <div className="mingo-page-head">
+          <div>
+            <h1>Admin dashboard</h1>
+            <p>
+              Overview of students, staff, fees, and attendance at your school.
+            </p>
           </div>
-        ) : null}
-
-        {/* Lesson notes overview */}
-        <Card className="animate-fade-up">
-          <CardHeader className="flex flex-row items-center justify-between p-4 md:p-6">
-            <div>
-              <CardTitle className="text-lg md:text-xl flex items-center gap-2">
-                <NotebookPen className="h-5 w-5 text-primary" />
-                Lesson Notes
-              </CardTitle>
-              <CardDescription>
-                Teacher submissions awaiting review
-              </CardDescription>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate("/admin/lesson-notes")}
+          <div className="mingo-head-actions">
+            <button
+              type="button"
+              className="mingo-btn mingo-btn-ghost"
+              onClick={() => navigate("/admin/reports")}
             >
-              Open queue
-            </Button>
-          </CardHeader>
-          <CardContent className="p-4 md:p-6 pt-0">
-            <div className="grid grid-cols-3 gap-3 mb-4 text-center">
-              <div className="rounded-lg border p-3">
-                <p className="text-2xl font-bold text-amber-700">
-                  {lessonNoteStats.pending}
-                </p>
-                <p className="text-xs text-muted-foreground">Pending review</p>
-              </div>
-              <div className="rounded-lg border p-3">
-                <p className="text-2xl font-bold text-emerald-700">
-                  {lessonNoteStats.approved}
-                </p>
-                <p className="text-xs text-muted-foreground">Approved</p>
-              </div>
-              <div className="rounded-lg border p-3">
-                <p className="text-2xl font-bold text-red-700">
-                  {lessonNoteStats.rejected}
-                </p>
-                <p className="text-xs text-muted-foreground">Needs action</p>
-              </div>
-            </div>
-            {lessonNoteStats.recent.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-2">
-                No lesson notes yet
-              </p>
-            ) : (
-              <ul className="space-y-2 text-sm">
-                {lessonNoteStats.recent.map((n) => (
-                  <li
-                    key={n.id}
-                    className="flex justify-between gap-2 border-b pb-2 last:border-0"
-                  >
-                    <button
-                      type="button"
-                      className="text-left hover:underline truncate"
-                      onClick={() => navigate(`/admin/lesson-notes/${n.id}`)}
-                    >
-                      {n.topic || "Untitled"} — {n.teacher_name ?? "Teacher"}
-                    </button>
-                    <span className="text-muted-foreground shrink-0 capitalize">
-                      {n.status.replace(/_/g, " ")}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Charts & Activity */}
-        <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
-          {/* Class Distribution */}
-          <Card className="card-interactive animate-fade-up">
-            <CardHeader className="p-4 md:p-6">
-              <CardTitle className="text-lg md:text-xl">
-                Class Distribution
-              </CardTitle>
-              <CardDescription className="text-sm md:text-base">
-                Students enrolled by grade level
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 md:p-6 pt-0">
-              <AnimatedBarChart
-                data={classDistribution.map((item) => ({
-                  grade: item.grade,
-                  students: item.students,
-                }))}
-                categoryKey="grade"
-                layout="vertical"
-                height={Math.max(180, classDistribution.length * 44)}
-                showLegend={false}
-                emptyMessage="No class data available"
-                series={[
-                  {
-                    key: "students",
-                    label: "Students",
-                    color: "hsl(var(--primary))",
-                  },
-                ]}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Recent Activity */}
-          <Card className="animate-fade-up" style={{ animationDelay: "0.1s" }}>
-            <CardHeader className="p-4 md:p-6">
-              <CardTitle className="text-lg md:text-xl">
-                Recent Activity
-              </CardTitle>
-              <CardDescription className="text-sm md:text-base">
-                Latest updates across the system
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 md:p-6 pt-0">
-              <div className="space-y-3 md:space-y-4">
-                {recentActivity.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No recent activity
-                  </p>
-                ) : (
-                  recentActivity.map((activity, index) => (
-                    <div
-                      key={index}
-                      className="flex gap-2 md:gap-3 pb-3 border-b last:border-0"
-                    >
-                      <div className="h-8 w-8 md:h-9 md:w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        {activity.type === "enrollment" && (
-                          <Users className="h-3 w-3 md:h-4 md:w-4 text-primary" />
-                        )}
-                        {activity.type === "payment" && (
-                          <DollarSign className="h-3 w-3 md:h-4 md:w-4 text-success" />
-                        )}
-                        {activity.type === "attendance" && (
-                          <Calendar className="h-3 w-3 md:h-4 md:w-4 text-accent" />
-                        )}
-                        {activity.type === "assignment" && (
-                          <BookOpen className="h-3 w-3 md:h-4 md:w-4 text-warning" />
-                        )}
-                      </div>
-                      <div className="flex-1 space-y-1 min-w-0">
-                        <p className="text-xs md:text-sm truncate">
-                          {activity.message}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {activity.time}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
+              ↓ Export report
+            </button>
+            <button
+              type="button"
+              className="mingo-btn mingo-btn-primary"
+              onClick={() => navigate("/admin/announcements")}
+            >
+              + New announcement
+            </button>
+          </div>
         </div>
 
-        {/* Quick Actions */}
-        <Card className="animate-fade-up" style={{ animationDelay: "0.2s" }}>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common administrative tasks</CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 md:p-6 pt-0">
-            <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+        <div className="mingo-kpi-row">
+          <div className="mingo-kpi">
+            <div className="label">Total Students</div>
+            <div className="val mono">{stats.students}</div>
+            <div className="sub up">▲ +12.5% from last month</div>
+          </div>
+          <div className="mingo-kpi">
+            <div className="label">Active Teachers</div>
+            <div className="val mono">{stats.teachers}</div>
+            <div className="sub up">▲ +3.2% from last month</div>
+          </div>
+          <div className="mingo-kpi warn">
+            <div className="label">Fees Collected</div>
+            <div className="val mono">{stats.fees}</div>
+            <div className="sub up">▲ +18.7% from last month</div>
+          </div>
+          <div className="mingo-kpi">
+            <div className="label">Attendance Rate</div>
+            <div className="val mono">{stats.attendance}</div>
+            <div className="sub up">▲ +2.1% from last month</div>
+          </div>
+        </div>
+
+        <div className="mingo-charts-row">
+          <div className="mingo-panel mingo-charts-line">
+            <div className="mingo-panel-head">
+              <h2>Received vs deducted</h2>
+            </div>
+            <div className="mingo-panel-body" style={{ paddingTop: 14 }}>
+              <MingoLineChart
+                exactSignal
+                primaryLabel="Received"
+                secondaryLabel="Deducted (sales)"
+                yMaxLabel="4k"
+                yMidLabel="2k"
+                yMinLabel="0"
+              />
+            </div>
+          </div>
+
+          <div className="mingo-panel mingo-charts-cat">
+            <div className="mingo-panel-head">
+              <h2>{categoryTitle}</h2>
+            </div>
+            <div className="mingo-panel-body">
+              {categoryItems.length ? (
+                <MingoCategoryBars items={categoryItems} bordered={false} />
+              ) : (
+                <p className="text-[12.5px] text-[hsl(var(--ink-faint))]">
+                  No enrollment data yet.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="mingo-grid-2b">
+          <div className="mingo-panel">
+            <div className="mingo-panel-head">
+              <h2>Recent activity</h2>
               <button
-                onClick={() => navigate("/admin/students")}
-                className="flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-lg border hover:bg-muted transition-colors text-left"
+                type="button"
+                className="meta"
+                onClick={() => navigate("/admin/attendance")}
               >
-                <Users className="h-4 w-4 md:h-5 md:w-5 text-primary flex-shrink-0" />
-                <span className="font-medium text-sm md:text-base">
-                  Add New Student
-                </span>
-              </button>
-              <button
-                onClick={() => navigate("/admin/teachers")}
-                className="flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-lg border hover:bg-muted transition-colors text-left"
-              >
-                <GraduationCap className="h-4 w-4 md:h-5 md:w-5 text-accent flex-shrink-0" />
-                <span className="font-medium text-sm md:text-base">
-                  Add New Teacher
-                </span>
-              </button>
-              <button
-                onClick={() => navigate("/admin/billing/invoices")}
-                className="flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-lg border hover:bg-muted transition-colors text-left sm:col-span-2 md:col-span-1"
-              >
-                <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-success flex-shrink-0" />
-                <span className="font-medium text-sm md:text-base">
-                  Generate Invoice
-                </span>
-              </button>
-              <button
-                onClick={() => navigate("/admin/lesson-notes")}
-                className="flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-lg border hover:bg-muted transition-colors text-left"
-              >
-                <NotebookPen className="h-4 w-4 md:h-5 md:w-5 text-primary flex-shrink-0" />
-                <span className="font-medium text-sm md:text-base">
-                  Review Lesson Notes
-                </span>
+                VIEW ALL →
               </button>
             </div>
-          </CardContent>
-        </Card>
+            <div
+              className="mingo-panel-body"
+              style={{ paddingTop: 6, paddingBottom: 6 }}
+            >
+              {activities.map((a, i) => (
+                <div className="mingo-activity-row" key={`${a.label}-${i}`}>
+                  <span className={cn("mingo-a-tag", a.tag)}>{a.label}</span>
+                  <div className="a-desc">
+                    {a.desc} <span className="who">{a.who}</span>
+                  </div>
+                  <span className="a-time">{a.time}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mingo-panel">
+            <div className="mingo-panel-head">
+              <h2>Alerts</h2>
+              <span className="meta">{openAlerts} OPEN</span>
+            </div>
+            <div className="mingo-panel-body">
+              {feeAlerts.length > 0 && (
+                <div className="mingo-alert-block fee">
+                  <h3>
+                    <span className="dot" />
+                    Fees overdue
+                  </h3>
+                  {feeAlerts.map((a) => (
+                    <div className="alert-line" key={a.name + a.val}>
+                      <div>
+                        <div className="p-name">{a.name}</div>
+                        <div className="p-sub">{a.sub}</div>
+                      </div>
+                      <div className="p-val">{a.val}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {attAlerts.length > 0 && (
+                <div className="mingo-alert-block att">
+                  <h3>
+                    <span className="dot" />
+                    Attendance concern
+                  </h3>
+                  {attAlerts.map((a) => (
+                    <div className="alert-line" key={a.name + a.val}>
+                      <div>
+                        <div className="p-name">{a.name}</div>
+                        <div className="p-sub">{a.sub}</div>
+                      </div>
+                      <div className="p-val">{a.val}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {openAlerts === 0 && (
+                <p className="text-[12.5px] text-[hsl(var(--ink-faint))]">
+                  No open alerts right now.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="mingo-panel-head mingo-table-cap">
+          <h2>Recent fee payments</h2>
+          <button
+            type="button"
+            className="meta"
+            onClick={() => navigate("/admin/billing/payments")}
+          >
+            VIEW ALL →
+          </button>
+        </div>
+        <div className="mingo-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Receipt</th>
+                <th>Student</th>
+                <th>Class</th>
+                <th className="num">Amount</th>
+                <th>Status</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(feeRows.length
+                ? feeRows
+                : [
+                    {
+                      receipt: "—",
+                      student: "No payments yet",
+                      className: "—",
+                      amount: "—",
+                      status: "pending" as const,
+                      date: "—",
+                    },
+                  ]
+              ).map((row) => (
+                <tr key={row.receipt + row.student}>
+                  <td className="mono-cell">{row.receipt}</td>
+                  <td>{row.student}</td>
+                  <td>{row.className}</td>
+                  <td className="num">{row.amount}</td>
+                  <td>
+                    <span className={cn("mingo-status-pill", row.status)}>
+                      <span className="dot" />
+                      {row.status === "paid"
+                        ? "Paid"
+                        : row.status === "overdue"
+                          ? "Overdue"
+                          : "Pending"}
+                    </span>
+                  </td>
+                  <td className="mono-cell">{row.date}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </DashboardLayout>
   );

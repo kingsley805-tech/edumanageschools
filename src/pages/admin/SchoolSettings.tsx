@@ -307,7 +307,7 @@ const SchoolSettings = () => {
       } catch (syncErr) {
         console.warn("Report theme sync:", syncErr);
       }
-      toast.success("Brand colors saved — portal and report cards use your primary color");
+      toast.success("Brand colors saved");
     } catch (error: unknown) {
       console.error("Error saving brand:", error);
       toast.error("Failed to save brand colors");
@@ -371,16 +371,15 @@ const SchoolSettings = () => {
               Brand Colors
             </CardTitle>
             <CardDescription>
-              Customize three colors for your entire school portal. The primary color is also applied
-              to report card headers, tables, and PDF exports when you save. Defaults are green
-              (primary), black (secondary), and white (accent).
+              Stored with your school profile for logos and document identity. The portal
+              UI stays on the black &amp; white design system — these colors do not retint
+              navigation or dashboards. Report card colors are set under Report Settings.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <SchoolBrandColorPicker
               colors={brandColors}
               onChange={setBrandColors}
-              onPreview={applyColors}
             />
             <Button onClick={handleSaveBrandColors} disabled={savingBrand} className="w-full sm:w-auto">
               {savingBrand ? (

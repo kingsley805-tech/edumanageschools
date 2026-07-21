@@ -1,4 +1,4 @@
-import { useTheme } from "@/contexts/ThemeContext";
+import { useTheme, type Theme } from "@/contexts/ThemeContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Palette, Check } from "lucide-react";
@@ -7,23 +7,47 @@ import { GradientColorPicker } from "./GradientColorPicker";
 import { toast } from "sonner";
 import { PERSONAL_DEFAULT_COLORS } from "@/lib/personalThemeDefaults";
 
-const themes = [
-  { id: "default", name: "Black & White", colors: "bg-gradient-to-br from-white via-neutral-800 to-black border border-border" },
-  { id: "green", name: "Light Green", colors: "bg-gradient-to-br from-green-600 to-emerald-400" },
-  { id: "blue", name: "Ocean Blue", colors: "bg-gradient-to-br from-blue-600 to-sky-400" },
-  { id: "purple", name: "Royal Purple", colors: "bg-gradient-to-br from-purple-600 to-violet-400" },
-  { id: "dark", name: "Midnight", colors: "bg-gradient-to-br from-slate-800 to-black" },
-  { id: "custom", name: "Custom", colors: "bg-gradient-to-br from-white via-neutral-700 to-black" },
+const themes: { id: Theme; name: string; colors: string }[] = [
+  {
+    id: "default",
+    name: "Default",
+    colors: "bg-gradient-to-br from-black via-neutral-900 to-green-500 border border-border",
+  },
+  {
+    id: "green",
+    name: "Light Green",
+    colors: "bg-gradient-to-br from-green-600 to-emerald-400",
+  },
+  {
+    id: "blue",
+    name: "Ocean Blue",
+    colors: "bg-gradient-to-br from-blue-600 to-sky-400",
+  },
+  {
+    id: "purple",
+    name: "Royal Purple",
+    colors: "bg-gradient-to-br from-purple-600 to-violet-400",
+  },
+  {
+    id: "dark",
+    name: "Midnight",
+    colors: "bg-gradient-to-br from-slate-800 to-black",
+  },
+  {
+    id: "custom",
+    name: "Custom",
+    colors: "bg-gradient-to-br from-white via-neutral-700 to-black",
+  },
 ];
 
 export default function ThemeSettings() {
-  const { theme, setTheme, customColors, setCustomColors, resetPersonalTheme } = useTheme();
+  const { theme, setTheme, customColors, setCustomColors, resetPersonalTheme } =
+    useTheme();
   const [primaryHSL, setPrimaryHSL] = useState(customColors.primary);
   const [accentHSL, setAccentHSL] = useState(customColors.accent);
   const [backgroundHSL, setBackgroundHSL] = useState(customColors.background);
   const [foregroundHSL, setForegroundHSL] = useState(customColors.foreground);
 
-  // Sync local state when customColors change from outside
   useEffect(() => {
     setPrimaryHSL(customColors.primary);
     setAccentHSL(customColors.accent);
@@ -32,14 +56,14 @@ export default function ThemeSettings() {
   }, [customColors]);
 
   const handleApplyCustomColors = () => {
-    setCustomColors({ 
-      primary: primaryHSL, 
+    setCustomColors({
+      primary: primaryHSL,
       accent: accentHSL,
       background: backgroundHSL,
       foreground: foregroundHSL,
     });
     setTheme("custom");
-    toast.success("Custom theme applied successfully!");
+    toast.success("Custom theme applied");
   };
 
   return (
@@ -51,8 +75,8 @@ export default function ThemeSettings() {
             Theme Selection
           </CardTitle>
           <CardDescription className="text-sm md:text-base">
-            Personal display preference. School admins set organization-wide brand colors in School
-            Settings — those apply to everyone at your school.
+            Default uses the Auth/Landing color code (black, white, green). Switch
+            themes anytime — the top-bar Theme button resets to default.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-4 md:p-6 pt-0">
@@ -60,15 +84,18 @@ export default function ThemeSettings() {
             {themes.map((t) => (
               <button
                 key={t.id}
+                type="button"
                 onClick={() => {
                   if (t.id === "default") {
                     resetPersonalTheme();
                   } else {
-                    setTheme(t.id as typeof theme);
+                    setTheme(t.id);
                   }
                 }}
                 className={`relative flex flex-col items-center gap-2 md:gap-3 p-3 md:p-4 rounded-lg border-2 transition-all hover:scale-105 ${
-                  theme === t.id ? "border-primary shadow-lg" : "border-border hover:border-muted-foreground"
+                  theme === t.id
+                    ? "border-primary shadow-lg"
+                    : "border-border hover:border-muted-foreground"
                 }`}
               >
                 <div className={`w-12 h-12 md:w-16 md:h-16 rounded-full ${t.colors}`} />
@@ -129,7 +156,7 @@ export default function ThemeSettings() {
                 }}
                 className="w-full sm:w-auto"
               >
-                Reset
+                Reset colors
               </Button>
             </div>
           </CardContent>

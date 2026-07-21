@@ -5,9 +5,9 @@ import { BRAND_DEFAULTS, normalizeHex, type BrandColors } from "@/lib/themeColor
 import { RotateCcw } from "lucide-react";
 
 const SWATCHES: { key: keyof BrandColors; label: string; hint: string }[] = [
-  { key: "primary", label: "Primary (Green)", hint: "Buttons, links, active navigation" },
-  { key: "secondary", label: "Secondary (Black)", hint: "Sidebar, headings, body text" },
-  { key: "accent", label: "Accent (White)", hint: "Page background, cards, surfaces" },
+  { key: "primary", label: "Primary", hint: "Stored for school identity / documents" },
+  { key: "secondary", label: "Secondary", hint: "Stored for school identity / documents" },
+  { key: "accent", label: "Accent", hint: "Stored for school identity / documents" },
 ];
 
 interface SchoolBrandColorPickerProps {

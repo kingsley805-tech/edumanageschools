@@ -86,8 +86,8 @@ export function RegisterSettings({ schoolId, embedded }: { schoolId: string; emb
           </CardTitle>
           <CardDescription>
             Sent automatically when teachers save attendance on the Teacher Attendance page or submit the
-            daily register. Configure Arkesel API key in Supabase secrets as{" "}
-            <code className="text-xs">ARKESEL_API_KEY</code>.
+            daily register. The Super Admin must configure the shared Arkesel API key under{" "}
+            <strong>Platform → SMS Management</strong>.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

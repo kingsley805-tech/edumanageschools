@@ -7,7 +7,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -36,7 +35,8 @@ export const NotificationCenter = () => {
 
     // Subscribe to realtime notifications
     const channel = supabase
-      .channel('notifications-channel')
+      // Use a user-scoped channel name to avoid collisions across portals/tabs.
+      .channel(`notifications:${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -90,29 +90,39 @@ export const NotificationCenter = () => {
       .order("created_at", { ascending: false })
       .limit(20);
 
-    if (!error && data) {
-      setNotifications(data);
-      updateUnreadCount();
+    if (error) {
+      // Avoid crashing portals when notifications aren't migrated yet.
+      const msg = (error.message ?? "").toLowerCase();
+      if (!msg.includes("notifications")) {
+        toast({ title: "Notifications error", description: error.message });
+      }
+      return;
     }
+    setNotifications((data ?? []) as Notification[]);
+    void updateUnreadCount();
   };
 
   const updateUnreadCount = async () => {
     if (!user) return;
 
-    const { count } = await supabase
+    const { count, error } = await supabase
       .from("notifications")
       .select("*", { count: "exact", head: true })
       .eq("user_id", user.id)
       .eq("read", false);
 
-    setUnreadCount(count || 0);
+    if (!error) setUnreadCount(count || 0);
   };
 
   const markAsRead = async (notificationId: string) => {
-    await supabase
+    const { error } = await supabase
       .from("notifications")
       .update({ read: true })
       .eq("id", notificationId);
+    if (error) {
+      toast({ title: "Could not mark read", description: error.message });
+      return;
+    }
 
     setNotifications((prev) =>
       prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
@@ -123,11 +133,15 @@ export const NotificationCenter = () => {
   const markAllAsRead = async () => {
     if (!user) return;
 
-    await supabase
+    const { error } = await supabase
       .from("notifications")
       .update({ read: true })
       .eq("user_id", user.id)
       .eq("read", false);
+    if (error) {
+      toast({ title: "Could not mark all read", description: error.message });
+      return;
+    }
 
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     setUnreadCount(0);
@@ -151,15 +165,17 @@ export const NotificationCenter = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative h-8 w-8 rounded-none border border-border text-muted-foreground hover:bg-muted"
+        >
+          <Bell className="h-4 w-4" />
           {unreadCount > 0 && (
-            <Badge
-              variant="destructive"
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-            >
-              {unreadCount > 9 ? "9+" : unreadCount}
-            </Badge>
+            <span
+              className="absolute -right-[3px] -top-[3px] h-2 w-2 rounded-full border-2 border-background bg-[hsl(var(--critical))]"
+              aria-hidden
+            />
           )}
         </Button>
       </DropdownMenuTrigger>

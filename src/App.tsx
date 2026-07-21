@@ -4,11 +4,12 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createAppQueryClient } from "@/lib/queryClient";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { SchoolThemeProvider } from "./contexts/SchoolThemeContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { DesktopShell, isElectronDesktop } from "@/desktop";
 import Landing from "./pages/Landing";
 import Loader from "./pages/loader";
 import Auth from "./pages/Auth";
@@ -131,21 +132,23 @@ import {
 
 function App() {
   const [queryClient] = useState(() => createAppQueryClient());
+  const Router = isElectronDesktop() ? HashRouter : BrowserRouter;
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter
+        <Router
           future={{
             v7_startTransition: true,
             v7_relativeSplatPath: true,
           }}
         >
           <ThemeProvider>
+            <Toaster />
+            <Sonner />
             <AuthProvider>
               <SchoolThemeProvider>
+                <DesktopShell>
                 <Routes>
                   <Route path="/" element={<Loader />} />
                   <Route path="/landing" element={<Landing />} />
@@ -450,6 +453,10 @@ function App() {
                         <RegisterDashboard />
                       </ProtectedRoute>
                     }
+                  />
+                  <Route
+                    path="/admin/register-settings"
+                    element={<Navigate to="/admin/register?tab=settings" replace />}
                   />
                   <Route
                     path="/admin/register/new"
@@ -1106,10 +1113,11 @@ function App() {
 
                   <Route path="*" element={<NotFound />} />
                 </Routes>
+                </DesktopShell>
               </SchoolThemeProvider>
             </AuthProvider>
           </ThemeProvider>
-        </BrowserRouter>
+        </Router>
       </TooltipProvider>
     </QueryClientProvider>
   );

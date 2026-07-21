@@ -188,8 +188,8 @@ export function buildReportCardCss(
 .rc-card{width:100%;max-width:860px;background:${c.white};border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08),0 12px 32px rgba(0,0,0,0.12);border:1px solid ${accent};backdrop-filter:none!important;-webkit-backdrop-filter:none!important;filter:none!important}
 .rc-header{background:${dark};padding:28px 40px 20px;color:#fff}
 .rc-header-inner{display:flex;align-items:center;gap:20px}
-.rc-logo{width:90px;height:90px;border-radius:50%;background:#fff;padding:4px;box-shadow:0 0 0 3px #ffffff55;flex-shrink:0;display:flex;align-items:center;justify-content:center}
-.rc-logo img{width:80px;height:80px;object-fit:contain;image-rendering:auto}
+.rc-logo{width:90px;height:90px;border-radius:50%;background:#fff;padding:6px;box-shadow:0 0 0 3px #ffffff55;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.rc-logo img{width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;object-position:center;image-rendering:auto}
 .rc-school-name{font-family:${fontStack};font-size:clamp(16px,4vw,24px);font-weight:800;color:#ffffff;letter-spacing:1px;text-transform:uppercase}
 .rc-school-motto{color:#ffffff;font-size:11px;font-style:italic;margin-top:4px;opacity:.9}
 .rc-school-contact{color:#ffffff;font-size:11px;margin-top:6px;opacity:.95;font-weight:600;word-break:break-word}
@@ -214,7 +214,9 @@ export function buildReportCardCss(
 .rc-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
 .rc-stat{background:${dark};border-radius:10px;padding:14px;text-align:center;border:1px solid ${dark}}
 .rc-stat-value{font-family:${fontStack};font-size:22px;font-weight:700;color:#ffffff;display:block}
-.rc-stat-input{width:100%;background:transparent;border:none;color:#ffffff !important;font-family:${fontStack};font-size:20px;font-weight:700;text-align:center;-webkit-text-fill-color:#ffffff}
+.rc-stat-input{width:100%;background:transparent !important;background-color:transparent !important;border:none;box-shadow:none;outline:none;color:#ffffff !important;font-family:${fontStack};font-size:20px;font-weight:700;text-align:center;-webkit-text-fill-color:#ffffff !important}
+.rc-stat-input.rc-field-accent{color:#4ade80 !important;-webkit-text-fill-color:#4ade80 !important}
+.rc-stat-input::placeholder{color:rgba(255,255,255,0.55);opacity:1}
 .rc-stat-label{font-size:10px;text-transform:uppercase;color:#ffffff;margin-top:6px;display:block;opacity:.85}
 .rc-sec-title{font-family:${fontStack};font-size:13px;font-weight:700;color:${accent};margin-bottom:14px;display:flex;align-items:center;gap:10px}
 .rc-sec-title::after{content:'';flex:1;height:1px;background:${accent};opacity:.35}
@@ -227,7 +229,49 @@ export function buildReportCardCss(
 .rc-score-num{font-family:${fontStack};font-weight:700;min-width:36px;color:${c.black}}
 .rc-bar-track{flex:1;height:6px;background:#e8ecea;border-radius:3px;overflow:hidden;min-width:50px}
 .rc-bar-fill{height:100%;border-radius:3px;background:${accent} !important}
-.rc-badge{display:inline-block;padding:2px 10px;border-radius:20px;font-weight:700;font-size:12px;background:${dark} !important;color:${c.white} !important}
+.rc-badge{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 32px;
+    height: 32px;
+
+    margin: 0 auto;
+    padding: 0;
+
+    border-radius: 50%;
+
+    background: ${dark} !important;
+    color: ${c.white} !important;
+
+    font-size: 14px;
+    font-weight: 700;
+    font-family: Arial, Helvetica, sans-serif;
+
+    line-height: 1;
+    text-align: center;
+
+    box-sizing: border-box;
+    overflow: hidden;
+    flex-shrink: 0;
+
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.rc-badge span{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 100%;
+    height: 100%;
+
+    line-height: 1;
+    margin: 0;
+    padding: 0;
+}
 .rc-scale-grid{display:grid;grid-template-columns:repeat(9,1fr);gap:6px;margin-bottom:24px}
 .rc-scale-cell{border-radius:6px;padding:6px 4px;text-align:center;font-size:9px;background:${c.white} !important;color:${c.black};border:1px solid ${accent}}
 .rc-scale-range{color:${c.black}}
@@ -246,6 +290,8 @@ export function buildReportCardCss(
 .rc-remark-stack{display:flex;flex-direction:column;gap:20px}
 .rc-quote-block{background:${c.mutedBg};border-left:4px solid ${accent};padding:12px 16px;font-style:italic;margin-top:8px;color:${c.black}}
 .rc-textarea{width:100%;border:1px solid ${accent};border-radius:8px;padding:10px;font-family:${fontStack};margin-top:8px;resize:vertical;color:${c.black} !important;background:#fff !important;-webkit-text-fill-color:${c.black}}
+.rc-print-field{display:inline-block;min-width:72px;border-bottom:1px solid ${accent};padding:0 2px 1px;line-height:1.2;color:${c.black};background:transparent}
+.rc-print-field.block{display:block;width:100%}
 .rc-sig-box{text-align:center}
 .rc-sig-box-centered{width:100%;max-width:320px;margin-left:auto;margin-right:auto}
 .rc-sig-area{width:100%;height:70px;border:1px dashed ${accent};border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;padding:8px 12px;margin-top:8px;overflow:hidden;box-sizing:border-box}
@@ -263,7 +309,8 @@ export function buildReportCardCss(
 .rc-date-label{font-size:9px;text-transform:uppercase;color:${accent};margin-bottom:4px;font-weight:700;letter-spacing:.5px}
 .rc-footer{background:${dark};padding:14px 36px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
 .rc-footer-text{color:#ffffff;font-size:11px;opacity:.9}
-.rc-footer-seal{width:52px;height:52px;border-radius:50%;border:1.5px solid #ffffff;display:flex;align-items:center;justify-content:center;font-size:8px;color:#ffffff;text-align:center;font-family:${fontStack};font-weight:700;flex-shrink:0}
+.rc-footer-seal{width:52px;height:52px;border-radius:50%;border:1.5px solid #ffffff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:8px;color:#ffffff;text-align:center;font-family:${fontStack};font-weight:700;flex-shrink:0;line-height:1}
+.rc-footer-seal *{line-height:1}
 .rc-exporting,.rc-exporting *{animation:none!important;transition:none!important}
 .rc-exporting .rc-bar-fill{transition:none!important}
 @media print{
@@ -273,6 +320,11 @@ export function buildReportCardCss(
   .rc-card,.rc-exporting{box-shadow:none;border-radius:0;max-width:100%;width:100%;border:1px solid ${accent};overflow:visible;break-inside:avoid;page-break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .rc-card *,.rc-exporting *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .rc-body{padding:20px 24px}
+  /* Print-friendly inputs (no white boxes) */
+  .rc-card input,.rc-card textarea{background:transparent!important;box-shadow:none!important}
+  .rc-card input.rc-inline-input,.rc-card input.rc-date-inline,.rc-card textarea.rc-textarea{border:none!important;border-bottom:1px solid ${accent}!important;border-radius:0!important;padding:0 2px 2px!important}
+  .rc-card input.rc-cell-input{border:none!important;border-bottom:1px solid ${accent}!important;border-radius:0!important;padding:0 2px 2px!important}
+  .rc-card input.rc-stat-input{border:none!important}
 }
 `;
 }

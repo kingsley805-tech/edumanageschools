@@ -26,6 +26,7 @@ import { ArrowLeft, Loader2, MessageSquare, Search } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatformSchoolSmsOverview } from "@/platform/hooks/usePlatformDashboard";
+import { PlatformArkeselSetupCard } from "@/platform/components/PlatformArkeselSetupCard";
 
 type SmsFilter = "all" | "active" | "inactive";
 
@@ -104,6 +105,8 @@ export default function PlatformSmsManagement() {
             </p>
           </div>
         </div>
+
+        <PlatformArkeselSetupCard />
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-xl border bg-card p-4">

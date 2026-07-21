@@ -40,6 +40,7 @@ export type AdminNavItem = {
   path: string;
   icon: LucideIcon;
   viewPermission: string;
+  showBadge?: boolean;
 };
 
 export type AdminNavGroup = {

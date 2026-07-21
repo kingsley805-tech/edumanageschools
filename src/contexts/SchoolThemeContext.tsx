@@ -10,9 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   applyBrandTheme,
-  clearBrandTheme,
   parseSchoolBrand,
   BRAND_DEFAULTS,
+  isPersonalThemeActive,
   type BrandColors,
 } from "@/lib/themeColors";
 
@@ -25,31 +25,31 @@ interface SchoolThemeContextType {
 }
 
 const SchoolThemeContext = createContext<SchoolThemeContextType | undefined>(
-  undefined
+  undefined,
 );
 
 export const SchoolThemeProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
-  const [brandColors, setBrandColors] = useState<BrandColors>({ ...BRAND_DEFAULTS });
+  const [brandColors, setBrandColors] = useState<BrandColors>({
+    ...BRAND_DEFAULTS,
+  });
   const [schoolId, setSchoolId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const applyColors = useCallback((colors: BrandColors) => {
     setBrandColors(colors);
-    applyBrandTheme(colors);
+    // Don't overwrite an active personal theme
+    if (!isPersonalThemeActive()) {
+      applyBrandTheme(BRAND_DEFAULTS);
+    }
   }, []);
 
   const refreshSchoolTheme = useCallback(async () => {
-    const preferPlatform =
-      typeof window !== "undefined" && localStorage.getItem("preferPlatformTheme") === "true";
-
     if (!user) {
       setSchoolId(null);
       setBrandColors({ ...BRAND_DEFAULTS });
-      if (!preferPlatform) {
+      if (!isPersonalThemeActive()) {
         applyBrandTheme(BRAND_DEFAULTS);
-      } else {
-        clearBrandTheme();
       }
       setLoading(false);
       return;
@@ -65,21 +65,14 @@ export const SchoolThemeProvider = ({ children }: { children: ReactNode }) => {
 
       if (!profile?.school_id) {
         setSchoolId(null);
-        if (preferPlatform) {
-          clearBrandTheme();
-        } else {
-          applyColors({ ...BRAND_DEFAULTS });
+        setBrandColors({ ...BRAND_DEFAULTS });
+        if (!isPersonalThemeActive()) {
+          applyBrandTheme(BRAND_DEFAULTS);
         }
         return;
       }
 
       setSchoolId(profile.school_id);
-
-      if (preferPlatform) {
-        setBrandColors({ ...BRAND_DEFAULTS });
-        clearBrandTheme();
-        return;
-      }
 
       const { data: school } = await supabase
         .from("schools")
@@ -87,14 +80,12 @@ export const SchoolThemeProvider = ({ children }: { children: ReactNode }) => {
         .eq("id", profile.school_id)
         .single();
 
-      const colors = parseSchoolBrand(school);
-      applyColors(colors);
+      applyColors(parseSchoolBrand(school));
     } catch (e) {
       console.error("School theme load failed:", e);
-      if (preferPlatform) {
-        clearBrandTheme();
-      } else {
-        applyColors({ ...BRAND_DEFAULTS });
+      setBrandColors({ ...BRAND_DEFAULTS });
+      if (!isPersonalThemeActive()) {
+        applyBrandTheme(BRAND_DEFAULTS);
       }
     } finally {
       setLoading(false);
@@ -102,14 +93,8 @@ export const SchoolThemeProvider = ({ children }: { children: ReactNode }) => {
   }, [user, applyColors]);
 
   useEffect(() => {
-    refreshSchoolTheme();
+    void refreshSchoolTheme();
   }, [refreshSchoolTheme]);
-
-  useEffect(() => {
-    return () => {
-      clearBrandTheme();
-    };
-  }, []);
 
   return (
     <SchoolThemeContext.Provider

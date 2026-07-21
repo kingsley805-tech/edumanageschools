@@ -1,23 +1,24 @@
 import { Link, useLocation } from "react-router-dom";
-import { BrainCircuit } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { buildContextFromLocation, storeReferrerContext } from "@/ai-assistant/lib/context";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
-import { AI_ASSISTANT_NAV_LABEL } from "../lib/branding";
+import { MINGO } from "@/lib/designTokens";
 
 type Props = {
   className?: string;
 };
 
-/** Floating quick-access button — hidden on AI page itself */
+/** Floating quick-access — mingo ai-fab */
 export function AiFloatingButton({ className }: Props) {
   const location = useLocation();
   const { user } = useAuth();
   const { role: portalRole } = useUserRole();
 
-  if (location.pathname.startsWith("/ai-assistant") || location.pathname.startsWith("/dashboard/ai-assistant")) {
+  if (
+    location.pathname.startsWith("/ai-assistant") ||
+    location.pathname.startsWith("/dashboard/ai-assistant")
+  ) {
     return null;
   }
 
@@ -29,18 +30,22 @@ export function AiFloatingButton({ className }: Props) {
     <Link
       to="/ai-assistant"
       className={cn(
-        "fixed bottom-20 right-4 z-40 md:bottom-6 md:right-6",
+        "fixed bottom-[26px] right-[26px] z-20 flex items-center gap-2.5 border px-[18px] py-3 text-[13px] font-semibold text-white",
         className,
       )}
+      style={{
+        background: MINGO.lineStrong,
+        borderColor: MINGO.ink,
+      }}
       onClick={() => storeReferrerContext(ctx)}
     >
-      <Button
-        size="lg"
-        className="ai-brand-gradient h-12 gap-2 rounded-full px-5 shadow-lg hover:opacity-90"
-      >
-        <BrainCircuit className="h-4 w-4" />
-        <span className="hidden sm:inline">{AI_ASSISTANT_NAV_LABEL}</span>
-      </Button>
+      <span
+        className="h-2 w-2 shrink-0 rounded-full"
+        style={{ background: MINGO.brandHover }}
+        aria-hidden
+      />
+      <span className="hidden sm:inline">EduManage AI</span>
+      <span className="sm:hidden">AI</span>
     </Link>
   );
 }

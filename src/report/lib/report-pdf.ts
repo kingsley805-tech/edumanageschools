@@ -192,8 +192,13 @@ function prepareCloneDocument(
 ) {
   sanitizeCloneDocument(doc);
   injectReportStyles(doc);
+  // NOTE: We intentionally DO NOT copy computed colors node-by-node for report cards.
+  // That approach relies on source/clone node ordering matching perfectly, which can drift
+  // and cause random black/white blocks in the PDF. Report cards use injected, hex-based
+  // CSS (buildReportCardCss), so html2canvas can render them consistently without this step.
+  clone.style.setProperty("background", "#ffffff", "important");
+  clone.style.setProperty("color", "#0a0a0a", "important");
   prepareReportClone(doc, clone);
-  copyResolvedColors(sourceRoot, clone);
 }
 
 function prepareReportClone(_doc: Document, clone: HTMLElement) {
@@ -220,11 +225,30 @@ function prepareReportClone(_doc: Document, clone: HTMLElement) {
     const value = (input as HTMLInputElement).value;
     const span = _doc.createElement("span");
     span.textContent = value || "—";
-    span.className = input.className.includes("rc-stat-input")
-      ? "rc-stat-value"
-      : input.className.includes("rc-cell-input")
-        ? "rc-score-num"
-        : "rc-info-value";
+    // Avoid any inherited input background from computed styles.
+    span.style.background = "transparent";
+    span.style.boxShadow = "none";
+    const cls = input.className || "";
+    // Export should never show white input boxes. Convert inputs to print-friendly text.
+    if (cls.includes("rc-stat-input")) {
+      span.className = "rc-stat-value";
+    } else if (cls.includes("rc-cell-input")) {
+      // Small cells (Position/Grade) should render like centered print fields, not like score badges.
+      span.className = cls.includes("rc-cell-sm") ? "rc-print-field" : "rc-score-num";
+      if (cls.includes("rc-cell-sm")) {
+        span.style.display = "inline-block";
+        span.style.textAlign = "center";
+        span.style.minWidth = "36px";
+      }
+    } else if (cls.includes("rc-inline-input") || cls.includes("rc-textarea")) {
+      span.className = "rc-print-field";
+      // Textareas and wide inputs should behave like block lines.
+      if (input.tagName.toLowerCase() === "textarea" || cls.includes("rc-textarea")) {
+        span.className = "rc-print-field block";
+      }
+    } else {
+      span.className = "rc-info-value";
+    }
     input.replaceWith(span);
   });
 

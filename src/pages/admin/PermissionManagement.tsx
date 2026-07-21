@@ -527,16 +527,16 @@ export default function PermissionManagement() {
                       Assign to staff
                     </Button>
                   </SheetTrigger>
-                  <SheetContent className="bg-[#141414] border-[#2a2a2a] text-[#fafafa]">
+                  <SheetContent className="bg-card border-border text-foreground">
                     <SheetHeader>
-                      <SheetTitle className="text-white">Assign role to staff</SheetTitle>
-                      <SheetDescription className="text-[#a3a3a3]">
+                      <SheetTitle>Assign role to staff</SheetTitle>
+                      <SheetDescription>
                         Link this matrix role to teachers in your school.
                       </SheetDescription>
                     </SheetHeader>
                     <div className="mt-6 space-y-4">
                       <div className="space-y-2">
-                        <Label className="text-[#fafafa]">Teacher</Label>
+                        <Label>Teacher</Label>
                         <TeacherCombobox
                           teachers={teacherStaff}
                           value={assignUserId}
