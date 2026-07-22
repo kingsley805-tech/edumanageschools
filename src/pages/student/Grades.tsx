@@ -101,11 +101,11 @@ const Grades = () => {
 
   return (
     <DashboardLayout role="student">
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">My Grades</h2>
-            <p className="text-muted-foreground">View your academic performance</p>
+            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">My Grades</h2>
+            <p className="text-[12.5px] text-muted-foreground mt-1">View your academic performance</p>
           </div>
           <Select value={selectedTerm} onValueChange={setSelectedTerm}>
             <SelectTrigger className="w-[180px]">

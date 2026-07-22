@@ -195,11 +195,11 @@ const TeacherMyClass = () => {
 
   return (
     <DashboardLayout role="teacher">
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">My Class</h2>
-            <p className="text-muted-foreground">Manage your assigned class — attendance, report cards, performance and parent communication.</p>
+            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">My Class</h2>
+            <p className="text-[12.5px] text-muted-foreground mt-1">Manage your assigned class — attendance, report cards, performance and parent communication.</p>
           </div>
           {classes.length > 1 ? (
             <Select value={classId} onValueChange={setClassId}>

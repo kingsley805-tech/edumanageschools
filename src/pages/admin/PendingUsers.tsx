@@ -309,14 +309,14 @@ const PendingUsers = () => {
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
-              <UserPlus className="h-7 w-7" />
+            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
               Pending User Approvals
             </h2>
-            <p className="text-muted-foreground">
+            <p className="text-[12.5px] text-muted-foreground mt-1">
               Review and approve self-registered users
             </p>
           </div>

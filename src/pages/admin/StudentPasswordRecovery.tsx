@@ -306,13 +306,13 @@ const StudentPasswordRecovery = () => {
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <KeyRound className="h-6 w-6" /> Student Password Recovery
+            <h1 className="font-display text-[21px] font-semibold tracking-tight text-foreground flex items-center gap-2">
+              <KeyRound className="h-5 w-5" /> Student Password Recovery
             </h1>
-            <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+            <p className="text-[12.5px] text-muted-foreground mt-1 max-w-2xl">
               Review student password reset requests, verify admission numbers, and issue secure temporary passwords.
               Passwords are never stored in plain text — only new temporary passwords are generated at reset time.
             </p>

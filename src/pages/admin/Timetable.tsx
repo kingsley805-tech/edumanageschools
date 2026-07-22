@@ -1,4 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
+import { PortalPageHeader } from "@/components/PortalPageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Calendar as CalendarIcon, Clock, Download, Trash2, Edit2 } from "lucide-react";
@@ -278,33 +279,32 @@ const Timetable = () => {
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight">Permanent Timetable</h2>
-            <p className="text-muted-foreground">Manage permanent class timetables and schedules</p>
-          </div>
-          <div className="flex gap-2">
-            {selectedClass && schedules.length > 0 && (
-              <Button variant="outline" onClick={downloadTimetable}>
-                <Download className="h-4 w-4 mr-2" />
-                Download Timetable
-              </Button>
-            )}
-            <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditingSchedule(null); reset(); } }}>
-              <DialogTrigger asChild>
-                <Button className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add Entry
+      <div className="mingo-content space-y-6">
+        <PortalPageHeader
+          title="Permanent Timetable"
+          description="Manage permanent class timetables and schedules"
+          actions={
+            <>
+              {selectedClass && schedules.length > 0 && (
+                <Button variant="outline" onClick={downloadTimetable}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Timetable
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>{editingSchedule ? "Edit" : "Add"} Timetable Entry</DialogTitle>
-                  <DialogDescription>
-                    {editingSchedule ? "Update the class schedule entry" : "Create a new class schedule entry. Teachers will be notified."}
-                  </DialogDescription>
-                </DialogHeader>
+              )}
+              <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditingSchedule(null); reset(); } }}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Add Entry
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>{editingSchedule ? "Edit" : "Add"} Timetable Entry</DialogTitle>
+                    <DialogDescription>
+                      {editingSchedule ? "Update the class schedule entry" : "Create a new class schedule entry. Teachers will be notified."}
+                    </DialogDescription>
+                  </DialogHeader>
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -392,9 +392,10 @@ const Timetable = () => {
                   </div>
                 </form>
               </DialogContent>
-            </Dialog>
-          </div>
-        </div>
+              </Dialog>
+            </>
+          }
+        />
 
         <Card>
           <CardHeader>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { PortalPageHeader } from "@/components/PortalPageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -91,46 +92,50 @@ const ExamTypes = () => {
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight">Exam Types</h2>
-            <p className="text-muted-foreground">Manage exam categories and types</p>
-          </div>
-          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingType(null); }}>
-            <DialogTrigger asChild>
-              <Button onClick={() => setFormData({ name: "", category: "term", description: "" })}>
-                <Plus className="mr-2 h-4 w-4" /> Add Exam Type
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{editingType ? "Edit" : "Add"} Exam Type</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <Label>Name</Label>
-                  <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
-                </div>
-                <div>
-                  <Label>Category</Label>
-                  <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="term">Term-based (Midterm, Final)</SelectItem>
-                      <SelectItem value="category">Category-based (Quiz, Project)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Description</Label>
-                  <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
-                </div>
-                <Button type="submit" className="w-full">{editingType ? "Update" : "Create"}</Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+      <div className="mingo-content space-y-6">
+        <PortalPageHeader
+          title="Exam Types"
+          description="Manage exam categories and types"
+          actions={
+            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingType(null); }}>
+              <DialogTrigger asChild>
+                <button
+                  type="button"
+                  className="mingo-btn mingo-btn-primary"
+                  onClick={() => setFormData({ name: "", category: "term", description: "" })}
+                >
+                  <Plus className="h-4 w-4" /> Add exam type
+                </button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{editingType ? "Edit" : "Add"} Exam Type</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <Label>Name</Label>
+                    <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
+                  </div>
+                  <div>
+                    <Label>Category</Label>
+                    <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="term">Term-based (Midterm, Final)</SelectItem>
+                        <SelectItem value="category">Category-based (Quiz, Project)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Description</Label>
+                    <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
+                  </div>
+                  <Button type="submit" className="w-full">{editingType ? "Update" : "Create"}</Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          }
+        />
 
         <Card>
           <CardHeader>

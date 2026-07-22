@@ -85,11 +85,11 @@ const Grades = () => {
 
   return (
     <DashboardLayout role="parent">
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Grades & Report Cards</h2>
-            <p className="text-muted-foreground">View your child's academic performance</p>
+            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Grades &amp; Report Cards</h2>
+            <p className="text-[12.5px] text-muted-foreground mt-1">View your child's academic performance</p>
           </div>
           <div className="flex gap-2">
             {children.length > 0 && (

@@ -1,20 +1,13 @@
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
-import { PortalPageHeader } from "@/components/PortalPageHeader";
-import { motion } from "framer-motion";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Users,
-  DollarSign,
-  CalendarCheck,
-  TrendingUp,
   GraduationCap,
   Wallet,
 } from "lucide-react";
 import { AnimatedBarChart } from "@/components/charts/AnimatedBarChart";
 import { InteractiveBarChart } from "@/components/charts/InteractiveBarChart";
 import { ChartCard } from "@/components/charts/ChartCard";
-import { StatCounter } from "@/components/charts/StatCounter";
 import { useBillingAuth } from "@/billing/hooks/useBillingAuth";
 import { useBillingDashboardData } from "@/billing/hooks/useBillingDashboardData";
 import CollectionsOverviewChart from "@/billing/components/dashboard/CollectionsOverviewChart";
@@ -24,50 +17,6 @@ import {
 } from "@/lib/attendance-queries";
 import { formatMoney } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
-
-function KpiCard({
-  title,
-  value,
-  formatter,
-  icon: Icon,
-  color,
-  delay = 0,
-}: {
-  title: string;
-  value: number;
-  formatter?: (v: number) => string;
-  icon: typeof Users;
-  color: string;
-  delay?: number;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay, ease: [0.4, 0, 0.2, 1] }}
-    >
-      <Card className="card-interactive overflow-hidden">
-        <CardContent className="flex items-center gap-4 p-4 md:p-5">
-          <div
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${color}`}
-          >
-            <Icon className="h-5 w-5" />
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-xs font-medium text-muted-foreground md:text-sm">
-              {title}
-            </p>
-            <StatCounter
-              value={value}
-              formatter={formatter}
-              className="text-xl font-bold tabular-nums md:text-2xl"
-            />
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
-}
 
 export default function AdminStats() {
   const { schoolId } = useBillingAuth();
@@ -140,47 +89,34 @@ export default function AdminStats() {
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-4 md:space-y-6">
-        <PortalPageHeader
-          title="Statistics"
-          description="A catchy, at-a-glance view of active users, finance, and everything happening in your school."
-        />
+      <div className="mingo-content space-y-4 md:space-y-6">
+        <div className="mingo-page-head">
+          <div>
+            <h1>Statistics</h1>
+            <p>A catchy, at-a-glance view of active users, finance, and everything happening in your school.</p>
+          </div>
+        </div>
 
         {/* KPI row */}
-        <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
-          <KpiCard
-            title="Total users"
-            value={totalUsers}
-            icon={Users}
-            color="bg-primary/10 text-primary"
-            delay={0}
-          />
-          <KpiCard
-            title="Revenue collected"
-            value={billing.totalCollected}
-            formatter={(v) =>
-              formatMoney(v, billing.currency, { maximumFractionDigits: 0 })
-            }
-            icon={DollarSign}
-            color="bg-success/10 text-success"
-            delay={0.05}
-          />
-          <KpiCard
-            title="Collection rate"
-            value={billing.collectionRate}
-            formatter={(v) => `${Math.round(v)}%`}
-            icon={TrendingUp}
-            color="bg-info/10 text-info"
-            delay={0.1}
-          />
-          <KpiCard
-            title="Attendance rate"
-            value={attendanceRate}
-            formatter={(v) => `${Math.round(v)}%`}
-            icon={CalendarCheck}
-            color="bg-warning/10 text-warning"
-            delay={0.15}
-          />
+        <div className="mingo-kpi-row">
+          <div className="mingo-kpi">
+            <div className="label">Total Users</div>
+            <div className="val mono">{totalUsers}</div>
+          </div>
+          <div className="mingo-kpi">
+            <div className="label">Revenue Collected</div>
+            <div className="val mono">
+              {formatMoney(billing.totalCollected, billing.currency, { maximumFractionDigits: 0 })}
+            </div>
+          </div>
+          <div className="mingo-kpi">
+            <div className="label">Collection Rate</div>
+            <div className="val mono">{Math.round(billing.collectionRate)}%</div>
+          </div>
+          <div className="mingo-kpi">
+            <div className="label">Attendance Rate</div>
+            <div className="val mono">{Math.round(attendanceRate)}%</div>
+          </div>
         </div>
 
         {/* Active users */}

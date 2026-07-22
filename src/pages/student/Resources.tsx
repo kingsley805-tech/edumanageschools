@@ -55,10 +55,10 @@ const Resources = () => {
 
   return (
     <DashboardLayout role="student">
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Resource Library</h2>
-          <p className="text-muted-foreground">Download study materials and notes</p>
+          <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Resource Library</h2>
+          <p className="text-[12.5px] text-muted-foreground mt-1">Download study materials and notes</p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

@@ -162,11 +162,11 @@ const Attendance = () => {
 
   return (
     <DashboardLayout role="teacher">
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Attendance</h2>
-            <p className="text-muted-foreground">Mark and manage student attendance</p>
+            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Attendance</h2>
+            <p className="text-[12.5px] text-muted-foreground mt-1">Mark and manage student attendance</p>
           </div>
           <Button className="gap-2" onClick={handleSaveAttendance} disabled={!selectedClass || loadingStudents || saving}>
             <Save className="h-4 w-4" />

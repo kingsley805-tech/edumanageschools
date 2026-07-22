@@ -618,13 +618,13 @@ const Teachers = () => {
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-4 md:space-y-6">
+      <div className="mingo-content space-y-4 md:space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">
+            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">
               Teachers
             </h2>
-            <p className="text-sm md:text-base text-muted-foreground">
+            <p className="text-[12.5px] text-muted-foreground mt-1">
               Manage teaching staff
             </p>
           </div>

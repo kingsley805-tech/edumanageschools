@@ -285,11 +285,11 @@ const Messages = () => {
 
   return (
     <DashboardLayout role={role as any}>
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Messages</h2>
-            <p className="text-muted-foreground">
+            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Messages</h2>
+            <p className="text-[12.5px] text-muted-foreground mt-1">
               {role === "teacher" ? "Communicate with parents" : "Communicate with teachers"}
             </p>
           </div>

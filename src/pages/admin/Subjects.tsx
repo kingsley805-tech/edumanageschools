@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "sonner";
 import { Pencil, Trash2, Plus } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { PortalPageHeader } from "@/components/PortalPageHeader";
 
 const subjectSchema = z.object({
   name: z.string().min(1, "Subject name is required"),
@@ -147,43 +148,46 @@ export default function Subjects() {
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Subjects Management</h1>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Subject
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{editingSubject ? "Edit Subject" : "Add New Subject"}</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Subject Name</Label>
-                  <Input id="name" {...register("name")} placeholder="e.g., Mathematics" />
-                  {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="code">Subject Code</Label>
-                  <Input id="code" {...register("code")} placeholder="e.g., MATH101" />
-                  {errors.code && <p className="text-sm text-destructive">{errors.code.message}</p>}
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={handleDialogClose}>
-                    Cancel
-                  </Button>
-                  <Button type="submit">
-                    {editingSubject ? "Update" : "Create"} Subject
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+      <div className="mingo-content space-y-6">
+        <PortalPageHeader
+          title="Subjects Management"
+          description="Define the subjects taught at your school"
+          actions={
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <button type="button" className="mingo-btn mingo-btn-primary">
+                  <Plus className="h-4 w-4" />
+                  Add subject
+                </button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{editingSubject ? "Edit Subject" : "Add New Subject"}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Subject Name</Label>
+                    <Input id="name" {...register("name")} placeholder="e.g., Mathematics" />
+                    {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="code">Subject Code</Label>
+                    <Input id="code" {...register("code")} placeholder="e.g., MATH101" />
+                    {errors.code && <p className="text-sm text-destructive">{errors.code.message}</p>}
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={handleDialogClose}>
+                      Cancel
+                    </Button>
+                    <Button type="submit">
+                      {editingSubject ? "Update" : "Create"} Subject
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          }
+        />
 
         <Card>
           <CardHeader>

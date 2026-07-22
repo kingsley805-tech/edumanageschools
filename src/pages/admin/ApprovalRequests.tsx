@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { PortalPageHeader } from "@/components/PortalPageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -93,6 +94,8 @@ const ApprovalRequests = () => {
       showDenied
     >
       <DashboardLayout role="admin">
+        <div className="mingo-content">
+        <PortalPageHeader title="Approval requests" description="Review and action pending approval requests" />
         <Card>
           <CardHeader>
             <CardTitle>Pending approvals</CardTitle>
@@ -134,6 +137,7 @@ const ApprovalRequests = () => {
               ))}
           </CardContent>
         </Card>
+        </div>
       </DashboardLayout>
     </PermissionGate>
   );

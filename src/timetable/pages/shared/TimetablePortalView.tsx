@@ -118,14 +118,14 @@ export function TimetablePortalView({
 
   return (
     <Wrapper>
-      <div className="space-y-6" id="timetable-print-root">
+      <div className="mingo-content space-y-6" id="timetable-print-root">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Calendar className="h-6 w-6 text-primary" />
+            <h1 className="font-display text-[21px] font-semibold tracking-tight text-foreground flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
               {title}
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">Weekly schedule · {schoolName}</p>
+            <p className="text-[12.5px] text-muted-foreground mt-1">Weekly schedule · {schoolName}</p>
           </div>
           <div className="flex gap-2 print:hidden">
             <Button variant="outline" size="sm" onClick={() => window.print()}>

@@ -130,7 +130,7 @@ export default function ParentPaymentHistory() {
 
   return (
     <DashboardLayout role="parent">
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <Button variant="ghost" size="sm" className="mb-2 -ml-2" asChild>
@@ -138,8 +138,8 @@ export default function ParentPaymentHistory() {
                 <ArrowLeft className="mr-1 h-4 w-4" /> Back to fees
               </Link>
             </Button>
-            <h2 className="text-3xl font-bold tracking-tight">Payment history</h2>
-            <p className="text-muted-foreground">
+            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Payment history</h2>
+            <p className="text-[12.5px] text-muted-foreground mt-1">
               All payments for your children · real-time updates
             </p>
           </div>

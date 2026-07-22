@@ -356,10 +356,10 @@ const SchoolSettings = () => {
 
   return (
     <DashboardLayout role={layoutRole}>
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">School Settings</h1>
-          <p className="text-muted-foreground">
+          <h1 className="font-display text-[21px] font-semibold tracking-tight text-foreground">School Settings</h1>
+          <p className="text-[12.5px] text-muted-foreground mt-1">
             Manage your school profile, report card header details, logo, and brand colors
           </p>
         </div>

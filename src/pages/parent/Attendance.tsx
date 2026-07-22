@@ -77,11 +77,11 @@ const Attendance = () => {
 
   return (
     <DashboardLayout role="parent">
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Attendance</h2>
-            <p className="text-muted-foreground">View your child's attendance records</p>
+            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Attendance</h2>
+            <p className="text-[12.5px] text-muted-foreground mt-1">View your child's attendance records</p>
           </div>
           {children.length > 0 && (
             <Select value={selectedChild} onValueChange={setSelectedChild}>

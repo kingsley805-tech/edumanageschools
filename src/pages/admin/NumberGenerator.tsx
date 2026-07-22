@@ -232,11 +232,11 @@ const NumberGenerator = () => {
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Registration Numbers</h2>
-            <p className="text-muted-foreground">Generate student numbers and staff numbers (teachers &amp; admin staff only)</p>
+            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Registration Numbers</h2>
+            <p className="text-[12.5px] text-muted-foreground mt-1">Generate student numbers and staff numbers (teachers &amp; admin staff only)</p>
           </div>
           <div className="flex gap-2">
             {/* Single Generate Dialog */}

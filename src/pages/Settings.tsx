@@ -141,10 +141,10 @@ const Settings = () => {
 
   return (
     <DashboardLayout role={layoutRole}>
-      <div className="space-y-4 md:space-y-6">
+      <div className="mingo-content space-y-4 md:space-y-6">
         <div>
-          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Settings</h2>
-          <p className="text-sm md:text-base text-muted-foreground">Manage your account preferences</p>
+          <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Settings</h2>
+          <p className="text-[12.5px] text-muted-foreground mt-1">Manage your account preferences</p>
         </div>
 
         <div className="grid gap-4 md:gap-6 md:grid-cols-2">

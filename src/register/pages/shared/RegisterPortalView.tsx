@@ -127,13 +127,13 @@ export function RegisterPortalView({ role, childStudentId }: { role: PortalRole;
 
   return (
     <DashboardLayout role={layoutRole}>
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <ClipboardList className="h-6 w-6 text-primary" />
+          <h1 className="font-display text-[21px] font-semibold tracking-tight text-foreground flex items-center gap-2">
+            <ClipboardList className="h-5 w-5 text-primary" />
             {title}
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Term attendance from daily class registers</p>
+          <p className="text-[12.5px] text-muted-foreground mt-1">Term attendance from daily class registers</p>
         </div>
 
         {role === "parent" && children.length > 1 ? (

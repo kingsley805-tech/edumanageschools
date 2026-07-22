@@ -211,11 +211,11 @@ export default function ParentBillingPayments() {
 
   return (
     <DashboardLayout role="parent">
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">School fees</h2>
-            <p className="text-muted-foreground">View invoices and pay online for your children</p>
+            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">School fees</h2>
+            <p className="text-[12.5px] text-muted-foreground mt-1">View invoices and pay online for your children</p>
           </div>
           <Button variant="outline" asChild>
             <Link to="/parent/payment-history">

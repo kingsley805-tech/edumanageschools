@@ -230,11 +230,11 @@ const Children = () => {
 
   return (
     <DashboardLayout role="parent">
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">My Children</h2>
-            <p className="text-muted-foreground">View profiles and link additional children</p>
+            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">My Children</h2>
+            <p className="text-[12.5px] text-muted-foreground mt-1">View profiles and link additional children</p>
             {signupAdmissionNumbers.length > 0 && (
               <p className="text-sm text-muted-foreground mt-2">
                 Admission number{signupAdmissionNumbers.length > 1 ? "s" : ""} from signup:{" "}

@@ -79,11 +79,11 @@ export function PortalLiveFeedTicker({ events: eventsProp }: Props) {
         supabase
           .from("invoices")
           .select(
-            "id, amount, status, updated_at, created_at, students!inner(school_id, full_name, profiles:profile_id(full_name), classes(name))",
+            "id, amount, status, created_at, students!inner(school_id, full_name, profiles:profile_id(full_name), classes(name))",
           )
           .eq("students.school_id", schoolId)
           .in("status", ["unpaid", "overdue", "pending", "partial"])
-          .order("updated_at", { ascending: false })
+          .order("created_at", { ascending: false })
           .limit(8),
       ),
       soft(
@@ -193,7 +193,7 @@ export function PortalLiveFeedTicker({ events: eventsProp }: Props) {
         classes?: { name?: string };
       } | null;
       const name = s?.full_name || s?.profiles?.full_name || "Student";
-      const when = inv.updated_at || inv.created_at;
+      const when = inv.created_at;
       items.push({
         id: `alt-${inv.id}`,
         tag: "alt",

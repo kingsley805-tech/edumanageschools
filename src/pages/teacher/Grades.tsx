@@ -265,10 +265,10 @@ const Grades = () => {
 
   return (
     <DashboardLayout role="teacher">
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Grade Management</h2>
-          <p className="text-muted-foreground">Enter and manage student grades for your subjects</p>
+          <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Grade Management</h2>
+          <p className="text-[12.5px] text-muted-foreground mt-1">Enter and manage student grades for your subjects</p>
         </div>
 
         <Card>

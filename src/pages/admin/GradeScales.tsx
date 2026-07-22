@@ -219,11 +219,11 @@ const GradeScales = () => {
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Grade Scales</h2>
-            <p className="text-muted-foreground">
+            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Grade Scales</h2>
+            <p className="text-[12.5px] text-muted-foreground mt-1">
               Choose letter or numeric grades and manage score ranges for your school.
             </p>
           </div>

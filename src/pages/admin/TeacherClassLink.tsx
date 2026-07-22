@@ -242,10 +242,10 @@ const TeacherClassLink = () => {
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Teacher-Class Assignments</h2>
-          <p className="text-muted-foreground">Assign teachers to classes and the subjects they teach</p>
+          <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Teacher-Class Assignments</h2>
+          <p className="text-[12.5px] text-muted-foreground mt-1">Assign teachers to classes and the subjects they teach</p>
         </div>
 
         <Card>

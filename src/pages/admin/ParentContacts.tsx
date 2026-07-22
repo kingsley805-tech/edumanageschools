@@ -165,10 +165,10 @@ const ParentContacts = () => {
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Parent Contacts</h2>
-          <p className="text-muted-foreground">Manage parent contact details organized by student</p>
+          <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Parent Contacts</h2>
+          <p className="text-[12.5px] text-muted-foreground mt-1">Manage parent contact details organized by student</p>
         </div>
 
         <div className="flex gap-4">

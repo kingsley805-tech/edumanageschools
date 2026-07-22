@@ -444,15 +444,15 @@ const ClassDetails = () => {
 
   return (
     <DashboardLayout role="teacher">
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate("/teacher/classes")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">{classDetails.name}</h2>
-            <p className="text-muted-foreground">
-              {classDetails.level} • {classDetails.subject.name} 
+            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">{classDetails.name}</h2>
+            <p className="text-[12.5px] text-muted-foreground mt-1">
+              {classDetails.level} • {classDetails.subject.name}
               {isClassTeacher && " • Homeroom Advisor"}
             </p>
           </div>

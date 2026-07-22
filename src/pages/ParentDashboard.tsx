@@ -2,12 +2,6 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
-import { PortalPageHeader } from "@/components/PortalPageHeader";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserCircle, BookOpen, Calendar, DollarSign, TrendingUp } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -27,14 +21,16 @@ import {
 } from "@/register/hooks/use-attendance-summary";
 import { AttendanceAnalyticsPanel } from "@/register/components/AttendanceAnalyticsPanel";
 import { ClassSubjectTeachersPanel } from "@/components/class-subjects/ClassSubjectTeachersPanel";
+import { MingoLineChart } from "@/components/charts/MingoLineChart";
+import { MingoCategoryBars } from "@/components/charts/MingoCategoryBars";
 
 const ParentDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: term } = useCurrentTerm();
-  const [children, setChildren] = useState<any[]>([]);
-  const [recentGrades, setRecentGrades] = useState<any[]>([]);
-  const [signupAdmissionNumbers, setSignupAdmissionNumbers] = useState<string[]>([]);
+  const [children, setChildren] = useState([]);
+  const [recentGrades, setRecentGrades] = useState([]);
+  const [signupAdmissionNumbers, setSignupAdmissionNumbers] = useState([]);
 
   const primaryChild = children[0];
   const { data: attendanceSummary, isLoading: attendanceLoading } = useAttendanceSummary(
@@ -92,6 +88,7 @@ const ParentDashboard = () => {
           return {
             ...student,
             attendance: Number(attendance),
+            avgScore: Math.round(avgScore),
             avgGrade,
             nextFee: invoiceRes.data?.[0]?.amount ? `$${invoiceRes.data[0].amount}` : "N/A",
             feeDue: invoiceRes.data?.[0]?.due_date
@@ -109,173 +106,284 @@ const ParentDashboard = () => {
           .select("*, subject:subjects(name)")
           .eq("student_id", studentsData[0].id)
           .order("created_at", { ascending: false })
-          .limit(4);
+          .limit(6);
 
         setRecentGrades(gradesData || []);
       }
     }
   };
 
+  const trendPoints = (monthlyTrend ?? []).map((row) => ({
+    label: row.month,
+    primary: row.present,
+    secondary: row.absent,
+  }));
+
+  const childAttendanceItems = (() => {
+    if (children.length < 2) return [];
+    const rows = children.map((c) => ({ name: studentDisplayNameForParent(c), value: c.attendance }));
+    const max = Math.max(...rows.map((r) => r.value), 1);
+    return rows.map((r) => ({
+      name: r.name,
+      value: `${r.value}%`,
+      percent: Math.max(8, Math.round((r.value / max) * 82)),
+    }));
+  })();
+
+  const gradeItems = (() => {
+    const rows = recentGrades
+      .filter((g) => g.subject?.name)
+      .slice(0, 7)
+      .map((g) => ({ name: g.subject.name, score: Number(g.score) || 0 }));
+    if (!rows.length) return [];
+    const max = Math.max(...rows.map((r) => r.score), 1);
+    return rows.map((r) => ({
+      name: r.name,
+      value: `${r.score}%`,
+      percent: Math.max(8, Math.round((r.score / max) * 82)),
+    }));
+  })();
+
+  const avgAttendance = children.length
+    ? Math.round(children.reduce((s, c) => s + c.attendance, 0) / children.length)
+    : 0;
+  const avgScoreAll = children.length
+    ? Math.round(children.reduce((s, c) => s + (c.avgScore || 0), 0) / children.length)
+    : 0;
+  const nextFeeChild = children.find((c) => c.nextFee && c.nextFee !== "N/A");
+
   return (
     <DashboardLayout role="parent">
-      <div className="space-y-6">
-        <PortalPageHeader
-          title="Parent dashboard"
-          description="Track your children's attendance, grades, fees, and school updates."
-        />
-        {/* Child Overview */}
-        <Card className="animate-fade-in">
-          <CardHeader>
-            <CardTitle>My Children</CardTitle>
-            <CardDescription>Overview of your child's performance</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {children.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground space-y-3">
-                <UserCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>No children linked yet</p>
-                {signupAdmissionNumbers.length > 0 && (
-                  <p className="text-sm">
-                    Admission number from signup:{" "}
-                    <span className="font-mono font-semibold text-foreground">
-                      {signupAdmissionNumbers.join(", ")}
-                    </span>
-                  </p>
-                )}
-                <Button variant="outline" size="sm" onClick={() => navigate("/parent/children")}>
-                  Link a child
-                </Button>
+      <div className="mingo-content">
+        <div className="mingo-page-head">
+          <div>
+            <h1>Parent dashboard</h1>
+            <p>Track your children's attendance, grades, fees, and school updates.</p>
+          </div>
+          <div className="mingo-head-actions">
+            <button type="button" className="mingo-btn mingo-btn-ghost" onClick={() => navigate("/parent/grades")}>
+              View report card
+            </button>
+            <button
+              type="button"
+              className="mingo-btn mingo-btn-primary"
+              onClick={() => navigate("/parent/payments")}
+            >
+              + Pay fees
+            </button>
+          </div>
+        </div>
+
+        <div className="mingo-kpi-row">
+          <div className="mingo-kpi">
+            <div className="label">Children Linked</div>
+            <div className="val mono">{children.length}</div>
+          </div>
+          <div className="mingo-kpi">
+            <div className="label">Avg Attendance</div>
+            <div className="val mono">{avgAttendance}%</div>
+          </div>
+          <div className="mingo-kpi">
+            <div className="label">Avg Grade Score</div>
+            <div className="val mono">{avgScoreAll || "-"}</div>
+          </div>
+          <div className="mingo-kpi warn">
+            <div className="label">Next Fee Due</div>
+            <div className="val mono">{nextFeeChild?.nextFee ?? "N/A"}</div>
+          </div>
+        </div>
+
+        {children.length === 0 ? (
+          <div className="mingo-panel" style={{ marginBottom: 18 }}>
+            <div className="mingo-panel-body" style={{ textAlign: "center", padding: 32 }}>
+              <p className="text-[12.5px] text-[hsl(var(--ink-faint))]">No children linked yet.</p>
+              {signupAdmissionNumbers.length > 0 && (
+                <p className="text-[12.5px] mt-2">
+                  Admission number from signup:{" "}
+                  <span className="mono font-semibold">{signupAdmissionNumbers.join(", ")}</span>
+                </p>
+              )}
+              <button
+                type="button"
+                className="mingo-btn mingo-btn-ghost"
+                style={{ margin: "12px auto 0" }}
+                onClick={() => navigate("/parent/children")}
+              >
+                Link a child
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="mingo-charts-row">
+            <div className="mingo-panel mingo-charts-line">
+              <div className="mingo-panel-head">
+                <h2>Monthly attendance — {studentDisplayNameForParent(primaryChild)}</h2>
               </div>
-            ) : (
-              children.map((child, index) => (
-                <div key={index} className="flex items-start gap-6 p-6 rounded-lg border bg-gradient-to-br from-primary/5 to-accent/5">
-                  <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-                    <UserCircle className="h-10 w-10 text-primary" />
-                  </div>
-                  <div className="flex-1 space-y-4">
-                    <div>
-                      <h3 className="text-xl font-semibold">{studentDisplayNameForParent(child)}</h3>
-                      <p className="text-muted-foreground">{child.class?.name}</p>
-                      <Badge variant="outline" className="mt-1 font-mono text-xs">
-                        {child.admission_no ?? child.admission_number ?? "—"}
-                      </Badge>
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-3">
-                      <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Attendance</p>
-                        <div className="flex items-center gap-2">
-                          <Progress value={child.attendance} className="h-2 flex-1" />
-                          <span className="text-sm font-medium">{child.attendance}%</span>
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Average Grade</p>
-                        <p className="text-2xl font-bold text-primary">{child.avgGrade}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Next Fee Due</p>
-                        <p className="text-lg font-semibold">{child.nextFee}</p>
-                        <p className="text-xs text-muted-foreground">{child.feeDue}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+              <div className="mingo-panel-body" style={{ paddingTop: 14 }}>
+                {trendPoints.length ? (
+                  <MingoLineChart
+                    points={trendPoints}
+                    primaryLabel="Present"
+                    secondaryLabel="Absent"
+                    yMaxLabel={String(Math.max(1, ...trendPoints.map((p) => Math.max(p.primary, p.secondary))))}
+                    yMidLabel=""
+                    yMinLabel="0"
+                  />
+                ) : (
+                  <p className="text-[12.5px] text-[hsl(var(--ink-faint))]">No attendance history yet.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="mingo-panel mingo-charts-cat">
+              <div className="mingo-panel-head">
+                <h2>{childAttendanceItems.length ? "Attendance by child" : "Recent grades by subject"}</h2>
+              </div>
+              <div className="mingo-panel-body">
+                {(childAttendanceItems.length ? childAttendanceItems : gradeItems).length ? (
+                  <MingoCategoryBars
+                    items={childAttendanceItems.length ? childAttendanceItems : gradeItems}
+                    bordered={false}
+                  />
+                ) : (
+                  <p className="text-[12.5px] text-[hsl(var(--ink-faint))]">No data yet.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {children.length > 0 && (
+          <>
+            <div className="mingo-panel-head mingo-table-cap">
+              <h2>My children</h2>
+            </div>
+            <div className="mingo-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>Class</th>
+                    <th className="num">Attendance</th>
+                    <th>Avg Grade</th>
+                    <th>Next Fee</th>
+                    <th>Due</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {children.map((child, index) => (
+                    <tr key={index}>
+                      <td>{studentDisplayNameForParent(child)}</td>
+                      <td>{child.class?.name || "—"}</td>
+                      <td className="num">{child.attendance}%</td>
+                      <td>
+                        <span className="mingo-status-pill paid">{child.avgGrade}</span>
+                      </td>
+                      <td className="mono-cell">{child.nextFee}</td>
+                      <td className="mono-cell">{child.feeDue}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
 
         {primaryChild ? (
-          <div>
-            <h2 className="text-lg font-semibold mb-4">
-              Attendance analytics — {studentDisplayNameForParent(primaryChild)}
-            </h2>
-            <AttendanceAnalyticsPanel
-              summary={attendanceSummary}
-              classSummary={classSummary}
-              monthlyTrend={monthlyTrend}
-              loading={attendanceLoading}
-              compact
-            />
+          <div style={{ marginTop: 18 }}>
+            <div className="mingo-panel-head mingo-table-cap">
+              <h2>Attendance analytics — {studentDisplayNameForParent(primaryChild)}</h2>
+            </div>
+            <div className="mingo-table-wrap" style={{ padding: 18 }}>
+              <AttendanceAnalyticsPanel
+                summary={attendanceSummary}
+                classSummary={classSummary}
+                monthlyTrend={monthlyTrend}
+                loading={attendanceLoading}
+                compact
+              />
+            </div>
           </div>
         ) : null}
 
-        {children.length > 0
-          ? children.map((child) =>
-              child.class_id ? (
-                <ClassSubjectTeachersPanel
-                  key={child.id}
-                  classId={child.class_id}
-                  title={`Subjects & teachers — ${studentDisplayNameForParent(child)}`}
-                  description="Teachers assigned to your child's class"
-                />
-              ) : null,
-            )
-          : null}
+        {children.map((child) =>
+          child.class_id ? (
+            <ClassSubjectTeachersPanel
+              key={child.id}
+              classId={child.class_id}
+              title={`Subjects & teachers — ${studentDisplayNameForParent(child)}`}
+              description="Teachers assigned to your child's class"
+            />
+          ) : null,
+        )}
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Recent Grades */}
-          <Card className="animate-fade-up">
-            <CardHeader>
-              <CardTitle>Academic Performance</CardTitle>
-              <CardDescription>Recent subject grades</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {recentGrades.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <BookOpen className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>No grades available yet</p>
-                  </div>
-                ) : (
-                  recentGrades.map((grade, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
-                      <div className="flex items-center gap-3">
-                        <BookOpen className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">{grade.subject?.name}</p>
-                          <p className="text-sm text-muted-foreground">Score: {grade.score}%</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={Number(grade.score) >= 80 ? "default" : "secondary"}>
-                          {Number(grade.score) >= 90 ? "A" : Number(grade.score) >= 80 ? "B" : Number(grade.score) >= 70 ? "C" : "D"}
-                        </Badge>
-                        {Number(grade.score) >= 80 && <TrendingUp className="h-4 w-4 text-success" />}
-                      </div>
+        <div className="mingo-grid-2b" style={{ marginTop: 18 }}>
+          <div className="mingo-panel">
+            <div className="mingo-panel-head">
+              <h2>Academic performance</h2>
+              <button type="button" className="meta" onClick={() => navigate("/parent/grades")}>
+                VIEW ALL →
+              </button>
+            </div>
+            <div className="mingo-panel-body" style={{ paddingTop: 6, paddingBottom: 6 }}>
+              {recentGrades.length === 0 ? (
+                <p className="text-[12.5px] text-[hsl(var(--ink-faint))] py-4">No grades available yet.</p>
+              ) : (
+                recentGrades.map((grade, index) => (
+                  <div className="mingo-activity-row" key={index}>
+                    <span className="mingo-a-tag exm">GRD</span>
+                    <div className="a-desc">
+                      {grade.subject?.name} <span className="who">· Score {grade.score}%</span>
                     </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                    <span className="a-time">
+                      {Number(grade.score) >= 90
+                        ? "A"
+                        : Number(grade.score) >= 80
+                          ? "B"
+                          : Number(grade.score) >= 70
+                            ? "C"
+                            : "D"}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
 
-          {/* Upcoming Events */}
           <EventsCalendar />
         </div>
 
-        {/* Quick Actions */}
-        <Card className="animate-fade-up" style={{ animationDelay: "0.2s" }}>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <Button onClick={() => navigate("/parent/payments")} className="h-auto flex-col gap-2 p-6 bg-gradient-to-br from-primary to-primary/80">
-                <DollarSign className="h-6 w-6" />
-                <span>Pay Fees</span>
-              </Button>
-              <Button onClick={() => navigate("/parent/grades")} variant="outline" className="h-auto flex-col gap-2 p-6">
-                <BookOpen className="h-6 w-6" />
-                <span>View Report Card</span>
-              </Button>
-              <Button onClick={() => navigate("/parent/attendance")} variant="outline" className="h-auto flex-col gap-2 p-6">
-                <Calendar className="h-6 w-6" />
-                <span>Check Attendance</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="mingo-panel-head mingo-table-cap" style={{ marginTop: 18 }}>
+          <h2>Quick actions</h2>
+        </div>
+        <div className="mingo-table-wrap" style={{ padding: 4 }}>
+          <div className="grid gap-3 p-3 sm:grid-cols-3">
+            <button
+              type="button"
+              className="mingo-btn mingo-btn-primary"
+              style={{ justifyContent: "flex-start" }}
+              onClick={() => navigate("/parent/payments")}
+            >
+              Pay fees
+            </button>
+            <button
+              type="button"
+              className="mingo-btn mingo-btn-ghost"
+              style={{ justifyContent: "flex-start" }}
+              onClick={() => navigate("/parent/grades")}
+            >
+              View report card
+            </button>
+            <button
+              type="button"
+              className="mingo-btn mingo-btn-ghost"
+              style={{ justifyContent: "flex-start" }}
+              onClick={() => navigate("/parent/attendance")}
+            >
+              Check attendance
+            </button>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

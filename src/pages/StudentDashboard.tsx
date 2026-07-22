@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
-import { PortalPageHeader } from "@/components/PortalPageHeader";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Calendar, ClipboardCheck, Award } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { useStudentData } from "@/hooks/useStudentData";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchStudentAttendanceRate } from "@/lib/attendance-queries";
@@ -17,8 +13,31 @@ import {
 } from "@/register/hooks/use-attendance-summary";
 import { AttendanceAnalyticsPanel } from "@/register/components/AttendanceAnalyticsPanel";
 import { ClassSubjectTeachersPanel } from "@/components/class-subjects/ClassSubjectTeachersPanel";
+import { MingoLineChart, type MingoLinePoint } from "@/components/charts/MingoLineChart";
+import { MingoCategoryBars, type MingoCategoryItem } from "@/components/charts/MingoCategoryBars";
+
+type ScheduleRow = {
+  subject?: { name?: string } | null;
+  room?: string;
+  start_time?: string;
+  end_time?: string;
+};
+
+type AssignmentRow = {
+  id: string;
+  title: string;
+  due_date: string;
+  subject?: { name?: string } | null;
+};
+
+type GradeRow = {
+  id: string;
+  score: number | string;
+  subject?: { name?: string } | null;
+};
 
 const StudentDashboard = () => {
+  const navigate = useNavigate();
   const { studentId, classId, loading } = useStudentData();
   const { data: term } = useCurrentTerm();
   const { data: attendanceSummary, isLoading: attendanceLoading } = useAttendanceSummary(
@@ -27,15 +46,15 @@ const StudentDashboard = () => {
   );
   const { data: classSummary } = useClassAttendanceSummary(classId, term?.id);
   const { data: monthlyTrend } = useMonthlyAttendanceTrend(studentId, term?.id);
-  const [stats, setStats] = useState([
-    { title: "My Classes", value: "0", icon: BookOpen, color: "text-primary" },
-    { title: "Assignments", value: "0", icon: ClipboardCheck, color: "text-accent" },
-    { title: "Attendance", value: "0%", icon: Calendar, color: "text-success" },
-    { title: "Grade Average", value: "-", icon: Award, color: "text-warning" },
-  ]);
-  const [todaySchedule, setTodaySchedule] = useState<any[]>([]);
-  const [pendingAssignments, setPendingAssignments] = useState<any[]>([]);
-  const [recentGrades, setRecentGrades] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    classes: "0",
+    assignments: "0",
+    attendance: "0%",
+    average: "-",
+  });
+  const [todaySchedule, setTodaySchedule] = useState<ScheduleRow[]>([]);
+  const [pendingAssignments, setPendingAssignments] = useState<AssignmentRow[]>([]);
+  const [recentGrades, setRecentGrades] = useState<GradeRow[]>([]);
 
   useEffect(() => {
     if (studentId && classId) {
@@ -49,38 +68,143 @@ const StudentDashboard = () => {
     const today = new Date().getDay();
 
     const [schedulesRes, assignmentsRes, attendanceStats, gradesRes, classCount] = await Promise.all([
-      supabase.from("schedules").select("*, subject:subjects(name), teacher:teachers(user_id)").eq("class_id", classId).eq("day_of_week", today),
-      supabase.from("assignments").select("*, subject:subjects(name)").eq("class_id", classId).order("due_date", { ascending: true }).limit(3),
+      supabase
+        .from("schedules")
+        .select("*, subject:subjects(name), teacher:teachers(user_id)")
+        .eq("class_id", classId)
+        .eq("day_of_week", today),
+      supabase
+        .from("assignments")
+        .select("*, subject:subjects(name)")
+        .eq("class_id", classId)
+        .order("due_date", { ascending: true })
+        .limit(3),
       fetchStudentAttendanceRate(studentId),
-      supabase.from("grades").select("*, subject:subjects(name)").eq("student_id", studentId).order("created_at", { ascending: false }).limit(4),
-      supabase.from("enrollments").select("id", { count: "exact", head: true }).eq("student_id", studentId).eq("status", "active")
+      supabase
+        .from("grades")
+        .select("*, subject:subjects(name)")
+        .eq("student_id", studentId)
+        .order("created_at", { ascending: false })
+        .limit(6),
+      supabase.from("enrollments").select("id", { count: "exact", head: true }).eq("student_id", studentId).eq("status", "active"),
     ]);
 
     const attendanceRate = attendanceStats.rate.toString();
 
-    const avgGrade = gradesRes.data && gradesRes.data.length > 0
-      ? (gradesRes.data.reduce((sum, g) => sum + (Number(g.score) || 0), 0) / gradesRes.data.length).toFixed(0)
-      : "-";
+    const avgGrade =
+      gradesRes.data && gradesRes.data.length > 0
+        ? (
+            gradesRes.data.reduce((sum, g) => sum + (Number(g.score) || 0), 0) / gradesRes.data.length
+          ).toFixed(0)
+        : "-";
 
-    setStats([
-      { title: "My Classes", value: (classCount.count || 1).toString(), icon: BookOpen, color: "text-primary" },
-      { title: "Assignments", value: assignmentsRes.data?.length.toString() || "0", icon: ClipboardCheck, color: "text-accent" },
-      { title: "Attendance", value: `${attendanceRate}%`, icon: Calendar, color: "text-success" },
-      { title: "Grade Average", value: avgGrade, icon: Award, color: "text-warning" },
-    ]);
+    setStats({
+      classes: (classCount.count || 1).toString(),
+      assignments: assignmentsRes.data?.length.toString() || "0",
+      attendance: `${attendanceRate}%`,
+      average: avgGrade,
+    });
 
     setTodaySchedule(schedulesRes.data || []);
     setPendingAssignments(assignmentsRes.data || []);
     setRecentGrades(gradesRes.data || []);
   };
 
+  const trendPoints: MingoLinePoint[] = (monthlyTrend ?? []).map((row) => ({
+    label: row.month,
+    primary: row.present,
+    secondary: row.absent,
+  }));
+
+  const gradeItems: MingoCategoryItem[] = (() => {
+    const rows = recentGrades
+      .filter((g) => g.subject?.name)
+      .slice(0, 7)
+      .map((g) => ({ name: g.subject!.name as string, score: Number(g.score) || 0 }));
+    if (!rows.length) return [];
+    const max = Math.max(...rows.map((r) => r.score), 1);
+    return rows.map((r) => ({
+      name: r.name,
+      value: `${r.score}%`,
+      percent: Math.max(8, Math.round((r.score / max) * 82)),
+    }));
+  })();
+
   return (
     <DashboardLayout role="student">
-      <div className="space-y-6">
-        <PortalPageHeader
-          title="Student portal"
-          description="View your timetable, assignments, grades, fees, and exams."
-        />
+      <div className="mingo-content">
+        <div className="mingo-page-head">
+          <div>
+            <h1>Student portal</h1>
+            <p>View your timetable, assignments, grades, fees, and exams.</p>
+          </div>
+          <div className="mingo-head-actions">
+            <button type="button" className="mingo-btn mingo-btn-ghost" onClick={() => navigate("/student/grades")}>
+              View grades
+            </button>
+            <button
+              type="button"
+              className="mingo-btn mingo-btn-primary"
+              onClick={() => navigate("/student/online-exams")}
+            >
+              + Take exam
+            </button>
+          </div>
+        </div>
+
+        <div className="mingo-kpi-row">
+          <div className="mingo-kpi">
+            <div className="label">My Classes</div>
+            <div className="val mono">{stats.classes}</div>
+          </div>
+          <div className="mingo-kpi">
+            <div className="label">Assignments</div>
+            <div className="val mono">{stats.assignments}</div>
+          </div>
+          <div className="mingo-kpi">
+            <div className="label">Attendance</div>
+            <div className="val mono">{stats.attendance}</div>
+          </div>
+          <div className="mingo-kpi">
+            <div className="label">Grade Average</div>
+            <div className="val mono">{stats.average}</div>
+          </div>
+        </div>
+
+        <div className="mingo-charts-row">
+          <div className="mingo-panel mingo-charts-line">
+            <div className="mingo-panel-head">
+              <h2>Monthly attendance trend</h2>
+            </div>
+            <div className="mingo-panel-body" style={{ paddingTop: 14 }}>
+              {trendPoints.length ? (
+                <MingoLineChart
+                  points={trendPoints}
+                  primaryLabel="Present"
+                  secondaryLabel="Absent"
+                  yMaxLabel={String(Math.max(1, ...trendPoints.map((p) => Math.max(p.primary, p.secondary))))}
+                  yMidLabel=""
+                  yMinLabel="0"
+                />
+              ) : (
+                <p className="text-[12.5px] text-[hsl(var(--ink-faint))]">No attendance history yet.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="mingo-panel mingo-charts-cat">
+            <div className="mingo-panel-head">
+              <h2>Recent grades by subject</h2>
+            </div>
+            <div className="mingo-panel-body">
+              {gradeItems.length ? (
+                <MingoCategoryBars items={gradeItems} bordered={false} />
+              ) : (
+                <p className="text-[12.5px] text-[hsl(var(--ink-faint))]">No grades yet.</p>
+              )}
+            </div>
+          </div>
+        </div>
 
         <StudentPortalSections />
 
@@ -90,139 +214,124 @@ const StudentDashboard = () => {
           description="Teachers assigned to your class"
         />
 
-        {/* Stats */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat, index) => (
-            <Card key={index} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {stat.title}
-                </CardTitle>
-                <stat.icon className={`h-5 w-5 ${stat.color}`} />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stat.value}</div>
-              </CardContent>
-            </Card>
-          ))}
+        <div style={{ marginTop: 18 }}>
+          <div className="mingo-panel-head mingo-table-cap">
+            <h2>Attendance analytics</h2>
+          </div>
+          <div className="mingo-table-wrap" style={{ padding: 18 }}>
+            <AttendanceAnalyticsPanel
+              summary={attendanceSummary}
+              classSummary={classSummary}
+              monthlyTrend={monthlyTrend}
+              loading={loading || attendanceLoading}
+            />
+          </div>
         </div>
 
-        <div>
-          <h2 className="text-lg font-semibold mb-4">Attendance analytics</h2>
-          <AttendanceAnalyticsPanel
-            summary={attendanceSummary}
-            classSummary={classSummary}
-            monthlyTrend={monthlyTrend}
-            loading={loading || attendanceLoading}
-          />
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Today's Schedule */}
-          <Card className="animate-fade-up">
-            <CardHeader>
-              <CardTitle>Today's Schedule</CardTitle>
-              <CardDescription>Your classes for today</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {todaySchedule.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>No classes today</p>
-                  </div>
-                ) : (
-                  todaySchedule.map((cls, index) => (
-                    <div key={index} className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors">
-                      <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <BookOpen className="h-6 w-6 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{cls.subject?.name}</p>
-                        <p className="text-sm text-muted-foreground">Room {cls.room}</p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-sm font-medium text-primary">
-                          {cls.start_time} - {cls.end_time}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Pending Assignments */}
-          <Card className="animate-fade-up" style={{ animationDelay: "0.1s" }}>
-            <CardHeader>
-              <CardTitle>Pending Assignments</CardTitle>
-              <CardDescription>Work that needs your attention</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {pendingAssignments.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <ClipboardCheck className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>No pending assignments</p>
-                  </div>
-                ) : (
-                  pendingAssignments.map((assignment, index) => (
-                    <div key={index} className="space-y-2 pb-4 border-b last:border-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{assignment.title}</p>
-                          <p className="text-sm text-muted-foreground">{assignment.subject?.name}</p>
-                        </div>
-                        <Badge variant="destructive">
-                          Due {new Date(assignment.due_date).toLocaleDateString()}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Recent Grades */}
-        <Card className="animate-fade-up" style={{ animationDelay: "0.2s" }}>
-          <CardHeader>
-            <CardTitle>Recent Grades</CardTitle>
-            <CardDescription>Your latest performance</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              {recentGrades.length === 0 ? (
-                <div className="md:col-span-2 text-center py-8 text-muted-foreground">
-                  <Award className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>No grades available yet</p>
-                </div>
+        <div className="mingo-grid-2b" style={{ marginTop: 18 }}>
+          <div className="mingo-panel">
+            <div className="mingo-panel-head">
+              <h2>Today's schedule</h2>
+            </div>
+            <div className="mingo-panel-body" style={{ paddingTop: 6, paddingBottom: 6 }}>
+              {todaySchedule.length === 0 ? (
+                <p className="text-[12.5px] text-[hsl(var(--ink-faint))] py-4">No classes today.</p>
               ) : (
-                recentGrades.map((grade, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 rounded-lg border">
-                    <div className="flex items-center gap-3">
-                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Award className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium">{grade.subject?.name}</p>
-                        <p className="text-sm text-muted-foreground">{grade.score}%</p>
-                      </div>
+                todaySchedule.map((cls, index) => (
+                  <div className="mingo-activity-row" key={index}>
+                    <span className="mingo-a-tag exm">CLS</span>
+                    <div className="a-desc">
+                      {cls.subject?.name} <span className="who">· Room {cls.room}</span>
                     </div>
-                    <Badge variant={Number(grade.score) >= 80 ? "default" : "secondary"} className="text-lg px-3">
-                      {Number(grade.score) >= 90 ? "A" : Number(grade.score) >= 80 ? "B" : Number(grade.score) >= 70 ? "C" : "D"}
-                    </Badge>
+                    <span className="a-time">
+                      {cls.start_time} - {cls.end_time}
+                    </span>
                   </div>
                 ))
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+
+          <div className="mingo-panel">
+            <div className="mingo-panel-head">
+              <h2>Pending assignments</h2>
+              <button type="button" className="meta" onClick={() => navigate("/student/assignments")}>
+                VIEW ALL →
+              </button>
+            </div>
+            <div className="mingo-panel-body" style={{ paddingTop: 6, paddingBottom: 6 }}>
+              {pendingAssignments.length === 0 ? (
+                <p className="text-[12.5px] text-[hsl(var(--ink-faint))] py-4">No pending assignments.</p>
+              ) : (
+                pendingAssignments.map((assignment, index) => (
+                  <div className="mingo-activity-row" key={index}>
+                    <span className="mingo-a-tag fee">DUE</span>
+                    <div className="a-desc">
+                      {assignment.title} <span className="who">· {assignment.subject?.name}</span>
+                    </div>
+                    <span className="a-time">
+                      {new Date(assignment.due_date).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="mingo-panel-head mingo-table-cap" style={{ marginTop: 18 }}>
+          <h2>Recent grades</h2>
+          <button type="button" className="meta" onClick={() => navigate("/student/grades")}>
+            VIEW ALL →
+          </button>
+        </div>
+        <div className="mingo-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Subject</th>
+                <th className="num">Score</th>
+                <th>Grade</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentGrades.length === 0 ? (
+                <tr>
+                  <td colSpan={3} style={{ textAlign: "center" }}>
+                    No grades yet
+                  </td>
+                </tr>
+              ) : (
+                recentGrades.map((grade) => {
+                  const score = Number(grade.score) || 0;
+                  const letter = score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C" : score >= 60 ? "D" : "F";
+                  return (
+                    <tr key={grade.id}>
+                      <td>{grade.subject?.name}</td>
+                      <td className="num">{typeof grade.score === "number" ? `${grade.score}%` : grade.score}</td>
+                      <td>
+                        <span className={cnGradePill(score)}>{letter}</span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </DashboardLayout>
   );
 };
+
+function cnGradePill(score: number) {
+  const pill = "mingo-status-pill";
+  if (score >= 80) return `${pill} paid`;
+  if (score >= 60) return `${pill} pending`;
+  return `${pill} overdue`;
+}
 
 export default StudentDashboard;

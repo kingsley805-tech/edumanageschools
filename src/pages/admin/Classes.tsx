@@ -270,11 +270,11 @@ const Classes = () => {
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Classes</h2>
-            <p className="text-muted-foreground">Manage school classes and enrollments</p>
+            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Classes</h2>
+            <p className="text-[12.5px] text-muted-foreground mt-1">Manage school classes and enrollments</p>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>

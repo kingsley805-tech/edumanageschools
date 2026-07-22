@@ -144,10 +144,10 @@ const Assignments = () => {
 
   return (
     <DashboardLayout role="student">
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Assignments</h2>
-          <p className="text-muted-foreground">View and submit your assignments</p>
+          <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Assignments</h2>
+          <p className="text-[12.5px] text-muted-foreground mt-1">View and submit your assignments</p>
         </div>
 
         {assignments.length === 0 ? (

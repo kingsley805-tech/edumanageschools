@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { PortalPageHeader } from "@/components/PortalPageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -121,17 +122,21 @@ const Announcements = () => {
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight">Announcements</h2>
-            <p className="text-muted-foreground">Broadcast messages to users</p>
-          </div>
-          <Button onClick={() => setShowForm(!showForm)}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Announcement
-          </Button>
-        </div>
+      <div className="mingo-content space-y-6">
+        <PortalPageHeader
+          title="Announcements"
+          description="Broadcast messages to users"
+          actions={
+            <button
+              type="button"
+              className="mingo-btn mingo-btn-primary"
+              onClick={() => setShowForm(!showForm)}
+            >
+              <Plus className="h-4 w-4" />
+              New announcement
+            </button>
+          }
+        />
 
         {showForm && (
           <Card>

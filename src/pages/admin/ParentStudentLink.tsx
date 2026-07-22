@@ -181,10 +181,10 @@ const ParentStudentLink = () => {
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-6">
+      <div className="mingo-content space-y-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Parent-Student Links</h2>
-          <p className="text-muted-foreground">Link parent accounts to their children's accounts</p>
+          <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Parent-Student Links</h2>
+          <p className="text-[12.5px] text-muted-foreground mt-1">Link parent accounts to their children's accounts</p>
         </div>
 
         <Card>

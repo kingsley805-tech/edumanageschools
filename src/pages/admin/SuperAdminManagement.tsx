@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { PortalPageHeader } from "@/components/PortalPageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Shield, School, UserPlus, Trash2, Search, Building } from "lucide-react";
+import { Shield, School, UserPlus, Trash2, Search } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -188,46 +189,27 @@ const SuperAdminManagement = () => {
 
   return (
     <DashboardLayout role={layoutRole}>
-      <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Super Admin Management</h1>
-          <p className="text-muted-foreground">
-            Manage super administrators and their school assignments
-          </p>
-        </div>
-      </div>
+      <div className="mingo-content space-y-6">
+      <PortalPageHeader
+        title="Super Admin Management"
+        description="Manage super administrators and their school assignments"
+      />
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Super Admins</CardTitle>
-            <Shield className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{superAdmins.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Schools</CardTitle>
-            <Building className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{allSchools.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Assignments</CardTitle>
-            <School className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {superAdmins.reduce((acc, admin) => acc + admin.assigned_schools.length, 0)}
-            </div>
-          </CardContent>
-        </Card>
+      <div className="mingo-kpi-row">
+        <div className="mingo-kpi">
+          <div className="label">Total Super Admins</div>
+          <div className="val mono">{superAdmins.length}</div>
+        </div>
+        <div className="mingo-kpi">
+          <div className="label">Total Schools</div>
+          <div className="val mono">{allSchools.length}</div>
+        </div>
+        <div className="mingo-kpi">
+          <div className="label">Total Assignments</div>
+          <div className="val mono">
+            {superAdmins.reduce((acc, admin) => acc + admin.assigned_schools.length, 0)}
+          </div>
+        </div>
       </div>
 
       <Card>
