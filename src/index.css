@@ -786,7 +786,7 @@ All colors MUST be HSL.
     /* Dropdown / mega-menu panel */
     [data-portal-layout] .portal-topnav-panel {
         border: 1px solid hsl(var(--border));
-        border-radius: var(--radius-card);
+        border-radius: 0;
         background: hsl(var(--background));
         box-shadow:
             0 10px 24px rgb(0 0 0 / 0.1),
