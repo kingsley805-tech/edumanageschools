@@ -234,7 +234,7 @@ export function InventorySuppliersPanel({ suppliers, schoolId, access, onRefresh
                 <TableCell className="max-w-[160px] truncate">{s.products_supplied ?? "—"}</TableCell>
                 <TableCell>{s.purchase_count ?? 0}</TableCell>
                 <TableCell>
-                  <Badge variant={s.status === "active" ? "default" : "secondary"}>{s.status}</Badge>
+                  <Badge variant={s.status === "active" ? "success" : "secondary"}>{s.status}</Badge>
                 </TableCell>
                 <TableCell className="text-right">
                   {access.canEdit ? (

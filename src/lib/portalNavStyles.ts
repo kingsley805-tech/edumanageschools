@@ -54,16 +54,16 @@ export const PORTAL_ROLE_META: Record<
   },
 };
 
-/** Shared sidebar nav classes — mingo shell (sharp edges, ink sidebar) */
+/** Shared sidebar nav classes — light shell, readable ink text */
 
 export const portalNavLinkBase =
-  "portal-nav-link flex items-center gap-[11px] px-5 py-2 text-[13px] font-normal text-sidebar-foreground/70 transition-[background,color] duration-100 hover:bg-sidebar-accent hover:text-sidebar-foreground";
+  "portal-nav-link flex items-center gap-3 px-5 py-2.5 text-[13px] font-medium text-sidebar-foreground transition-[background,color,border-color] duration-100 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
 
 export const portalNavLinkActive =
-  "portal-nav-link-active text-white font-medium";
+  "portal-nav-link-active font-semibold";
 
 export const portalNavSubLinkBase =
-  "portal-nav-sublink flex items-center gap-[11px] py-1.5 pl-11 pr-5 text-[13px] text-sidebar-foreground/65 transition-[background,color] duration-100 hover:bg-sidebar-accent hover:text-sidebar-foreground";
+  "portal-nav-sublink flex items-center gap-3 py-2 pl-11 pr-5 text-[13px] font-medium text-sidebar-foreground/90 transition-[background,color,border-color] duration-100 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
 
 export const portalNavGroupTrigger =
-  "portal-nav-group flex w-full items-center gap-[11px] px-5 py-2 text-[13px] font-normal text-sidebar-foreground/70 transition-[background,color] duration-100 hover:bg-sidebar-accent hover:text-sidebar-foreground";
+  "portal-nav-group flex w-full items-center gap-3 px-5 py-2.5 text-[13px] font-medium text-sidebar-foreground transition-[background,color] duration-100 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";

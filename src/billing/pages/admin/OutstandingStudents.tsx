@@ -189,7 +189,9 @@ export default function BillingOutstandingStudents() {
                   <td className="px-4 py-3.5 text-sm font-mono text-muted-foreground">{row.admission_number}</td>
                   <td className="px-4 py-3.5 text-sm text-muted-foreground">{row.invoices_count}</td>
                   <td className="px-4 py-3.5 text-sm font-medium">{formatMoney(row.outstanding_balance, row.currency)}</td>
-                  <td className="px-4 py-3.5"><Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">Outstanding</Badge></td>
+                  <td className="px-4 py-3.5">
+                    <Badge variant="warning">Outstanding</Badge>
+                  </td>
                 </tr>
               ))}
             </tbody>

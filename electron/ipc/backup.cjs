@@ -24,6 +24,18 @@ function registerBackupIpc() {
     "backup:syncStatus",
     wrap(async () => sync.getStatus()),
   );
+  ipcMain.handle(
+    "backup:syncFailedItems",
+    wrap(async (_e, limit) => sync.getFailedItems(limit)),
+  );
+  ipcMain.handle(
+    "backup:syncPendingItems",
+    wrap(async (_e, limit) => sync.getPendingItems(limit)),
+  );
+  ipcMain.handle(
+    "backup:syncLogs",
+    wrap(async (_e, limit) => sync.getLogs(limit)),
+  );
 }
 
 module.exports = { registerBackupIpc };

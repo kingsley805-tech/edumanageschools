@@ -1,6 +1,6 @@
 /**
- * Design tokens — aligned with Auth/Landing color code:
- * black + white + green-500 (#22c55e) / green-400 (#4ade80).
+ * Design tokens aligned with the updated system green:
+ * active-chip style green (#065f46) + soft tint (#def7ec).
  */
 export const MINGO = {
   bg: "#ffffff",
@@ -10,19 +10,19 @@ export const MINGO = {
   inkFaint: "#a1a1aa",
   line: "#e4e4e7",
   lineStrong: "#18181b",
-  /** Auth/Landing CTA green (Tailwind green-500) */
-  brand: "#22c55e",
-  /** Auth/Landing accent / hover (Tailwind green-400) */
-  brandHover: "#4ade80",
-  /** Soft brand wash (≈ green-500/10 on white) */
-  brandSoft: "#f0fdf4",
+  /** Primary action green */
+  brand: "#065f46",
+  /** Hover/active accent green */
+  brandHover: "#047857",
+  /** Soft brand wash used for chips and subtle backgrounds */
+  brandSoft: "#def7ec",
   critical: "#b91c1c",
   criticalBg: "#fef2f2",
   warn: "#92400e",
   warnBg: "#fffbeb",
   /** Status success — darker than brand CTA */
-  positive: "#166534",
-  positiveBg: "#f0fdf4",
+  positive: "#065f46",
+  positiveBg: "#def7ec",
   info: "#1d4ed8",
   infoBg: "#eff6ff",
   sidebarW: "252px",
@@ -43,17 +43,18 @@ export const MINGO_HSL = {
   inkFaint: "240 4% 65%",
   line: "240 5% 90%",
   lineStrong: "240 6% 10%",
-  /** green-500 */
-  brand: "142 71% 45%",
-  /** green-400 */
-  brandHover: "142 69% 58%",
-  brandSoft: "138 76% 97%",
+  /** #065f46 */
+  brand: "164 86% 16%",
+  /** #047857 */
+  brandHover: "163 94% 24%",
+  /** #def7ec */
+  brandSoft: "152 76% 92%",
   critical: "0 72% 42%",
   criticalBg: "0 86% 97%",
   warn: "32 95% 31%",
   warnBg: "48 96% 89%",
-  positive: "142 72% 24%",
-  positiveBg: "138 76% 97%",
+  positive: "164 86% 16%",
+  positiveBg: "152 76% 92%",
   info: "221 83% 48%",
   infoBg: "214 100% 97%",
   sidebarMute: "240 4% 16%",

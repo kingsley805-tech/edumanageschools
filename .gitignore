@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Electron build output (too large for GitHub; rebuild locally with electron-builder)
+release/
+
 # Capacitor
 .capacitor
 android

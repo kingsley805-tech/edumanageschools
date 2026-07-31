@@ -30,7 +30,7 @@ const TYPE_LABELS: Record<HostelType, string> = {
 
 function statusBadge(status: HostelStatus) {
   return status === "active" ? (
-    <Badge variant="default" className="bg-emerald-600/90">Active</Badge>
+    <Badge variant="success">Active</Badge>
   ) : (
     <Badge variant="secondary">Inactive</Badge>
   );

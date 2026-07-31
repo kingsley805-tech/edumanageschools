@@ -2,6 +2,7 @@ const { ipcMain } = require("electron");
 const { wrap } = require("../utils/ipcResult.cjs");
 const usb = require("../hardware/usb.cjs");
 const serial = require("../hardware/serial.cjs");
+const cashDrawer = require("../hardware/cashDrawer.cjs");
 
 function registerHardwareIpc() {
   ipcMain.handle(
@@ -23,6 +24,10 @@ function registerHardwareIpc() {
   ipcMain.handle(
     "hardware:serialClose",
     wrap(async (_e, portPath) => serial.close(portPath)),
+  );
+  ipcMain.handle(
+    "hardware:cashDrawerOpen",
+    wrap(async (_e, portPath, opts) => cashDrawer.openViaSerial(portPath, opts || {})),
   );
 }
 

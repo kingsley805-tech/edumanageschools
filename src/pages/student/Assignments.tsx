@@ -171,7 +171,7 @@ const Assignments = () => {
                       <CardDescription style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>{assignment.subjects?.name}</CardDescription>
                     </div>
                     {assignment.submission ? (
-                      <Badge className="bg-success">
+                      <Badge variant="success">
                         <CheckCircle className="h-3 w-3 mr-1" />
                         Submitted
                       </Badge>

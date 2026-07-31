@@ -32,7 +32,11 @@ function registerFilesIpc() {
     "files:save",
     wrap(async (_e, { filePath, content, encoding = "utf8" } = {}) => {
       if (!filePath) throw new Error("filePath required");
+      if (!paths.isWithinAppRoot(filePath)) {
+        throw new Error("filePath must be inside the app's data directory; use files:saveAs to write elsewhere");
+      }
       const data = encoding === "base64" ? Buffer.from(content, "base64") : content;
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
       fs.writeFileSync(filePath, data);
       return { path: filePath };
     }),
@@ -120,7 +124,13 @@ function registerFilesIpc() {
     "files:compress",
     wrap(async (_e, { sourcePath, destPath } = {}) => {
       if (!sourcePath || !fs.existsSync(sourcePath)) throw new Error("Source not found");
+      if (!paths.isWithinAppRoot(sourcePath)) {
+        throw new Error("sourcePath must be inside the app's data directory");
+      }
       const out = destPath || `${sourcePath}.gz`;
+      if (!paths.isWithinAppRoot(out)) {
+        throw new Error("destPath must be inside the app's data directory");
+      }
       fs.writeFileSync(out, zlib.gzipSync(fs.readFileSync(sourcePath)));
       return { path: out };
     }),

@@ -7,6 +7,32 @@ export default {
     "./components/**/*.{ts,tsx}",
     "./app/**/*.{ts,tsx}",
     "./src/**/*.{ts,tsx}",
+    /**
+     * Component-layer classes that are composed at runtime (`table-status-${tone}`)
+     * or belong to third-party markup (Recharts) are invisible to the content
+     * scanner and would be purged. Declaring them here keeps the rules in
+     * index.css alive without moving them out of @layer components — so
+     * per-element Tailwind utilities still win over them.
+     */
+    {
+      raw: [
+        "table-status table-status-success table-status-warning",
+        "table-status-danger table-status-info table-status-neutral",
+        "table-status-dot table-skeleton-bar table-empty table-loading",
+        "cell-stack cell-primary cell-secondary cell-with-icon cell-icon",
+        "cell-muted cell-empty cell-actions btn-dim btn-dim-danger",
+        "portal-nav-drawer portal-ticker-wrap portal-ticker-track",
+        "portal-tick portal-tick-tag",
+        "data-table data-table-compact data-table-shell data-table-shell-bare",
+        "recharts-cartesian-grid recharts-cartesian-axis-line",
+        "recharts-cartesian-axis-tick-line recharts-cartesian-axis-tick-value",
+        "recharts-label recharts-legend-item-text recharts-tooltip-wrapper",
+        "recharts-default-tooltip recharts-tooltip-item recharts-tooltip-label",
+        "recharts-surface recharts-wrapper",
+        "custom-scrollbar modal-scrollbar portal-main-scroll theme-ready",
+      ].join(" "),
+      extension: "html",
+    },
   ],
   prefix: "",
   theme: {
@@ -29,12 +55,52 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "sans-serif"],
-        display: ["Space Grotesk", "Inter", "sans-serif"],
-        mono: ["IBM Plex Mono", "ui-monospace", "monospace"],
-        report: ["Space Grotesk", "Inter", "sans-serif"],
+        sans: [
+          "Inter",
+          "ui-sans-serif",
+          "system-ui",
+          "-apple-system",
+          "Segoe UI",
+          "Roboto",
+          "Helvetica Neue",
+          "sans-serif",
+        ],
+        /* `display` and `report` are kept as aliases so the ~100 existing
+           font-display / font-report usages keep working — they now all
+           resolve to Inter for a single-family type system. */
+        display: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        report: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["IBM Plex Mono", "ui-monospace", "SFMono-Regular", "monospace"],
       },
       colors: {
+        /**
+         * Global "green" remap to the new status-chip palette.
+         * This makes existing `green-*` utilities adopt the updated brand tone.
+         */
+        green: {
+          50: "#ecfdf5",
+          100: "#def7ec",
+          200: "#b7ebd5",
+          300: "#6ee7b7",
+          400: "#34d399",
+          500: "#10b981",
+          600: "#059669",
+          700: "#065f46",
+          800: "#064e3b",
+          900: "#022c22",
+        },
+        emerald: {
+          50: "#ecfdf5",
+          100: "#def7ec",
+          200: "#b7ebd5",
+          300: "#6ee7b7",
+          400: "#34d399",
+          500: "#10b981",
+          600: "#059669",
+          700: "#065f46",
+          800: "#064e3b",
+          900: "#022c22",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

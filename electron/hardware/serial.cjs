@@ -1,6 +1,10 @@
 /**
- * Serial / COM port communication for specialty devices.
- * Uses optional `serialport` package when available.
+ * Serial / COM port communication for specialty devices (receipt printers,
+ * cash drawer kick, other RS232 hardware).
+ * `serialport` is a regular dependency (see package.json) and must be
+ * rebuilt against Electron's ABI via `npm run electron:rebuild`. The
+ * require() is still guarded so a missing/failed native rebuild degrades to
+ * a stub list instead of crashing the whole app at startup.
  */
 const logger = require("../utils/logger.cjs");
 

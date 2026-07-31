@@ -230,3 +230,107 @@ export const exportToPDF = async (data: ExamReportData) => {
   link.click();
   URL.revokeObjectURL(url);
 };
+
+/**
+ * Generic tabular export helpers used by dashboard/report screens
+ * (e.g. the admin Reports & Analytics page) that don't have a bespoke
+ * export shape like ExamReportData above.
+ */
+export interface GenericTableExport {
+  title: string;
+  subtitle?: string;
+  /** Optional label/value pairs shown above the table (KPI summary). */
+  summary?: { label: string; value: string }[];
+  headers: string[];
+  rows: (string | number)[][];
+}
+
+export const exportGenericTableToExcel = (data: GenericTableExport, fileName?: string) => {
+  const wb = XLSX.utils.book_new();
+
+  if (data.summary && data.summary.length > 0) {
+    const summarySheetRows = [[data.title], [""], ...data.summary.map((s) => [s.label, s.value])];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summarySheetRows), "Summary");
+  }
+
+  const detailSheet = XLSX.utils.aoa_to_sheet([data.headers, ...data.rows]);
+  XLSX.utils.book_append_sheet(wb, detailSheet, "Details");
+
+  const safeName = fileName || `${data.title.replace(/[^a-z0-9]/gi, "_")}.xlsx`;
+  XLSX.writeFile(wb, safeName);
+};
+
+const genericPdfStyles = StyleSheet.create({
+  page: { padding: 32, fontFamily: "Helvetica" },
+  title: { fontSize: 18, fontWeight: "bold", marginBottom: 4 },
+  subtitle: { fontSize: 10, color: "#666", marginBottom: 16 },
+  summaryGrid: { flexDirection: "row", flexWrap: "wrap", marginBottom: 16 },
+  summaryBox: { width: "25%", marginBottom: 10 },
+  summaryLabel: { fontSize: 8, color: "#666" },
+  summaryValue: { fontSize: 14, fontWeight: "bold" },
+  headerRow: {
+    flexDirection: "row",
+    borderBottomWidth: 2,
+    borderBottomColor: "#333",
+    paddingVertical: 5,
+    backgroundColor: "#f5f5f5",
+  },
+  row: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#e5e5e5", paddingVertical: 4 },
+  cell: { flex: 1, fontSize: 9, paddingHorizontal: 4 },
+  headerCell: { flex: 1, fontSize: 9, fontWeight: "bold", paddingHorizontal: 4 },
+  footer: { position: "absolute", bottom: 24, left: 32, right: 32, fontSize: 8, color: "#999", textAlign: "center" },
+});
+
+const GenericTablePDF = ({ data }: { data: GenericTableExport }) =>
+  React.createElement(
+    Document,
+    {},
+    React.createElement(
+      Page,
+      { size: "A4", style: genericPdfStyles.page },
+      React.createElement(Text, { style: genericPdfStyles.title }, data.title),
+      data.subtitle ? React.createElement(Text, { style: genericPdfStyles.subtitle }, data.subtitle) : null,
+      data.summary && data.summary.length > 0
+        ? React.createElement(
+            View,
+            { style: genericPdfStyles.summaryGrid },
+            ...data.summary.map((s, idx) =>
+              React.createElement(
+                View,
+                { key: idx, style: genericPdfStyles.summaryBox },
+                React.createElement(Text, { style: genericPdfStyles.summaryValue }, s.value),
+                React.createElement(Text, { style: genericPdfStyles.summaryLabel }, s.label),
+              ),
+            ),
+          )
+        : null,
+      React.createElement(
+        View,
+        { style: genericPdfStyles.headerRow },
+        ...data.headers.map((h, idx) => React.createElement(Text, { key: idx, style: genericPdfStyles.headerCell }, h)),
+      ),
+      ...data.rows.slice(0, 200).map((row, rIdx) =>
+        React.createElement(
+          View,
+          { key: rIdx, style: genericPdfStyles.row },
+          ...row.map((cell, cIdx) => React.createElement(Text, { key: cIdx, style: genericPdfStyles.cell }, String(cell))),
+        ),
+      ),
+      React.createElement(Text, { style: genericPdfStyles.footer }, `Generated ${new Date().toLocaleString()}`),
+    ),
+  );
+
+export const exportGenericTableToPDFBlob = async (data: GenericTableExport): Promise<Blob> => {
+  const doc = React.createElement(GenericTablePDF, { data }) as React.ReactElement;
+  return pdf(doc).toBlob();
+};
+
+export const exportGenericTableToPDF = async (data: GenericTableExport, fileName?: string) => {
+  const blob = await exportGenericTableToPDFBlob(data);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName || `${data.title.replace(/[^a-z0-9]/gi, "_")}.pdf`;
+  link.click();
+  URL.revokeObjectURL(url);
+};

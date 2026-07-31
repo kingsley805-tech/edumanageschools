@@ -56,11 +56,11 @@ export function SidebarMenuGroup({
           )}
           aria-expanded={showItems}
         >
-          <Icon className="h-[18px] w-[18px] shrink-0 text-sidebar-foreground/70" />
+          <Icon className="h-[18px] w-[18px] shrink-0 text-sidebar-foreground/80" />
           <span className="portal-nav-label flex-1 truncate text-left">{label}</span>
           <ChevronRight
             className={cn(
-              "portal-nav-chevron h-4 w-4 shrink-0 text-sidebar-foreground/40 transition-transform duration-150",
+              "portal-nav-chevron h-4 w-4 shrink-0 text-sidebar-foreground/55 transition-transform duration-150",
               showItems && "rotate-90",
             )}
           />
@@ -80,7 +80,7 @@ export function SidebarMenuGroup({
                 className={navSubLinkBase}
                 activeClassName={navLinkActive}
               >
-                <subItem.icon className="h-4 w-4 shrink-0 text-sidebar-foreground/60" />
+                <subItem.icon className="h-4 w-4 shrink-0 text-sidebar-foreground/80" />
                 <span className="portal-nav-label flex-1 truncate">
                   {subItem.label}
                 </span>

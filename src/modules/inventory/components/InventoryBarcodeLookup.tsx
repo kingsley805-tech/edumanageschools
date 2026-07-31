@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { lookupItemByCode } from "@/modules/inventory/lib/api";
 import type { InventoryItem } from "@/modules/inventory/lib/types";
 import { toast } from "sonner";
+import { isElectronDesktop, useBarcodeScan } from "@/desktop";
 
 type Props = {
   schoolId: string | null;
@@ -33,14 +34,15 @@ export function InventoryBarcodeLookup({ schoolId, onItemFound }: Props) {
   const [result, setResult] = useState<InventoryItem | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const lookup = async () => {
-    if (!schoolId || !code.trim()) {
+  const lookup = async (rawCode?: string) => {
+    const candidate = (rawCode ?? code).trim();
+    if (!schoolId || !candidate) {
       toast.error("Enter a SKU or barcode.");
       return;
     }
     setLoading(true);
     try {
-      const item = await lookupItemByCode(schoolId, code);
+      const item = await lookupItemByCode(schoolId, candidate);
       if (!item) {
         toast.error("No item found for this code.");
         setResult(null);
@@ -56,12 +58,30 @@ export function InventoryBarcodeLookup({ schoolId, onItemFound }: Props) {
     }
   };
 
+  // Hardware scans broadcast over Electron IPC (e.g. a scanner wired through
+  // a serial port rather than HID keyboard emulation) look up immediately
+  // regardless of which control has focus.
+  useBarcodeScan(
+    (scan) => {
+      if (!scan?.value) return;
+      setCode(scan.value);
+      void lookup(scan.value);
+    },
+    [schoolId],
+  );
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <ScanLine className="h-4 w-4" />
           Barcode / SKU Lookup
+          {isElectronDesktop() && (
+            <Badge variant="outline" className="ml-1 gap-1 text-[10px] font-normal text-muted-foreground">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              Hardware scanner ready
+            </Badge>
+          )}
         </CardTitle>
         <CardDescription>Scan or enter SKU/barcode for fast stock identification and audits</CardDescription>
       </CardHeader>

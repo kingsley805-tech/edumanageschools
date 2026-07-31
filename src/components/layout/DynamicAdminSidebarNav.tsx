@@ -102,7 +102,10 @@ export function DynamicAdminSidebarNav({
       {withSections.map(({ item, section }, index) => {
         const sectionLabel =
           section && !collapsed ? (
-            <div className="portal-nav-group-label">{section}</div>
+            <div className="portal-nav-group-label" role="presentation">
+              <span className="portal-nav-group-mark" aria-hidden />
+              <span className="portal-nav-group-title">{section}</span>
+            </div>
           ) : null;
 
         if (isGroup(item)) {
@@ -137,7 +140,7 @@ export function DynamicAdminSidebarNav({
                 className={navLinkBase}
                 activeClassName={navLinkActive}
               >
-                <item.icon className="h-[18px] w-[18px] shrink-0 text-sidebar-foreground/70" />
+                <item.icon className="h-[18px] w-[18px] shrink-0 text-sidebar-foreground/80" />
                 <span className="portal-nav-label flex-1 truncate">
                   {item.label}
                 </span>
@@ -147,7 +150,7 @@ export function DynamicAdminSidebarNav({
         );
       })}
       {items.length === 0 && (
-        <p className="px-3 py-4 text-center text-xs text-sidebar-foreground/70">
+        <p className="px-5 py-4 text-center text-xs font-medium text-sidebar-foreground/75">
           {emptyMessage}
         </p>
       )}

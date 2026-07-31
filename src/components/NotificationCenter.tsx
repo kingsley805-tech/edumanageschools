@@ -165,19 +165,19 @@ export const NotificationCenter = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative h-8 w-8 rounded-none border border-border text-muted-foreground hover:bg-muted"
+        <button
+          type="button"
+          className="portal-icon-button relative"
+          aria-label="Notifications"
         >
-          <Bell className="h-4 w-4" />
+          <Bell className="h-[18px] w-[18px]" />
           {unreadCount > 0 && (
             <span
               className="absolute -right-[3px] -top-[3px] h-2 w-2 rounded-full border-2 border-background bg-[hsl(var(--critical))]"
               aria-hidden
             />
           )}
-        </Button>
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
         <div className="flex items-center justify-between px-4 py-2 border-b">

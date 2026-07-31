@@ -2,27 +2,74 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-const Table = React.forwardRef<
-  HTMLTableElement,
-  React.HTMLAttributes<HTMLTableElement>
->(({ className, ...props }, ref) => (
-  <div className="relative w-full overflow-auto -mx-3 md:mx-0">
-    <div className="inline-block min-w-full align-middle">
+/**
+ * Enterprise data table primitives.
+ *
+ * The outer wrapper provides the rounded shell, horizontal scroll on narrow
+ * viewports, and the containing block that sticky headers stick to. Visual
+ * treatment (zebra rows, hover, sticky header, numeric alignment) lives in
+ * index.css under `.data-table` so every existing table in the app picks it
+ * up without being rewritten.
+ *
+ * Opt-outs, per table:
+ *   <Table bare>              no shell border/radius (table already in a card)
+ *   <Table stickyHeader={false}>
+ *   <Table zebra={false}>
+ *
+ * Column alignment is data-driven — pass `numeric` to a TableHead/TableCell
+ * for right-aligned tabular figures, or `actions` for a right-aligned,
+ * non-wrapping action column.
+ */
+
+type TableProps = React.HTMLAttributes<HTMLTableElement> & {
+  /** Drop the outer border + radius (use when the table already sits in a card) */
+  bare?: boolean;
+  stickyHeader?: boolean;
+  /** Alternating row tint. Off by default — plain rows with hairline dividers. */
+  zebra?: boolean;
+  /** Max height for the scroll container; enables vertical stickiness */
+  maxHeight?: string | number;
+  containerClassName?: string;
+};
+
+const Table = React.forwardRef<HTMLTableElement, TableProps>(
+  (
+    {
+      className,
+      bare = false,
+      stickyHeader = true,
+      zebra = false,
+      maxHeight,
+      containerClassName,
+      ...props
+    },
+    ref,
+  ) => (
+    <div
+      className={cn(
+        "data-table-shell relative w-full overflow-auto",
+        bare && "data-table-shell-bare",
+        containerClassName,
+      )}
+      style={maxHeight ? { maxHeight } : undefined}
+    >
       <table
         ref={ref}
-        className={cn("w-full caption-bottom text-sm", className)}
+        data-sticky-header={stickyHeader ? "true" : undefined}
+        data-zebra={zebra ? "true" : undefined}
+        className={cn("data-table w-full caption-bottom", className)}
         {...props}
       />
     </div>
-  </div>
-));
+  ),
+);
 Table.displayName = "Table";
 
 const TableHeader = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
 >(({ className, ...props }, ref) => (
-  <thead ref={ref} className={cn("[&_tr]:border-b", className)} {...props} />
+  <thead ref={ref} className={cn(className)} {...props} />
 ));
 TableHeader.displayName = "TableHeader";
 
@@ -30,11 +77,7 @@ const TableBody = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
 >(({ className, ...props }, ref) => (
-  <tbody
-    ref={ref}
-    className={cn("[&_tr:last-child]:border-0", className)}
-    {...props}
-  />
+  <tbody ref={ref} className={cn(className)} {...props} />
 ));
 TableBody.displayName = "TableBody";
 
@@ -42,14 +85,7 @@ const TableFooter = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
 >(({ className, ...props }, ref) => (
-  <tfoot
-    ref={ref}
-    className={cn(
-      "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0",
-      className,
-    )}
-    {...props}
-  />
+  <tfoot ref={ref} className={cn("font-medium", className)} {...props} />
 ));
 TableFooter.displayName = "TableFooter";
 
@@ -57,27 +93,26 @@ const TableRow = React.forwardRef<
   HTMLTableRowElement,
   React.HTMLAttributes<HTMLTableRowElement>
 >(({ className, ...props }, ref) => (
-  <tr
-    ref={ref}
-    className={cn(
-      "border-b transition-colors duration-150 data-[state=selected]:bg-muted hover:bg-muted/50",
-      className,
-    )}
-    {...props}
-  />
+  <tr ref={ref} className={cn(className)} {...props} />
 ));
 TableRow.displayName = "TableRow";
 
+type CellAlignProps = {
+  /** Right-align with tabular figures — use for money, counts, percentages */
+  numeric?: boolean;
+  /** Right-aligned, non-wrapping column for row actions */
+  actions?: boolean;
+};
+
 const TableHead = React.forwardRef<
   HTMLTableCellElement,
-  React.ThHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
+  React.ThHTMLAttributes<HTMLTableCellElement> & CellAlignProps
+>(({ className, numeric, actions, ...props }, ref) => (
   <th
     ref={ref}
-    className={cn(
-      "h-10 md:h-12 px-3 md:px-4 text-left align-middle font-semibold text-muted-foreground text-[11px] md:text-xs uppercase tracking-wide [&:has([role=checkbox])]:pr-0",
-      className,
-    )}
+    data-numeric={numeric ? "true" : undefined}
+    data-actions={actions ? "true" : undefined}
+    className={cn(className)}
     {...props}
   />
 ));
@@ -85,14 +120,13 @@ TableHead.displayName = "TableHead";
 
 const TableCell = React.forwardRef<
   HTMLTableCellElement,
-  React.TdHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
+  React.TdHTMLAttributes<HTMLTableCellElement> & CellAlignProps
+>(({ className, numeric, actions, ...props }, ref) => (
   <td
     ref={ref}
-    className={cn(
-      "p-3 md:p-4 align-middle text-xs md:text-sm [&:has([role=checkbox])]:pr-0",
-      className,
-    )}
+    data-numeric={numeric ? "true" : undefined}
+    data-actions={actions ? "true" : undefined}
+    className={cn(className)}
     {...props}
   />
 ));
@@ -104,7 +138,7 @@ const TableCaption = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <caption
     ref={ref}
-    className={cn("mt-4 text-sm text-muted-foreground", className)}
+    className={cn("mt-3 text-xs text-muted-foreground", className)}
     {...props}
   />
 ));

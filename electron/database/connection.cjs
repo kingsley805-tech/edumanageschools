@@ -11,6 +11,7 @@ const { config } = require("../utils/config.cjs");
 
 let db = null;
 let mode = "sqlite"; // "sqlite" | "fallback"
+let encryptionApplied = false;
 const memory = {
   tables: new Map(),
 };
@@ -46,13 +47,39 @@ function createFallbackDb() {
 }
 
 function applyEncryptionPragma(database) {
-  if (!config.dbEncryptionKey) return;
-  // SQLCipher-compatible builds honor PRAGMA key; standard better-sqlite3 ignores it safely.
+  if (!config.dbEncryptionKey) {
+    encryptionApplied = false;
+    return;
+  }
+  // IMPORTANT: standard SQLite silently no-ops unrecognized PRAGMA names
+  // instead of throwing, so a "successful" `PRAGMA key = ...` call proves
+  // nothing on a vanilla (non-SQLCipher) better-sqlite3 build — it would
+  // previously log "encryption applied" while doing nothing at all, which is
+  // a false sense of security for a database holding student PII. Only a
+  // SQLCipher-compiled binary recognizes `cipher_version`; use that as the
+  // real signal instead of trusting the `key` pragma's return.
   try {
     const key = crypto.createHash("sha256").update(config.dbEncryptionKey).digest("hex");
     database.pragma(`key = '${key}'`);
-    logger.info("Database encryption key applied");
+    let cipherVersion;
+    try {
+      cipherVersion = database.pragma("cipher_version", { simple: true });
+    } catch {
+      cipherVersion = undefined;
+    }
+    if (cipherVersion) {
+      encryptionApplied = true;
+      logger.info("Database encryption active", { cipherVersion });
+    } else {
+      encryptionApplied = false;
+      logger.error(
+        "ELECTRON_DB_ENCRYPTION_KEY is set but this better-sqlite3 build is not SQLCipher-compiled — " +
+          "the database is NOT encrypted at rest. Rebuild against a SQLCipher-enabled better-sqlite3 to " +
+          "actually protect student data, otherwise treat this database file as unencrypted.",
+      );
+    }
   } catch (err) {
+    encryptionApplied = false;
     logger.warn("Could not apply DB encryption pragma", { message: err.message });
   }
 }
@@ -109,5 +136,6 @@ module.exports = {
   closeConnection,
   getMode,
   isOnlineCapable,
+  isEncrypted: () => encryptionApplied,
   getDatabasePath: () => paths.getDatabasePath(),
 };

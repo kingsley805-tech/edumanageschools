@@ -111,17 +111,31 @@ async function printToPdf(html, fileName = `print-${Date.now()}.pdf`, options = 
   return { path: outPath };
 }
 
-function wrapDocument(title, bodyHtml, { thermal = false } = {}) {
-  const width = thermal ? "80mm" : "100%";
+function wrapDocument(title, bodyHtml, { thermal = false, paperWidthMm = 80 } = {}) {
+  const width = thermal ? `${paperWidthMm}mm` : "100%";
+  const margin = thermal ? "0" : "16px";
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${escapeHtml(title)}</title>
   <style>
-    body{font-family:Segoe UI,Arial,sans-serif;margin:16px;color:#111;width:${width}}
-    h1{font-size:18px;margin:0 0 8px} h2{font-size:14px;margin:12px 0 6px}
-    table{width:100%;border-collapse:collapse;font-size:12px}
-    th,td{border:1px solid #ccc;padding:6px;text-align:left}
-    .muted{color:#666;font-size:11px}
+    body{font-family:Segoe UI,Arial,sans-serif;margin:${margin};color:#111;width:${width}}
+    h1{font-size:${thermal ? "13px" : "18px"};margin:0 0 8px} h2{font-size:${thermal ? "11px" : "14px"};margin:12px 0 6px}
+    table{width:100%;border-collapse:collapse;font-size:${thermal ? "10px" : "12px"}}
+    th,td{border:${thermal ? "none" : "1px solid #ccc"};padding:${thermal ? "2px 0" : "6px"};text-align:left}
+    .muted{color:#666;font-size:${thermal ? "9px" : "11px"}}
     @media print{body{margin:0}}
   </style></head><body>${bodyHtml}</body></html>`;
+}
+
+/**
+ * Electron's print/printToPDF pageSize accepts a named size OR a custom
+ * {width, height} object in microns (1mm = 1000 microns). Thermal roll
+ * printers need a narrow custom width — a named size like "A4" causes
+ * misscaled/cropped output on real 58mm/80mm hardware.
+ */
+function thermalPageSize(paperWidthMm = 80, paperHeightMm = 297) {
+  return {
+    width: Math.round(paperWidthMm * 1000),
+    height: Math.round(paperHeightMm * 1000),
+  };
 }
 
 function escapeHtml(s) {
@@ -138,5 +152,6 @@ module.exports = {
   printHtml,
   printToPdf,
   wrapDocument,
+  thermalPageSize,
   escapeHtml,
 };

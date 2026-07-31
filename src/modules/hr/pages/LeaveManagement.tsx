@@ -266,7 +266,7 @@ export default function LeaveManagementPage() {
                     {format(new Date(r.end_date), "dd MMM yyyy")}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={r.status === "approved" ? "default" : "secondary"}>{r.status}</Badge>
+                    <Badge variant={r.status === "approved" ? "success" : r.status === "rejected" ? "destructive" : "secondary"}>{r.status}</Badge>
                   </TableCell>
                   <TableCell className="text-right">
                     {access.canEdit ? (

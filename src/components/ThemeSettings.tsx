@@ -1,167 +1,140 @@
+import { Check, Monitor, Moon, Sun } from "lucide-react";
 import { useTheme, type Theme } from "@/contexts/ThemeContext";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Palette, Check } from "lucide-react";
-import { useState, useEffect } from "react";
-import { GradientColorPicker } from "./GradientColorPicker";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { PERSONAL_DEFAULT_COLORS } from "@/lib/personalThemeDefaults";
 
-const themes: { id: Theme; name: string; colors: string }[] = [
+const themes: {
+  id: Theme;
+  name: string;
+  description: string;
+  icon: typeof Sun;
+  swatch: string;
+}[] = [
   {
-    id: "default",
-    name: "Default",
-    colors: "bg-gradient-to-br from-black via-neutral-900 to-green-500 border border-border",
-  },
-  {
-    id: "green",
-    name: "Light Green",
-    colors: "bg-gradient-to-br from-green-600 to-emerald-400",
-  },
-  {
-    id: "blue",
-    name: "Ocean Blue",
-    colors: "bg-gradient-to-br from-blue-600 to-sky-400",
-  },
-  {
-    id: "purple",
-    name: "Royal Purple",
-    colors: "bg-gradient-to-br from-purple-600 to-violet-400",
+    id: "light",
+    name: "Light",
+    description: "White surfaces, ink text",
+    icon: Sun,
+    swatch: "bg-white",
   },
   {
     id: "dark",
-    name: "Midnight",
-    colors: "bg-gradient-to-br from-slate-800 to-black",
-  },
-  {
-    id: "custom",
-    name: "Custom",
-    colors: "bg-gradient-to-br from-white via-neutral-700 to-black",
+    name: "Dark",
+    description: "Black surfaces, white text",
+    icon: Moon,
+    swatch: "bg-neutral-950",
   },
 ];
 
 export default function ThemeSettings() {
-  const { theme, setTheme, customColors, setCustomColors, resetPersonalTheme } =
-    useTheme();
-  const [primaryHSL, setPrimaryHSL] = useState(customColors.primary);
-  const [accentHSL, setAccentHSL] = useState(customColors.accent);
-  const [backgroundHSL, setBackgroundHSL] = useState(customColors.background);
-  const [foregroundHSL, setForegroundHSL] = useState(customColors.foreground);
-
-  useEffect(() => {
-    setPrimaryHSL(customColors.primary);
-    setAccentHSL(customColors.accent);
-    setBackgroundHSL(customColors.background);
-    setForegroundHSL(customColors.foreground);
-  }, [customColors]);
-
-  const handleApplyCustomColors = () => {
-    setCustomColors({
-      primary: primaryHSL,
-      accent: accentHSL,
-      background: backgroundHSL,
-      foreground: foregroundHSL,
-    });
-    setTheme("custom");
-    toast.success("Custom theme applied");
-  };
+  const { theme, setTheme, glassmorphism, setGlassmorphism } = useTheme();
 
   return (
     <div className="space-y-4 md:space-y-6">
       <Card>
         <CardHeader className="p-4 md:p-6">
           <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
-            <Palette className="h-4 w-4 md:h-5 md:w-5" />
-            Theme Selection
+            <Monitor className="h-4 w-4 md:h-5 md:w-5" />
+            Appearance
           </CardTitle>
-          <CardDescription className="text-sm md:text-base">
-            Default uses the Auth/Landing color code (black, white, green). Switch
-            themes anytime — the top-bar Theme button resets to default.
+          <CardDescription className="text-sm">
+            Choose how the portal looks. Your choice is saved to this device and
+            applies everywhere in the app.
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-4 md:p-6 pt-0">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
-            {themes.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => {
-                  if (t.id === "default") {
-                    resetPersonalTheme();
-                  } else {
-                    setTheme(t.id);
-                  }
-                }}
-                className={`relative flex flex-col items-center gap-2 md:gap-3 p-3 md:p-4 rounded-lg border-2 transition-all hover:scale-105 ${
-                  theme === t.id
-                    ? "border-primary shadow-lg"
-                    : "border-border hover:border-muted-foreground"
-                }`}
-              >
-                <div className={`w-12 h-12 md:w-16 md:h-16 rounded-full ${t.colors}`} />
-                <span className="font-medium text-sm md:text-base">{t.name}</span>
-                {theme === t.id && (
-                  <div className="absolute top-1.5 right-1.5 md:top-2 md:right-2 bg-primary text-primary-foreground rounded-full p-1">
-                    <Check className="h-2.5 w-2.5 md:h-3 md:w-3" />
-                  </div>
-                )}
-              </button>
-            ))}
+        <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
+          <div
+            role="radiogroup"
+            aria-label="Theme"
+            className="grid gap-3 sm:grid-cols-2 sm:gap-4"
+          >
+            {themes.map((option) => {
+              const Icon = option.icon;
+              const selected = theme === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => {
+                    setTheme(option.id);
+                    toast.success(`${option.name} theme applied`);
+                  }}
+                  className={cn(
+                    "relative flex items-center gap-3 rounded-[var(--radius-card)] border p-4 text-left transition-colors",
+                    selected
+                      ? "border-primary bg-accent"
+                      : "border-border hover:border-muted-foreground/50 hover:bg-accent/60",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-control)] border border-border",
+                      option.swatch,
+                    )}
+                  >
+                    <Icon
+                      className={cn(
+                        "h-5 w-5",
+                        option.id === "dark" ? "text-white" : "text-neutral-900",
+                      )}
+                    />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-foreground">
+                      {option.name}
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      {option.description}
+                    </span>
+                  </span>
+                  {selected ? (
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                      <Check className="h-3 w-3" />
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
 
-      {theme === "custom" && (
-        <Card>
-          <CardHeader className="p-4 md:p-6">
-            <CardTitle className="text-lg md:text-xl">Customize Colors</CardTitle>
-            <CardDescription className="text-sm md:text-base">
-              Use the gradient sliders to create your custom theme
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 md:space-y-6 p-4 md:p-6 pt-0">
-            <div className="grid gap-4 md:gap-6 md:grid-cols-2">
-              <GradientColorPicker
-                label="Primary Color"
-                value={primaryHSL}
-                onChange={setPrimaryHSL}
-              />
-              <GradientColorPicker
-                label="Accent Color"
-                value={accentHSL}
-                onChange={setAccentHSL}
-              />
-              <GradientColorPicker
-                label="Background Color"
-                value={backgroundHSL}
-                onChange={setBackgroundHSL}
-              />
-              <GradientColorPicker
-                label="Foreground Color"
-                value={foregroundHSL}
-                onChange={setForegroundHSL}
-              />
+      <Card>
+        <CardHeader className="p-4 md:p-6">
+          <CardTitle className="text-lg md:text-xl">Display options</CardTitle>
+          <CardDescription className="text-sm">
+            Fine-tune surface treatment across the portal.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
+          <div className="flex items-center justify-between gap-4 rounded-[var(--radius-control)] border border-border p-3">
+            <div className="min-w-0">
+              <Label htmlFor="glassmorphism" className="text-sm font-medium">
+                Translucent panels
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Adds a frosted-glass effect to overlays and cards.
+              </p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button onClick={handleApplyCustomColors} className="flex-1 w-full sm:w-auto">
-                Apply Custom Colors
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setPrimaryHSL(PERSONAL_DEFAULT_COLORS.primary);
-                  setAccentHSL(PERSONAL_DEFAULT_COLORS.accent);
-                  setBackgroundHSL(PERSONAL_DEFAULT_COLORS.background);
-                  setForegroundHSL(PERSONAL_DEFAULT_COLORS.foreground);
-                }}
-                className="w-full sm:w-auto"
-              >
-                Reset colors
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            <Switch
+              id="glassmorphism"
+              checked={glassmorphism}
+              onCheckedChange={setGlassmorphism}
+            />
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

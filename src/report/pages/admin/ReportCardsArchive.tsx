@@ -180,7 +180,7 @@ function ReportArchive() {
                     <TableHead>Status</TableHead>
                     <TableHead>Updated</TableHead>
                     <TableHead>Sent</TableHead>
-                    <TableHead className="text-right">Open</TableHead>
+                    <TableHead actions>Open</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -204,22 +204,24 @@ function ReportArchive() {
                           <Badge variant={statusBadgeVariant(r.status)}>{statusLabel(r.status)}</Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {format(new Date(r.updated_at), "PP")}
+                          {format(new Date(r.updated_at), "MMM d, yyyy")}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {r.status === "published" ? "Sent" : "—"}
                         </TableCell>
-                        <TableCell className="text-right space-x-1">
-                          <Button asChild size="sm" variant="outline">
-                            <Link to={`/admin/report-cards/view?id=${encodeURIComponent(r.id)}`}>
-                              View
-                            </Link>
-                          </Button>
-                          <Button asChild size="sm" variant="ghost">
-                            <Link to={`/admin/report-cards/versions?id=${encodeURIComponent(r.id)}`}>
-                              <Archive className="h-3.5 w-3.5" />
-                            </Link>
-                          </Button>
+                        <TableCell actions>
+                          <div className="inline-flex items-center gap-1">
+                            <Button asChild size="sm" variant="outline">
+                              <Link to={`/admin/report-cards/view?id=${encodeURIComponent(r.id)}`}>
+                                View
+                              </Link>
+                            </Button>
+                            <Button asChild size="sm" variant="ghost">
+                              <Link to={`/admin/report-cards/versions?id=${encodeURIComponent(r.id)}`}>
+                                <Archive className="h-3.5 w-3.5" />
+                              </Link>
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))

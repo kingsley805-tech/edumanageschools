@@ -2,13 +2,9 @@
 import {
   ReactNode,
   useState,
-  useEffect,
   useMemo,
-  useCallback,
-  useRef,
 } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -19,8 +15,7 @@ import {
   Calendar,
   DollarSign,
   LogOut,
-  ArrowLeftToLine,
-  ArrowRightFromLine,
+  ChevronDown,
   Copy,
   Check,
   UserCircle,
@@ -42,13 +37,14 @@ import {
   UserCog,
   PenLine,
   CreditCard,
-  Palette,
+  Moon,
+  Sun,
   Video,
   BrainCircuit,
   Activity,
 } from "lucide-react";
-import { SidebarIconTooltip } from "@/components/SidebarIconTooltip";
 import { NotificationCenter } from "./NotificationCenter";
+import { SyncStatusIndicator } from "./SyncStatusIndicator";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -57,7 +53,16 @@ import { useTeacherAccountGuard } from "@/hooks/useTeacherAccountGuard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { SchoolSwitcher } from "./SchoolSwitcher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { DynamicAdminSidebarNav } from "@/components/layout/DynamicAdminSidebarNav";
+import { PortalTopNav } from "@/components/layout/PortalTopNav";
+import { PortalMobileNav } from "@/components/layout/PortalMobileNav";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   ensurePaymentGatewaysInNav,
   ensureClassTeacherActivityInNav,
@@ -69,39 +74,20 @@ import { ParentAdmissionNav } from "@/components/parent/ParentAdmissionNav";
 import { PortalLiveFeedTicker } from "@/components/PortalLiveFeedTicker";
 import SubscriptionExpiryBanner from "@/subscription/components/SubscriptionExpiryBanner";
 import { useOrganizationSubscription } from "@/subscription/hooks/useOrganizationSubscription";
-import { PortalSidebarSearch } from "@/components/PortalSidebarSearch";
 import { useTheme } from "@/contexts/ThemeContext";
-import {
-  PORTAL_ROLE_META,
-  portalNavLinkActive,
-  portalNavLinkBase,
-  portalNavSubLinkBase,
-} from "@/lib/portalNavStyles";
-import { MINGO } from "@/lib/designTokens";
+import { PORTAL_ROLE_META } from "@/lib/portalNavStyles";
 import type { AdminNavGroup, AdminNavItem } from "@/lib/rbac/adminNavConfig";
 import { AiFloatingButton } from "@/ai-assistant/components/AiFloatingButton";
 
-const SIDEBAR_WIDTH_KEY = "portal-sidebar-width";
-const SIDEBAR_OPEN_KEY = "portal-sidebar-open";
-const SIDEBAR_MIN = 220;
-const SIDEBAR_MAX = 400;
-const SIDEBAR_DEFAULT = 252;
-const SIDEBAR_COLLAPSED = 56;
-
-function readSidebarOpen(): boolean {
-  if (typeof window === "undefined") return true;
-  const saved = localStorage.getItem(SIDEBAR_OPEN_KEY);
-  if (saved !== null) return saved === "true";
-  return window.innerWidth >= 1024;
-}
-
-function readSidebarWidth(): number {
-  if (typeof window === "undefined") return SIDEBAR_DEFAULT;
-  const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
-  const n = saved ? parseInt(saved, 10) : SIDEBAR_DEFAULT;
-  if (!Number.isFinite(n)) return SIDEBAR_DEFAULT;
-  return Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, n));
-}
+const PORTAL_LABELS: Record<string, string> = {
+  admin: "School Admin portal",
+  super_admin: "School Admin portal",
+  teacher: "Teacher portal",
+  parent: "Parent portal",
+  student: "Student portal",
+  accountant: "Finance portal",
+  auditor: "Auditor portal",
+};
 
 type MenuLinkDef = {
   icon: typeof LayoutDashboard;
@@ -190,15 +176,9 @@ const DashboardLayout = ({
   role: roleProp,
   hideSidebar = false,
 }: DashboardLayoutProps) => {
-  const { signOut } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(readSidebarOpen);
-  const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
+  const { signOut, user } = useAuth();
   const [navQuery, setNavQuery] = useState("");
   const [schoolCodeCopied, setSchoolCodeCopied] = useState(false);
-  const sidebarResizeRef = useRef<{
-    startX: number;
-    startWidth: number;
-  } | null>(null);
   const unreadMessages = useUnreadMessages();
   const { currentSchool } = useSchoolInfo();
   const { role: userRole } = useUserRole();
@@ -208,7 +188,7 @@ const DashboardLayout = ({
   const role = (roleProp ?? userRole ?? undefined) as PortalRole | undefined;
   const { navItems: dynamicNavItems } = usePortalAccess();
   const { access: subscriptionAccess } = useOrganizationSubscription();
-  const { resetPersonalTheme } = useTheme();
+  const { toggleTheme, isDark } = useTheme();
   useTeacherAccountGuard();
   const usesDynamicAdminNav = (ADMIN_SHELL_ROLES as readonly string[]).includes(
     role,
@@ -227,57 +207,6 @@ const DashboardLayout = ({
         return canShow(item.permission) ? item : null;
       })
       .filter(Boolean) as MenuItemDef[];
-
-  const toggleSidebar = useCallback(() => {
-    setSidebarOpen((open) => {
-      const next = !open;
-      localStorage.setItem(SIDEBAR_OPEN_KEY, String(next));
-      return next;
-    });
-  }, []);
-
-  const handleResizeStart = useCallback(
-    (event: React.MouseEvent) => {
-      event.preventDefault();
-      sidebarResizeRef.current = {
-        startX: event.clientX,
-        startWidth: sidebarWidth,
-      };
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
-    },
-    [sidebarWidth],
-  );
-
-  useEffect(() => {
-    const onMove = (event: MouseEvent) => {
-      if (!sidebarResizeRef.current) return;
-      const delta = event.clientX - sidebarResizeRef.current.startX;
-      const next = Math.min(
-        SIDEBAR_MAX,
-        Math.max(SIDEBAR_MIN, sidebarResizeRef.current.startWidth + delta),
-      );
-      setSidebarWidth(next);
-    };
-
-    const onUp = () => {
-      if (!sidebarResizeRef.current) return;
-      sidebarResizeRef.current = null;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      setSidebarWidth((width) => {
-        localStorage.setItem(SIDEBAR_WIDTH_KEY, String(width));
-        return width;
-      });
-    };
-
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, []);
 
   const roleConfig = {
     admin: {
@@ -938,8 +867,8 @@ const DashboardLayout = ({
 
   const roleMeta = PORTAL_ROLE_META[role] ?? PORTAL_ROLE_META.admin;
 
-  /** All roles use the admin sidebar format (sections + collapsible groups) */
-  const sidebarNavItems = useMemo(() => {
+  /** All roles share one nav shape (standalone links + grouped links) */
+  const portalNavItems = useMemo(() => {
     if (usesDynamicAdminNav) {
       return ensureClassTeacherActivityInNav(
         ensurePaymentGatewaysInNav(dynamicNavItems),
@@ -951,14 +880,16 @@ const DashboardLayout = ({
     return menuItemsToAdminNav(staticItems);
   }, [usesDynamicAdminNav, dynamicNavItems, config?.menuItems]);
 
-  const filteredSidebarNav = useMemo(
-    () => filterDynamicNav(sidebarNavItems, navQuery),
-    [sidebarNavItems, navQuery],
+  const filteredNavItems = useMemo(
+    () => filterDynamicNav(portalNavItems, navQuery),
+    [portalNavItems, navQuery],
   );
 
   const handleLogout = async () => {
     await signOut();
   };
+
+  const accountEmail = user?.email ?? "";
 
   const handleCopySchoolCode = async () => {
     const code = currentSchool?.school_code?.trim();
@@ -973,10 +904,6 @@ const DashboardLayout = ({
     }
   };
 
-  /** Sidebar nav — shared portal design tokens */
-  const navLinkBase = portalNavLinkBase;
-  const navLinkActive = portalNavLinkActive;
-  const navSubLinkBase = portalNavSubLinkBase;
 
   // Guard against invalid or missing role
   if (!role || (usesDynamicAdminNav ? false : !config)) {
@@ -987,260 +914,236 @@ const DashboardLayout = ({
     );
   }
 
+  const portalLabel = PORTAL_LABELS[role] ?? "School portal";
+  const schoolInitial = (currentSchool?.school_name ?? "E")
+    .substring(0, 1)
+    .toUpperCase();
+
   return (
     <div
       className={cn(
-        "relative flex h-screen max-h-screen w-full overflow-hidden bg-background",
+        "relative flex h-screen max-h-screen w-full flex-col overflow-hidden bg-background",
         roleMeta.accentClass,
       )}
       data-portal-layout
+      data-portal-nav="top"
       data-portal-role={role}
-      data-sidebar-collapsed={sidebarOpen ? undefined : "true"}
-      style={{ "--portal-sidebar-width": `${sidebarOpen ? sidebarWidth : SIDEBAR_COLLAPSED}px` }}
     >
-      {/* Sidebar — expanded labels, or icon rail when collapsed */}
-      {!hideSidebar && (
-        <div
-          className="relative h-full max-h-screen shrink-0 transition-[width] duration-300 ease-out"
-          style={{ width: sidebarOpen ? sidebarWidth : SIDEBAR_COLLAPSED }}
-        >
-          <aside
-            className="flex h-full max-h-screen w-full flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground"
-            style={{ width: sidebarOpen ? sidebarWidth : SIDEBAR_COLLAPSED }}
-            aria-label={sidebarOpen ? "Main navigation" : "Icon navigation"}
+      {/* ── Single bar: brand · navigation · search · account ───────────── */}
+      <header className="portal-topbar z-40 flex h-[56px] shrink-0 items-center gap-3 border-b border-border bg-background pl-3 pr-3 md:pl-4 md:pr-5">
+        {!hideSidebar ? (
+          <PortalMobileNav
+            items={filteredNavItems}
+            unreadMessages={unreadMessages}
+            schoolName={currentSchool?.school_name}
+            schoolLogoUrl={currentSchool?.logo_url}
+            portalLabel={portalLabel}
+            navQuery={navQuery}
+            onNavQueryChange={setNavQuery}
+            onSignOut={handleLogout}
+          />
+        ) : null}
+
+        {/* Primary navigation — desktop only, fills the middle of the bar */}
+        {!hideSidebar ? (
+          <>
+            <span className="portal-topbar-divider hidden lg:block" aria-hidden />
+            <PortalTopNav
+              items={filteredNavItems}
+              unreadMessages={unreadMessages}
+              className="hidden lg:block"
+            />
+          </>
+        ) : (
+          <div className="flex-1" />
+        )}
+
+        {/* Account controls */}
+        <div className="topbar-right ml-auto flex shrink-0 items-center gap-1.5 md:gap-2">
+          {!hideSidebar ? (
+            <>
+              {role === "parent" ? (
+                <div className="hidden md:block">
+                  <ParentAdmissionNav variant="header" />
+                </div>
+              ) : null}
+              {isSuperAdmin ? (
+                <div className="hidden lg:block">
+                  <SchoolSwitcher />
+                </div>
+              ) : null}
+            </>
+          ) : null}
+
+          <SyncStatusIndicator />
+          <NotificationCenter />
+
+          <button
+            type="button"
+            className="portal-icon-button"
+            onClick={toggleTheme}
+            aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+            title={isDark ? "Switch to light theme" : "Switch to dark theme"}
           >
-            <div
-              className="flex h-full min-h-0 flex-col"
-              style={{ width: sidebarOpen ? sidebarWidth : SIDEBAR_COLLAPSED }}
-            >
-            {/* Brand + role */}
-            <div className="portal-sidebar-brand flex flex-col gap-3 border-b border-sidebar-border px-5 py-[22px]">
-              <div className="flex items-center gap-2.5">
-                {currentSchool?.logo_url ? (
-                  <Avatar className="h-7 w-7 shrink-0 rounded-none border border-sidebar-border">
-                    <AvatarImage
+            {isDark ? (
+              <Sun className="h-[18px] w-[18px]" />
+            ) : (
+              <Moon className="h-[18px] w-[18px]" />
+            )}
+          </button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="portal-account-trigger"
+                aria-label={`${currentSchool?.school_name ?? roleMeta.label} account menu`}
+              >
+                <span className="portal-account-avatar">
+                  {currentSchool?.logo_url ? (
+                    <img
                       src={currentSchool.logo_url}
-                      alt={currentSchool.school_name}
+                      alt=""
+                      className="h-full w-full object-cover"
                     />
-                    <AvatarFallback className="rounded-none bg-white text-sidebar-background text-[13px] font-display font-bold">
-                      {currentSchool.school_name.substring(0, 1).toUpperCase()}
+                  ) : (
+                    schoolInitial
+                  )}
+                </span>
+                <ChevronDown
+                  aria-hidden
+                  className="h-3.5 w-3.5 shrink-0 opacity-60"
+                />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-72 border-border"
+            >
+              <DropdownMenuLabel className="p-0 font-normal">
+                <div className="flex items-center gap-3 px-3 py-3">
+                  <Avatar className="h-10 w-10 shrink-0 rounded-md border border-border">
+                    <AvatarImage
+                      src={currentSchool?.logo_url ?? undefined}
+                      alt={currentSchool?.school_name ?? "School"}
+                    />
+                    <AvatarFallback className="rounded-md bg-foreground font-display text-sm font-bold text-background">
+                      {schoolInitial}
                     </AvatarFallback>
                   </Avatar>
-                ) : (
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center bg-white text-sidebar-background font-display text-[13px] font-bold">
-                    {(currentSchool?.school_name ?? "E").substring(0, 1).toUpperCase()}
+                  <div className="min-w-0 flex-1 leading-tight">
+                    <p className="truncate font-display text-[13px] font-semibold text-foreground">
+                      {currentSchool?.school_name ?? config?.title ?? "mingo"}
+                    </p>
+                    <p className="truncate text-[11px] text-muted-foreground">
+                      {roleMeta.label}
+                    </p>
+                    {accountEmail ? (
+                      <p className="truncate text-[11px] text-muted-foreground/80">
+                        {accountEmail}
+                      </p>
+                    ) : null}
                   </div>
-                )}
-                <div className="portal-sidebar-brand-text min-w-0 flex-1 leading-tight">
-                  <p className="truncate font-display text-sm font-semibold text-white">
-                    {currentSchool?.school_name ?? "mingo"}
-                  </p>
-                  <p className="text-[11px] text-sidebar-foreground/50">
-                    {role === "admin" || role === "super_admin"
-                      ? "School Admin portal"
-                      : role === "teacher"
-                        ? "Teacher portal"
-                        : role === "parent"
-                          ? "Parent portal"
-                          : role === "student"
-                            ? "Student portal"
-                            : role === "accountant"
-                              ? "Finance portal"
-                              : role === "auditor"
-                                ? "Auditor portal"
-                                : "School portal"}
-                  </p>
                 </div>
-              </div>
-            </div>
+              </DropdownMenuLabel>
 
-            {sidebarOpen ? (
-              <PortalSidebarSearch value={navQuery} onChange={setNavQuery} />
-            ) : null}
-
-            {/* Menu Items — admin format for every portal role */}
-            <nav className="flex-1 space-y-0 overflow-y-auto overflow-x-hidden pb-2 pt-1 custom-scrollbar">
-              <DynamicAdminSidebarNav
-                items={filteredSidebarNav}
-                unreadMessages={unreadMessages}
-                navLinkBase={navLinkBase}
-                navLinkActive={navLinkActive}
-                navSubLinkBase={navSubLinkBase}
-                collapsed={!sidebarOpen}
-                emptyMessage={
-                  navQuery.trim()
-                    ? "No menu items match your search."
-                    : "No modules assigned. Contact your administrator."
-                }
-              />
-            </nav>
-
-            {/* Sidebar footer — mingo sticky foot */}
-            <div className="portal-sidebar-foot sticky bottom-0 mt-auto space-y-1 border-t border-sidebar-border bg-sidebar px-5 py-3.5">
-              {role === "parent" && sidebarOpen ? (
-                <ParentAdmissionNav variant="sidebar" />
-              ) : null}
-              <SidebarIconTooltip label="Sign out" collapsed={!sidebarOpen}>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="portal-sign-out flex w-full items-center gap-2.5 text-[13px] transition-opacity hover:opacity-90"
-                  style={{ color: MINGO.signOut }}
-                >
-                  <LogOut className="h-4 w-4 shrink-0" />
-                  <span className="portal-nav-label">Sign out</span>
-                </button>
-              </SidebarIconTooltip>
-            </div>
-            </div>
-          </aside>
-
-          {/* Drag handle to resize sidebar (expanded only) */}
-          {sidebarOpen ? (
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Resize sidebar"
-              title="Drag to resize sidebar"
-              onMouseDown={handleResizeStart}
-              className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize bg-transparent transition-colors hover:bg-sidebar-border active:bg-sidebar-border/80"
-            />
-          ) : null}
-        </div>
-      )}
-
-      {/* Edge toggle — sits on the sidebar/content seam */}
-      {!hideSidebar ? (
-        <button
-          type="button"
-          className="portal-sidebar-toggle"
-          style={{
-            left: sidebarOpen ? sidebarWidth : SIDEBAR_COLLAPSED,
-          }}
-          onClick={toggleSidebar}
-          aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-          title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-        >
-          {sidebarOpen ? (
-            <ArrowLeftToLine aria-hidden strokeWidth={1.75} />
-          ) : (
-            <ArrowRightFromLine aria-hidden strokeWidth={1.75} />
-          )}
-        </button>
-      ) : null}
-
-      {/* Main content — only this column scrolls vertically */}
-      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
-        {/* Top Bar */}
-        <header
-          className={`z-30 flex h-[60px] shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-3 md:px-7 ${hideSidebar ? "" : ""}`}
-        >
-          <div className="topbar-left flex min-w-0 flex-1 items-center gap-3.5">
-            {!hideSidebar && (
-              <>
-                {role === "parent" && <ParentAdmissionNav variant="header" />}
-                {currentSchool?.school_code &&
-                  role !== "student" &&
-                  role !== "parent" && (
-                    <div className="flex h-8 items-center gap-1.5 border border-border px-3 text-xs text-muted-foreground">
-                      <span className="hidden sm:inline">Code</span>
-                      <span className="font-mono font-semibold text-foreground">
+              {currentSchool?.school_code &&
+              role !== "student" &&
+              role !== "parent" ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-[13px] focus:bg-muted"
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      handleCopySchoolCode();
+                    }}
+                  >
+                    <Building className="mr-2 h-4 w-4 shrink-0" />
+                    <span className="text-muted-foreground">School code</span>
+                    <span className="ml-auto flex items-center gap-1.5">
+                      <span className="font-mono text-[12.5px] font-semibold text-foreground">
                         {currentSchool.school_code}
                       </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 shrink-0 rounded-none hover:bg-muted"
-                        onClick={handleCopySchoolCode}
-                        aria-label="Copy school code"
-                        title="Copy school code"
-                      >
-                        {schoolCodeCopied ? (
-                          <Check className="h-3.5 w-3.5 text-foreground" />
-                        ) : (
-                          <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                        )}
-                      </Button>
-                    </div>
-                  )}
-                {isSuperAdmin ? (
-                  <SchoolSwitcher />
-                ) : currentSchool ? (
-                  <div className="hidden min-w-0 flex-col sm:flex">
-                    <div className="truncate font-display text-sm font-semibold text-foreground">
-                      {currentSchool.school_name}
-                    </div>
-                    <div className="truncate text-[11px] text-[hsl(var(--ink-faint))]">
-                      {roleMeta.label}
-                    </div>
-                  </div>
+                      {schoolCodeCopied ? (
+                        <Check className="h-3.5 w-3.5 text-foreground" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                      )}
+                    </span>
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild className="text-[13px]">
+                <Link to="/settings">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Account settings
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="text-[13px]">
+                <Link to="/messages">
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  Messages
+                  {unreadMessages > 0 ? (
+                    <span className="ml-auto text-[11px] font-semibold text-destructive">
+                      {unreadMessages > 9 ? "9+" : unreadMessages}
+                    </span>
+                  ) : null}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-[13px]"
+                onSelect={(event) => {
+                  event.preventDefault();
+                  toggleTheme();
+                }}
+              >
+                {isDark ? (
+                  <Sun className="mr-2 h-4 w-4" />
                 ) : (
-                  <div className="min-w-0">
-                    <div className="font-display text-sm font-semibold">
-                      {config.title}
-                    </div>
-                    <div className="text-[11px] text-[hsl(var(--ink-faint))]">
-                      {roleMeta.label}
-                    </div>
-                  </div>
+                  <Moon className="mr-2 h-4 w-4" />
                 )}
-              </>
-            )}
-          </div>
+                {isDark ? "Light theme" : "Dark theme"}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-[13px] text-destructive focus:text-destructive"
+                onSelect={handleLogout}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
 
-          <div className="topbar-right ml-auto flex shrink-0 items-center gap-3 md:gap-4">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 gap-1.5 rounded-none border-border bg-background px-3.5 text-[12.5px] font-medium"
-              onClick={() => {
-                resetPersonalTheme();
-                toast.success("Default Auth/Landing theme applied");
-              }}
-              title="Reset to default Auth/Landing theme"
-            >
-              <Palette className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Theme</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleLogout}
-              className="h-8 w-8 rounded-none border border-border text-muted-foreground hover:bg-muted"
-              title="Sign out"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
-            <NotificationCenter />
-          </div>
-        </header>
+      {!hideSidebar ? <PortalLiveFeedTicker /> : null}
 
-        {!hideSidebar ? <PortalLiveFeedTicker /> : null}
-
-        {/* Page Content */}
-        <main
+      {/* ── Page content — the only vertically scrolling region ─────────── */}
+      <main
+        className={cn(
+          "portal-main-scroll relative z-10 min-h-0 flex-1 overflow-x-hidden bg-background",
+          hideSidebar
+            ? "overflow-hidden p-0"
+            : "overflow-y-auto px-4 pb-10 pt-6 md:px-7 md:pt-[26px]",
+        )}
+      >
+        {role === "admin" && subscriptionAccess?.can_use_platform ? (
+          <SubscriptionExpiryBanner access={subscriptionAccess} />
+        ) : null}
+        <div
           className={cn(
-            "portal-main-scroll relative z-10 min-h-0 flex-1 overflow-x-hidden bg-background",
-            hideSidebar
-              ? "overflow-hidden p-0"
-              : "overflow-y-auto px-7 pb-10 pt-[26px]",
+            "mx-auto w-full min-w-0",
+            hideSidebar ? "h-full max-w-none" : "max-w-none",
           )}
         >
-          {role === "admin" && subscriptionAccess?.can_use_platform ? (
-            <SubscriptionExpiryBanner access={subscriptionAccess} />
-          ) : null}
-          <div
-            className={cn(
-              "mx-auto w-full min-w-0",
-              hideSidebar ? "h-full max-w-none" : "max-w-none",
-            )}
-          >
-            {children}
-          </div>
-          {!hideSidebar ? <AiFloatingButton /> : null}
-        </main>
-      </div>
+          {children}
+        </div>
+        {!hideSidebar ? <AiFloatingButton /> : null}
+      </main>
     </div>
   );
 };

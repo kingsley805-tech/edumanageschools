@@ -1,6 +1,9 @@
 /**
  * USB plug-and-play monitoring.
- * Uses optional `usb` package when installed; otherwise polls drive letters / logs stubs.
+ * `usb` is a regular dependency (see package.json) and must be rebuilt against
+ * Electron's ABI via `npm run electron:rebuild`. The require() is still
+ * guarded so a missing/failed native rebuild degrades to a stub list instead
+ * of crashing the whole app at startup.
  */
 const { BrowserWindow } = require("electron");
 const logger = require("../utils/logger.cjs");

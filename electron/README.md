@@ -65,5 +65,11 @@ Web builds are unchanged; the desktop shell only activates when `window.electron
 ## Notes
 
 - Offline SQLite stores core entities and a sync queue; changes sync when `ELECTRON_SYNC_API_URL` is reachable.
-- USB/`serialport` are optional; install `usb` / `serialport` for live device APIs.
+- `usb` and `serialport` are regular dependencies (used for barcode/USB device enumeration and serial cash-drawer/printer control). Run `npm run electron:rebuild` after install so their native bindings match Electron's ABI.
 - Vendor fingerprint SDKs plug into `electron/hardware/fingerprint.cjs`.
+
+## Packaging (`electron-builder.json`)
+
+- `files` explicitly lists `node_modules/**/*`. electron-builder does **not** fall back to its default file set once you supply a custom `files` array — omitting `node_modules` here means production dependencies (`better-sqlite3`, `electron-updater`, `serialport`, `usb`) silently don't ship in the packaged app, and every module falls back to its degraded/stub mode (in-memory DB, no updater, no hardware) with no visible error. Keep `node_modules/**/*` in this list.
+- `asarUnpack` unpacks native `.node` binaries (`better-sqlite3`, `serialport`, `usb`, and their transitive native deps) — code cannot execute a native addon from inside the `asar` archive, it must be unpacked.
+- `publish` must point at wherever you actually host update artifacts (`latest.yml` / `latest-mac.yml` / `latest-linux.yml` + installers). The `https://updates.example.com/...` value here is a placeholder so `electron-builder` still generates those update metadata files during `electron:build` — replace it with your real host (or your CI's `--publish` flag) before shipping. `ELECTRON_UPDATE_FEED_URL` overrides the feed URL at runtime via `autoUpdater.setFeedURL()`, but that only matters if the metadata files exist at that URL in the first place.

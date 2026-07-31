@@ -66,7 +66,7 @@ function statusBadge(s: InventoryAsset["asset_status"]) {
     retired: "Retired",
     lost: "Lost",
   };
-  return <Badge variant={s === "active" ? "default" : "secondary"}>{labels[s]}</Badge>;
+  return <Badge variant={s === "active" ? "success" : "secondary"}>{labels[s]}</Badge>;
 }
 
 export function InventoryAssetsPanel({

@@ -1,31 +1,32 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useState,
-  ReactNode,
-  useCallback,
+  type ReactNode,
 } from "react";
-import { applyBrandTheme, clearBrandTheme, BRAND_DEFAULTS } from "@/lib/themeColors";
-import {
-  PERSONAL_DEFAULT_COLORS,
-  clearPersonalThemeInlineVars,
-} from "@/lib/personalThemeDefaults";
+import { clearBrandTheme } from "@/lib/themeColors";
+import { clearPersonalThemeInlineVars } from "@/lib/personalThemeDefaults";
 
-export type Theme = "default" | "dark" | "blue" | "purple" | "green" | "custom";
+/**
+ * Two themes: light and dark.
+ *
+ * The former palette themes (blue / purple / green / custom) were retired in
+ * favour of a single high-contrast pair. `normalizeStoredTheme` migrates any
+ * value already sitting in localStorage so existing sessions don't break.
+ */
+export type Theme = "light" | "dark";
 
-interface CustomThemeColors {
-  primary: string;
-  accent: string;
-  background: string;
-  foreground: string;
-}
+const STORAGE_KEY = "theme";
+const THEME_CLASSES = ["dark", "blue", "purple", "green", "custom"] as const;
 
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
-  customColors: CustomThemeColors;
-  setCustomColors: (colors: CustomThemeColors) => void;
+  toggleTheme: () => void;
+  isDark: boolean;
+  /** Reverts to the light default and clears any legacy personal colours. */
   resetPersonalTheme: () => void;
   glassmorphism: boolean;
   setGlassmorphism: (enabled: boolean) => void;
@@ -33,183 +34,121 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const THEME_IDS: Theme[] = ["default", "dark", "blue", "purple", "green", "custom"];
-
+/** Legacy values map onto light so nobody is stranded on a retired palette. */
 function normalizeStoredTheme(raw: string | null): Theme {
-  if (raw && THEME_IDS.includes(raw as Theme)) return raw as Theme;
-  return "default";
+  if (raw === "dark") return "dark";
+  if (raw === "light") return "light";
+  if (raw === null) {
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-color-scheme: dark)").matches
+    ) {
+      return "dark";
+    }
+  }
+  return "light";
 }
 
-function contrastForPrimary(hsl: string): string {
-  const parts = hsl.trim().split(/\s+/);
-  const l = parseInt(parts[2], 10);
-  if (Number.isFinite(l) && l > 55) return "0 0% 4%";
-  return "0 0% 100%";
+function readInitialTheme(): Theme {
+  if (typeof window === "undefined") return "light";
+  return normalizeStoredTheme(localStorage.getItem(STORAGE_KEY));
 }
 
-/** Keep black sidebar chrome across personal color themes */
-function applyDarkSidebar(root: HTMLElement) {
-  root.style.setProperty("--sidebar-background", "0 0% 4%");
-  root.style.setProperty("--sidebar-foreground", "240 5% 90%");
-  root.style.setProperty("--sidebar-primary", "0 0% 100%");
-  root.style.setProperty("--sidebar-primary-foreground", "0 0% 4%");
-  root.style.setProperty("--sidebar-accent", "240 5% 12%");
-  root.style.setProperty("--sidebar-accent-foreground", "0 0% 100%");
-  root.style.setProperty("--sidebar-border", "240 4% 16%");
-  root.style.setProperty("--sidebar-ring", "0 0% 100%");
+/**
+ * Legacy inline pins that forced an ink sidebar regardless of theme.
+ * Cleared on mount so the `--sidebar-*` tokens in index.css can do their
+ * job — the drawer now follows light/dark like everything else.
+ */
+const LEGACY_SIDEBAR_VARS = [
+  "--sidebar-background",
+  "--sidebar-foreground",
+  "--sidebar-primary",
+  "--sidebar-primary-foreground",
+  "--sidebar-accent",
+  "--sidebar-accent-foreground",
+  "--sidebar-border",
+  "--sidebar-ring",
+] as const;
+
+function clearSidebarPins(root: HTMLElement) {
+  LEGACY_SIDEBAR_VARS.forEach((name) => root.style.removeProperty(name));
 }
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window !== "undefined") {
-      return normalizeStoredTheme(localStorage.getItem("theme"));
-    }
-    return "default";
-  });
-
-  const [customColors, setCustomColorsState] = useState<CustomThemeColors>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("customThemeColors");
-      return saved ? JSON.parse(saved) : { ...PERSONAL_DEFAULT_COLORS };
-    }
-    return { ...PERSONAL_DEFAULT_COLORS };
-  });
+  const [theme, setThemeState] = useState<Theme>(readInitialTheme);
 
   const [glassmorphism, setGlassmorphismState] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("glassmorphism");
+    if (typeof window === "undefined") return false;
+    const saved = localStorage.getItem("glassmorphism");
+    try {
       return saved ? JSON.parse(saved) : false;
+    } catch {
+      return false;
     }
-    return false;
   });
-
-  const resetPersonalTheme = useCallback(() => {
-    setCustomColorsState({ ...PERSONAL_DEFAULT_COLORS });
-    localStorage.setItem(
-      "customThemeColors",
-      JSON.stringify(PERSONAL_DEFAULT_COLORS),
-    );
-    setThemeState("default");
-    localStorage.setItem("theme", "default");
-    localStorage.removeItem("preferPlatformTheme");
-
-    const root = document.documentElement;
-    root.classList.remove("dark", "blue", "purple", "green", "custom");
-    clearPersonalThemeInlineVars(root);
-    clearBrandTheme();
-    applyBrandTheme(BRAND_DEFAULTS);
-  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.remove("dark", "blue", "purple", "green", "custom");
+
+    root.classList.remove(...THEME_CLASSES);
     clearPersonalThemeInlineVars(root);
-
-    if (theme === "default") {
-      localStorage.setItem("theme", "default");
-      clearBrandTheme();
-      applyBrandTheme(BRAND_DEFAULTS);
-      return;
-    }
-
-    // Personal theme owns vars — clear brand inline so class / custom styles apply
     clearBrandTheme();
-    localStorage.setItem("theme", theme);
 
     if (theme === "dark") {
       root.classList.add("dark");
-      return;
     }
+    /* Nothing is pinned inline — the `.dark` class and the token blocks in
+       index.css own every colour, which is what lets the sidebar, charts and
+       popovers all flip together. */
+    root.style.colorScheme = theme;
+    clearSidebarPins(root);
 
-    if (theme === "custom") {
-      root.classList.add("custom");
-      root.style.setProperty("--primary", customColors.primary);
-      root.style.setProperty("--accent", customColors.accent);
-      root.style.setProperty("--background", customColors.background);
-      root.style.setProperty("--foreground", customColors.foreground);
-      root.style.setProperty(
-        "--primary-foreground",
-        contrastForPrimary(customColors.primary),
-      );
-      root.style.setProperty("--accent-foreground", "0 0% 9%");
-      root.style.setProperty("--card", customColors.background);
-      root.style.setProperty("--card-foreground", customColors.foreground);
-      root.style.setProperty("--ring", customColors.primary);
-      root.style.setProperty("--line-strong", customColors.primary);
-      applyDarkSidebar(root);
-
-      const bgParts = customColors.background.split(/\s+/);
-      const bgL = parseInt(bgParts[2], 10) || 50;
-      if (bgL < 50) {
-        root.style.setProperty(
-          "--secondary",
-          `${bgParts[0]} ${bgParts[1]} ${Math.min(bgL + 5, 20)}%`,
-        );
-        root.style.setProperty(
-          "--muted",
-          `${bgParts[0]} ${bgParts[1]} ${Math.min(bgL + 5, 20)}%`,
-        );
-        root.style.setProperty(
-          "--border",
-          `${bgParts[0]} ${bgParts[1]} ${Math.min(bgL + 8, 25)}%`,
-        );
-        root.style.setProperty(
-          "--surface",
-          `${bgParts[0]} ${bgParts[1]} ${Math.min(bgL + 5, 20)}%`,
-        );
-      } else {
-        root.style.setProperty(
-          "--secondary",
-          `${bgParts[0]} ${bgParts[1]} ${Math.max(bgL - 2, 96)}%`,
-        );
-        root.style.setProperty(
-          "--muted",
-          `${bgParts[0]} ${bgParts[1]} ${Math.max(bgL - 2, 96)}%`,
-        );
-        root.style.setProperty(
-          "--border",
-          `${bgParts[0]} ${bgParts[1]} ${Math.max(bgL - 18, 82)}%`,
-        );
-        root.style.setProperty(
-          "--surface",
-          `${bgParts[0]} ${bgParts[1]} ${Math.max(bgL - 2, 96)}%`,
-        );
-      }
-      return;
-    }
-
-    // blue | purple | green — CSS class themes; force black sidebar after class paints
-    root.classList.add(theme);
-    // Re-assert dark sidebar so colorful themes don't lighten the nav
-    applyDarkSidebar(root);
-  }, [theme, customColors]);
-
-  const setTheme = (newTheme: Theme) => {
+    localStorage.setItem(STORAGE_KEY, theme);
     localStorage.removeItem("preferPlatformTheme");
-    setThemeState(newTheme);
-  };
+  }, [theme]);
 
-  const setCustomColors = (colors: CustomThemeColors) => {
-    setCustomColorsState(colors);
-    localStorage.setItem("customThemeColors", JSON.stringify(colors));
-  };
+  /* Enable colour transitions only after the first paint, so loading the app
+     already on dark doesn't animate from light. */
+  useEffect(() => {
+    const root = document.documentElement;
+    const frame = requestAnimationFrame(() => root.classList.add("theme-ready"));
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
-  const setGlassmorphism = (enabled: boolean) => {
+  /* Follow the OS only while the user hasn't made an explicit choice. */
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    if (localStorage.getItem(STORAGE_KEY)) return;
+
+    const query = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (event: MediaQueryListEvent) => {
+      setThemeState(event.matches ? "dark" : "light");
+    };
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+
+  const setTheme = useCallback((next: Theme) => {
+    setThemeState(next);
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    setThemeState((current) => (current === "dark" ? "light" : "dark"));
+  }, []);
+
+  const resetPersonalTheme = useCallback(() => {
+    localStorage.removeItem("customThemeColors");
+    localStorage.removeItem("preferPlatformTheme");
+    setThemeState("light");
+  }, []);
+
+  const setGlassmorphism = useCallback((enabled: boolean) => {
     setGlassmorphismState(enabled);
     localStorage.setItem("glassmorphism", JSON.stringify(enabled));
-    if (enabled) {
-      document.body.classList.add("glassmorphism-enabled");
-    } else {
-      document.body.classList.remove("glassmorphism-enabled");
-    }
-  };
+  }, []);
 
   useEffect(() => {
-    if (glassmorphism) {
-      document.body.classList.add("glassmorphism-enabled");
-    } else {
-      document.body.classList.remove("glassmorphism-enabled");
-    }
+    document.body.classList.toggle("glassmorphism-enabled", glassmorphism);
   }, [glassmorphism]);
 
   return (
@@ -217,8 +156,8 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
       value={{
         theme,
         setTheme,
-        customColors,
-        setCustomColors,
+        toggleTheme,
+        isDark: theme === "dark",
         resetPersonalTheme,
         glassmorphism,
         setGlassmorphism,

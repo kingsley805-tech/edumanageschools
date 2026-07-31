@@ -62,7 +62,7 @@ export function StudentTransportSection({ studentId }: Props) {
       </div>
       <div>
         <Label className="text-xs text-muted-foreground">Transport status</Label>
-        <Badge variant={info.status === "active" ? "default" : "secondary"} className="mt-0.5 capitalize">
+        <Badge variant={info.status === "active" ? "success" : "secondary"} className="mt-0.5 capitalize">
           {info.status ?? "inactive"}
         </Badge>
       </div>

@@ -103,6 +103,7 @@ const api = {
     serialWrite: (portPath, data) => invoke("hardware:serialWrite", portPath, data),
     serialClose: (portPath) => invoke("hardware:serialClose", portPath),
     onUsb: (cb) => on("hardware:usb", cb),
+    cashDrawerOpen: (portPath, opts) => invoke("hardware:cashDrawerOpen", portPath, opts),
   },
 
   backup: {
@@ -111,6 +112,9 @@ const api = {
     list: () => invoke("backup:list"),
     syncNow: (opts) => invoke("backup:syncNow", opts),
     syncStatus: () => invoke("backup:syncStatus"),
+    syncFailedItems: (limit) => invoke("backup:syncFailedItems", limit),
+    syncPendingItems: (limit) => invoke("backup:syncPendingItems", limit),
+    syncLogs: (limit) => invoke("backup:syncLogs", limit),
   },
 
   updater: {

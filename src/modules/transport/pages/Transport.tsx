@@ -976,7 +976,7 @@ function ReportsTab({
                         <TableCell>{r.stop_name}</TableCell>
                         <TableCell>{formatMoney(r.fare_amount, "GHS")}</TableCell>
                         <TableCell>
-                          <Badge variant={r.status === "active" ? "default" : "secondary"}>{r.status}</Badge>
+                          <Badge variant={r.status === "active" ? "success" : "secondary"}>{r.status}</Badge>
                         </TableCell>
                       </TableRow>
                     ))

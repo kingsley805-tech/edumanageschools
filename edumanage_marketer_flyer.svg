@@ -1,0 +1,80 @@
+<svg viewBox="0 0 1080 1350" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&amp;display=swap');
+      text { font-family: 'Montserrat', Arial, sans-serif; }
+    </style>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f2340"/>
+      <stop offset="100%" stop-color="#1e4d8c"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffb703"/>
+      <stop offset="100%" stop-color="#fb8500"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1080" height="1350" fill="url(#bg)"/>
+
+  <!-- decorative circles -->
+  <circle cx="960" cy="110" r="220" fill="#ffffff" opacity="0.05"/>
+  <circle cx="50" cy="1260" r="260" fill="#ffffff" opacity="0.05"/>
+  <circle cx="1010" cy="1290" r="120" fill="#ffb703" opacity="0.10"/>
+
+  <!-- top accent bar -->
+  <rect x="0" y="0" width="1080" height="14" fill="url(#accent)"/>
+
+  <!-- Company name -->
+  <text x="540" y="120" font-size="34" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="4">EDUMANAGE SYSTEMS</text>
+  <rect x="465" y="140" width="150" height="3" fill="#ffb703"/>
+
+  <!-- Headline -->
+  <text x="540" y="255" font-size="84" font-weight="800" fill="#ffffff" text-anchor="middle">WE'RE HIRING</text>
+
+  <!-- Role -->
+  <text x="540" y="345" font-size="52" font-weight="800" fill="#ffb703" text-anchor="middle" letter-spacing="1">MARKETERS</text>
+  <text x="540" y="392" font-size="27" font-weight="500" fill="#d7e3f7" text-anchor="middle" letter-spacing="1">CONTRACT-BASED POSITION</text>
+
+  <!-- Limited slots badge -->
+  <rect x="355" y="430" width="370" height="58" rx="29" fill="#ffffff" opacity="0.12"/>
+  <text x="540" y="468" font-size="24" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="1">LIMITED SLOTS AVAILABLE</text>
+
+  <!-- Requirements card -->
+  <rect x="90" y="545" width="900" height="470" rx="20" fill="#ffffff" opacity="0.07"/>
+  <text x="540" y="608" font-size="30" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="1">WHAT WE'RE LOOKING FOR</text>
+  <rect x="465" y="625" width="150" height="3" fill="#ffb703"/>
+
+  <g font-size="24" font-weight="400" fill="#e6eefc">
+    <circle cx="150" cy="675" r="5" fill="#ffb703"/>
+    <text x="175" y="683">Strong communication and interpersonal skills</text>
+
+    <circle cx="150" cy="725" r="5" fill="#ffb703"/>
+    <text x="175" y="733">Prior sales or marketing experience is an advantage</text>
+
+    <circle cx="150" cy="775" r="5" fill="#ffb703"/>
+    <text x="175" y="783">Comfortable using social media to promote services</text>
+
+    <circle cx="150" cy="825" r="5" fill="#ffb703"/>
+    <text x="175" y="833">Target-driven, self-motivated, and reliable</text>
+
+    <circle cx="150" cy="875" r="5" fill="#ffb703"/>
+    <text x="175" y="883">Able to work independently with minimal supervision</text>
+
+    <circle cx="150" cy="925" r="5" fill="#ffb703"/>
+    <text x="175" y="933">Good understanding of the local community is a plus</text>
+  </g>
+
+  <text x="540" y="985" font-size="20" font-weight="500" fill="#ffb703" text-anchor="middle" font-style="italic">Open to qualified candidates only — apply early!</text>
+
+  <!-- Contact section -->
+  <rect x="0" y="1090" width="1080" height="260" fill="#0a1a30"/>
+  <rect x="0" y="1090" width="1080" height="6" fill="url(#accent)"/>
+
+  <text x="540" y="1150" font-size="28" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="2">HOW TO APPLY</text>
+
+  <text x="540" y="1202" font-size="26" font-weight="600" fill="#ffb703" text-anchor="middle">edumanagesystems@gmail.com</text>
+
+  <text x="540" y="1252" font-size="26" font-weight="600" fill="#ffffff" text-anchor="middle">0503 688 781    |    0503 230 804</text>
+
+  <text x="540" y="1305" font-size="17" font-weight="400" fill="#9fb3d1" text-anchor="middle">Send your CV or contact us directly to apply</text>
+</svg>

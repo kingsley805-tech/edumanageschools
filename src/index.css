@@ -24,21 +24,47 @@ All colors MUST be HSL.
         --card-foreground: 0 0% 4%;
         --popover: 0 0% 100%;
         --popover-foreground: 0 0% 4%;
-        --primary: 142 71% 45%;
+        --primary: 164 86% 16%;
         --primary-foreground: 0 0% 100%;
-        --primary-glow: 142 69% 58%;
+        --primary-glow: 163 94% 24%;
         --secondary: 0 0% 98%;
         --secondary-foreground: 0 0% 4%;
         --muted: 0 0% 98%;
         --muted-foreground: 240 5% 34%;
-        --accent: 138 76% 97%;
+        --accent: 152 76% 92%;
         --accent-foreground: 0 0% 4%;
         --destructive: 0 72% 42%;
         --destructive-foreground: 0 0% 100%;
         --border: 240 5% 90%;
-        --input: 240 5% 90%;
-        --ring: 142 71% 45%;
-        --radius: 0.125rem;
+        --input: 240 5% 58%;
+        --ring: 164 86% 16%;
+
+        /* ── Radius scale ──────────────────────────────────────────────
+           control = buttons, inputs, selects, badges-with-corners
+           card    = cards, panels, modals, dropdown menus, table shells
+           chip    = pills, avatars, status dots                        */
+        --radius: 0.5rem;
+        --radius-control: 0.5rem;
+        --radius-card: 0.75rem;
+        --radius-chip: 9999px;
+        --radius-badge: 6px;
+
+        /* ── Type scale ────────────────────────────────────────────────
+           Enterprise density: tight leading on data, roomy on prose    */
+        --text-display: 1.5rem;
+        --text-h1: 1.25rem;
+        --text-h2: 1.0625rem;
+        --text-h3: 0.9375rem;
+        --text-body: 0.875rem;
+        --text-table: 0.8125rem;
+        --text-label: 0.75rem;
+        --text-caption: 0.6875rem;
+        --leading-tight: 1.3;
+        --leading-body: 1.55;
+        --tracking-label: 0.04em;
+
+        /* ── Theme transition ──────────────────────────────────────── */
+        --theme-transition: 220ms cubic-bezier(0.4, 0, 0.2, 1);
 
         --success: 142 72% 24%;
         --success-foreground: 0 0% 100%;
@@ -51,14 +77,45 @@ All colors MUST be HSL.
         --critical-bg: 0 86% 97%;
         --warn: 32 95% 31%;
         --warn-bg: 48 96% 89%;
-        --positive: 142 72% 24%;
-        --positive-bg: 138 76% 97%;
+        --positive: 164 86% 16%;
+        --positive-bg: 152 76% 92%;
         --info-bg: 214 100% 97%;
+        --info-text: 221 83% 48%;
+
+        /* ── Table + dim chrome ────────────────────────────────────────
+           `icon-dim` is for decorative inline icons and ghost action
+           buttons; it still clears 3:1 so the action icons stay
+           identifiable as controls.                                    */
+        --table-head-bg: 210 20% 98%;
+        --table-head-fg: 220 13% 26%;
+        --table-row-hover: 210 20% 98%;
+        --cell-muted: 215 16% 42%;
+        --icon-dim: 215 16% 52%;
+        --icon-dim-hover: 220 13% 26%;
+        /* Enterprise table typography (reference list rows) */
+        --table-cell-weight: 400;
+        --table-cell-weight-strong: 600;
+        --table-head-weight: 500;
+
+        /* Status badge palette — exact values, not derived from the
+           semantic tokens, so the pill renders identically everywhere. */
+        --badge-success-bg: #def7ec;
+        --badge-success-fg: #065f46;
+        --badge-success-border: #b7ebd5;
+        --badge-danger-bg: #fee2e2;
+        --badge-danger-fg: #b91c1c;
+        --badge-danger-border: #fecaca;
+        --badge-warning-bg: #fef3c7;
+        --badge-warning-fg: #b45309;
+        --badge-info-bg: #dbeafe;
+        --badge-info-fg: #1d4ed8;
+        --badge-neutral-bg: #f3f4f6;
+        --badge-neutral-fg: #374151;
         --ink-soft: 240 5% 34%;
         --ink-faint: 240 4% 65%;
         --line-strong: 240 6% 10%;
-        --brand: 142 71% 45%;
-        --brand-hover: 142 69% 58%;
+        --brand: 164 86% 16%;
+        --brand-hover: 163 94% 24%;
         --surface: 0 0% 98%;
 
         --gradient-hero: linear-gradient(
@@ -72,28 +129,28 @@ All colors MUST be HSL.
         --shadow-lg: 0 8px 16px -4px rgb(0 0 0 / 0.08);
         --shadow-xl: 0 12px 24px -6px rgb(0 0 0 / 0.1);
         --shadow-2xl: 0 20px 40px -12px rgb(0 0 0 / 0.12);
-        --shadow-glow: 0 0 24px -6px hsl(142 71% 45% / 0.25);
+        --shadow-glow: 0 0 24px -6px hsl(164 86% 16% / 0.25);
         --shadow-inner: inset 0 1px 2px 0 rgb(0 0 0 / 0.04);
         --transition-smooth: all 0.12s ease;
 
-        /* Dark sidebar on light shell */
-        --sidebar-background: 0 0% 4%;
-        --sidebar-foreground: 240 5% 90%;
-        --sidebar-primary: 142 71% 45%;
+        /* Sidebar — light shell, high-contrast ink text */
+        --sidebar-background: 0 0% 100%;
+        --sidebar-foreground: 240 6% 10%;
+        --sidebar-primary: 164 86% 16%;
         --sidebar-primary-foreground: 0 0% 100%;
-        --sidebar-accent: 240 5% 12%;
-        --sidebar-accent-foreground: 0 0% 100%;
-        --sidebar-border: 240 4% 16%;
-        --sidebar-ring: 142 71% 45%;
-        --chart-1: 142 71% 45%;
-        --chart-2: 142 69% 58%;
+        --sidebar-accent: 0 0% 96%;
+        --sidebar-accent-foreground: 240 6% 10%;
+        --sidebar-border: 240 5% 90%;
+        --sidebar-ring: 164 86% 16%;
+        --chart-1: 164 86% 16%;
+        --chart-2: 163 94% 24%;
         --chart-3: 240 4% 65%;
         --chart-4: 240 5% 90%;
         --chart-5: 0 0% 98%;
 
         /* Match Auth/Landing green accent */
-        --portal-accent: 142 71% 45%;
-        --portal-accent-soft: 142 71% 45% / 0.15;
+        --portal-accent: 164 86% 16%;
+        --portal-accent-soft: 164 86% 16% / 0.15;
     }
     .dark {
         /* mingo inverted — still uses the same token palette, no custom accents */
@@ -110,14 +167,14 @@ All colors MUST be HSL.
         --secondary-foreground: 0 0% 98%;
         --muted: 240 5% 12%;
         --muted-foreground: 240 4% 65%;
-        --accent: 240 5% 12%;
+        --accent: 240 5% 16%;
         --accent-foreground: 0 0% 98%;
         --destructive: 0 72% 42%;
         --destructive-foreground: 0 0% 100%;
         --border: 240 4% 16%;
-        --input: 240 4% 16%;
+        --input: 240 4% 43%;
         --ring: 0 0% 100%;
-        --radius: 0.125rem;
+        --radius: 0.5rem;
 
         --success: 142 72% 29%;
         --success-foreground: 0 0% 100%;
@@ -126,13 +183,37 @@ All colors MUST be HSL.
         --info: 221 83% 53%;
         --info-foreground: 0 0% 100%;
 
-        --critical: 0 72% 42%;
+        /* Status foregrounds are lifted in dark mode so each still clears
+           4.5:1 against its own tinted background (they did not before). */
+        --critical: 0 85% 70%;
         --critical-bg: 0 50% 12%;
-        --warn: 32 95% 44%;
+        --warn: 40 95% 62%;
         --warn-bg: 40 50% 12%;
-        --positive: 142 72% 29%;
+        --positive: 142 60% 62%;
         --positive-bg: 142 40% 10%;
         --info-bg: 221 50% 14%;
+        --info-text: 217 90% 68%;
+
+        --table-head-bg: 240 5% 10%;
+        --table-head-fg: 215 16% 72%;
+        --table-row-hover: 240 5% 14%;
+        --cell-muted: 215 16% 70%;
+        --icon-dim: 215 14% 58%;
+        --icon-dim-hover: 0 0% 98%;
+
+        /* Status chips stay light in dark mode (readable in tables) */
+        --badge-success-bg: #def7ec;
+        --badge-success-fg: #065f46;
+        --badge-success-border: #b7ebd5;
+        --badge-danger-bg: #fee2e2;
+        --badge-danger-fg: #b91c1c;
+        --badge-danger-border: #fecaca;
+        --badge-warning-bg: #fef3c7;
+        --badge-warning-fg: #b45309;
+        --badge-info-bg: #dbeafe;
+        --badge-info-fg: #1d4ed8;
+        --badge-neutral-bg: #f3f4f6;
+        --badge-neutral-fg: #374151;
         --ink-soft: 240 4% 65%;
         --ink-faint: 240 4% 46%;
         --line-strong: 0 0% 100%;
@@ -345,19 +426,93 @@ All colors MUST be HSL.
         scroll-behavior: smooth;
     }
     body {
-        @apply bg-background text-foreground font-sans text-sm;
+        @apply bg-background text-foreground font-sans;
+        font-size: var(--text-body);
+        line-height: var(--leading-body);
+        font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum" 0;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         text-rendering: optimizeLegibility;
     }
 
+    /* ── Type scale ─────────────────────────────────────────────────
+       One family (Inter) throughout; hierarchy comes from size and
+       weight, not from switching typefaces.                          */
     h1,
     h2,
     h3,
     h4,
     h5,
     h6 {
-        @apply font-display tracking-tight;
+        @apply font-sans;
+        color: hsl(var(--foreground));
+        line-height: var(--leading-tight);
+        letter-spacing: -0.011em;
+        font-weight: 600;
+    }
+
+    h1 {
+        font-size: var(--text-h1);
+        letter-spacing: -0.018em;
+    }
+    h2 {
+        font-size: var(--text-h2);
+        letter-spacing: -0.014em;
+    }
+    h3 {
+        font-size: var(--text-h3);
+    }
+    h4,
+    h5,
+    h6 {
+        font-size: var(--text-body);
+    }
+
+    label {
+        font-size: var(--text-label);
+        font-weight: 500;
+        line-height: 1.4;
+    }
+
+    input,
+    select,
+    textarea,
+    button {
+        font-family: inherit;
+        font-size: var(--text-body);
+    }
+
+    /* Tabular figures wherever numbers are compared vertically */
+    table,
+    [data-numeric],
+    .font-mono {
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Theme transition ───────────────────────────────────────────
+       Colour-only, so layout and text never animate.                 */
+    html.theme-ready body,
+    html.theme-ready [data-portal-layout],
+    html.theme-ready [data-card],
+    html.theme-ready header,
+    html.theme-ready aside,
+    html.theme-ready main,
+    html.theme-ready table,
+    html.theme-ready th,
+    html.theme-ready td,
+    html.theme-ready input,
+    html.theme-ready select,
+    html.theme-ready textarea,
+    html.theme-ready button,
+    html.theme-ready [role="dialog"],
+    html.theme-ready [role="menu"],
+    html.theme-ready [data-radix-popper-content-wrapper] > * {
+        transition:
+            background-color var(--theme-transition),
+            border-color var(--theme-transition),
+            color var(--theme-transition),
+            fill var(--theme-transition),
+            box-shadow var(--theme-transition);
     }
 
     ::selection {
@@ -400,6 +555,11 @@ All colors MUST be HSL.
         background-image: none !important;
     }
 
+    /* Top-nav shell stacks header → nav bar → content */
+    [data-portal-layout][data-portal-nav="top"] {
+        flex-direction: column;
+    }
+
     [data-portal-layout] main,
     [data-portal-layout] > div > div {
         background-image: none !important;
@@ -411,10 +571,89 @@ All colors MUST be HSL.
         display: none !important;
     }
 
-    /* Match Auth/Landing green accent across roles */
+    /* ── Monochrome portal theme ──────────────────────────────────────
+       The portal shell is black-and-white regardless of which colour
+       theme is selected (blue / purple / green / custom). Values are
+       written out rather than inherited so a tinted theme class on
+       <html> can't leak into the portal. */
+    [data-portal-layout],
     [data-portal-layout][class*="portal-accent-"] {
-        --portal-accent: 142 71% 45%;
-        --portal-accent-soft: 142 71% 45% / 0.15;
+        --background: 0 0% 100%;
+        --foreground: 0 0% 4%;
+        --card: 0 0% 100%;
+        --card-foreground: 0 0% 4%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 0 0% 4%;
+        --muted: 0 0% 98%;
+        --muted-foreground: 240 5% 34%;
+        --secondary: 0 0% 98%;
+        --secondary-foreground: 0 0% 4%;
+        --accent: 0 0% 96%;
+        --accent-foreground: 0 0% 4%;
+        --border: 240 5% 90%;
+        --input: 240 5% 58%;
+        --surface: 0 0% 98%;
+        --table-head-bg: 210 20% 98%;
+        --table-head-fg: 220 13% 26%;
+        --table-row-hover: 210 20% 98%;
+        --cell-muted: 215 16% 42%;
+        --icon-dim: 215 16% 52%;
+        --icon-dim-hover: 220 13% 26%;
+        --ink: 0 0% 4%;
+        --ink-soft: 240 5% 34%;
+        --ink-faint: 240 4% 65%;
+        --line: 240 5% 90%;
+        --line-strong: 240 6% 10%;
+
+        --primary: 240 6% 10%;
+        --primary-foreground: 0 0% 100%;
+        --primary-glow: 240 5% 34%;
+        --brand: 240 6% 10%;
+        --brand-hover: 240 5% 34%;
+        --ring: 240 6% 10%;
+        --portal-accent: 240 6% 10%;
+        --portal-accent-soft: 240 6% 10% / 0.1;
+        --shadow-glow: none;
+
+    }
+
+    .dark [data-portal-layout],
+    .dark [data-portal-layout][class*="portal-accent-"] {
+        --background: 0 0% 4%;
+        --foreground: 0 0% 98%;
+        --card: 240 5% 12%;
+        --card-foreground: 0 0% 98%;
+        --popover: 240 5% 12%;
+        --popover-foreground: 0 0% 98%;
+        --muted: 240 5% 12%;
+        --muted-foreground: 240 4% 65%;
+        --secondary: 240 5% 12%;
+        --secondary-foreground: 0 0% 98%;
+        --accent: 240 5% 14%;
+        --accent-foreground: 0 0% 98%;
+        --border: 240 4% 16%;
+        --input: 240 4% 43%;
+        --surface: 240 5% 12%;
+        --table-head-bg: 240 5% 10%;
+        --table-head-fg: 215 16% 72%;
+        --table-row-hover: 240 5% 14%;
+        --cell-muted: 215 16% 70%;
+        --icon-dim: 215 14% 58%;
+        --icon-dim-hover: 0 0% 98%;
+        --ink: 0 0% 98%;
+        --ink-soft: 240 4% 65%;
+        --ink-faint: 240 4% 46%;
+        --line: 240 4% 16%;
+        --line-strong: 0 0% 100%;
+
+        --primary: 0 0% 100%;
+        --primary-foreground: 0 0% 4%;
+        --primary-glow: 240 4% 65%;
+        --brand: 0 0% 100%;
+        --brand-hover: 240 4% 65%;
+        --ring: 0 0% 100%;
+        --portal-accent: 0 0% 100%;
+        --portal-accent-soft: 0 0% 100% / 0.14;
     }
 }
 
@@ -435,158 +674,286 @@ All colors MUST be HSL.
         color: hsl(var(--brand-hover, var(--primary)));
     }
 
+    /* Drawer rows stay full-bleed and square */
     [data-portal-layout] .portal-nav-link,
-    [data-portal-layout] .portal-nav-sublink {
-        border-left: 2px solid transparent;
+    [data-portal-layout] .portal-nav-sublink,
+    [data-portal-layout] .portal-nav-group {
+        border-left: 3px solid transparent;
         border-radius: 0;
+        margin-right: 0;
+        color: hsl(var(--sidebar-foreground));
         transition:
             background-color 0.12s ease,
             color 0.12s ease,
             border-color 0.12s ease;
     }
 
+    [data-portal-layout] .portal-nav-link svg,
+    [data-portal-layout] .portal-nav-sublink svg,
+    [data-portal-layout] .portal-nav-group svg {
+        color: hsl(var(--sidebar-foreground) / 0.72);
+    }
+
     [data-portal-layout] .portal-nav-link-active,
     [data-portal-layout] .portal-nav-sublink.portal-nav-link-active {
-        background-color: hsl(var(--sidebar-accent));
-        color: #fff;
-        font-weight: 500;
-        border-left-color: hsl(var(--portal-accent));
+        background-color: var(--badge-success-bg);
+        color: var(--badge-success-fg);
+        font-weight: 600;
+        border-left-color: var(--badge-success-fg);
         box-shadow: none;
+    }
+
+    [data-portal-layout] .portal-nav-link-active svg,
+    [data-portal-layout] .portal-nav-sublink.portal-nav-link-active svg {
+        color: currentColor;
+        opacity: 1;
     }
 
     [data-portal-layout] .portal-role-badge {
         background: transparent;
-        color: #d4d4d8;
-        border: 1px solid #3f3f46;
-        border-radius: 0;
+        color: hsl(var(--sidebar-foreground));
+        border: 1px solid hsl(var(--sidebar-border));
+        border-radius: var(--radius-chip);
         letter-spacing: 0.07em;
         font-size: 10px;
         font-weight: 600;
         text-transform: uppercase;
     }
 
-    /* Sidebar edge collapse control — straddles black/white boundary */
-    [data-portal-layout] .portal-sidebar-toggle {
-        position: absolute;
-        top: 16px;
-        z-index: 50;
+    /* ── Desktop top navigation ─────────────────────────────────────── */
+
+    /* Vertical rule separating the brand from the nav */
+    [data-portal-layout] .portal-topbar-divider {
+        width: 1px;
+        height: 26px;
+        flex-shrink: 0;
+        background: hsl(var(--border));
+    }
+
+    [data-portal-layout] .portal-topnav-trigger {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        height: 55px;
+        padding: 0 12px;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        border-radius: var(--radius-control) var(--radius-control) 0 0;
+        background: transparent;
+        color: hsl(var(--ink-soft, var(--muted-foreground)));
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1;
+        white-space: nowrap;
+        cursor: pointer;
+        transition:
+            color 0.12s ease,
+            background-color 0.12s ease,
+            border-color 0.12s ease;
+    }
+
+    [data-portal-layout] .portal-topnav-trigger:hover {
+        color: hsl(var(--foreground));
+        background: hsl(var(--surface, var(--muted)));
+    }
+
+    [data-portal-layout] .portal-topnav-trigger:focus-visible {
+        outline: 2px solid hsl(var(--ring));
+        outline-offset: -2px;
+    }
+
+    [data-portal-layout] .portal-topnav-trigger-icon {
+        opacity: 0.65;
+    }
+
+    [data-portal-layout] .portal-topnav-trigger-open,
+    [data-portal-layout] .portal-topnav-trigger-active {
+        color: hsl(var(--foreground));
+        background: hsl(var(--surface, var(--muted)));
+    }
+
+    [data-portal-layout] .portal-topnav-trigger-active {
+        font-weight: 600;
+        border-bottom-color: hsl(var(--portal-accent));
+    }
+
+    [data-portal-layout] .portal-topnav-trigger-active
+        .portal-topnav-trigger-icon {
+        opacity: 1;
+        color: hsl(var(--portal-accent));
+    }
+
+    /* Dropdown / mega-menu panel */
+    [data-portal-layout] .portal-topnav-panel {
+        border: 1px solid hsl(var(--border));
+        border-radius: var(--radius-card);
+        background: hsl(var(--background));
+        box-shadow:
+            0 10px 24px rgb(0 0 0 / 0.1),
+            0 2px 6px rgb(0 0 0 / 0.05);
+        animation: portal-topnav-in 0.13s ease-out;
+    }
+
+    @keyframes portal-topnav-in {
+        from {
+            opacity: 0;
+            transform: translateY(-4px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    [data-portal-layout] .portal-topnav-panel-heading {
+        padding: 6px 10px 4px;
+        color: hsl(var(--ink-faint, var(--muted-foreground)));
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    [data-portal-layout] .portal-topnav-panel-link {
         display: flex;
         align-items: center;
+        gap: 10px;
+        padding: 8px 10px;
+        border-left: 2px solid transparent;
+        border-radius: var(--radius-control);
+        color: hsl(var(--ink-soft, var(--muted-foreground)));
+        font-size: 13px;
+        line-height: 1.25;
+        transition:
+            background-color 0.1s ease,
+            color 0.1s ease,
+            border-color 0.1s ease;
+    }
+
+    [data-portal-layout] .portal-topnav-panel-link:hover {
+        background: hsl(var(--surface, var(--muted)));
+        color: hsl(var(--foreground));
+    }
+
+    [data-portal-layout] .portal-topnav-panel-icon {
+        opacity: 0.6;
+    }
+
+    [data-portal-layout] .portal-topnav-panel-link-active {
+        background: hsl(var(--surface, var(--muted)));
+        color: hsl(var(--foreground));
+        font-weight: 600;
+        border-left-color: hsl(var(--portal-accent));
+    }
+
+    [data-portal-layout] .portal-topnav-panel-link-active
+        .portal-topnav-panel-icon {
+        opacity: 1;
+        color: hsl(var(--portal-accent));
+    }
+
+    /* Header icon buttons — settings, theme, menu */
+    [data-portal-layout] .portal-icon-button {
+        display: inline-flex;
+        align-items: center;
         justify-content: center;
-        width: 28px;
-        height: 28px;
-        transform: translateX(-50%);
-        border-radius: 6px;
-        border: 1px solid #e4e4e7;
-        background: #fff;
-        color: #a1a1aa;
-        box-shadow: 0 1px 3px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.04);
-        cursor: pointer;
-        padding: 0;
-        transition: left 0.3s ease-out, color 0.12s ease, box-shadow 0.12s ease;
+        height: 34px;
+        width: 34px;
+        flex-shrink: 0;
+        border: 1px solid hsl(var(--border));
+        border-radius: var(--radius-control);
+        background: hsl(var(--background));
+        color: hsl(var(--muted-foreground));
+        transition:
+            color 0.12s ease,
+            background-color 0.12s ease,
+            border-color 0.12s ease;
     }
-    [data-portal-layout] .portal-sidebar-toggle:hover {
-        color: #52525b;
-        box-shadow: 0 2px 6px rgb(0 0 0 / 0.1);
+
+    [data-portal-layout] .portal-icon-button:hover {
+        background: hsl(var(--surface, var(--muted)));
+        color: hsl(var(--foreground));
+        border-color: hsl(var(--foreground) / 0.35);
     }
-    [data-portal-layout] .portal-sidebar-toggle:focus-visible {
+
+    [data-portal-layout] .portal-icon-button:focus-visible {
         outline: 2px solid hsl(var(--ring));
         outline-offset: 2px;
     }
-    [data-portal-layout] .portal-sidebar-toggle svg {
-        width: 14px;
-        height: 14px;
+
+    /* Account chip */
+    [data-portal-layout] .portal-account-trigger {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 34px;
+        padding: 0 7px 0 4px;
+        flex-shrink: 0;
+        border: 1px solid hsl(var(--border));
+        border-radius: var(--radius-control);
+        background: hsl(var(--background));
+        color: hsl(var(--muted-foreground));
+        transition:
+            background-color 0.12s ease,
+            border-color 0.12s ease;
     }
 
-    /* Collapsed icon rail — keep icons, hide labels */
-    [data-portal-layout][data-sidebar-collapsed="true"] .portal-sidebar-brand {
+    [data-portal-layout] .portal-account-trigger:hover {
+        background: hsl(var(--surface, var(--muted)));
+        border-color: hsl(var(--foreground) / 0.35);
+    }
+
+    [data-portal-layout] .portal-account-trigger:focus-visible {
+        outline: 2px solid hsl(var(--ring));
+        outline-offset: 2px;
+    }
+
+    [data-portal-layout] .portal-account-avatar {
+        display: inline-flex;
         align-items: center;
-        padding: 16px 0 12px;
-        gap: 0;
-    }
-    [data-portal-layout][data-sidebar-collapsed="true"] .portal-sidebar-brand > div {
         justify-content: center;
-    }
-    [data-portal-layout][data-sidebar-collapsed="true"] .portal-sidebar-brand-text,
-    [data-portal-layout][data-sidebar-collapsed="true"] .portal-role-badge,
-    [data-portal-layout][data-sidebar-collapsed="true"] .portal-nav-label,
-    [data-portal-layout][data-sidebar-collapsed="true"] .portal-nav-chevron,
-    [data-portal-layout][data-sidebar-collapsed="true"] .portal-nav-badge,
-    [data-portal-layout][data-sidebar-collapsed="true"] .portal-nav-group-label {
-        display: none !important;
-    }
-    [data-portal-layout][data-sidebar-collapsed="true"] .portal-nav-link,
-    [data-portal-layout][data-sidebar-collapsed="true"] .portal-nav-sublink,
-    [data-portal-layout][data-sidebar-collapsed="true"] .portal-nav-group {
-        justify-content: center;
-        gap: 0;
-        padding-left: 0;
-        padding-right: 0;
-        width: 100%;
-    }
-    [data-portal-layout][data-sidebar-collapsed="true"] .portal-nav-sublink {
-        padding-left: 0;
-        padding-right: 0;
-    }
-    [data-portal-layout][data-sidebar-collapsed="true"] .portal-sidebar-foot {
-        padding-left: 0;
-        padding-right: 0;
-        display: flex;
-        justify-content: center;
-    }
-    [data-portal-layout][data-sidebar-collapsed="true"] .portal-sign-out {
-        justify-content: center;
-        gap: 0;
-        width: auto;
-        padding: 8px;
+        height: 26px;
+        width: 26px;
+        overflow: hidden;
+        border-radius: calc(var(--radius-control) - 2px);
+        background: hsl(var(--foreground));
+        color: hsl(var(--background));
+        font-size: 11.5px;
+        font-weight: 700;
     }
 
     [data-portal-layout] .portal-sidebar-brand {
         background: hsl(var(--sidebar-background));
     }
 
-    /* Portal surfaces: sharp mingo panels (no soft card chrome) */
+    /* Portal surfaces — rounded enterprise panels */
     [data-portal-layout] [data-card],
     [data-portal-layout] .portal-panel {
-        border-radius: 0 !important;
+        border-radius: var(--radius-card) !important;
         border: 1px solid hsl(var(--border)) !important;
-        background: hsl(var(--background)) !important;
-        box-shadow: none !important;
+        background: hsl(var(--card)) !important;
+        box-shadow: var(--shadow-sm) !important;
     }
 
     [data-portal-layout] [data-card]:hover {
-        box-shadow: none !important;
-    }
-
-    /* Keep report cards / avatars / dots round where needed */
-    [data-portal-layout] [data-report-card-root] .rounded-full,
-    [data-portal-layout] [data-report-card-root] [class*="rounded"] {
-        border-radius: revert-layer;
-    }
-
-    [data-portal-layout] button:not([class*="rounded-full"]),
-    [data-portal-layout] .rounded-md,
-    [data-portal-layout] .rounded-lg,
-    [data-portal-layout] .rounded-xl {
-        border-radius: 0;
-    }
-
-    [data-portal-layout] .rounded-full {
-        border-radius: 9999px;
+        box-shadow: var(--shadow-md) !important;
     }
 
     [data-portal-layout] .portal-kpi-row {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         border: 1px solid hsl(var(--border));
+        border-radius: var(--radius-card);
+        overflow: hidden;
         margin-bottom: 22px;
-        background: hsl(var(--background));
+        background: hsl(var(--card));
+        box-shadow: var(--shadow-sm);
     }
 
     [data-portal-layout] .portal-kpi {
         border-right: 1px solid hsl(var(--border));
         padding: 16px;
-        background: hsl(var(--background));
+        background: hsl(var(--card));
     }
 
     [data-portal-layout] .portal-kpi:nth-child(4n) {
@@ -649,6 +1016,16 @@ All colors MUST be HSL.
         align-items: stretch;
         overflow: hidden;
         min-width: 0;
+        border-bottom-color: hsl(var(--border));
+    }
+
+    [data-portal-layout] .portal-ticker-label {
+        background: hsl(var(--foreground));
+        color: hsl(var(--background));
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
     }
 
     /* Track must be content-width (not flex-shrunk) or translateX(-50%) barely moves */
@@ -690,13 +1067,41 @@ All colors MUST be HSL.
     [data-portal-layout] .portal-tick-tag.tag-alt { background: #3b1616; color: #fca5a5; }
     [data-portal-layout] .portal-tick-tag.tag-sys { background: #27272a; color: #e4e4e7; }
 
-    [data-portal-layout] .portal-nav-group-label {
+    /* Section identity marks — Overview / Operations / System */
+    [data-portal-layout] .portal-nav-group-label,
+    .portal-nav-drawer .portal-nav-group-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 18px 20px 8px;
+        margin: 4px 0 2px;
+    }
+
+    [data-portal-layout] .portal-nav-group-label:first-child,
+    .portal-nav-drawer .portal-nav-group-label:first-child {
+        margin-top: 0;
+        padding-top: 12px;
+    }
+
+    [data-portal-layout] .portal-nav-group-mark,
+    .portal-nav-drawer .portal-nav-group-mark {
+        display: block;
+        width: 3px;
+        height: 12px;
+        flex-shrink: 0;
+        border-radius: 1px;
+        background: hsl(var(--brand, var(--primary)));
+    }
+
+    [data-portal-layout] .portal-nav-group-title,
+    .portal-nav-drawer .portal-nav-group-title {
+        font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
         font-size: 10px;
-        letter-spacing: 0.08em;
+        font-weight: 700;
+        letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: #52525b;
-        padding: 16px 20px 7px;
-        font-weight: 600;
+        line-height: 1;
+        color: hsl(var(--sidebar-foreground));
     }
 
     [data-portal-layout] .mingo-content {
@@ -737,7 +1142,7 @@ All colors MUST be HSL.
         gap: 6px;
         background: hsl(var(--background));
         color: hsl(var(--foreground));
-        border-radius: 0;
+        border-radius: var(--radius-control);
     }
     [data-portal-layout] .mingo-btn-primary {
         background: hsl(var(--primary));
@@ -996,7 +1401,7 @@ All colors MUST be HSL.
     }
     [data-portal-layout] .mingo-a-tag.att { background: hsl(var(--positive-bg)); color: hsl(var(--positive)); }
     [data-portal-layout] .mingo-a-tag.fee { background: hsl(var(--warn-bg)); color: hsl(var(--warn)); }
-    [data-portal-layout] .mingo-a-tag.exm { background: hsl(var(--info-bg)); color: hsl(var(--info)); }
+    [data-portal-layout] .mingo-a-tag.exm { background: hsl(var(--info-bg)); color: hsl(var(--info-text, var(--info))); }
     [data-portal-layout] .mingo-a-tag.hr { background: #f4f4f5; color: hsl(var(--ink-soft)); }
     [data-portal-layout] .mingo-activity-row .a-desc {
         flex: 1;
@@ -1082,7 +1487,7 @@ All colors MUST be HSL.
         letter-spacing: 0.06em;
         text-transform: uppercase;
         color: hsl(var(--ink-faint));
-        font-weight: 600;
+        font-weight: var(--table-head-weight);
         padding: 11px 18px;
         border-bottom: 1px solid hsl(var(--border));
         background: hsl(var(--surface));
@@ -1091,7 +1496,14 @@ All colors MUST be HSL.
     [data-portal-layout] .mingo-table-wrap tbody td {
         padding: 12px 18px;
         font-size: 12.5px;
+        font-weight: var(--table-cell-weight);
         border-bottom: 1px solid #f4f4f5;
+        color: hsl(var(--cell-muted));
+    }
+    [data-portal-layout] .mingo-table-wrap tbody td.font-medium,
+    [data-portal-layout] .mingo-table-wrap tbody td.font-semibold,
+    [data-portal-layout] .mingo-table-wrap tbody td .cell-primary {
+        font-weight: var(--table-cell-weight-strong);
         color: hsl(var(--foreground));
     }
     [data-portal-layout] .mingo-table-wrap tbody tr:last-child td { border-bottom: none; }
@@ -1112,6 +1524,7 @@ All colors MUST be HSL.
         font-size: 11px;
         font-weight: 500;
         padding: 3px 8px;
+        border-radius: var(--radius-badge);
     }
     [data-portal-layout] .mingo-status-pill .dot {
         width: 5px;
@@ -1120,20 +1533,20 @@ All colors MUST be HSL.
         display: inline-block;
     }
     [data-portal-layout] .mingo-status-pill.paid {
-        background: hsl(var(--positive-bg));
-        color: hsl(var(--positive));
+        background: var(--badge-success-bg);
+        color: var(--badge-success-fg);
     }
-    [data-portal-layout] .mingo-status-pill.paid .dot { background: hsl(var(--positive)); }
+    [data-portal-layout] .mingo-status-pill.paid .dot { background: currentColor; }
     [data-portal-layout] .mingo-status-pill.pending {
-        background: hsl(var(--warn-bg));
-        color: hsl(var(--warn));
+        background: var(--badge-warning-bg);
+        color: var(--badge-warning-fg);
     }
-    [data-portal-layout] .mingo-status-pill.pending .dot { background: hsl(var(--warn)); }
+    [data-portal-layout] .mingo-status-pill.pending .dot { background: currentColor; }
     [data-portal-layout] .mingo-status-pill.overdue {
-        background: hsl(var(--critical-bg));
-        color: hsl(var(--critical));
+        background: var(--badge-danger-bg);
+        color: var(--badge-danger-fg);
     }
-    [data-portal-layout] .mingo-status-pill.overdue .dot { background: hsl(var(--critical)); }
+    [data-portal-layout] .mingo-status-pill.overdue .dot { background: currentColor; }
 
     @media (max-width: 1180px) {
         [data-portal-layout] .mingo-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1681,6 +2094,12 @@ All colors MUST be HSL.
     .table-scroll {
         overflow-x: auto;
         scrollbar-width: thin;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .table-scroll .data-table {
+        width: max-content;
+        min-width: 100%;
     }
 }
 
@@ -1790,4 +2209,595 @@ html.electron-desktop .electron-shell-content {
 .electron-titlebar {
     -webkit-app-region: drag;
     app-region: drag;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Enterprise data tables
+   Applies to every <Table> in the app via the ui/table primitives.
+   Utilities still win (Tailwind's utilities layer is emitted last),
+   so per-table className overrides keep working.
+   ═══════════════════════════════════════════════════════════════════ */
+@layer components {
+    .data-table-shell {
+        border: 1px solid hsl(var(--border));
+        border-radius: var(--radius-card);
+        background: hsl(var(--card));
+        overscroll-behavior-x: contain;
+    }
+
+    .data-table-shell-bare {
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+    }
+
+    .data-table {
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: var(--text-table);
+        line-height: 1.45;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Header ────────────────────────────────────────────────── */
+    .data-table thead th {
+        position: relative;
+        height: 48px;
+        padding: 0 16px;
+        text-align: left;
+        vertical-align: middle;
+        white-space: nowrap;
+        background: hsl(var(--table-head-bg));
+        color: hsl(var(--table-head-fg));
+        font-size: var(--text-body);
+        font-weight: var(--table-head-weight);
+        letter-spacing: 0;
+        text-transform: none;
+        border-bottom: 1px solid hsl(var(--border));
+    }
+
+    .data-table[data-sticky-header="true"] thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+    }
+
+    /* Header sits flush inside the rounded shell */
+    .data-table thead tr:first-child th:first-child {
+        border-top-left-radius: calc(var(--radius-card) - 1px);
+    }
+    .data-table thead tr:first-child th:last-child {
+        border-top-right-radius: calc(var(--radius-card) - 1px);
+    }
+
+    /* ── Body ──────────────────────────────────────────────────── */
+    .data-table tbody td {
+        height: 56px;
+        padding: 12px 16px;
+        vertical-align: middle;
+        font-size: var(--text-table);
+        font-weight: var(--table-cell-weight);
+        color: hsl(var(--cell-muted));
+        border-bottom: 1px solid hsl(var(--border));
+        white-space: nowrap;
+    }
+
+    /* Primary column / emphasized cells — semibold dark text */
+    .data-table tbody td.font-medium,
+    .data-table tbody td.font-semibold,
+    .data-table tbody td.font-bold,
+    .data-table tbody td .cell-primary {
+        font-weight: var(--table-cell-weight-strong);
+        color: hsl(var(--foreground));
+    }
+
+    .data-table tbody tr:last-child td {
+        border-bottom: 0;
+    }
+
+    /* Zebra is opt-in — the default is plain rows with hairline dividers. */
+    .data-table[data-zebra="true"] tbody tr:nth-child(even) td {
+        background: hsl(var(--muted) / 0.5);
+    }
+
+    .data-table tbody tr {
+        transition: background-color 0.12s ease;
+    }
+
+    .data-table tbody tr:hover td {
+        background: hsl(var(--table-row-hover));
+    }
+
+    .data-table tbody tr[data-state="selected"] td,
+    .data-table tbody tr[aria-selected="true"] td {
+        background: hsl(var(--primary) / 0.07);
+    }
+
+    /* ── Footer ────────────────────────────────────────────────── */
+    .data-table tfoot td,
+    .data-table tfoot th {
+        height: 44px;
+        padding: 10px 14px;
+        background: hsl(var(--muted) / 0.6);
+        border-top: 1px solid hsl(var(--border));
+        font-weight: 600;
+    }
+
+    /* ── Column alignment by data type ─────────────────────────── */
+    .data-table th[data-numeric="true"],
+    .data-table td[data-numeric="true"] {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    .data-table th[data-actions="true"],
+    .data-table td[data-actions="true"] {
+        text-align: right;
+        white-space: nowrap;
+        width: 1%;
+    }
+
+    .data-table td[data-actions="true"] > * {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 4px;
+    }
+
+    /* Checkbox columns stay tight */
+    .data-table th:has([role="checkbox"]),
+    .data-table td:has([role="checkbox"]) {
+        width: 1%;
+        padding-right: 0;
+    }
+
+    /* ── Sortable headers ──────────────────────────────────────── */
+    .data-table th[aria-sort] {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .data-table th[aria-sort]:hover {
+        color: hsl(var(--foreground));
+        background: hsl(var(--accent));
+    }
+
+    .data-table th[aria-sort]:focus-visible {
+        outline: 2px solid hsl(var(--ring));
+        outline-offset: -2px;
+    }
+
+    .data-table th[aria-sort="ascending"],
+    .data-table th[aria-sort="descending"] {
+        color: hsl(var(--foreground));
+    }
+
+    /* ── Density modifier ──────────────────────────────────────── */
+    .data-table-compact tbody td {
+        height: 36px;
+        padding: 6px 12px;
+    }
+    .data-table-compact thead th {
+        height: 34px;
+        padding: 0 12px;
+    }
+
+    /* ── Status badges inside tables ───────────────────────────── */
+    .table-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 22px;
+        padding: 0 10px;
+        border-radius: var(--radius-badge);
+        border: 0;
+        font-size: var(--text-caption);
+        font-weight: 500;
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    /* Opt-in leading dot: <StatusBadge dot> */
+    .table-status-dot::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 9999px;
+        background: currentColor;
+        flex-shrink: 0;
+    }
+
+    .table-status-success {
+        background: var(--badge-success-bg);
+        color: var(--badge-success-fg);
+        border: 1px solid var(--badge-success-border);
+    }
+    .table-status-warning {
+        background: var(--badge-warning-bg);
+        color: var(--badge-warning-fg);
+        border: 1px solid var(--badge-warning-bg);
+    }
+    .table-status-danger {
+        background: var(--badge-danger-bg);
+        color: var(--badge-danger-fg);
+        border: 1px solid var(--badge-danger-border);
+    }
+    .table-status-info {
+        background: var(--badge-info-bg);
+        color: var(--badge-info-fg);
+    }
+    .table-status-neutral {
+        background: var(--badge-neutral-bg);
+        color: var(--badge-neutral-fg);
+    }
+
+    /* ── Empty + loading states ────────────────────────────────── */
+    .data-table .table-empty td,
+    .data-table .table-loading td {
+        height: auto;
+        padding: 40px 16px;
+        text-align: center;
+        color: hsl(var(--muted-foreground));
+        background: transparent;
+    }
+
+    .data-table .table-empty:hover td,
+    .data-table .table-loading:hover td {
+        background: transparent;
+    }
+
+    .table-skeleton-bar {
+        height: 10px;
+        border-radius: var(--radius-chip);
+        background: hsl(var(--muted-foreground) / 0.16);
+        animation: table-skeleton-pulse 1.4s ease-in-out infinite;
+    }
+
+    @keyframes table-skeleton-pulse {
+        0%,
+        100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.45;
+        }
+    }
+
+    /* ── Mobile ────────────────────────────────────────────────── */
+    @media (max-width: 767px) {
+        .data-table thead th {
+            height: 42px;
+            padding: 0 12px;
+            font-size: var(--text-table);
+        }
+        .data-table tbody td {
+            height: 50px;
+            padding: 10px 12px;
+        }
+        .data-table-shell {
+            border-radius: var(--radius-control);
+        }
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Theme-aware chrome — scrollbars, popovers, tooltips, charts, forms
+   ═══════════════════════════════════════════════════════════════════ */
+@layer components {
+    /* ── Scrollbars ────────────────────────────────────────────────
+       Neutral in both themes; the old gradient thumb read as a colour
+       accent and disappeared against dark surfaces.                 */
+    .custom-scrollbar,
+    .modal-scrollbar,
+    .portal-main-scroll {
+        scrollbar-width: thin;
+        scrollbar-color: hsl(var(--muted-foreground) / 0.4) transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar,
+    .modal-scrollbar::-webkit-scrollbar,
+    .portal-main-scroll::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track,
+    .modal-scrollbar::-webkit-scrollbar-track,
+    .portal-main-scroll::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb,
+    .modal-scrollbar::-webkit-scrollbar-thumb,
+    .portal-main-scroll::-webkit-scrollbar-thumb {
+        background: hsl(var(--muted-foreground) / 0.35);
+        background-clip: padding-box;
+        border: 3px solid transparent;
+        border-radius: 9999px;
+        box-shadow: none;
+        filter: none;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover,
+    .modal-scrollbar::-webkit-scrollbar-thumb:hover,
+    .portal-main-scroll::-webkit-scrollbar-thumb:hover {
+        background: hsl(var(--muted-foreground) / 0.6);
+        filter: none;
+    }
+
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb,
+    .dark .modal-scrollbar::-webkit-scrollbar-thumb,
+    .dark .portal-main-scroll::-webkit-scrollbar-thumb {
+        background: hsl(var(--muted-foreground) / 0.45);
+        box-shadow: none;
+    }
+
+    /* Drawer scrollbar sits on the ink sidebar in both themes */
+    .portal-nav-drawer .custom-scrollbar,
+    .bg-sidebar .custom-scrollbar {
+        scrollbar-color: hsl(var(--sidebar-foreground) / 0.35) transparent;
+    }
+
+    .portal-nav-drawer .custom-scrollbar::-webkit-scrollbar-thumb,
+    .bg-sidebar .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: hsl(var(--sidebar-foreground) / 0.35);
+    }
+
+    .portal-nav-drawer .custom-scrollbar::-webkit-scrollbar-thumb:hover,
+    .bg-sidebar .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: hsl(var(--sidebar-foreground) / 0.6);
+    }
+
+    /* ── Floating surfaces ─────────────────────────────────────────
+       Radix popper children: dropdowns, selects, popovers, tooltips,
+       comboboxes, date pickers.                                     */
+    [data-radix-popper-content-wrapper] > * {
+        border-radius: var(--radius-card);
+    }
+
+    [role="tooltip"] {
+        border-radius: var(--radius-control);
+    }
+
+    [role="dialog"] {
+        border-radius: var(--radius-card);
+    }
+
+    /* Sheets are edge-anchored — round only the inner edge */
+    [role="dialog"][data-side="left"] {
+        border-radius: 0 var(--radius-card) var(--radius-card) 0;
+    }
+    [role="dialog"][data-side="right"] {
+        border-radius: var(--radius-card) 0 0 var(--radius-card);
+    }
+    [role="dialog"][data-side="top"] {
+        border-radius: 0 0 var(--radius-card) var(--radius-card);
+    }
+    [role="dialog"][data-side="bottom"] {
+        border-radius: var(--radius-card) var(--radius-card) 0 0;
+    }
+
+    /* ── Form controls ─────────────────────────────────────────────
+       Consistent height, radius and focus ring across every input.  */
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    select,
+    textarea {
+        border-radius: var(--radius-control);
+    }
+
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus-visible,
+    select:focus-visible,
+    textarea:focus-visible {
+        outline: none;
+        border-color: hsl(var(--ring));
+        box-shadow: 0 0 0 3px hsl(var(--ring) / 0.18);
+    }
+
+    /* Autofill shouldn't punch a white rectangle through dark mode */
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus,
+    textarea:-webkit-autofill,
+    select:-webkit-autofill {
+        -webkit-text-fill-color: hsl(var(--foreground));
+        -webkit-box-shadow: 0 0 0 1000px hsl(var(--background)) inset;
+        caret-color: hsl(var(--foreground));
+        transition: background-color 5000s ease-in-out 0s;
+    }
+
+    /* ── Charts ────────────────────────────────────────────────────
+       Recharts renders raw SVG, so axis/grid/tooltip chrome has to be
+       driven from CSS to follow the theme.                          */
+    .recharts-cartesian-grid line,
+    .recharts-cartesian-axis-line,
+    .recharts-cartesian-axis-tick-line {
+        stroke: hsl(var(--border));
+    }
+
+    .recharts-cartesian-axis-tick-value,
+    .recharts-label,
+    .recharts-legend-item-text {
+        fill: hsl(var(--muted-foreground)) !important;
+        font-size: var(--text-caption);
+    }
+
+    .recharts-tooltip-wrapper .recharts-default-tooltip,
+    .recharts-tooltip-wrapper > div {
+        border-radius: var(--radius-control) !important;
+        border: 1px solid hsl(var(--border)) !important;
+        background: hsl(var(--popover)) !important;
+        color: hsl(var(--popover-foreground)) !important;
+        box-shadow: var(--shadow-md) !important;
+    }
+
+    .recharts-tooltip-item,
+    .recharts-tooltip-label {
+        color: hsl(var(--popover-foreground)) !important;
+    }
+
+    .recharts-surface:focus,
+    .recharts-wrapper:focus {
+        outline: none;
+    }
+
+    /* ── Notifications ─────────────────────────────────────────── */
+    [data-sonner-toast] {
+        border-radius: var(--radius-card) !important;
+    }
+
+    /* ── Misc rounding for app-specific chrome ─────────────────── */
+    [data-portal-layout] .portal-stat-card,
+    [data-portal-layout] .mingo-page-head {
+        border-radius: var(--radius-control);
+    }
+
+    /* ── Deliberately square ───────────────────────────────────────
+       The live-feed ticker is a full-bleed edge-to-edge strip and the
+       nav drawer is an edge-anchored panel; rounding either one reads
+       as a floating card rather than app chrome.                    */
+    [data-portal-layout] .portal-ticker-wrap,
+    [data-portal-layout] .portal-ticker-track,
+    [data-portal-layout] .portal-tick,
+    [data-portal-layout] .portal-tick-tag {
+        border-radius: 0;
+    }
+
+    .portal-nav-drawer,
+    [role="dialog"].portal-nav-drawer,
+    [role="dialog"][data-side="left"].portal-nav-drawer {
+        border-radius: 0;
+    }
+
+    /* Square everything inside the drawer except avatars and dots */
+    .portal-nav-drawer :not([class*="rounded-full"]):not(.rounded-full) {
+        border-radius: 0;
+    }
+
+    .portal-nav-drawer .rounded-full,
+    .portal-nav-drawer [class*="rounded-full"] {
+        border-radius: 9999px;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Table cell formats — primary/secondary stack, icon-prefixed values,
+   dim action buttons. Mirrors the reference customer-list layout.
+   ═══════════════════════════════════════════════════════════════════ */
+@layer components {
+    /* Two-line identity cell: bold primary over dim secondary */
+    .cell-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    .cell-primary {
+        font-size: var(--text-body);
+        font-weight: 600;
+        line-height: 1.3;
+        color: hsl(var(--foreground));
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .cell-secondary {
+        font-size: var(--text-table);
+        font-weight: 400;
+        line-height: 1.3;
+        color: hsl(var(--cell-muted));
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Icon-prefixed value: dim icon, dim text */
+    .cell-with-icon {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+        font-size: var(--text-table);
+        font-weight: var(--table-cell-weight);
+        color: hsl(var(--cell-muted));
+    }
+
+    .cell-with-icon > svg,
+    .cell-icon {
+        flex-shrink: 0;
+        width: 14px;
+        height: 14px;
+        color: hsl(var(--icon-dim));
+    }
+
+    /* Plain dim value (Type column in the reference) */
+    .cell-muted {
+        font-size: var(--text-table);
+        font-weight: var(--table-cell-weight);
+        color: hsl(var(--cell-muted));
+    }
+
+    /* Em-dash placeholder for empty values */
+    .cell-empty {
+        color: hsl(var(--icon-dim));
+    }
+
+    /* ── Dim action buttons ────────────────────────────────────────
+       Ghost icon buttons that sit at the end of a row. Dim at rest,
+       full-contrast on hover/focus.                                 */
+    .btn-dim {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        flex-shrink: 0;
+        border: 0;
+        border-radius: var(--radius-control);
+        background: transparent;
+        color: hsl(var(--icon-dim));
+        cursor: pointer;
+        transition:
+            color 0.12s ease,
+            background-color 0.12s ease;
+    }
+
+    .btn-dim:hover {
+        color: hsl(var(--icon-dim-hover));
+        background: hsl(var(--muted));
+    }
+
+    .btn-dim:focus-visible {
+        outline: 2px solid hsl(var(--ring));
+        outline-offset: -2px;
+    }
+
+    .btn-dim:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+
+    .btn-dim-danger:hover {
+        color: hsl(var(--destructive));
+        background: hsl(var(--destructive) / 0.1);
+    }
+
+    .btn-dim > svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* Row action cluster */
+    .cell-actions {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 2px;
+    }
+
+    /* Any lucide icon dropped inside a table cell defaults to dim,
+       unless it carries its own colour utility. */
+    .data-table tbody td svg:not([class*="text-"]) {
+        color: hsl(var(--icon-dim));
+    }
 }

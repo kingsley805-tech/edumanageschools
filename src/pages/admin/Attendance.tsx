@@ -84,11 +84,13 @@ const Attendance = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "present":
-        return <Badge className="bg-success">Present</Badge>;
+        return (
+          <Badge variant="success">Present</Badge>
+        );
       case "absent":
         return <Badge variant="destructive">Absent</Badge>;
       case "late":
-        return <Badge className="bg-warning text-warning-foreground">Late</Badge>;
+        return <Badge variant="warning">Late</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }

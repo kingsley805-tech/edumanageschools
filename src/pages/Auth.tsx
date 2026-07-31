@@ -22,6 +22,7 @@ import {
   type StudentAdmissionPreview,
 } from "@/lib/auth-api";
 import { TEACHER_DEACTIVATED_MESSAGE } from "@/lib/teacherAccountStatus";
+import { EduManageLogo } from "@/components/EduManageLogo";
 import schoolPicture from "@/assets/School Picture.webp";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -684,19 +685,16 @@ const Auth = () => {
 
         <div className="relative z-20 flex flex-col h-full justify-between gap-12">
           {/* Logo & Title */}
-          <Link to="/" className="flex items-center gap-3.5 group w-fit">
-            <div className="flex h-11 w-11 lg:h-13 lg:w-13 items-center justify-center rounded-2xl bg-green-500 shadow-md shadow-green-500/20 ring-1 ring-green-400/30 transition-transform group-hover:scale-105 duration-300">
-              <GraduationCap className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <span className="text-[10px] tracking-[4px] font-bold text-white block uppercase font-mono">
-                EDUMANAGE
-              </span>
-              <h1 className="text-lg lg:text-xl font-bold text-white tracking-tight">
-                Your school, organized.
-              </h1>
-            </div>
-          </Link>
+          <div className="w-fit space-y-2">
+            <EduManageLogo
+              to="/landing"
+              className="transition-transform hover:scale-[1.02]"
+              imgClassName="h-10 lg:h-12 drop-shadow-md"
+            />
+            <h1 className="text-lg lg:text-xl font-bold text-white tracking-tight">
+              Your school, organized.
+            </h1>
+          </div>
           
           {/* Center Animation */}
           <div className="flex flex-1 items-center justify-center min-h-[300px] lg:min-h-0 relative">
@@ -737,18 +735,13 @@ const Auth = () => {
           <div className="absolute top-0 left-10 right-10 h-[2px] bg-gradient-to-r from-transparent via-green-500/40 to-transparent blur-[1px]" />
           
           {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-[10px] tracking-[2px] font-bold text-white uppercase block font-mono">
-                WELCOME TO EDUMANAGE
-              </span>
-              <h2 className="text-xl lg:text-2xl font-bold text-white tracking-tight mt-1">
-                Access your school portal
-              </h2>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black border border-white/15">
-              <GraduationCap className="h-5 w-5 text-white" />
-            </div>
+          <div>
+            <span className="text-[10px] tracking-[2px] font-bold text-white uppercase block font-mono">
+              WELCOME TO EDUMANAGE
+            </span>
+            <h2 className="text-xl lg:text-2xl font-bold text-white tracking-tight mt-1">
+              Access your school portal
+            </h2>
           </div>
 
           {/* Tab Toggle */}

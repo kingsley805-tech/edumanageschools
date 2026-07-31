@@ -7,6 +7,37 @@ export type IpcResult<T> = {
   error: { code: string; message: string } | null;
 };
 
+export type SyncStateLabel = "syncing" | "synced" | "pending" | "failed" | "offline" | "idle";
+
+export type SyncStatus = {
+  online: boolean;
+  status: SyncStateLabel;
+  lastSyncAt: string | null;
+  pending: number;
+  failed: number;
+  lastError: string | null;
+  progress: { current: number; total: number } | null;
+};
+
+export type SyncQueueItem = {
+  id: number;
+  entity: string;
+  entity_id: string;
+  operation: string;
+  payload: string;
+  status: string;
+  attempts: number;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SyncLogEntry = {
+  at: string;
+  level: "info" | "warn" | "error";
+  message: string;
+};
+
 export type ElectronAPI = {
   isElectron: true;
   platform: string;
@@ -89,13 +120,17 @@ export type ElectronAPI = {
     serialWrite: (portPath: string, data: string | Buffer) => Promise<IpcResult<unknown>>;
     serialClose: (portPath: string) => Promise<IpcResult<unknown>>;
     onUsb: (cb: (payload: unknown) => void) => () => void;
+    cashDrawerOpen: (portPath: string, opts?: Record<string, unknown>) => Promise<IpcResult<unknown>>;
   };
   backup: {
     create: (opts?: Record<string, unknown>) => Promise<IpcResult<unknown>>;
     restore: (backupPath: string) => Promise<IpcResult<unknown>>;
     list: () => Promise<IpcResult<unknown[]>>;
-    syncNow: (opts?: Record<string, unknown>) => Promise<IpcResult<unknown>>;
-    syncStatus: () => Promise<IpcResult<unknown>>;
+    syncNow: (opts?: { authToken?: string; includeFailed?: boolean }) => Promise<IpcResult<SyncStatus>>;
+    syncStatus: () => Promise<IpcResult<SyncStatus>>;
+    syncFailedItems: (limit?: number) => Promise<IpcResult<SyncQueueItem[]>>;
+    syncPendingItems: (limit?: number) => Promise<IpcResult<SyncQueueItem[]>>;
+    syncLogs: (limit?: number) => Promise<IpcResult<SyncLogEntry[]>>;
   };
   updater: {
     check: () => Promise<unknown>;
@@ -107,7 +142,7 @@ export type ElectronAPI = {
     getUnread: () => Promise<number>;
   };
   events: {
-    onSyncStatus: (cb: (payload: unknown) => void) => () => void;
+    onSyncStatus: (cb: (payload: SyncStatus) => void) => () => void;
     onNavigate: (cb: (route: string) => void) => () => void;
     onNotificationCount: (cb: (count: number) => void) => () => void;
     onReady: (cb: (payload: unknown) => void) => () => void;

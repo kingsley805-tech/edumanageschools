@@ -12,6 +12,21 @@ function newId() {
   return crypto.randomUUID();
 }
 
+// Column names arrive as Object.keys(record) straight from renderer IPC
+// payloads (e.g. bulk CSV import), then get string-joined into SQL. Without
+// whitelisting against the real schema, a crafted object key becomes a raw
+// SQL injection vector. Cache each table's real columns via PRAGMA and drop
+// anything that isn't one.
+const columnCache = new Map();
+
+function getValidColumns(db, tableName) {
+  if (columnCache.has(tableName)) return columnCache.get(tableName);
+  const rows = db.prepare(`PRAGMA table_info(${tableName})`).all();
+  const cols = new Set(rows.map((r) => r.name));
+  columnCache.set(tableName, cols);
+  return cols;
+}
+
 function createModel(tableName, entityName) {
   return {
     tableName,
@@ -46,7 +61,15 @@ function createModel(tableName, entityName) {
       const updatedAt = record.updated_at || nowIso();
       const row = { ...record, id, updated_at: updatedAt, synced_at: record.synced_at || null };
 
-      const cols = Object.keys(row);
+      // Whitelist against the real table schema — see getValidColumns() above.
+      // Silently dropping unknown keys (rather than failing the whole write)
+      // keeps this tolerant of extra fields callers stash on `record` for
+      // their own bookkeeping (e.g. UI-only flags) while closing the
+      // injection vector.
+      const validColumns = getValidColumns(db, tableName);
+      const cols = Object.keys(row).filter((c) => validColumns.has(c));
+      if (!cols.includes("id")) cols.push("id");
+
       const placeholders = cols.map(() => "?").join(", ");
       const updates = cols
         .filter((c) => c !== "id")
@@ -87,4 +110,34 @@ function createModel(tableName, entityName) {
   };
 }
 
-module.exports = { createModel, nowIso, newId };
+/**
+ * Writes a server-authoritative record straight into a local table without
+ * enqueueing it back onto the sync_queue (it already IS synced — it just
+ * came from the server). Used by database/sync.cjs when conflict resolution
+ * picks the remote copy, so the local row actually reflects the resolution
+ * instead of the conflict being silently discarded while the queue item
+ * still gets marked "synced".
+ */
+function applyRemoteRecord(tableName, remoteRecord) {
+  if (!remoteRecord || !remoteRecord.id) return null;
+  const db = getConnection();
+  const validColumns = getValidColumns(db, tableName);
+  const row = { ...remoteRecord, synced_at: nowIso() };
+  const cols = Object.keys(row).filter((c) => validColumns.has(c));
+  if (!cols.includes("id")) cols.push("id");
+
+  const placeholders = cols.map(() => "?").join(", ");
+  const updates = cols
+    .filter((c) => c !== "id")
+    .map((c) => `${c} = excluded.${c}`)
+    .join(", ");
+
+  db.prepare(
+    `INSERT INTO ${tableName} (${cols.join(", ")}) VALUES (${placeholders})
+     ON CONFLICT(id) DO UPDATE SET ${updates}`,
+  ).run(...cols.map((c) => row[c]));
+
+  return db.prepare(`SELECT * FROM ${tableName} WHERE id = ?`).get(remoteRecord.id);
+}
+
+module.exports = { createModel, nowIso, newId, applyRemoteRecord };

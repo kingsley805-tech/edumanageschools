@@ -182,14 +182,9 @@ export function applyBrandTheme(_colors?: BrandColors): void {
   root.style.setProperty("--border", MINGO_HSL.line);
   root.style.setProperty("--input", MINGO_HSL.line);
 
-  root.style.setProperty("--sidebar-background", MINGO_HSL.ink);
-  root.style.setProperty("--sidebar-foreground", "240 5% 90%");
-  root.style.setProperty("--sidebar-primary", MINGO_HSL.brand);
-  root.style.setProperty("--sidebar-primary-foreground", "0 0% 100%");
-  root.style.setProperty("--sidebar-accent", MINGO_HSL.sidebarHover);
-  root.style.setProperty("--sidebar-accent-foreground", "0 0% 100%");
-  root.style.setProperty("--sidebar-border", MINGO_HSL.sidebarMute);
-  root.style.setProperty("--sidebar-ring", MINGO_HSL.brand);
+  /* Sidebar vars are deliberately NOT pinned here. They are owned by the
+     `--sidebar-*` tokens in index.css so the drawer follows light/dark
+     like the rest of the shell. */
 
   root.style.setProperty("--destructive", MINGO_HSL.critical);
   root.style.setProperty("--success", MINGO_HSL.positive);

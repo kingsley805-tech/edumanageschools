@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, AlertTriangle, AlertCircle, GraduationCap } from "lucide-react";
 import { ReportMetaPanel } from "@/report/components/report-meta-panel";
+import { ReportStatsStrip } from "@/report/components/report-stats-strip";
 import { useReportSignatures } from "@/report/hooks/use-report-signatures";
 import { Badge } from "@/components/ui/badge";
 import { fetchAttendanceSummary } from "@/register/lib/attendance";
@@ -81,6 +82,15 @@ function ParentReports() {
     enabled: !!report,
     queryFn: () => rowToFormWithTermDates(report!, gradingFormat),
   });
+
+  // Full (unfiltered, newest-first) list — used to find the term
+  // immediately before the one currently on screen for the trend strip,
+  // independent of whatever year filter is applied to the picker.
+  const previousReport = useMemo(() => {
+    if (!publishedList?.length || !report) return null;
+    const idx = publishedList.findIndex((r) => r.id === report.id);
+    return idx >= 0 ? publishedList[idx + 1] ?? null : null;
+  }, [publishedList, report]);
 
   // Query academic recommendations for active child and term
   const { data: parentRecommendations } = useQuery({
@@ -249,6 +259,8 @@ function ParentReports() {
                 )}
               </div>
             )}
+
+            <ReportStatsStrip current={report} previous={previousReport} />
 
             {/* Official Report Card */}
             <ReportMetaPanel

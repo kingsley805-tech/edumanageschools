@@ -333,11 +333,11 @@ export function PortalLiveFeedTicker({ events: eventsProp }: Props) {
 
   return (
     <div
-      className="portal-ticker-wrap flex h-[34px] min-w-0 shrink-0 items-center overflow-hidden whitespace-nowrap border-b border-black"
+      className="portal-ticker-wrap flex h-[34px] min-w-0 shrink-0 items-center overflow-hidden whitespace-nowrap border-b"
       style={{ background: MINGO.lineStrong }}
       aria-live="polite"
     >
-      <div className="portal-ticker-label z-[2] flex h-full shrink-0 items-center bg-white px-3 font-mono text-[10.5px] font-semibold tracking-[0.06em] text-[hsl(var(--foreground))]">
+      <div className="portal-ticker-label z-[2] flex h-full shrink-0 items-center px-3">
         LIVE FEED
       </div>
       <div className="portal-ticker-track">

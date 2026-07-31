@@ -743,7 +743,7 @@ const Students = () => {
                         <TableCell className="hidden sm:table-cell">{getStudentClassLabel(student)}</TableCell>
                         <TableCell className="hidden md:table-cell capitalize">{student.gender || "N/A"}</TableCell>
                         <TableCell>
-                          <Badge className="bg-success text-xs">Active</Badge>
+                          <Badge variant="success" className="text-xs">Active</Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
@@ -914,7 +914,7 @@ const Students = () => {
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Status</Label>
-                    <Badge className="bg-success">Active</Badge>
+                    <Badge variant="success">Active</Badge>
                   </div>
                 </div>
 

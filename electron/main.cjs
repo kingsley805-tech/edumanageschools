@@ -2,7 +2,7 @@
  * Electron main process — window lifecycle, secure defaults, background services.
  */
 const path = require("path");
-const { app, BrowserWindow, ipcMain, globalShortcut, shell, session } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, session } = require("electron");
 
 const { config, resolvePreload } = require("./utils/config.cjs");
 const paths = require("./utils/paths.cjs");
@@ -112,6 +112,8 @@ function createMainWindow() {
     return { action: "deny" };
   });
 
+  attachWindowShortcuts(mainWindow);
+
   return mainWindow;
 }
 
@@ -134,6 +136,7 @@ function createChildWindow(route = "/", options = {}) {
     : config.viteDevUrl;
   const hashRoute = route?.startsWith("/") ? `#${route}` : `#/${route || ""}`;
   child.loadURL(app.isPackaged ? `${base}${hashRoute}` : `${base}${route || "/"}`);
+  attachWindowShortcuts(child);
   return child;
 }
 
@@ -177,22 +180,41 @@ function registerWindowIpc() {
   });
 }
 
-function registerShortcuts() {
-  globalShortcut.register("CommandOrControl+Shift+F", () => {
-    const win = BrowserWindow.getFocusedWindow();
-    if (win) win.setFullScreen(!win.isFullScreen());
-  });
-  globalShortcut.register("CommandOrControl+Shift+I", () => {
-    if (!app.isPackaged) BrowserWindow.getFocusedWindow()?.webContents.toggleDevTools();
-  });
-  globalShortcut.register("CommandOrControl+R", () => {
-    if (!app.isPackaged) BrowserWindow.getFocusedWindow()?.reload();
-  });
-  globalShortcut.register("CommandOrControl+Shift+S", () => {
-    sync.runSync().catch(() => {});
-  });
-  globalShortcut.register("CommandOrControl+Shift+B", () => {
-    backup.createBackup().catch(() => {});
+/**
+ * App keyboard shortcuts, scoped per-window via `before-input-event` instead
+ * of Electron's `globalShortcut` module. `globalShortcut` binds a key combo
+ * OS-wide — it fires even when this app isn't focused, and silently steals
+ * that combo from whatever else is running (a real problem for something as
+ * common as Ctrl+Shift+S/B on a shared office PC). `before-input-event` only
+ * fires while one of *this app's* windows has focus, which is what every one
+ * of these actions (fullscreen, devtools, reload, sync, backup) actually
+ * needs — none of them make sense to trigger while the app is in the
+ * background. This also means shortcuts automatically work for child windows
+ * (createChildWindow) without a separate global registration.
+ */
+function attachWindowShortcuts(win) {
+  win.webContents.on("before-input-event", (event, input) => {
+    if (input.type !== "keyDown") return;
+    const cmdOrCtrl = process.platform === "darwin" ? input.meta : input.control;
+    if (!cmdOrCtrl) return;
+    const key = (input.key || "").toLowerCase();
+
+    if (input.shift && key === "f") {
+      win.setFullScreen(!win.isFullScreen());
+      event.preventDefault();
+    } else if (input.shift && key === "i") {
+      if (!app.isPackaged) win.webContents.toggleDevTools();
+      event.preventDefault();
+    } else if (!input.shift && key === "r") {
+      if (!app.isPackaged) win.reload();
+      event.preventDefault();
+    } else if (input.shift && key === "s") {
+      sync.runSync().catch(() => {});
+      event.preventDefault();
+    } else if (input.shift && key === "b") {
+      backup.createBackup().catch(() => {});
+      event.preventDefault();
+    }
   });
 }
 
@@ -209,6 +231,41 @@ function hardenSession() {
       },
     });
   });
+
+  // Deny every permission request by default; only camera is legitimately
+  // used (webcam capture for ID photos / biometrics). Without this,
+  // Electron's default is to prompt the OS/user for anything a page asks
+  // for, including things this app never needs (geolocation, MIDI, HID).
+  const ALLOWED_PERMISSIONS = new Set(["media"]);
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
+    callback(ALLOWED_PERMISSIONS.has(permission));
+  });
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => ALLOWED_PERMISSIONS.has(permission));
+}
+
+/**
+ * Applies to every webContents this app creates (main window, child windows,
+ * print/PDF windows, splash). Blocks the frame from ever being navigated to
+ * a non-app origin — the only two valid origins are the packaged dist build
+ * (file://) or the local Vite dev server. Without this, any way a remote
+ * link or injected content reached window.location would swap out the
+ * entire trusted UI for attacker-controlled content running with this app's
+ * preload bridge still attached.
+ */
+function hardenNavigation() {
+  app.on("web-contents-created", (_event, contents) => {
+    contents.on("will-navigate", (navEvent, url) => {
+      const allowedOrigin = app.isPackaged ? "file://" : config.viteDevUrl;
+      if (!url.startsWith(allowedOrigin) && !url.startsWith("data:text/html")) {
+        logger.warn("Blocked navigation to disallowed origin", { url });
+        navEvent.preventDefault();
+      }
+    });
+    contents.setWindowOpenHandler(({ url }) => {
+      shell.openExternal(url);
+      return { action: "deny" };
+    });
+  });
 }
 
 function initDatabaseAndServices() {
@@ -220,11 +277,24 @@ function initDatabaseAndServices() {
 app.whenReady().then(() => {
   logger.info("EduManage Desktop starting", { version: app.getVersion() });
   hardenSession();
+  hardenNavigation();
   createSplash();
+
+  // Kick off the renderer load (createMainWindow -> loadURL) before the
+  // synchronous DB/migrations/IPC setup below, instead of after it. Chromium
+  // loads and parses the app bundle in its own renderer process, which takes
+  // far longer than the handful of milliseconds better-sqlite3 + migrations
+  // need on the main process — starting it first overlaps two phases of
+  // startup that were previously paid for serially, shaving real time off
+  // "app launch" to "usable UI". This is safe: the window stays hidden
+  // (`show: false`) until 'ready-to-show', and the renderer's own JS can't
+  // issue an IPC call until well after 'dom-ready' — long after
+  // registerAllIpc() below has finished on this same synchronous tick.
+  createMainWindow();
+
   initDatabaseAndServices();
   registerAllIpc();
   registerWindowIpc();
-  createMainWindow();
   createTray({
     onOpen: () => {
       if (mainWindow) {
@@ -237,7 +307,6 @@ app.whenReady().then(() => {
       app.quit();
     },
   });
-  registerShortcuts();
   setupAutoUpdater();
 
   app.on("activate", () => {
@@ -251,7 +320,6 @@ app.on("before-quit", () => {
 });
 
 app.on("will-quit", () => {
-  globalShortcut.unregisterAll();
   stopBackgroundServices();
   destroyTray();
   closeConnection();

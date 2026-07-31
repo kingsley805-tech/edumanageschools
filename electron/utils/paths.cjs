@@ -53,4 +53,18 @@ module.exports = {
     const publicPng = path.join(__dirname, "..", "..", "public", "shepherd-logo.png");
     return fs.existsSync(publicPng) ? publicPng : undefined;
   },
+  /**
+   * Confines renderer-supplied paths (IPC args, not native-dialog results) to
+   * this app's own userData tree. `files:save` / `files:compress` accept a
+   * bare filePath straight from the renderer with no dialog in between, so
+   * without this a bug (or any future XSS) could write/read anywhere on
+   * disk. `files:open` / `files:saveAs` are exempt — those paths come back
+   * from a native dialog the user explicitly drove.
+   */
+  isWithinAppRoot(candidatePath) {
+    if (!candidatePath) return false;
+    const root = path.resolve(this.getRoot());
+    const resolved = path.resolve(candidatePath);
+    return resolved === root || resolved.startsWith(root + path.sep);
+  },
 };

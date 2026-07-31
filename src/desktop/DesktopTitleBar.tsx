@@ -1,7 +1,19 @@
-import { useEffect, useState, type ButtonHTMLAttributes, type CSSProperties } from "react";
-import { Minus, Square, X, Maximize2 } from "lucide-react";
+import { forwardRef, useEffect, useState, type ButtonHTMLAttributes, type CSSProperties } from "react";
+import { Minus, Square, X, Maximize2, Keyboard } from "lucide-react";
 import { getDesktopAPI, isElectronDesktop } from "./electronBridge";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.platform);
+const MOD = isMac ? "Cmd" : "Ctrl";
+
+const SHORTCUTS: { keys: string; description: string }[] = [
+  { keys: `${MOD}+Shift+F`, description: "Toggle fullscreen" },
+  { keys: `${MOD}+Shift+S`, description: "Sync now" },
+  { keys: `${MOD}+Shift+B`, description: "Backup database now" },
+  { keys: `${MOD}+R`, description: "Reload (dev builds only)" },
+  { keys: `${MOD}+Shift+I`, description: "Toggle DevTools (dev builds only)" },
+];
 
 /**
  * Frameless custom title bar for the Electron shell.
@@ -61,6 +73,26 @@ export function DesktopTitleBar({ className }: { className?: string }) {
         className="flex h-full items-stretch"
         style={{ WebkitAppRegion: "no-drag" } as CSSProperties}
       >
+        <Popover>
+          <PopoverTrigger asChild>
+            <TitleBtn aria-label="Keyboard shortcuts">
+              <Keyboard className="h-3.5 w-3.5" />
+            </TitleBtn>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-72 p-0 text-foreground">
+            <div className="border-b border-border px-3 py-2 text-xs font-semibold">Keyboard shortcuts</div>
+            <div className="divide-y divide-border">
+              {SHORTCUTS.map((s) => (
+                <div key={s.keys} className="flex items-center justify-between px-3 py-2 text-[12px]">
+                  <span className="text-muted-foreground">{s.description}</span>
+                  <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10.5px]">
+                    {s.keys}
+                  </kbd>
+                </div>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
         <TitleBtn aria-label="Minimize" onClick={() => api.window.minimize()}>
           <Minus className="h-3.5 w-3.5" />
         </TitleBtn>
@@ -81,23 +113,22 @@ export function DesktopTitleBar({ className }: { className?: string }) {
   );
 }
 
-function TitleBtn({
-  children,
-  onClick,
-  danger,
-  ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & { danger?: boolean }) {
-  return (
-    <button
-      type="button"
-      className={cn(
-        "inline-flex w-11 items-center justify-center transition-colors hover:bg-white/10",
-        danger && "hover:bg-red-600 hover:text-white",
-      )}
-      onClick={onClick}
-      {...rest}
-    >
-      {children}
-    </button>
-  );
-}
+const TitleBtn = forwardRef<
+  HTMLButtonElement,
+  ButtonHTMLAttributes<HTMLButtonElement> & { danger?: boolean }
+>(({ children, onClick, danger, className, ...rest }, ref) => (
+  <button
+    ref={ref}
+    type="button"
+    className={cn(
+      "inline-flex w-11 items-center justify-center transition-colors hover:bg-white/10",
+      danger && "hover:bg-red-600 hover:text-white",
+      className,
+    )}
+    onClick={onClick}
+    {...rest}
+  >
+    {children}
+  </button>
+));
+TitleBtn.displayName = "TitleBtn";

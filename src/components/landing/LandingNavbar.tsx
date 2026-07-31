@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { GraduationCap, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useState } from "react";
 
+import { EduManageLogo } from "@/components/EduManageLogo";
 import { landingPalette } from "@/components/landing/landingPalette";
 
 const navLinks = [
@@ -22,12 +23,7 @@ export default function LandingNavbar() {
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
     >
       <nav className="mx-auto flex max-w-7xl items-center justify-between rounded-2xl border border-white/15 bg-black/80 px-4 py-2.5 shadow-lg shadow-black/40 backdrop-blur-xl sm:px-5">
-        <Link to="/landing" className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-500 shadow-sm shadow-green-500/30 ring-1 ring-green-400/30">
-            <GraduationCap className="h-5 w-5 text-white" />
-          </div>
-          <span className="text-base font-bold tracking-tight text-white sm:text-lg">EduManage</span>
-        </Link>
+        <EduManageLogo imgClassName="h-8 sm:h-9" />
 
         <motion.div
           className="hidden items-center gap-8 md:flex"

@@ -962,7 +962,7 @@ const Teachers = () => {
                         </TableCell>
                         <TableCell>
                           {isTeacherActive(teacher) ? (
-                            <Badge className="bg-success text-xs">Active</Badge>
+                            <Badge variant="success" className="text-xs">Active</Badge>
                           ) : (
                             <Badge variant="secondary" className="text-xs">
                               Inactive
@@ -1220,7 +1220,7 @@ const Teachers = () => {
                   <div>
                     <Label className="text-muted-foreground">Status</Label>
                     {isTeacherActive(selectedTeacher) ? (
-                      <Badge className="bg-success">Active</Badge>
+                      <Badge variant="success">Active</Badge>
                     ) : (
                       <Badge variant="secondary">Inactive</Badge>
                     )}

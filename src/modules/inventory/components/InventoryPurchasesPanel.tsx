@@ -303,8 +303,8 @@ export function InventoryPurchasesPanel({
                 <TableCell>{o.supplier_name ?? "—"}</TableCell>
                 <TableCell>{o.purchase_date}</TableCell>
                 <TableCell>{money(o.total_cost)}</TableCell>
-                <TableCell><Badge variant={o.payment_status === "paid" ? "default" : "secondary"}>{o.payment_status}</Badge></TableCell>
-                <TableCell><Badge variant={o.delivery_status === "delivered" ? "default" : "secondary"}>{o.delivery_status}</Badge></TableCell>
+                <TableCell><Badge variant={o.payment_status === "paid" ? "success" : "warning"}>{o.payment_status}</Badge></TableCell>
+                <TableCell><Badge variant={o.delivery_status === "delivered" ? "success" : "secondary"}>{o.delivery_status}</Badge></TableCell>
                 <TableCell>{o.invoice_number ?? "—"}</TableCell>
                 <TableCell className="text-right">
                   {access.canDelete ? (

@@ -1,13 +1,13 @@
-import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/report/hooks/use-auth";
 import { PageHeader } from "@/report/portal/page-header";
 import { ShepherdReportCard } from "@/report/components/shepherd-report-card";
+import { ReportStatsStrip } from "@/report/components/report-stats-strip";
 import { useGradingFormat } from "@/report/hooks/use-school-data";
 import { fetchPublishedTermReport, fetchPublishedTermReports, rowToFormWithTermDates } from "@/report/lib/term-report";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { useReportSignatures } from "@/report/hooks/use-report-signatures";
@@ -51,6 +51,14 @@ function StudentReportCard() {
 
   const isLoading = reportLoading || formLoading;
 
+  // Newest-first published list — used to find the term immediately before
+  // the one on screen for the KPI trend strip.
+  const previousReport = useMemo(() => {
+    if (!publishedList?.length || !report) return null;
+    const idx = publishedList.findIndex((r) => r.id === report.id);
+    return idx >= 0 ? publishedList[idx + 1] ?? null : null;
+  }, [publishedList, report]);
+
   const { teacherSignatureUrl, headSignatureUrl } = useReportSignatures({
     schoolId: report?.school_id ?? "",
     teacherId: report?.teacher_id,
@@ -83,16 +91,19 @@ function StudentReportCard() {
         {isLoading ? (
           <Skeleton className="h-[800px] w-full max-w-[860px] mx-auto" />
         ) : form ? (
-          <ShepherdReportCard
-            data={form}
-            academicYear={form.academicYear}
-            editable={false}
-            showToolbar
-            toolbarTitle={`${form.studentName} — ${form.term}`}
-            schoolId={report?.school_id}
-            teacherSignatureUrl={teacherSignatureUrl}
-            headSignatureUrl={headSignatureUrl}
-          />
+          <div className="mx-auto max-w-[860px] space-y-6">
+            {report && <ReportStatsStrip current={report} previous={previousReport} />}
+            <ShepherdReportCard
+              data={form}
+              academicYear={form.academicYear}
+              editable={false}
+              showToolbar
+              toolbarTitle={`${form.studentName} — ${form.term}`}
+              schoolId={report?.school_id}
+              teacherSignatureUrl={teacherSignatureUrl}
+              headSignatureUrl={headSignatureUrl}
+            />
+          </div>
         ) : (
           <Card>
             <CardContent className="py-16 text-center text-muted-foreground">

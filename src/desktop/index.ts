@@ -7,3 +7,4 @@ export {
   type ElectronAPI,
   type IpcResult,
 } from "./electronBridge";
+export { useBarcodeScan, type BarcodeScan } from "./useBarcodeScan";

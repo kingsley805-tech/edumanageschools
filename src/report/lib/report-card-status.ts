@@ -21,15 +21,20 @@ export function statusLabel(status: string) {
   return STATUS_LABELS[status] ?? status.replace(/_/g, " ");
 }
 
-export function statusBadgeVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
-  const map: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+export function statusBadgeVariant(
+  status: string,
+): "success" | "secondary" | "destructive" | "outline" | "warning" | "info" {
+  const map: Record<
+    string,
+    "success" | "secondary" | "destructive" | "outline" | "warning" | "info"
+  > = {
     draft: "secondary",
-    pending_review: "outline",
-    reviewed: "default",
-    approved: "default",
+    pending_review: "warning",
+    reviewed: "info",
+    approved: "success",
     rejected: "destructive",
-    saved: "outline",
-    published: "default",
+    saved: "warning",
+    published: "success",
   };
   return map[status] ?? "secondary";
 }

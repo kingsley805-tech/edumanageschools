@@ -345,7 +345,7 @@ const TeacherMyClass = () => {
                       <TableRow key={c.id}>
                         <TableCell>{c.student_name ?? "—"}</TableCell>
                         <TableCell>{c.term_label ?? "—"} {c.academic_year ?? ""}</TableCell>
-                        <TableCell><Badge variant={c.status === "approved" ? "default" : c.status === "submitted" ? "secondary" : "outline"}>{c.status}</Badge></TableCell>
+                        <TableCell><Badge variant={c.status === "approved" ? "success" : c.status === "submitted" ? "warning" : "secondary"}>{c.status}</Badge></TableCell>
                         <TableCell className="text-right space-x-2">
                           <Button asChild size="sm" variant="ghost"><Link to={`/teacher/report-cards/view?id=${c.id}`}><FileText className="h-3 w-3 mr-1" />View</Link></Button>
                           {(c.status === "draft" || c.status === "rejected") && (

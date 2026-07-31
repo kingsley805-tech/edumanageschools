@@ -219,7 +219,9 @@ export default function BillingPaidStudents() {
                   <td className="px-4 py-3.5 text-sm font-mono text-muted-foreground">{row.admission_number}</td>
                   <td className="px-4 py-3.5 text-xs font-mono text-muted-foreground">{row.reference}</td>
                   <td className="px-4 py-3.5 text-sm text-muted-foreground">{new Date(row.paid_at).toLocaleString()}</td>
-                  <td className="px-4 py-3.5"><Badge variant="outline" className="bg-success/10 text-success border-success/20">Paid</Badge></td>
+                  <td className="px-4 py-3.5">
+                    <Badge variant="success">Paid</Badge>
+                  </td>
                 </tr>
               ))}
             </tbody>
