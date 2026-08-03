@@ -783,10 +783,10 @@ All colors MUST be HSL.
         color: hsl(var(--portal-accent));
     }
 
-    /* Dropdown / mega-menu panel */
+    /* Dropdown / mega-menu panel — square corners (no card radius) */
     [data-portal-layout] .portal-topnav-panel {
         border: 1px solid hsl(var(--border));
-        border-radius: 0;
+        border-radius: 0 !important;
         background: hsl(var(--background));
         box-shadow:
             0 10px 24px rgb(0 0 0 / 0.1),
@@ -820,7 +820,7 @@ All colors MUST be HSL.
         gap: 10px;
         padding: 8px 10px;
         border-left: 2px solid transparent;
-        border-radius: var(--radius-control);
+        border-radius: 0;
         color: hsl(var(--ink-soft, var(--muted-foreground)));
         font-size: 13px;
         line-height: 1.25;
@@ -2659,8 +2659,10 @@ html.electron-desktop .electron-shell-content {
     [data-portal-layout] .portal-ticker-wrap,
     [data-portal-layout] .portal-ticker-track,
     [data-portal-layout] .portal-tick,
-    [data-portal-layout] .portal-tick-tag {
-        border-radius: 0;
+    [data-portal-layout] .portal-tick-tag,
+    [data-portal-layout] .portal-topnav-panel,
+    [data-portal-layout] .portal-topnav-panel-link {
+        border-radius: 0 !important;
     }
 
     .portal-nav-drawer,

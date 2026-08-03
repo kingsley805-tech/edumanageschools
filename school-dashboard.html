@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KINGSBERG School Hub</title>
+    <style>
+        /* Vellum & Verdigris Color Palette */
+        :root {
+            --parchment: #FDF5E6;
+            --verdigris: #43B3AE;
+            --iron-gall: #2C3E50;
+            --gold-leaf: #D4AF37;
+            --shadow: rgba(0, 0, 0, 0.08);
+            --success: #28A745;
+            --warning: #FFC107;
+            --danger: #DC3545;
+            --info: #17A2B8;
+        }
+
+        /* Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Merriweather', serif;
+            background-color: var(--parchment);
+            color: var(--iron-gall);
+            line-height: 1.6;
+            background-image:
+                repeating-linear-gradient(
+                  45deg,
+                  transparent,
+                  transparent 35px,
+                  rgba(67, 179, 174, 0.03) 35px,
+                  rgba(67, 179, 174, 0.03) 70px
+                );
+        }
+
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 3px solid var(--verdigris);
+            position: relative;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: -3px;
+            left: 0;
+            width: 100px;
+            height: 4px;
+            background: var(--gold-leaf);
+        }
+
+        .school-logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .school-logo::before {
+            content: "🏫";
+            font-size: 2.5rem;
+            opacity: 0.8;
+        }
+
+        .school-name {
+            font-family: 'Mrs Eaves XL', serif;
+            font-size: 2.2rem;
+            font-weight: bold;
+            color: var(--iron-gall);
+            letter-spacing: -0.5px;
+        }
+
+        .user-greeting {
+            font-size: 1.2rem;
+            color: var(--iron-gall);
+            opacity: 0.8;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: var(--verdigris);
+        }
+
+        /* Main Dashboard Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Today's Schedule Card */
+        .schedule-card {
+            grid-column: span 8;
+            background: white;
+            border-radius: 16px;
+            padding: 1.75rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            border: 1px solid rgba(67, 179, 174, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .schedule-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--verdigris);
+        }
+
+        .schedule-card h2 {
+            font-family: 'Mrs Eaves XL', serif;
+            font-size: 1.5rem;
+            color: var(--iron-gall);
+            margin-bottom: 1.5rem;
+            position: relative;
+            padding-left: 1rem;
+        }
+
+        .schedule-card h2::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 8px;
+            height: 8px;
+            background: var(--verdigris);
+            border-radius: 50%;
+        }
+
+        .schedule-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 1.25rem;
+            padding-bottom: 1.25rem;
+            border-bottom: 1px dashed rgba(67, 179, 174, 0.2);
+        }
+
+        .schedule-item:last-child {
+            margin-bottom: 0;
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .schedule-time {
+            flex: 0 0 80px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.95rem;
+            color: var(--verdigris);
+            font-weight: 600;
+        }
+
+        .schedule-time::before {
+            content: "●";
+            margin-right: 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .schedule-content {
+            flex: 1;
+        }
+
+        .schedule-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            color: var(--iron-gall);
+        }
+
+        .schedule-location {
+            font-size: 0.875rem;
+            color: #666;
+            font-style: italic;
+        }
+
+        /* Upcoming Assignments Card */
+        .assignments-card {
+            grid-column: span 4;
+            background: white;
+            border-radius: 16px;
+            padding: 1.75rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            border: 1px solid rgba(67, 179, 174, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .assignments-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--verdigris);
+        }
+
+        .assignments-card h2 {
+            font-family: 'Mrs Eaves XL', serif;
+            font-size: 1.5rem;
+            color: var(--iron-gall);
+            margin-bottom: 1.5rem;
+            position: relative;
+            padding-left: 1rem;
+        }
+
+        .assignments-card h2::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 8px;
+            height: 8px;
+            background: var(--verdigris);
+            border-radius: 50%;
+        }
+
+        .assignment-item {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 1.25rem;
+            padding-bottom: 1.25rem;
+            border-bottom: 1px dashed rgba(67, 179, 174, 0.2);
+        }
+
+        .assignment-item:last-child {
+            margin-bottom: 0;
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .assignment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+
+        .assignment-title {
+            font-weight: 600;
+            color: var(--iron-gall);
+            flex: 1;
+        }
+
+        .assignment-due {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.875rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            background: rgba(67, 179, 174, 0.1);
+            color: var(--verdigris);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .assignment-description {
+            font-size: 0.9rem;
+            color: #555;
+            margin-bottom: 0.75rem;
+            line-height: 1.5;
+        }
+
+        .assignment-progress {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 8px;
+            background: #eee;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--verdigris);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-percentage {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--verdigris);
+            min-width: 45px;
+            text-align: right;
+        }
+
+        /* Recent Activity Card */
+        .activity-card {
+            grid-column: span 12;
+            background: white;
+            border-radius: 16px;
+            padding: 1.75rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            border: 1px solid rgba(67, 179, 174, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .activity-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--verdigris);
+        }
+
+        .activity-card h2 {
+            font-family: 'Mrs Eaves XL', serif;
+            font-size: 1.5rem;
+            color: var(--iron-gall);
+            margin-bottom: 1.5rem;
+            position: relative;
+            padding-left: 1rem;
+        }
+
+        .activity-card h2::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 8px;
+            height: 8px;
+            background: var(--verdigris);
+            border-radius: 50%;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 1.25rem;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .activity-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .activity-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 8px;
+            width: 10px;
+            height: 10px;
+            background: var(--verdigris);
+            border-radius: 50%;
+        }
+
+        .activity-icon {
+            flex: 0 0 40px;
+            font-size: 1.25rem;
+            margin-right: 1rem;
+        }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            color: var(--iron-gall);
+        }
+
+        .activity-meta {
+            display: flex;
+            font-size: 0.875rem;
+            color: #666;
+            gap: 1rem;
+        }
+
+        .activity-time {
+            font-family: 'IBM Plex Mono', monospace;
+        }
+
+        /* Quick Actions Card */
+        .actions-card {
+            grid-column: span 12;
+            background: white;
+            border-radius: 16px;
+            padding: 1.75rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            border: 1px solid rgba(67, 179, 174, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .actions-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--verdigris);
+        }
+
+        .actions-card h2 {
+            font-family: 'Mrs Eaves XL', serif;
+            font-size: 1.5rem;
+            color: var(--iron-gall);
+            margin-bottom: 1.5rem;
+            position: relative;
+            padding-left: 1rem;
+        }
+
+        .actions-card h2::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 8px;
+            height: 8px;
+            background: var(--verdigris);
+            border-radius: 50%;
+        }
+
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .action-item {
+            text-align: center;
+            padding: 1.25rem;
+            border-radius: 12px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            background: var(--parchment);
+        }
+
+        .action-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px var(--shadow);
+            border-color: var(--verdigris);
+        }
+
+        .action-icon {
+            font-size: 2.25rem;
+            margin-bottom: 0.75rem;
+            display: block;
+        }
+
+        .action-label {
+            font-weight: 600;
+            color: var(--iron-gall);
+            margin-bottom: 0.25rem;
+        }
+
+        .action-description {
+            font-size: 0.875rem;
+            color: #666;
+        }
+
+        /* Status Indicators */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .status-present {
+            background: rgba(40, 167, 69, 0.1);
+            color: #28A745;
+        }
+
+        status-absent {
+            background: rgba(220, 53, 69, 0.1);
+            color: #DC3545;
+        }
+
+        .status-late {
+            background: rgba(255, 193, 7, 0.1);
+            color: #FFC107;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 1.5rem;
+                text-align: center;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .schedule-card,
+            .assignments-card,
+            .activity-card,
+            .actions-card {
+                grid-column: span 12;
+            }
+
+            .actions-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .actions-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .school-name {
+                font-size: 1.8rem;
+            }
+        }
+
+        /* Focus styles for accessibility */
+        *:focus-visible {
+            outline: 2px solid var(--verdigris);
+            outline-offset: 2px;
+        }
+
+        /* Animation for elements */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .schedule-card,
+        .assignments-card,
+        .activity-card,
+        .actions-card {
+            animation: fadeInUp 0.6s ease-out forwards;
+            opacity: 0;
+        }
+
+        .schedule-card { animation-delay: 0.1s; }
+        .assignments-card { animation-delay: 0.2s; }
+        .activity-card { animation-delay: 0.3s; }
+        .actions-card { animation-delay: 0.4s; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="school-logo">
+                <div class="school-name">KINGSBERG School Hub</div>
+            </div>
+            <div class="user-greeting">
+                Good morning, <span class="user-name">Alex Rivera</span>!
+            </div>
+        </header>
+
+        <div class="dashboard-grid">
+            <!-- Today's Schedule -->
+            <section class="schedule-card">
+                <h2>Today's Schedule</h2>
+                <div class="schedule-item">
+                    <div class="schedule-time">8:00 AM</div>
+                    <div class="schedule-content">
+                        <div class="schedule-title">Mathematics - Calculus BC</div>
+                        <div class="schedule-location">Room 214 • Mr. Thompson</div>
+                    </div>
+                </div>
+                <div class="schedule-item">
+                    <div class="schedule-time">9:15 AM</div>
+                    <div class="schedule-content">
+                        <div class="schedule-title">English Literature</div>
+                        <div class="schedule-location">Room 108 • Ms. Rodriguez</div>
+                    </div>
+                </div>
+                <div class="schedule-item">
+                    <div class="schedule-time">10:30 AM</div>
+                    <div class="schedule-content">
+                        <div class="schedule-title">Physics Lab</div>
+                        <div class="schedule-location">Lab 3 • Dr. Chen</div>
+                    </div>
+                </div>
+                <div class="schedule-item">
+                    <div class="schedule-time">12:45 PM</div>
+                    <div class="schedule-content">
+                        <div class="schedule-title">World History</div>
+                        <div class="schedule-location">Room 15 • Professor Davies</div>
+                    </div>
+                </div>
+                <div class="schedule-item">
+                    <div class="schedule-time">2:00 PM</div>
+                    <div class="schedule-content">
+                        <div class="schedule-title">Computer Science</div>
+                        <div class="schedule-location">Lab 7 • Ms. Park</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Upcoming Assignments -->
+            <section class="assignments-card">
+                <h2>Upcoming Assignments</h2>
+                <div class="assignment-item">
+                    <div class="assignment-header">
+                        <div class="assignment-title">Calculus Problem Set #5</div>
+                        <div class="assignment-due">Due Fri</div>
+                    </div>
+                    <div class="assignment-description">Chapter 4: Applications of Derivatives - Problems 1-25 odd</div>
+                    <div class="assignment-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 60%;"></div>
+                        </div>
+                        <div class="progress-percentage">60%</div>
+                    </div>
+                </div>
+                <div class="assignment-item">
+                    <div class="assignment-header">
+                        <div class="assignment-title">English Essay Draft</div>
+                        <div class="assignment-due">Due Thu</div>
+                    </div>
+                    <div class="assignment-description">Analytical essay on symbolism in "The Great Gatsby"</div>
+                    <div class="assignment-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 25%;"></div>
+                        </div>
+                        <div class="progress-percentage">25%</div>
+                    </div>
+                </div>
+                <div class="assignment-item">
+                    <div class="assignment-header">
+                        <div class="assignment-title">Physics Lab Report</div>
+                        <div class="assignment-due">Due Wed</div>
+                    </div>
+                    <div class="assignment-description">Newton's Laws experiment - data analysis and conclusion</div>
+                    <div class="assignment-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 10%;"></div>
+                        </div>
+                        <div class="progress-percentage">10%</div>
+                    </div>
+                </div>
+                <div class="assignment-item">
+                    <div class="assignment-header">
+                        <div class="assignment-title">History Reading Quiz</div>
+                        <div class="assignment-due">Due Tomorrow</div>
+                    </div>
+                    <div class="assignment-description">Chapter 7: Industrial Revolution - pages 142-168</div>
+                    <div class="assignment-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 0%;"></div>
+                        </div>
+                        <div class="progress-percentage">0%</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Recent Activity -->
+            <section class="activity-card">
+                <h2>Recent Activity</h2>
+                <div class="activity-item">
+                    <div class="activity-icon">📝</div>
+                    <div class="activity-content">
+                        <div class="activity-title">Submitted Physics Homework</div>
+                        <div class="activity-meta">
+                            <span class="activity-time">2 hours ago</span>
+                            <span class="status-badge status-present">Submitted</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="activity-item">
+                    <div class="activity-icon">💬</div>
+                    <div class="activity-content">
+                        <div class="activity-title">Commented on history discussion</div>
+                        <div class="activity-meta">
+                            <span class="activity-time">4 hours ago</span>
+                            <span class="status-badge status-present">Posted</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="activity-item">
+                    <div class="activity-icon">📊</div>
+                    <div class="activity-content">
+                        <div class="activity-title">Updated math grade</div>
+                        <div class="activity-meta">
+                            <span class="activity-time">Yesterday</span>
+                            <span class="status-badge status-present">Updated</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="activity-item">
+                    <div class="activity-icon">📢</div>
+                    <div class="activity-content">
+                        <div class="activity-title">Club meeting reminder</div>
+                        <div class="activity-meta">
+                            <span class="activity-time">Yesterday</span>
+                            <span class="status-badge status-info">Announcement</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Quick Actions -->
+            <section class="actions-card">
+                <h2>Quick Actions</h2>
+                <div class="actions-grid">
+                    <div class="action-item" onclick="alert('Opening gradebook...')">
+                        <div class="action-icon">📊</div>
+                        <div class="action-label">View Grades</div>
+                        <div class="action-description">Check latest scores and GPA</div>
+                    </div>
+                    <div class="action-item" onclick="alert('Opening calendar...')">
+                        <div class="action-icon">📅</div>
+                        <div class="action-label>School Calendar</div>
+                        <div class="action-description">View events and deadlines</div>
+                    </div>
+                    <div class="action-item" onclick="alert('Opening messages...')">
+                        <div class="action-icon">💬</div>
+                        <div class="action-label>Messages</div>
+                        <div class="action-description">Communicate with teachers</div>
+                    </div>
+                    <div class="action-item" onclick="alert('Opening resources...')">
+                        <div class="action-icon">📚</div>
+                        <div class="action-label>Resources</div>
+                        <div class="action-description">Access study materials</div>
+                    </div>
+                    <div class="action-item" onclick="alert('Opening settings...')">
+                        <div class="action-icon">⚙️</div>
+                        <div class="action-label>Settings</div>
+                        <div class="action-description">Update preferences</div>
+                    </div>
+                    <div class="action-item" onclick="alert('Opening help...')">
+                        <div class="action-icon">❓</div>
+                        <div class="action-label>Help & Support</div>
+                        <div class="action-description">Get assistance</div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        // Add some interactive behavior
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add hover effects to action items
+            const actionItems = document.querySelectorAll('.action-item');
+            actionItems.forEach(item => {
+                item.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-4px)';
+                });
+                item.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0)';
+                });
+            });
+
+            // Update time-based greeting
+            const hour = new Date().getHours();
+            let greeting = '';
+            if (hour < 12) greeting = 'Good morning';
+            else if (hour < 17) greeting = 'Good afternoon';
+            else greeting = 'Good evening';
+
+            const greetingElement = document.querySelector('.user-greeting');
+            if (greetingElement) {
+                const name = greetingElement.querySelector('.user-name');
+                greetingElement.innerHTML = `${greeting}, <span class="user-name">${name.textContent}</span>!`;
+            }
+        });
+    </script>
+</body>
+</html>

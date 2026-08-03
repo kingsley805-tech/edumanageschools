@@ -55,7 +55,13 @@ function sectionFor(item: AdminNavItem | AdminNavGroup): string {
     label.includes("assignment") ||
     label.includes("waec") ||
     label.includes("bece") ||
-    label.includes("wassce")
+    label.includes("wassce") ||
+    label.includes("achievement") ||
+    label.includes("program") ||
+    label.includes("performance") ||
+    label.includes("health") ||
+    label.includes("behavior") ||
+    label.includes("exeat")
   ) {
     return "Academics";
   }
@@ -70,7 +76,16 @@ function sectionFor(item: AdminNavItem | AdminNavGroup): string {
     label.includes("payroll") ||
     label.includes("staff") ||
     label.includes("fee") ||
-    label.includes("payment")
+    label.includes("payment") ||
+    label.includes("department") ||
+    label.includes("calendar") ||
+    label.includes("shop") ||
+    label.includes("laboratory") ||
+    label.includes("expense") ||
+    label.includes("budget") ||
+    label.includes("income") ||
+    label.includes("resource") ||
+    label.includes("domestic")
   ) {
     return "Operations";
   }

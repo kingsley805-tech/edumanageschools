@@ -23,7 +23,6 @@ import {
 } from "@/lib/auth-api";
 import { TEACHER_DEACTIVATED_MESSAGE } from "@/lib/teacherAccountStatus";
 import { EduManageLogo } from "@/components/EduManageLogo";
-import schoolPicture from "@/assets/School Picture.webp";
 import { motion, AnimatePresence } from "framer-motion";
 
 const EducationHubAnimation = () => {
@@ -677,11 +676,10 @@ const Auth = () => {
 
       {/* Left Panel - Hero Section */}
       <div className="relative lg:w-1/2 min-h-[360px] lg:min-h-screen flex flex-col justify-between p-8 lg:p-12 overflow-hidden border-b lg:border-b-0 lg:border-r border-white/15 z-10">
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-[0.07] mix-blend-overlay pointer-events-none"
-          style={{ backgroundImage: `url(${schoolPicture})` }}
-        />
-        <div className="absolute inset-0 bg-black pointer-events-none" />
+        {/* African Education Image with Gradient Overlay */}
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1763718528755-4bca23f82ac3?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8c2Nob29sJTIwc3lzdGVtJTIwZGFzaGJvYXJkJTIwYmxhY2t8ZW58MHx8MHx8fDA%3D')] bg-cover bg-center">
+          <div className="absolute inset-0 bg-gradient-to-b from-black/80 to-black/90" />
+        </div>
 
         <div className="relative z-20 flex flex-col h-full justify-between gap-12">
           {/* Logo & Title */}

@@ -67,6 +67,24 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
         path: "/admin/lesson-notes",
         actions: ["view", "create", "edit", "approve", "export", "manage"],
       },
+      {
+        key: "achievements",
+        label: "Achievements",
+        path: "/admin/achievements",
+        actions: [...OPS_MODULE_ACTIONS, "approve"],
+      },
+      {
+        key: "programs",
+        label: "Programs",
+        path: "/admin/programs",
+        actions: OPS_MODULE_ACTIONS,
+      },
+      {
+        key: "student_performance",
+        label: "Performance Dashboard",
+        path: "/admin/student-performance",
+        actions: ["view", "export", "manage"],
+      },
     ],
   },
   {
@@ -128,6 +146,24 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
         path: "/admin/billing",
         actions: ["view", "export"],
       },
+      {
+        key: "finance_expenses",
+        label: "Expenses",
+        path: "/admin/finance/expenses",
+        actions: [...OPS_MODULE_ACTIONS, "approve"],
+      },
+      {
+        key: "finance_other_income",
+        label: "Other Income",
+        path: "/admin/finance/other-income",
+        actions: OPS_MODULE_ACTIONS,
+      },
+      {
+        key: "finance_budgets",
+        label: "Budget Management",
+        path: "/admin/finance/budgets",
+        actions: [...OPS_MODULE_ACTIONS, "approve"],
+      },
     ],
   },
   {
@@ -136,7 +172,7 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
     modules: [
       {
         key: "staff_management",
-        label: "Staff Management",
+        label: "Staff Directory",
         path: "/admin/hr/staff",
         actions: OPS_MODULE_ACTIONS,
       },
@@ -156,6 +192,54 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
         key: "staff_attendance",
         label: "Staff Attendance",
         path: "/admin/hr/attendance",
+        actions: OPS_MODULE_ACTIONS,
+      },
+    ],
+  },
+  {
+    key: "domestics",
+    label: "Domestics",
+    modules: [
+      {
+        key: "behavior_reports",
+        label: "Behavior Reports",
+        path: "/admin/behavior",
+        actions: [...OPS_MODULE_ACTIONS, "approve"],
+      },
+      {
+        key: "exeats",
+        label: "Exeats",
+        path: "/admin/exeats",
+        actions: [...OPS_MODULE_ACTIONS, "approve"],
+      },
+    ],
+  },
+  {
+    key: "health",
+    label: "Health",
+    modules: [
+      {
+        key: "student_health",
+        label: "Student Health",
+        path: "/admin/health",
+        actions: OPS_MODULE_ACTIONS,
+      },
+    ],
+  },
+  {
+    key: "resources",
+    label: "Resources",
+    modules: [
+      {
+        key: "school_shop",
+        label: "School Shop",
+        path: "/admin/shop",
+        actions: OPS_MODULE_ACTIONS,
+      },
+      {
+        key: "laboratory",
+        label: "Laboratory",
+        path: "/admin/laboratory",
         actions: OPS_MODULE_ACTIONS,
       },
     ],
@@ -219,6 +303,24 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
     key: "administration",
     label: "Administration",
     modules: [
+      {
+        key: "staff_employees",
+        label: "Staff",
+        path: "/admin/staff",
+        actions: OPS_MODULE_ACTIONS,
+      },
+      {
+        key: "departments",
+        label: "Departments",
+        path: "/admin/departments",
+        actions: OPS_MODULE_ACTIONS,
+      },
+      {
+        key: "academic_calendar",
+        label: "Academic Calendar",
+        path: "/admin/academic-calendar",
+        actions: OPS_MODULE_ACTIONS,
+      },
       { key: "school_settings", label: "School Settings", path: "/admin/school-settings", actions: ["view", "edit", "manage"] },
       { key: "staff_access", label: "Permission Management", path: "/admin/roles", actions: ["view", "manage"] },
       { key: "approvals", label: "Approvals", path: "/admin/approvals", actions: ["view", "approve", "manage"] },
@@ -314,6 +416,10 @@ export function defaultCodesForRole(slug: string): string[] {
         "billing_reports",
         "billing_family",
         "billing_overview",
+        "finance_expenses",
+        "finance_other_income",
+        "finance_budgets",
+        "school_shop",
         "dashboard",
       ].includes(p.moduleKey)
     );
@@ -324,6 +430,8 @@ export function defaultCodesForRole(slug: string): string[] {
       p &&
       [
         "staff_management",
+        "staff_employees",
+        "departments",
         "billing_payroll",
         "leave_management",
         "staff_attendance",
@@ -331,6 +439,7 @@ export function defaultCodesForRole(slug: string): string[] {
         "transport",
         "hostel",
         "inventory",
+        "laboratory",
       ].includes(p.moduleKey)
     );
   });

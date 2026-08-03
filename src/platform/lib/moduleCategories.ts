@@ -1,10 +1,15 @@
 /** Display order and labels for platform module categories */
 export const PLATFORM_MODULE_CATEGORIES: { key: string; label: string }[] = [
   { key: "academic", label: "Academic Modules" },
+  { key: "academics", label: "Academics" },
   { key: "financial", label: "Financial Modules" },
+  { key: "finance", label: "Financial Management" },
   { key: "communication", label: "Communication Modules" },
   { key: "registration", label: "Registration & Linking" },
   { key: "administration", label: "Administration" },
+  { key: "domestics", label: "Domestics" },
+  { key: "health", label: "Health" },
+  { key: "resources", label: "Resources" },
   { key: "hr", label: "HR Modules" },
   { key: "library", label: "Library Modules" },
   { key: "transport", label: "Transport Modules" },
