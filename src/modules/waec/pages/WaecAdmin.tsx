@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Eye, Plus, Trash2 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +50,7 @@ export default function WaecAdminPage() {
   const [search, setSearch] = useState("");
   const [filterSubject, setFilterSubject] = useState("");
   const [open, setOpen] = useState(false);
+  const [viewQuestion, setViewQuestion] = useState<WaecQuestion | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [draftCount, setDraftCount] = useState(0);
@@ -265,7 +266,7 @@ export default function WaecAdminPage() {
                       <TableHead>Subject</TableHead>
                       <TableHead>Question</TableHead>
                       <TableHead>Answer</TableHead>
-                      <TableHead />
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -273,17 +274,82 @@ export default function WaecAdminPage() {
                       <TableRow key={q.id}>
                         <TableCell className="text-xs">{q.subject_name}</TableCell>
                         <TableCell className="max-w-[300px] truncate">{q.question_text}</TableCell>
-                        <TableCell>{q.correct_answer}</TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" onClick={() => void handleDelete(q.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                        <TableCell><Badge variant="secondary">{q.correct_answer}</Badge></TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => setViewQuestion(q)} title="View question details">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => void handleDelete(q.id)} title="Delete">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </CardContent>
+
+              <Dialog open={!!viewQuestion} onOpenChange={(v) => !v && setViewQuestion(null)}>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center justify-between gap-2 pr-6">
+                      <span>{viewQuestion?.subject_name}</span>
+                      <span className="text-xs text-muted-foreground capitalize">
+                        {viewQuestion ? `${viewQuestion.paper_type.replace("_", " ")} · ${viewQuestion.difficulty}` : null}
+                      </span>
+                    </DialogTitle>
+                  </DialogHeader>
+                  {viewQuestion ? (
+                    <div className="space-y-3 py-2 text-sm">
+                      <div className="rounded-md border bg-muted/20 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                          Question Prompt
+                        </p>
+                        <p className="font-medium">{viewQuestion.question_text}</p>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Options</p>
+                        {[
+                          ["A", viewQuestion.option_a],
+                          ["B", viewQuestion.option_b],
+                          ["C", viewQuestion.option_c],
+                          ["D", viewQuestion.option_d],
+                        ].map(([opt, val]) => (
+                          <div
+                            key={opt}
+                            className={`flex items-start gap-2 rounded-md border p-2 text-xs ${
+                              viewQuestion.correct_answer === opt
+                                ? "border-emerald-500/50 bg-emerald-500/10 font-semibold text-emerald-600 dark:text-emerald-400"
+                                : "bg-muted/20"
+                            }`}
+                          >
+                            <span className="font-mono font-bold">{opt}.</span>
+                            <span>{val || "—"}</span>
+                            {viewQuestion.correct_answer === opt ? (
+                              <Badge className="ml-auto bg-emerald-600/90 text-[10px] h-4">Correct</Badge>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+
+                      {viewQuestion.explanation ? (
+                        <div className="rounded-md border bg-muted/20 p-2.5">
+                          <p className="text-xs font-semibold text-muted-foreground mb-0.5">Explanation</p>
+                          <p className="text-xs text-muted-foreground">{viewQuestion.explanation}</p>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <div className="flex justify-end pt-2 border-t">
+                    <Button type="button" variant="outline" onClick={() => setViewQuestion(null)}>
+                      Close
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </Card>
           </TabsContent>
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ClipboardCheck, Plus, Trash2 } from "lucide-react";
+import { ClipboardCheck, Eye, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -37,6 +37,7 @@ export default function StaffAttendancePage() {
   const [rows, setRows] = useState<AttendanceRow[]>([]);
   const [staffOptions, setStaffOptions] = useState<{ id: string; name: string }[]>([]);
   const [open, setOpen] = useState(false);
+  const [viewRecord, setViewRecord] = useState<AttendanceRow | null>(null);
   const [staffId, setStaffId] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [status, setStatus] = useState("present");
@@ -251,11 +252,16 @@ export default function StaffAttendancePage() {
                     {r.check_in ?? "—"} – {r.check_out ?? "—"}
                   </TableCell>
                   <TableCell className="text-right">
-                    {access.canDelete ? (
-                      <Button variant="ghost" size="icon" onClick={() => void remove(r.id)}>
-                        <Trash2 className="h-4 w-4" />
+                    <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => setViewRecord(r)} title="View details">
+                        <Eye className="h-4 w-4" />
                       </Button>
-                    ) : null}
+                      {access.canDelete ? (
+                        <Button variant="ghost" size="icon" onClick={() => void remove(r.id)} title="Delete">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      ) : null}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -263,6 +269,52 @@ export default function StaffAttendancePage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={!!viewRecord} onOpenChange={(v) => !v && setViewRecord(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-2 pr-6">
+              <span>{viewRecord?.staff_name}</span>
+              {viewRecord?.status ? (
+                <Badge variant={viewRecord.status === "present" ? "success" : "secondary"}>
+                  {viewRecord.status.replace("_", " ")}
+                </Badge>
+              ) : null}
+            </DialogTitle>
+          </DialogHeader>
+          {viewRecord ? (
+            <dl className="grid gap-2.5 text-sm sm:grid-cols-2 py-2">
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Date</dt>
+                <dd className="font-medium mt-0.5">{format(new Date(viewRecord.attendance_date), "dd MMMM yyyy")}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Status</dt>
+                <dd className="font-medium mt-0.5 capitalize">{viewRecord.status.replace("_", " ")}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Check-in Time</dt>
+                <dd className="font-medium mt-0.5">{viewRecord.check_in ?? "—"}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Check-out Time</dt>
+                <dd className="font-medium mt-0.5">{viewRecord.check_out ?? "—"}</dd>
+              </div>
+              {viewRecord.notes ? (
+                <div className="sm:col-span-2 rounded-md border bg-muted/20 p-2">
+                  <dt className="text-xs text-muted-foreground">Notes / Remarks</dt>
+                  <dd className="text-sm mt-0.5">{viewRecord.notes}</dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : null}
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button type="button" variant="outline" onClick={() => setViewRecord(null)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

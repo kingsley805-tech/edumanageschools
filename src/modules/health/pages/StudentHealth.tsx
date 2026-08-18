@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Archive, HeartPulse, Pencil, Plus, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
+import { Archive, Eye, HeartPulse, Pencil, Plus, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -110,6 +110,7 @@ export default function StudentHealthPage() {
   const [genderFilter, setGenderFilter] = useState("all");
   const [showArchived, setShowArchived] = useState(false);
   const [open, setOpen] = useState(false);
+  const [viewProfile, setViewProfile] = useState<HealthRow | null>(null);
   const [editing, setEditing] = useState<HealthRow | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -506,8 +507,11 @@ export default function StudentHealthPage() {
                         <TableCell>{statusBadge(row.health_status)}</TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-1">
+                            <Button type="button" size="icon" variant="ghost" onClick={() => setViewProfile(row)} title="View health profile">
+                              <Eye className="h-4 w-4" />
+                            </Button>
                             {access.canEdit ? (
-                              <Button type="button" size="icon" variant="ghost" onClick={() => openEdit(row)}>
+                              <Button type="button" size="icon" variant="ghost" onClick={() => openEdit(row)} title="Edit">
                                 <Pencil className="h-4 w-4" />
                               </Button>
                             ) : null}
@@ -517,12 +521,13 @@ export default function StudentHealthPage() {
                                 size="icon"
                                 variant="ghost"
                                 onClick={() => handleArchive(row, !row.is_archived)}
+                                title={row.is_archived ? "Restore" : "Archive"}
                               >
                                 {row.is_archived ? <RotateCcw className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
                               </Button>
                             ) : null}
                             {access.canDelete ? (
-                              <Button type="button" size="icon" variant="ghost" onClick={() => handleDelete(row.id)}>
+                              <Button type="button" size="icon" variant="ghost" onClick={() => handleDelete(row.id)} title="Delete">
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             ) : null}
@@ -817,6 +822,153 @@ export default function StudentHealthPage() {
               {saving ? "Saving…" : "Save"}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Health Profile Detail Dialog */}
+      <Dialog open={!!viewProfile} onOpenChange={(v) => !v && setViewProfile(null)}>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-2 pr-6">
+              <span>{viewProfile?.student_name} — Health Record</span>
+              <div className="flex gap-1.5">
+                {viewProfile?.critical_alert ? (
+                  <Badge variant="destructive">Critical Alert</Badge>
+                ) : null}
+                {viewProfile?.health_status ? statusBadge(viewProfile.health_status) : null}
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          {viewProfile ? (
+            <div className="space-y-4 py-2">
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  Student Information
+                </p>
+                <dl className="grid gap-2 text-sm sm:grid-cols-4">
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Admission #</dt>
+                    <dd className="font-medium">{viewProfile.admission_number || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Class</dt>
+                    <dd className="font-medium">{viewProfile.class_name || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Gender</dt>
+                    <dd className="font-medium capitalize">{viewProfile.gender || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Blood Group</dt>
+                    <dd className="font-semibold text-primary">{viewProfile.blood_group || "Not recorded"}</dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  Emergency & Provider Contacts
+                </p>
+                <dl className="grid gap-2 text-sm sm:grid-cols-3">
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Emergency Contact</dt>
+                    <dd className="font-medium">{viewProfile.emergency_contact_name || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Emergency Phone</dt>
+                    <dd className="font-medium">{viewProfile.emergency_contact_phone || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Relationship</dt>
+                    <dd className="font-medium">{viewProfile.emergency_relationship || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Doctor Name</dt>
+                    <dd className="font-medium">{viewProfile.doctor_name || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Hospital / Clinic</dt>
+                    <dd className="font-medium">{viewProfile.hospital || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Insurance</dt>
+                    <dd className="font-medium">{viewProfile.insurance || "—"}</dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  Physical & Medical Details
+                </p>
+                <dl className="grid gap-2 text-sm sm:grid-cols-4">
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Height</dt>
+                    <dd className="font-medium">{viewProfile.height_cm ? `${viewProfile.height_cm} cm` : "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Weight</dt>
+                    <dd className="font-medium">{viewProfile.weight_kg ? `${viewProfile.weight_kg} kg` : "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Vision</dt>
+                    <dd className="font-medium">{viewProfile.vision || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Hearing</dt>
+                    <dd className="font-medium">{viewProfile.hearing || "—"}</dd>
+                  </div>
+                </dl>
+              </div>
+
+              {viewProfile.allergies || viewProfile.medical_conditions || viewProfile.current_medication || viewProfile.medical_notes ? (
+                <div className="space-y-2.5">
+                  {viewProfile.allergies ? (
+                    <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5">
+                      <dt className="text-xs font-semibold text-amber-500">Allergies</dt>
+                      <dd className="text-sm mt-0.5">{viewProfile.allergies}</dd>
+                    </div>
+                  ) : null}
+                  {viewProfile.medical_conditions ? (
+                    <div className="rounded-md border bg-muted/20 p-2.5">
+                      <dt className="text-xs font-semibold text-muted-foreground">Medical Conditions</dt>
+                      <dd className="text-sm mt-0.5">{viewProfile.medical_conditions}</dd>
+                    </div>
+                  ) : null}
+                  {viewProfile.current_medication ? (
+                    <div className="rounded-md border bg-muted/20 p-2.5">
+                      <dt className="text-xs font-semibold text-muted-foreground">Current Medication</dt>
+                      <dd className="text-sm mt-0.5">{viewProfile.current_medication}</dd>
+                    </div>
+                  ) : null}
+                  {viewProfile.medical_notes ? (
+                    <div className="rounded-md border bg-muted/20 p-2.5">
+                      <dt className="text-xs font-semibold text-muted-foreground">Doctor / Nurse Notes</dt>
+                      <dd className="text-sm mt-0.5">{viewProfile.medical_notes}</dd>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <Button type="button" variant="outline" onClick={() => setViewProfile(null)}>
+                  Close
+                </Button>
+                {access.canEdit ? (
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      const p = viewProfile;
+                      setViewProfile(null);
+                      openEdit(p);
+                    }}
+                  >
+                    Edit Record
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

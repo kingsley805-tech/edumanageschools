@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Briefcase, Search } from "lucide-react";
+import { Briefcase, Eye, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
@@ -29,6 +30,7 @@ export default function StaffManagementPage() {
   const access = useModuleAccess("staff_management");
   const [rows, setRows] = useState<StaffRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewStaff, setViewStaff] = useState<StaffRow | null>(null);
   const [search, setSearch] = useState("");
 
   const load = useCallback(async () => {
@@ -156,18 +158,19 @@ export default function StaffManagementPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Roles</TableHead>
                   <TableHead>Employee #</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center text-muted-foreground">
                       Loading…
                     </TableCell>
                   </TableRow>
                 ) : filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center text-muted-foreground">
                       No staff found.
                     </TableCell>
                   </TableRow>
@@ -186,6 +189,11 @@ export default function StaffManagementPage() {
                         </div>
                       </TableCell>
                       <TableCell>{r.employee_no ?? "—"}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" onClick={() => setViewStaff(r)} title="View staff profile">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -194,6 +202,58 @@ export default function StaffManagementPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={!!viewStaff} onOpenChange={(v) => !v && setViewStaff(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-2 pr-6">
+              <span>{viewStaff?.full_name ?? "Staff Member"}</span>
+              {viewStaff?.employee_no ? (
+                <Badge variant="outline" className="font-mono text-xs">
+                  #{viewStaff.employee_no}
+                </Badge>
+              ) : null}
+            </DialogTitle>
+          </DialogHeader>
+          {viewStaff ? (
+            <div className="space-y-4 py-2">
+              <dl className="grid gap-2.5 text-sm sm:grid-cols-2">
+                <div className="rounded-md border bg-muted/20 p-2">
+                  <dt className="text-xs text-muted-foreground">Full Name</dt>
+                  <dd className="font-medium mt-0.5">{viewStaff.full_name ?? "—"}</dd>
+                </div>
+                <div className="rounded-md border bg-muted/20 p-2">
+                  <dt className="text-xs text-muted-foreground">Email</dt>
+                  <dd className="font-medium mt-0.5 truncate">{viewStaff.email ?? "—"}</dd>
+                </div>
+                <div className="rounded-md border bg-muted/20 p-2">
+                  <dt className="text-xs text-muted-foreground">Employee No</dt>
+                  <dd className="font-medium mt-0.5">{viewStaff.employee_no ?? "Not assigned"}</dd>
+                </div>
+                <div className="rounded-md border bg-muted/20 p-2">
+                  <dt className="text-xs text-muted-foreground">User ID</dt>
+                  <dd className="font-mono text-xs mt-0.5 truncate">{viewStaff.id}</dd>
+                </div>
+              </dl>
+              <div className="rounded-md border bg-muted/20 p-2.5">
+                <p className="text-xs text-muted-foreground mb-1.5">Assigned Roles</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {viewStaff.role.split(", ").filter(Boolean).map((role) => (
+                    <Badge key={role} variant="secondary" className="capitalize">
+                      {role.replace("_", " ")}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button type="button" variant="outline" onClick={() => setViewStaff(null)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

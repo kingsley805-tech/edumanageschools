@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { CalendarOff, Plus, Trash2 } from "lucide-react";
+import { CalendarOff, Eye, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,6 +39,7 @@ export default function LeaveManagementPage() {
   const [rows, setRows] = useState<LeaveRow[]>([]);
   const [staffOptions, setStaffOptions] = useState<{ id: string; name: string }[]>([]);
   const [open, setOpen] = useState(false);
+  const [viewLeave, setViewLeave] = useState<LeaveRow | null>(null);
   const [staffId, setStaffId] = useState("");
   const [leaveType, setLeaveType] = useState("Annual");
   const [startDate, setStartDate] = useState("");
@@ -260,25 +261,30 @@ export default function LeaveManagementPage() {
                     <Badge variant={r.status === "approved" ? "success" : r.status === "rejected" ? "destructive" : "secondary"}>{r.status}</Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    {access.canEdit ? (
-                      <Select value={r.status} onValueChange={(v) => void updateStatus(r.id, v)}>
-                        <SelectTrigger className="h-8 w-[120px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STATUSES.map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {s}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : null}
-                    {access.canDelete ? (
-                      <Button variant="ghost" size="icon" className="ml-1" onClick={() => void remove(r.id)}>
-                        <Trash2 className="h-4 w-4" />
+                    <div className="flex justify-end items-center gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => setViewLeave(r)} title="View request details">
+                        <Eye className="h-4 w-4" />
                       </Button>
-                    ) : null}
+                      {access.canEdit ? (
+                        <Select value={r.status} onValueChange={(v) => void updateStatus(r.id, v)}>
+                          <SelectTrigger className="h-8 w-[110px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STATUSES.map((s) => (
+                              <SelectItem key={s} value={s}>
+                                {s}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : null}
+                      {access.canDelete ? (
+                        <Button variant="ghost" size="icon" onClick={() => void remove(r.id)} title="Delete">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      ) : null}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -286,6 +292,52 @@ export default function LeaveManagementPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={!!viewLeave} onOpenChange={(v) => !v && setViewLeave(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-2 pr-6">
+              <span>{viewLeave?.staff_name}</span>
+              {viewLeave?.status ? (
+                <Badge variant={viewLeave.status === "approved" ? "success" : viewLeave.status === "rejected" ? "destructive" : "secondary"}>
+                  {viewLeave.status}
+                </Badge>
+              ) : null}
+            </DialogTitle>
+          </DialogHeader>
+          {viewLeave ? (
+            <dl className="grid gap-2.5 text-sm sm:grid-cols-2 py-2">
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Staff Member</dt>
+                <dd className="font-medium mt-0.5">{viewLeave.staff_name}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Leave Type</dt>
+                <dd className="font-medium mt-0.5">{viewLeave.leave_type}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Start Date</dt>
+                <dd className="font-medium mt-0.5">{format(new Date(viewLeave.start_date), "dd MMMM yyyy")}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">End Date</dt>
+                <dd className="font-medium mt-0.5">{format(new Date(viewLeave.end_date), "dd MMMM yyyy")}</dd>
+              </div>
+              {viewLeave.reason ? (
+                <div className="sm:col-span-2 rounded-md border bg-muted/20 p-2">
+                  <dt className="text-xs text-muted-foreground">Reason for Leave</dt>
+                  <dd className="text-sm mt-0.5">{viewLeave.reason}</dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : null}
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button type="button" variant="outline" onClick={() => setViewLeave(null)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

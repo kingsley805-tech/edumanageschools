@@ -37,7 +37,6 @@ const SchoolSettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingReportProfile, setSavingReportProfile] = useState(false);
-  const [savingBrand, setSavingBrand] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [school, setSchool] = useState<{
     id: string;
@@ -277,44 +276,6 @@ const SchoolSettings = () => {
       schoolContacts !== (school.phone ?? "") ||
       schoolEmail !== (school.email ?? ""));
 
-  const handleSaveBrandColors = async () => {
-    if (!school) return;
-
-    setSavingBrand(true);
-    try {
-      const { error } = await supabase
-        .from("schools")
-        .update({
-          theme_primary: brandColors.primary,
-          theme_secondary: brandColors.secondary,
-          theme_accent: brandColors.accent,
-        })
-        .eq("id", school.id);
-
-      if (error) throw error;
-
-      setSchool({
-        ...school,
-        theme_primary: brandColors.primary,
-        theme_secondary: brandColors.secondary,
-        theme_accent: brandColors.accent,
-      });
-      applyColors(brandColors);
-      await refreshSchoolTheme();
-      try {
-        await syncReportThemeWithSchoolBrand(school.id, brandColors.primary);
-        await queryClient.invalidateQueries({ queryKey: ["report-theme"] });
-      } catch (syncErr) {
-        console.warn("Report theme sync:", syncErr);
-      }
-      toast.success("Brand colors saved");
-    } catch (error: unknown) {
-      console.error("Error saving brand:", error);
-      toast.error("Failed to save brand colors");
-    } finally {
-      setSavingBrand(false);
-    }
-  };
 
   const getInitials = (name: string) => {
     return name
@@ -357,45 +318,12 @@ const SchoolSettings = () => {
         <div className="flex min-w-0 flex-col justify-center gap-2">
           <h1 className="text-xl font-medium leading-none text-mono">School Settings</h1>
           <div className="flex items-center gap-2 text-sm font-normal text-secondary-foreground">
-            Manage your school profile, report card header details, logo, and brand colors
+            Manage your school profile, report card header details, and logo
           </div>
         </div>
       </div>
 
       <div className="space-y-6">
-        <Card className="border-2 border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Palette className="h-5 w-5 text-primary" />
-              Brand Colors
-            </CardTitle>
-            <CardDescription>
-              Stored with your school profile for logos and document identity. The portal
-              UI stays on the black &amp; white design system — these colors do not retint
-              navigation or dashboards. Report card colors are set under Report Settings.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <SchoolBrandColorPicker
-              colors={brandColors}
-              onChange={setBrandColors}
-            />
-            <Button onClick={handleSaveBrandColors} disabled={savingBrand} className="w-full sm:w-auto">
-              {savingBrand ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving colors...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  Save brand colors
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-
         <Card className="border-2 border-primary/10">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -404,7 +332,7 @@ const SchoolSettings = () => {
             </CardTitle>
             <CardDescription>
               Motto, location, contacts, and email shown in the header of every printed and PDF report
-              card. Upload your logo above; set report colors under Brand Colors or Report settings.
+              card. Upload your logo above; configure report layout under Report settings.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

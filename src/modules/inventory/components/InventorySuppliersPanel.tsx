@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,7 @@ const emptyForm = {
 export function InventorySuppliersPanel({ suppliers, schoolId, access, onRefresh }: Props) {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [viewSupplier, setViewSupplier] = useState<InventorySupplier | null>(null);
   const [editing, setEditing] = useState<InventorySupplier | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -228,22 +229,88 @@ export function InventorySuppliersPanel({ suppliers, schoolId, access, onRefresh
                   <Badge variant={s.status === "active" ? "success" : "secondary"}>{s.status}</Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  {access.canEdit ? (
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(s)}>
-                      <Pencil className="h-4 w-4" />
+                  <div className="flex justify-end gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => setViewSupplier(s)} title="View details">
+                      <Eye className="h-4 w-4" />
                     </Button>
-                  ) : null}
-                  {access.canDelete ? (
-                    <Button variant="ghost" size="icon" onClick={() => void handleDelete(s.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  ) : null}
+                    {access.canEdit ? (
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(s)} title="Edit">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                    {access.canDelete ? (
+                      <Button variant="ghost" size="icon" onClick={() => void handleDelete(s.id)} title="Delete">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </CardContent>
+
+      <Dialog open={!!viewSupplier} onOpenChange={(v) => !v && setViewSupplier(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-2 pr-6">
+              <span>{viewSupplier?.name}</span>
+              {viewSupplier?.status ? (
+                <Badge variant={viewSupplier.status === "active" ? "success" : "secondary"}>
+                  {viewSupplier.status}
+                </Badge>
+              ) : null}
+            </DialogTitle>
+          </DialogHeader>
+          {viewSupplier ? (
+            <dl className="grid gap-2.5 text-sm sm:grid-cols-2 py-2">
+              {[
+                ["Company", viewSupplier.company_name],
+                ["Contact Person", viewSupplier.contact_person],
+                ["Phone", viewSupplier.phone],
+                ["Email", viewSupplier.email],
+                ["Payment Terms", viewSupplier.payment_terms],
+                ["Purchase Orders", viewSupplier.purchase_count ?? 0],
+              ].map(([k, v]) => (
+                <div key={String(k)} className="rounded-md border bg-muted/20 p-2">
+                  <dt className="text-xs text-muted-foreground">{k}</dt>
+                  <dd className="font-medium mt-0.5">{String(v ?? "—")}</dd>
+                </div>
+              ))}
+              {viewSupplier.address ? (
+                <div className="sm:col-span-2 rounded-md border bg-muted/20 p-2">
+                  <dt className="text-xs text-muted-foreground">Address</dt>
+                  <dd className="font-medium mt-0.5">{viewSupplier.address}</dd>
+                </div>
+              ) : null}
+              {viewSupplier.products_supplied ? (
+                <div className="sm:col-span-2 rounded-md border bg-muted/20 p-2">
+                  <dt className="text-xs text-muted-foreground">Products Supplied</dt>
+                  <dd className="font-medium mt-0.5">{viewSupplier.products_supplied}</dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : null}
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button type="button" variant="outline" onClick={() => setViewSupplier(null)}>
+              Close
+            </Button>
+            {access.canEdit && viewSupplier ? (
+              <Button
+                type="button"
+                onClick={() => {
+                  const s = viewSupplier;
+                  setViewSupplier(null);
+                  openEdit(s);
+                }}
+              >
+                Edit Supplier
+              </Button>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

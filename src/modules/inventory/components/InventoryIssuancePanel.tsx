@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, RotateCcw } from "lucide-react";
+import { Eye, Plus, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -48,6 +48,7 @@ function statusBadge(s: InventoryIssuance["status"]) {
 export function InventoryIssuancePanel({ issuances, items, schoolId, access, onRefresh }: Props) {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [viewIssuance, setViewIssuance] = useState<InventoryIssuance | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
@@ -234,17 +235,63 @@ export function InventoryIssuancePanel({ issuances, items, schoolId, access, onR
                 <TableCell>{i.issue_date}</TableCell>
                 <TableCell>{statusBadge(i.status)}</TableCell>
                 <TableCell className="text-right">
-                  {access.canEdit && i.status === "issued" ? (
-                    <Button variant="ghost" size="icon" onClick={() => void handleReturn(i)} title="Return">
-                      <RotateCcw className="h-4 w-4" />
+                  <div className="flex justify-end gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => setViewIssuance(i)} title="View details">
+                      <Eye className="h-4 w-4" />
                     </Button>
-                  ) : null}
+                    {access.canEdit && i.status === "issued" ? (
+                      <Button variant="ghost" size="icon" onClick={() => void handleReturn(i)} title="Return">
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </CardContent>
+
+      <Dialog open={!!viewIssuance} onOpenChange={(v) => !v && setViewIssuance(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-2 pr-6">
+              <span>{viewIssuance?.item_name}</span>
+              {viewIssuance?.status ? statusBadge(viewIssuance.status) : null}
+            </DialogTitle>
+          </DialogHeader>
+          {viewIssuance ? (
+            <dl className="grid gap-2.5 text-sm sm:grid-cols-2 py-2">
+              {[
+                ["Recipient", viewIssuance.recipient_name],
+                ["Reference/ID", viewIssuance.recipient_ref],
+                ["Recipient Type", viewIssuance.recipient_type],
+                ["Class / Dept", viewIssuance.class_or_department],
+                ["Quantity", viewIssuance.quantity],
+                ["Issue Date", viewIssuance.issue_date],
+                ["Expected Return", viewIssuance.expected_return_date],
+                ["Return Date", viewIssuance.return_date],
+              ].map(([k, v]) => (
+                <div key={String(k)} className="rounded-md border bg-muted/20 p-2">
+                  <dt className="text-xs text-muted-foreground">{k}</dt>
+                  <dd className="font-medium mt-0.5">{String(v ?? "—")}</dd>
+                </div>
+              ))}
+              {viewIssuance.remarks ? (
+                <div className="sm:col-span-2 rounded-md border bg-muted/20 p-2">
+                  <dt className="text-xs text-muted-foreground">Remarks</dt>
+                  <dd className="text-sm mt-0.5">{viewIssuance.remarks}</dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : null}
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button type="button" variant="outline" onClick={() => setViewIssuance(null)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

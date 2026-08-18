@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, RefreshCw, TrendingDown, TrendingUp, Users } from "lucide-react";
+import { AlertTriangle, Eye, RefreshCw, TrendingDown, TrendingUp, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -334,68 +335,132 @@ function PerformanceTable({
   showIntervention: boolean;
   empty: string;
 }) {
+  const [viewRow, setViewRow] = useState<PerformanceRow | null>(null);
+
   if (rows.length === 0) {
     return <div className="py-10 text-center text-sm text-muted-foreground">{empty}</div>;
   }
   return (
-    <div className="overflow-x-auto rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>#</TableHead>
-            <TableHead>Student</TableHead>
-            <TableHead>Class</TableHead>
-            <TableHead>Score</TableHead>
-            <TableHead>Position</TableHead>
-            <TableHead>Attendance</TableHead>
-            <TableHead>Failed</TableHead>
-            <TableHead>Awards</TableHead>
-            {showIntervention ? <TableHead>Intervention</TableHead> : null}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((r, i) => (
-            <TableRow key={`${r.student_id}-${r.report_id}-${i}`}>
-              <TableCell className="tabular-nums text-muted-foreground">{i + 1}</TableCell>
-              <TableCell>
-                <div className="font-medium">{r.student_name}</div>
-                <div className="text-xs text-muted-foreground">{r.admission_number}</div>
-              </TableCell>
-              <TableCell>{r.class_name}</TableCell>
-              <TableCell className="font-semibold tabular-nums">
-                {Number.isFinite(r.total_score) ? r.total_score : "—"}
-              </TableCell>
-              <TableCell>
-                {r.class_position != null && Number.isFinite(r.class_position)
-                  ? r.class_position
-                  : "—"}
-              </TableCell>
-              <TableCell>
-                {r.attendance_rate != null && Number.isFinite(r.attendance_rate) ? (
-                  <Badge variant={r.attendance_rate < 80 ? "destructive" : "success"}>
-                    {r.attendance_rate}%
-                  </Badge>
-                ) : (
-                  "—"
-                )}
-              </TableCell>
-              <TableCell>
-                {r.failed_subjects > 0 ? (
-                  <Badge variant="warning">{r.failed_subjects}</Badge>
-                ) : (
-                  "0"
-                )}
-              </TableCell>
-              <TableCell>{Number.isFinite(r.awards_count) ? r.awards_count : 0}</TableCell>
-              {showIntervention ? (
-                <TableCell className="max-w-[260px] text-xs text-muted-foreground">
-                  {interventionFor(r)}
-                </TableCell>
-              ) : null}
+    <>
+      <div className="overflow-x-auto rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>#</TableHead>
+              <TableHead>Student</TableHead>
+              <TableHead>Class</TableHead>
+              <TableHead>Score</TableHead>
+              <TableHead>Position</TableHead>
+              <TableHead>Attendance</TableHead>
+              <TableHead>Failed</TableHead>
+              <TableHead>Awards</TableHead>
+              {showIntervention ? <TableHead>Intervention</TableHead> : null}
+              <TableHead />
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r, i) => (
+              <TableRow key={`${r.student_id}-${r.report_id}-${i}`}>
+                <TableCell className="tabular-nums text-muted-foreground">{i + 1}</TableCell>
+                <TableCell>
+                  <div className="font-medium">{r.student_name}</div>
+                  <div className="text-xs text-muted-foreground">{r.admission_number}</div>
+                </TableCell>
+                <TableCell>{r.class_name}</TableCell>
+                <TableCell className="font-semibold tabular-nums">
+                  {Number.isFinite(r.total_score) ? r.total_score : "—"}
+                </TableCell>
+                <TableCell>
+                  {r.class_position != null && Number.isFinite(r.class_position)
+                    ? r.class_position
+                    : "—"}
+                </TableCell>
+                <TableCell>
+                  {r.attendance_rate != null && Number.isFinite(r.attendance_rate) ? (
+                    <Badge variant={r.attendance_rate < 80 ? "destructive" : "success"}>
+                      {r.attendance_rate}%
+                    </Badge>
+                  ) : (
+                    "—"
+                  )}
+                </TableCell>
+                <TableCell>
+                  {r.failed_subjects > 0 ? (
+                    <Badge variant="warning">{r.failed_subjects}</Badge>
+                  ) : (
+                    "0"
+                  )}
+                </TableCell>
+                <TableCell>{Number.isFinite(r.awards_count) ? r.awards_count : 0}</TableCell>
+                {showIntervention ? (
+                  <TableCell className="max-w-[260px] text-xs text-muted-foreground">
+                    {interventionFor(r)}
+                  </TableCell>
+                ) : null}
+                <TableCell className="text-right">
+                  <Button variant="ghost" size="icon" onClick={() => setViewRow(r)} title="View performance record">
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <Dialog open={!!viewRow} onOpenChange={(v) => !v && setViewRow(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-2 pr-6">
+              <span>{viewRow?.student_name}</span>
+              {viewRow?.class_position ? (
+                <Badge variant="outline">Position: {viewRow.class_position}</Badge>
+              ) : null}
+            </DialogTitle>
+          </DialogHeader>
+          {viewRow ? (
+            <dl className="grid gap-2.5 text-sm sm:grid-cols-2 py-2">
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Admission #</dt>
+                <dd className="font-medium mt-0.5">{viewRow.admission_number}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Class</dt>
+                <dd className="font-medium mt-0.5">{viewRow.class_name}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Total / Avg Score</dt>
+                <dd className="text-base font-bold text-primary mt-0.5">{viewRow.total_score}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Class Position</dt>
+                <dd className="font-medium mt-0.5">{viewRow.class_position ?? "—"}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Attendance Rate</dt>
+                <dd className="font-medium mt-0.5">{viewRow.attendance_rate != null ? `${viewRow.attendance_rate}%` : "—"}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Failed Subjects</dt>
+                <dd className="font-medium mt-0.5">{viewRow.failed_subjects}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Awards Earned</dt>
+                <dd className="font-medium mt-0.5">{viewRow.awards_count}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Intervention Note</dt>
+                <dd className="text-xs mt-0.5">{interventionFor(viewRow)}</dd>
+              </div>
+            </dl>
+          ) : null}
+          <div className="flex justify-end pt-2 border-t">
+            <Button type="button" variant="outline" onClick={() => setViewRow(null)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

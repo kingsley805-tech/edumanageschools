@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRightLeft, LogOut, UserPlus } from "lucide-react";
+import { ArrowRightLeft, Eye, LogOut, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -81,6 +81,7 @@ export function HostelAllocationsPanel({
   }, [initialFilters]);
   const [assignOpen, setAssignOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [viewAllocation, setViewAllocation] = useState<HostelAllocation | null>(null);
   const [transferTarget, setTransferTarget] = useState<HostelAllocation | null>(null);
   const [beds, setBeds] = useState<HostelBed[]>([]);
   const [saving, setSaving] = useState(false);
@@ -457,6 +458,9 @@ export function HostelAllocationsPanel({
                   <TableCell>{allocationStatusBadge(a.allocation_status)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" title="View details" onClick={() => setViewAllocation(a)}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       {access.canEdit && a.allocation_status !== "checked_out" ? (
                         <>
                           <Button variant="ghost" size="icon" title="Transfer" onClick={() => openTransfer(a)}>
@@ -520,6 +524,48 @@ export function HostelAllocationsPanel({
             ) : null}
             <Button onClick={() => void handleTransfer()} disabled={saving}>
               {saving ? "Transferring…" : "Transfer student"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!viewAllocation} onOpenChange={(v) => !v && setViewAllocation(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-2 pr-6">
+              <span>{viewAllocation?.student_name}</span>
+              <div className="flex gap-1.5">
+                {viewAllocation?.payment_status ? paymentStatusBadge(viewAllocation.payment_status) : null}
+                {viewAllocation?.allocation_status ? allocationStatusBadge(viewAllocation.allocation_status) : null}
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          {viewAllocation ? (
+            <dl className="grid gap-2.5 text-sm sm:grid-cols-2 py-2">
+              {[
+                ["Admission #", viewAllocation.admission_number],
+                ["Class", viewAllocation.class_name],
+                ["Hostel", viewAllocation.hostel_name],
+                ["Room", viewAllocation.room_number],
+                ["Bed", viewAllocation.bed_number],
+                ["Check-in Date", viewAllocation.check_in_date],
+                ["Expected Checkout", viewAllocation.expected_check_out_date],
+                ["Actual Checkout", viewAllocation.actual_check_out_date],
+                ["Fee Amount", formatMoney(viewAllocation.fee_amount)],
+                ["Amount Paid", formatMoney(viewAllocation.amount_paid)],
+                ["Balance", formatMoney(viewAllocation.fee_amount - viewAllocation.amount_paid)],
+                ["Gender", viewAllocation.gender],
+              ].map(([k, v]) => (
+                <div key={String(k)} className="rounded-md border bg-muted/20 p-2">
+                  <dt className="text-xs text-muted-foreground">{k}</dt>
+                  <dd className="font-medium mt-0.5">{String(v ?? "—")}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button type="button" variant="outline" onClick={() => setViewAllocation(null)}>
+              Close
             </Button>
           </div>
         </DialogContent>

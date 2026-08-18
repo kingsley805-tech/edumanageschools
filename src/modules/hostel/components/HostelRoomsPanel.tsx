@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -55,6 +55,7 @@ const emptyForm = {
 
 export function HostelRoomsPanel({ rooms, hostels, access, onRefresh, schoolId }: Props) {
   const [open, setOpen] = useState(false);
+  const [viewRoom, setViewRoom] = useState<HostelRoom | null>(null);
   const [editing, setEditing] = useState<HostelRoom | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -273,13 +274,16 @@ export function HostelRoomsPanel({ rooms, hostels, access, onRefresh, schoolId }
                 <TableCell>{roomStatusBadge(r.room_status)}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => setViewRoom(r)} title="View room details">
+                      <Eye className="h-4 w-4" />
+                    </Button>
                     {access.canEdit ? (
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(r)}>
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(r)} title="Edit">
                         <Pencil className="h-4 w-4" />
                       </Button>
                     ) : null}
                     {access.canDelete ? (
-                      <Button variant="ghost" size="icon" onClick={() => void handleDelete(r.id)}>
+                      <Button variant="ghost" size="icon" onClick={() => void handleDelete(r.id)} title="Delete">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     ) : null}
@@ -290,6 +294,56 @@ export function HostelRoomsPanel({ rooms, hostels, access, onRefresh, schoolId }
           </TableBody>
         </Table>
       </CardContent>
+
+      <Dialog open={!!viewRoom} onOpenChange={(v) => !v && setViewRoom(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-2 pr-6">
+              <span>{viewRoom?.block_name} — Room {viewRoom?.room_number}</span>
+              {viewRoom?.room_status ? roomStatusBadge(viewRoom.room_status) : null}
+            </DialogTitle>
+          </DialogHeader>
+          {viewRoom ? (
+            <dl className="grid gap-2.5 text-sm sm:grid-cols-2 py-2">
+              {[
+                ["Hostel Block", viewRoom.block_name],
+                ["Room Number", viewRoom.room_number],
+                ["Room Type", ROOM_TYPE_LABELS[viewRoom.room_type]],
+                ["Floor", viewRoom.floor],
+                ["Wing", viewRoom.wing],
+                ["Gender", viewRoom.gender ?? "mixed"],
+                ["Total Capacity", viewRoom.capacity],
+                ["Occupied Beds", viewRoom.occupied],
+                ["Available Beds", Math.max(0, viewRoom.capacity - viewRoom.occupied)],
+                ["Monthly Fee", formatMoney(viewRoom.monthly_fee)],
+                ["Term Fee", formatMoney(viewRoom.term_fee)],
+              ].map(([k, v]) => (
+                <div key={String(k)} className="rounded-md border bg-muted/20 p-2">
+                  <dt className="text-xs text-muted-foreground">{k}</dt>
+                  <dd className="font-medium mt-0.5">{String(v ?? "—")}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button type="button" variant="outline" onClick={() => setViewRoom(null)}>
+              Close
+            </Button>
+            {access.canEdit && viewRoom ? (
+              <Button
+                type="button"
+                onClick={() => {
+                  const r = viewRoom;
+                  setViewRoom(null);
+                  openEdit(r);
+                }}
+              >
+                Edit Room
+              </Button>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

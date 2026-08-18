@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Plus, Printer } from "lucide-react";
+import { Eye, Plus, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,7 @@ type ReceiptData = {
 export function HostelFeesPanel({ payments, allocations, access, onRefresh, schoolId }: Props) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [viewPayment, setViewPayment] = useState<HostelPayment | null>(null);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
 
@@ -287,26 +288,36 @@ export function HostelFeesPanel({ payments, allocations, access, onRefresh, scho
                   <TableCell>{formatMoney(p.amount)}</TableCell>
                   <TableCell className="capitalize">{p.payment_method.replace("_", " ")}</TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      title="Print receipt"
-                      onClick={() =>
-                        printReceipt({
-                          receipt_number: p.receipt_number ?? p.id.slice(0, 8),
-                          student_name: p.student_name,
-                          admission_number: p.admission_number,
-                          hostel_name: p.hostel_name,
-                          room_number: p.room_number,
-                          amount: p.amount,
-                          payment_date: p.payment_date,
-                          payment_method: p.payment_method,
-                          notes: p.notes,
-                        })
-                      }
-                    >
-                      <Printer className="h-4 w-4" />
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="View details"
+                        onClick={() => setViewPayment(p)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Print receipt"
+                        onClick={() =>
+                          printReceipt({
+                            receipt_number: p.receipt_number ?? p.id.slice(0, 8),
+                            student_name: p.student_name,
+                            admission_number: p.admission_number,
+                            hostel_name: p.hostel_name,
+                            room_number: p.room_number,
+                            amount: p.amount,
+                            payment_date: p.payment_date,
+                            payment_method: p.payment_method,
+                            notes: p.notes,
+                          })
+                        }
+                      >
+                        <Printer className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -314,6 +325,69 @@ export function HostelFeesPanel({ payments, allocations, access, onRefresh, scho
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={!!viewPayment} onOpenChange={(v) => !v && setViewPayment(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-2 pr-6">
+              <span>Receipt: {viewPayment?.receipt_number ?? "—"}</span>
+              <span className="text-sm font-semibold text-primary">{viewPayment ? formatMoney(viewPayment.amount) : null}</span>
+            </DialogTitle>
+          </DialogHeader>
+          {viewPayment ? (
+            <dl className="grid gap-2.5 text-sm sm:grid-cols-2 py-2">
+              {[
+                ["Student", viewPayment.student_name],
+                ["Admission #", viewPayment.admission_number],
+                ["Hostel", viewPayment.hostel_name],
+                ["Room", viewPayment.room_number],
+                ["Amount Paid", formatMoney(viewPayment.amount)],
+                ["Payment Date", viewPayment.payment_date],
+                ["Payment Method", viewPayment.payment_method.replace("_", " ")],
+                ["Receipt #", viewPayment.receipt_number ?? "—"],
+              ].map(([k, v]) => (
+                <div key={String(k)} className="rounded-md border bg-muted/20 p-2">
+                  <dt className="text-xs text-muted-foreground">{k}</dt>
+                  <dd className="font-medium mt-0.5 capitalize">{String(v ?? "—")}</dd>
+                </div>
+              ))}
+              {viewPayment.notes ? (
+                <div className="sm:col-span-2 rounded-md border bg-muted/20 p-2">
+                  <dt className="text-xs text-muted-foreground">Notes</dt>
+                  <dd className="text-sm mt-0.5">{viewPayment.notes}</dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : null}
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button type="button" variant="outline" onClick={() => setViewPayment(null)}>
+              Close
+            </Button>
+            {viewPayment ? (
+              <Button
+                type="button"
+                onClick={() => {
+                  const p = viewPayment;
+                  setViewPayment(null);
+                  printReceipt({
+                    receipt_number: p.receipt_number ?? p.id.slice(0, 8),
+                    student_name: p.student_name,
+                    admission_number: p.admission_number,
+                    hostel_name: p.hostel_name,
+                    room_number: p.room_number,
+                    amount: p.amount,
+                    payment_date: p.payment_date,
+                    payment_method: p.payment_method,
+                    notes: p.notes,
+                  });
+                }}
+              >
+                Print Receipt
+              </Button>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -69,17 +69,21 @@ export default function Contact() {
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-[#050811] text-slate-100 selection:bg-blue-500/30 selection:text-blue-200 overflow-x-hidden font-sans antialiased">
-      {/* Dynamic Background Glows */}
+    <div className="relative min-h-screen w-full bg-[#101216] text-[#e1e4ec] selection:bg-[#2e3340] selection:text-white overflow-x-hidden font-sans antialiased">
+      {/* Background Architectural Grid */}
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/4 h-[500px] w-[500px] rounded-full bg-blue-600/15 blur-[120px]" />
-        <div className="absolute top-1/3 -right-32 h-[450px] w-[450px] rounded-full bg-indigo-600/15 blur-[130px]" />
-        <div className="absolute bottom-10 left-10 h-[400px] w-[400px] rounded-full bg-emerald-600/10 blur-[110px]" />
-        <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:28px_28px] opacity-25" />
+        <div
+          className="absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage:
+              "linear-gradient(#4b5161 1px, transparent 1px), linear-gradient(90deg, #4b5161 1px, transparent 1px)",
+            backgroundSize: "44px 44px",
+          }}
+        />
       </div>
 
       {/* Top Navigation */}
-      <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-[#050811]/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 w-full border-b border-[#292d37] bg-[#14161d]/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-6">
             <Link to="/" className="flex items-center gap-2.5 transition-transform hover:scale-[1.02]">
@@ -89,19 +93,19 @@ export default function Contact() {
             <nav className="hidden md:flex items-center gap-1">
               <Link
                 to="/"
-                className="px-3 py-1.5 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                className="px-3 py-1.5 text-xs font-medium text-[#98a0b1] hover:text-white hover:bg-[#1f232c] rounded-lg transition-colors"
               >
                 Platform Overview
               </Link>
               <Link
                 to="/privacy"
-                className="px-3 py-1.5 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                className="px-3 py-1.5 text-xs font-medium text-[#98a0b1] hover:text-white hover:bg-[#1f232c] rounded-lg transition-colors"
               >
                 Privacy & Security
               </Link>
               <Link
                 to="/contact"
-                className="px-3 py-1.5 text-xs font-semibold text-blue-400 bg-blue-500/10 rounded-lg border border-blue-500/20"
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-[#222630] rounded-lg border border-[#353a47]"
               >
                 Contact & Support
               </Link>
@@ -111,13 +115,13 @@ export default function Contact() {
           <div className="flex items-center gap-3">
             <Link
               to="/auth"
-              className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-white shadow-xs backdrop-blur-md transition-all hover:bg-white/10 hover:border-white/25 active:scale-95"
+              className="inline-flex items-center justify-center rounded-xl border border-[#383e4c] bg-[#1d2028] px-4 py-2 text-xs font-semibold text-white backdrop-blur-md transition-all hover:bg-[#272b36] hover:border-[#4c5466] active:scale-95"
             >
               Sign In
             </Link>
             <Link
               to="/auth"
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 px-4 py-2 text-xs font-bold text-white shadow-md shadow-blue-500/20 transition-all hover:shadow-blue-500/35 hover:brightness-110 active:scale-95"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-black transition-all hover:bg-neutral-200 active:scale-95"
             >
               Get Started
               <ArrowRight className="size-3.5" />
@@ -134,9 +138,9 @@ export default function Contact() {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3.5 py-1 text-xs font-medium text-blue-400 backdrop-blur-md mb-4 shadow-xs"
+            className="inline-flex items-center gap-2 rounded-full border border-[#393f4e] bg-[#1d212a] px-3.5 py-1 text-xs font-medium text-white backdrop-blur-md mb-4 shadow-xs"
           >
-            <img src="/assets/edumanageLogo.png" alt="EduManage" className="size-4 object-contain" />
+            <img src="/assets/edumanageLogo.png" alt="EduManage" className="size-4 object-contain brightness-0 invert" />
             Direct Support & Deployment Desk
           </motion.div>
 
@@ -147,7 +151,7 @@ export default function Contact() {
             className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight"
           >
             We&apos;re Here to Help Your{" "}
-            <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-emerald-400 bg-clip-text text-transparent">
+            <span className="text-[#aeb5c6]">
               School Thrive
             </span>
           </motion.h1>
@@ -156,14 +160,14 @@ export default function Contact() {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.15 }}
-            className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed"
+            className="mt-4 text-sm sm:text-base text-[#949cae] leading-relaxed"
           >
             Have inquiries about school onboarding, bulk student records, fee automation, or enterprise deployments?
             Reach our regional support hub or submit a direct message below.
           </motion.p>
         </div>
 
-        {/* 2-Column Grid: Contact Information & Direct Message Form */}
+        {/* 2-Column Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mb-16">
           {/* Left Column: Fast Contact Channels */}
           <motion.div
@@ -173,123 +177,121 @@ export default function Contact() {
             className="lg:col-span-5 space-y-4"
           >
             {/* Phone Lines Card */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl shadow-xl hover:border-blue-500/30 transition-all">
+            <div className="rounded-2xl border border-[#2c313d] bg-[#171920] p-6 backdrop-blur-xl shadow-xl hover:border-[#434a5c] transition-all">
               <div className="flex items-center gap-3 mb-3">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-md">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-[#232732] text-white border border-[#383e4e] shadow-md">
                   <PhoneCall className="size-5" />
                 </div>
                 <div>
                   <h2 className="text-sm font-bold text-white">Direct Phone Lines</h2>
-                  <p className="text-xs text-white/50">Mon–Fri: 7:30 AM – 6:00 PM GMT</p>
+                  <p className="text-xs text-[#8e95a6]">Mon–Fri: 7:30 AM – 6:00 PM GMT</p>
                 </div>
               </div>
-              <div className="space-y-2 mt-4 pt-3 border-t border-white/10">
+              <div className="space-y-2 mt-4 pt-3 border-t border-[#292d37]">
                 <a
                   href="tel:+233503688781"
-                  className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-all text-sm font-semibold text-emerald-300"
+                  className="flex items-center justify-between p-2.5 rounded-xl bg-[#1b1e26] border border-[#2d323e] hover:bg-[#242833] hover:border-[#424959] transition-all text-sm font-semibold text-white"
                 >
                   <span className="flex items-center gap-2">
-                    <Phone className="size-3.5 text-emerald-400" />
+                    <Phone className="size-3.5 text-white" />
                     +233 50 368 8781
                   </span>
-                  <span className="text-[11px] text-white/50 font-normal">Primary Line</span>
+                  <span className="text-[11px] text-[#8e95a6] font-normal">Primary Line</span>
                 </a>
                 <a
                   href="tel:+233503230804"
-                  className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-all text-sm font-semibold text-emerald-300"
+                  className="flex items-center justify-between p-2.5 rounded-xl bg-[#1b1e26] border border-[#2d323e] hover:bg-[#242833] hover:border-[#424959] transition-all text-sm font-semibold text-white"
                 >
                   <span className="flex items-center gap-2">
-                    <Phone className="size-3.5 text-emerald-400" />
+                    <Phone className="size-3.5 text-white" />
                     +233 50 323 0804
                   </span>
-                  <span className="text-[11px] text-white/50 font-normal">Secondary Line</span>
+                  <span className="text-[11px] text-[#8e95a6] font-normal">Secondary Line</span>
                 </a>
               </div>
             </div>
 
             {/* Email Support Card */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl shadow-xl hover:border-blue-500/30 transition-all">
+            <div className="rounded-2xl border border-[#2c313d] bg-[#171920] p-6 backdrop-blur-xl shadow-xl hover:border-[#434a5c] transition-all">
               <div className="flex items-center gap-3 mb-3">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 shadow-md">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-[#232732] text-white border border-[#383e4e] shadow-md">
                   <Mail className="size-5" />
                 </div>
                 <div>
                   <h2 className="text-sm font-bold text-white">Email Communications</h2>
-                  <p className="text-xs text-white/50">24/7 dedicated intake</p>
+                  <p className="text-xs text-[#8e95a6]">24/7 dedicated intake</p>
                 </div>
               </div>
-              <div className="mt-4 pt-3 border-t border-white/10">
+              <div className="mt-4 pt-3 border-t border-[#292d37]">
                 <a
                   href="mailto:edumanagesystems@gmail.com"
-                  className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-blue-500/10 hover:border-blue-500/30 transition-all text-sm font-semibold text-blue-300 break-all"
+                  className="flex items-center justify-between p-2.5 rounded-xl bg-[#1b1e26] border border-[#2d323e] hover:bg-[#242833] hover:border-[#424959] transition-all text-sm font-semibold text-white break-all"
                 >
                   <span className="flex items-center gap-2">
-                    <Mail className="size-3.5 text-blue-400 shrink-0" />
+                    <Mail className="size-3.5 text-white shrink-0" />
                     edumanagesystems@gmail.com
                   </span>
-                  <ArrowRight className="size-3.5 text-white/40 shrink-0" />
+                  <ArrowRight className="size-3.5 text-[#8e95a6] shrink-0" />
                 </a>
               </div>
             </div>
 
-            {/* Regional HQ / Security Guarantee Card */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl shadow-xl">
+            {/* Regional HQ */}
+            <div className="rounded-2xl border border-[#2c313d] bg-[#171920] p-6 backdrop-blur-xl shadow-xl">
               <div className="flex items-center gap-3 mb-3">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 shadow-md">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-[#232732] text-white border border-[#383e4e] shadow-md">
                   <Building2 className="size-5" />
                 </div>
                 <div>
                   <h2 className="text-sm font-bold text-white">Regional Operations Hub</h2>
-                  <p className="text-xs text-white/50">Accra, Ghana · West Africa</p>
+                  <p className="text-xs text-[#8e95a6]">Accra, Ghana · West Africa</p>
                 </div>
               </div>
-              <div className="mt-4 pt-3 border-t border-white/10 space-y-2.5 text-xs text-slate-300">
-                <div className="flex items-center gap-2 text-white/70">
-                  <Clock className="size-3.5 text-blue-400 shrink-0" />
+              <div className="mt-4 pt-3 border-t border-[#292d37] space-y-2.5 text-xs text-[#c1c6d4]">
+                <div className="flex items-center gap-2 text-[#9da5b6]">
+                  <Clock className="size-3.5 text-white shrink-0" />
                   <span>Business Hours: Monday – Saturday (GMT)</span>
                 </div>
-                <div className="flex items-center gap-2 text-white/70">
-                  <Shield className="size-3.5 text-emerald-400 shrink-0" />
+                <div className="flex items-center gap-2 text-[#9da5b6]">
+                  <Shield className="size-3.5 text-white shrink-0" />
                   <span>256-Bit Encrypted Data & Tier-3 ISO Compliant Infrastructure</span>
                 </div>
               </div>
             </div>
           </motion.div>
 
-          {/* Right Column: Interactive Contact Form */}
+          {/* Right Column: Message Form */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4, delay: 0.25 }}
             className="lg:col-span-7"
           >
-            <div className="rounded-3xl border border-white/15 bg-[#0b0f1d]/90 p-6 sm:p-8 backdrop-blur-2xl shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 h-40 w-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-
+            <div className="rounded-3xl border border-[#2d323e] bg-[#16181f] p-6 sm:p-8 backdrop-blur-2xl shadow-2xl relative overflow-hidden">
               <div className="flex items-center gap-2.5 mb-6">
-                <div className="flex size-9 items-center justify-center rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-[#232732] text-white border border-[#383e4e]">
                   <MessageSquare className="size-4" />
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-white">Send Direct Message to Administration</h2>
-                  <p className="text-xs text-white/60">Delivered straight to the Super Admin portal</p>
+                  <p className="text-xs text-[#8e95a6]">Delivered straight to the Super Admin portal</p>
                 </div>
               </div>
 
               {submitted ? (
-                <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-8 text-center space-y-3">
-                  <div className="size-12 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 mx-auto flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <div className="rounded-2xl border border-[#383e4e] bg-[#1b1e26] p-8 text-center space-y-3">
+                  <div className="size-12 rounded-full bg-[#232732] text-white border border-[#383e4e] mx-auto flex items-center justify-center shadow-lg">
                     <CheckCircle2 className="size-6" />
                   </div>
                   <h2 className="text-base font-bold text-white">Thank you! Message Dispatched</h2>
-                  <p className="text-xs text-emerald-200/80 max-w-md mx-auto leading-relaxed">
+                  <p className="text-xs text-[#a4abbd] max-w-md mx-auto leading-relaxed">
                     Your inquiry has been successfully transmitted to our platform management team.
                     A representative will contact you via email or phone within 2 business hours.
                   </p>
                   <button
                     type="button"
                     onClick={() => setSubmitted(false)}
-                    className="mt-4 inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-500 transition-colors"
+                    className="mt-4 inline-flex items-center justify-center rounded-xl bg-white px-4 py-2 text-xs font-bold text-black hover:bg-neutral-200 transition-colors"
                   >
                     Send Another Message
                   </button>
@@ -298,110 +300,106 @@ export default function Contact() {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5 text-left">
-                      <label className="text-xs font-semibold text-white/80">Full Name *</label>
+                      <label className="text-xs font-semibold text-white">Full Name *</label>
                       <input
                         type="text"
                         required
                         placeholder="e.g. Dr. Kwame Mensah"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full h-11 rounded-xl border border-white/15 bg-white/[0.04] px-3.5 text-xs sm:text-sm text-white placeholder:text-white/30 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                        className="w-full h-11 rounded-xl border border-[#2e3340] bg-[#111317] px-3.5 text-xs sm:text-sm text-white placeholder:text-[#5e6678] focus:border-white focus:outline-none transition-all"
                       />
                     </div>
 
                     <div className="space-y-1.5 text-left">
-                      <label className="text-xs font-semibold text-white/80">Email Address *</label>
+                      <label className="text-xs font-semibold text-white">Email Address *</label>
                       <input
                         type="email"
                         required
                         placeholder="you@school.edu"
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="w-full h-11 rounded-xl border border-white/15 bg-white/[0.04] px-3.5 text-xs sm:text-sm text-white placeholder:text-white/30 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                        className="w-full h-11 rounded-xl border border-[#2e3340] bg-[#111317] px-3.5 text-xs sm:text-sm text-white placeholder:text-[#5e6678] focus:border-white focus:outline-none transition-all"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5 text-left">
-                      <label className="text-xs font-semibold text-white/80">Phone Number (Optional)</label>
+                      <label className="text-xs font-semibold text-white">Phone Number</label>
                       <input
                         type="tel"
-                        placeholder="e.g. +233 50 123 4567"
+                        placeholder="+233 XX XXX XXXX"
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full h-11 rounded-xl border border-white/15 bg-white/[0.04] px-3.5 text-xs sm:text-sm text-white placeholder:text-white/30 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                        className="w-full h-11 rounded-xl border border-[#2e3340] bg-[#111317] px-3.5 text-xs sm:text-sm text-white placeholder:text-[#5e6678] focus:border-white focus:outline-none transition-all"
                       />
                     </div>
 
                     <div className="space-y-1.5 text-left">
-                      <label className="text-xs font-semibold text-white/80">School / Institution Name</label>
+                      <label className="text-xs font-semibold text-white">School / Institution Name</label>
                       <input
                         type="text"
-                        placeholder="e.g. St. Peter's International Academy"
+                        placeholder="e.g. Achimota International"
                         value={formData.institution_name}
                         onChange={(e) => setFormData({ ...formData, institution_name: e.target.value })}
-                        className="w-full h-11 rounded-xl border border-white/15 bg-white/[0.04] px-3.5 text-xs sm:text-sm text-white placeholder:text-white/30 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5 text-left">
-                      <label className="text-xs font-semibold text-white/80">Inquiry Category</label>
-                      <select
-                        value={formData.category}
-                        onChange={(e) =>
-                          setFormData({ ...formData, category: e.target.value as ContactInquiryPayload["category"] })
-                        }
-                        className="w-full h-11 rounded-xl border border-white/15 bg-[#0b0f1d] px-3 text-xs sm:text-sm text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
-                      >
-                        <option value="deployment">New School Setup / Onboarding</option>
-                        <option value="support">Technical & Portal Support</option>
-                        <option value="billing">Fee Management & Billing Setup</option>
-                        <option value="partnership">Enterprise & Multi-Campus Licensing</option>
-                        <option value="general">General Inquiries</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5 text-left">
-                      <label className="text-xs font-semibold text-white/80">Subject</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Inquiring about School ERP setup"
-                        value={formData.subject}
-                        onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                        className="w-full h-11 rounded-xl border border-white/15 bg-white/[0.04] px-3.5 text-xs sm:text-sm text-white placeholder:text-white/30 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                        className="w-full h-11 rounded-xl border border-[#2e3340] bg-[#111317] px-3.5 text-xs sm:text-sm text-white placeholder:text-[#5e6678] focus:border-white focus:outline-none transition-all"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1.5 text-left">
-                    <label className="text-xs font-semibold text-white/80">Detailed Message *</label>
+                    <label className="text-xs font-semibold text-white">Inquiry Type</label>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      className="w-full h-11 rounded-xl border border-[#2e3340] bg-[#111317] px-3.5 text-xs sm:text-sm text-white focus:border-white focus:outline-none transition-all"
+                    >
+                      <option value="deployment" className="bg-[#111317] text-white">New School Deployment / Onboarding</option>
+                      <option value="billing" className="bg-[#111317] text-white">Tuition & Paystack Billing Inquiries</option>
+                      <option value="technical" className="bg-[#111317] text-white">Technical Support & SMS Gateway</option>
+                      <option value="partnership" className="bg-[#111317] text-white">Educational Partnership & Multi-Campus</option>
+                      <option value="general" className="bg-[#111317] text-white">General Information</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5 text-left">
+                    <label className="text-xs font-semibold text-white">Subject</label>
+                    <input
+                      type="text"
+                      placeholder="Brief topic summary"
+                      value={formData.subject}
+                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                      className="w-full h-11 rounded-xl border border-[#2e3340] bg-[#111317] px-3.5 text-xs sm:text-sm text-white placeholder:text-[#5e6678] focus:border-white focus:outline-none transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 text-left">
+                    <label className="text-xs font-semibold text-white">Message Details *</label>
                     <textarea
                       rows={4}
                       required
-                      placeholder="Please share details about your requirements, student size, or questions..."
+                      placeholder="Please provide specifics regarding your student population size, required modules, or support request..."
                       value={formData.message}
                       onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                      className="w-full rounded-xl border border-white/15 bg-white/[0.04] p-3.5 text-xs sm:text-sm text-white placeholder:text-white/30 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
+                      className="w-full rounded-xl border border-[#2e3340] bg-[#111317] p-3.5 text-xs sm:text-sm text-white placeholder:text-[#5e6678] focus:border-white focus:outline-none transition-all resize-none"
                     />
                   </div>
 
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full h-12 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 font-bold text-xs sm:text-sm text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                    className="w-full h-12 inline-flex items-center justify-center gap-2 rounded-xl bg-white text-black font-bold text-xs sm:text-sm hover:bg-neutral-200 transition-all shadow-md active:scale-98 disabled:opacity-50"
                   >
                     {isSubmitting ? (
                       <>
                         <Loader2 className="size-4 animate-spin" />
-                        Transmitting Inquiry…
+                        <span>Transmitting to Administration...</span>
                       </>
                     ) : (
                       <>
+                        <span>Submit Direct Message</span>
                         <Send className="size-4" />
-                        Send Message to Super Admin
                       </>
                     )}
                   </button>
@@ -410,80 +408,23 @@ export default function Contact() {
             </div>
           </motion.div>
         </div>
-
-        {/* Quick FAQ Grid */}
-        <div className="border-t border-white/10 pt-12 pb-6">
-          <div className="text-center max-w-2xl mx-auto mb-8">
-            <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center justify-center gap-2">
-              <HelpCircle className="size-5 text-blue-400" />
-              Frequently Asked Questions
-            </h2>
-            <p className="text-xs text-white/60 mt-1">Quick answers for school administrators and parents</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-md">
-              <h3 className="text-xs sm:text-sm font-bold text-blue-300 mb-2">How fast can our school onboard?</h3>
-              <p className="text-xs text-white/70 leading-relaxed">
-                Most schools are fully configured with classrooms, admission numbers, and gradebooks within 24 to 48 hours with our migration tools.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-md">
-              <h3 className="text-xs sm:text-sm font-bold text-emerald-300 mb-2">Is student data secure and private?</h3>
-              <p className="text-xs text-white/70 leading-relaxed">
-                Yes. All records are isolated per school tenant, encrypted in transit and at rest with AES-256 standards, with strict role-based access control.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-md">
-              <h3 className="text-xs sm:text-sm font-bold text-purple-300 mb-2">Can parents pay fees via Mobile Money?</h3>
-              <p className="text-xs text-white/70 leading-relaxed">
-                Yes. EduManage includes direct Paystack integration allowing instant payments via MTN MoMo, Telecel Cash, AT Money, and Cards.
-              </p>
-            </div>
-          </div>
-        </div>
       </main>
 
-      {/* Footer matching Landing.tsx */}
-      <footer className="border-t border-white/10 bg-black/60 px-4 py-6 text-white/50 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 text-[11px]">
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-            <span>© {new Date().getFullYear()} EduManage Cloud Platform.</span>
-            <a
-              href="mailto:edumanagesystems@gmail.com"
-              className="inline-flex items-center gap-1.5 text-white/70 hover:text-blue-400 transition-colors"
-            >
-              <Mail className="size-3 text-blue-400" />
-              <span>edumanagesystems@gmail.com</span>
-            </a>
-            <a
-              href="tel:+233503688781"
-              className="inline-flex items-center gap-1.5 text-white/70 hover:text-emerald-400 transition-colors"
-            >
-              <Phone className="size-3 text-emerald-400" />
-              <span>+233 50 368 8781</span>
-            </a>
-            <a
-              href="tel:+233503230804"
-              className="inline-flex items-center gap-1.5 text-white/70 hover:text-emerald-400 transition-colors"
-            >
-              <Phone className="size-3 text-emerald-400" />
-              <span>+233 50 323 0804</span>
-            </a>
+      {/* Footer */}
+      <footer className="relative z-10 border-t border-[#292d37] bg-[#14161d]/90 backdrop-blur-xl px-4 py-6 sm:px-8 mt-12">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 text-xs text-[#8c93a4]">
+          <div>
+            <span>© {new Date().getFullYear()} EduManage Cloud Platform. All rights reserved.</span>
           </div>
-
-          <div className="flex items-center gap-4">
-            <span className="inline-flex items-center gap-1 text-white/60">
-              <Shield className="size-3 text-emerald-400" />
-              256-bit Encrypted
-            </span>
-            <Link to="/privacy" className="hover:text-white transition-colors">
+          <div className="flex items-center gap-6">
+            <Link to="/" className="text-[#a2a9bb] hover:text-white transition-colors">
+              Platform Overview
+            </Link>
+            <Link to="/privacy" className="text-[#a2a9bb] hover:text-white transition-colors">
               Privacy & Security
             </Link>
-            <Link to="/contact" className="hover:text-white transition-colors">
-              Contact Us
+            <Link to="/auth" className="text-[#a2a9bb] hover:text-white transition-colors">
+              Sign In
             </Link>
           </div>
         </div>

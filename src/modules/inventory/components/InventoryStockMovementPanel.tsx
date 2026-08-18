@@ -1,4 +1,7 @@
 import { useMemo, useState } from "react";
+import { Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +31,7 @@ const TYPE_COLORS: Record<StockMovement["transaction_type"], string> = {
 };
 
 export function InventoryStockMovementPanel({ movements, canExport }: Props) {
+  const [viewMovement, setViewMovement] = useState<StockMovement | null>(null);
   const [filters, setFilters] = useState<InventoryFilters>({
     search: "",
     category: "",
@@ -104,12 +108,13 @@ export function InventoryStockMovementPanel({ movements, canExport }: Props) {
                 <TableHead>Department</TableHead>
                 <TableHead>Source/Dest</TableHead>
                 <TableHead>Remarks</TableHead>
+                <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground">
                     No stock movements recorded yet.
                   </TableCell>
                 </TableRow>
@@ -132,6 +137,11 @@ export function InventoryStockMovementPanel({ movements, canExport }: Props) {
                     <TableCell>{m.department ?? "—"}</TableCell>
                     <TableCell>{m.source_destination ?? "—"}</TableCell>
                     <TableCell className="max-w-[180px] truncate">{m.remarks ?? "—"}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" onClick={() => setViewMovement(m)} title="View movement audit">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -139,6 +149,51 @@ export function InventoryStockMovementPanel({ movements, canExport }: Props) {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={!!viewMovement} onOpenChange={(v) => !v && setViewMovement(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-2 pr-6">
+              <span>{viewMovement?.item_name}</span>
+              {viewMovement?.transaction_type ? (
+                <Badge className={TYPE_COLORS[viewMovement.transaction_type]}>
+                  {TYPE_LABELS[viewMovement.transaction_type]}
+                </Badge>
+              ) : null}
+            </DialogTitle>
+          </DialogHeader>
+          {viewMovement ? (
+            <dl className="grid gap-2.5 text-sm sm:grid-cols-2 py-2">
+              {[
+                ["SKU", viewMovement.item_sku],
+                ["Transaction Type", TYPE_LABELS[viewMovement.transaction_type]],
+                ["Quantity", viewMovement.quantity],
+                ["Previous Stock", viewMovement.previous_stock],
+                ["Current Stock", viewMovement.current_stock],
+                ["Department", viewMovement.department],
+                ["Source / Destination", viewMovement.source_destination],
+                ["Timestamp", new Date(viewMovement.created_at).toLocaleString()],
+              ].map(([k, v]) => (
+                <div key={String(k)} className="rounded-md border bg-muted/20 p-2">
+                  <dt className="text-xs text-muted-foreground">{k}</dt>
+                  <dd className="font-medium mt-0.5">{String(v ?? "—")}</dd>
+                </div>
+              ))}
+              {viewMovement.remarks ? (
+                <div className="sm:col-span-2 rounded-md border bg-muted/20 p-2">
+                  <dt className="text-xs text-muted-foreground">Remarks</dt>
+                  <dd className="text-sm mt-0.5">{viewMovement.remarks}</dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : null}
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button type="button" variant="outline" onClick={() => setViewMovement(null)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

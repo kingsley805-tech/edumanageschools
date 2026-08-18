@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Library, Plus, Trash2 } from "lucide-react";
+import { Eye, Library, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,7 @@ export default function LibraryManagementPage() {
   const access = useModuleAccess("library_management");
   const [rows, setRows] = useState<BookRow[]>([]);
   const [open, setOpen] = useState(false);
+  const [viewBook, setViewBook] = useState<BookRow | null>(null);
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [isbn, setIsbn] = useState("");
@@ -211,11 +212,16 @@ export default function LibraryManagementPage() {
                   </TableCell>
                   <TableCell>{r.shelf_location ?? "—"}</TableCell>
                   <TableCell className="text-right">
-                    {access.canDelete ? (
-                      <Button variant="ghost" size="icon" onClick={() => void remove(r.id)}>
-                        <Trash2 className="h-4 w-4" />
+                    <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => setViewBook(r)} title="View book details">
+                        <Eye className="h-4 w-4" />
                       </Button>
-                    ) : null}
+                      {access.canDelete ? (
+                        <Button variant="ghost" size="icon" onClick={() => void remove(r.id)} title="Delete">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      ) : null}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -223,6 +229,52 @@ export default function LibraryManagementPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={!!viewBook} onOpenChange={(v) => !v && setViewBook(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-2 pr-6">
+              <span>{viewBook?.title}</span>
+              <span className="text-xs font-semibold text-primary">
+                {viewBook ? `${viewBook.copies_available}/${viewBook.copies_total} Available` : null}
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+          {viewBook ? (
+            <dl className="grid gap-2.5 text-sm sm:grid-cols-2 py-2">
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Author</dt>
+                <dd className="font-medium mt-0.5">{viewBook.author ?? "—"}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Category</dt>
+                <dd className="font-medium mt-0.5">{viewBook.category ?? "—"}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">ISBN</dt>
+                <dd className="font-mono text-xs mt-0.5">{viewBook.isbn ?? "—"}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Shelf Location</dt>
+                <dd className="font-medium mt-0.5">{viewBook.shelf_location ?? "—"}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Total Copies</dt>
+                <dd className="font-medium mt-0.5">{viewBook.copies_total}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Available Copies</dt>
+                <dd className="font-medium mt-0.5">{viewBook.copies_available}</dd>
+              </div>
+            </dl>
+          ) : null}
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button type="button" variant="outline" onClick={() => setViewBook(null)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

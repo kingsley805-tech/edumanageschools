@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Eye, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -53,6 +53,7 @@ export function InventoryPurchasesPanel({
 }: Props) {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [viewOrder, setViewOrder] = useState<PurchaseOrder | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [lines, setLines] = useState<{ item_id?: string; item_name: string; quantity: number; unit_price: number }[]>([]);
   const [saving, setSaving] = useState(false);
@@ -298,17 +299,84 @@ export function InventoryPurchasesPanel({
                 <TableCell><Badge variant={o.delivery_status === "delivered" ? "success" : "secondary"}>{o.delivery_status}</Badge></TableCell>
                 <TableCell>{o.invoice_number ?? "—"}</TableCell>
                 <TableCell className="text-right">
-                  {access.canDelete ? (
-                    <Button variant="ghost" size="icon" onClick={() => void handleDelete(o.id)}>
-                      <Trash2 className="h-4 w-4" />
+                  <div className="flex justify-end gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => setViewOrder(o)} title="View order details">
+                      <Eye className="h-4 w-4" />
                     </Button>
-                  ) : null}
+                    {access.canDelete ? (
+                      <Button variant="ghost" size="icon" onClick={() => void handleDelete(o.id)} title="Delete">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </CardContent>
+
+      <Dialog open={!!viewOrder} onOpenChange={(v) => !v && setViewOrder(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-2 pr-6">
+              <span>PO: {viewOrder?.po_number}</span>
+              <div className="flex gap-1.5">
+                {viewOrder?.payment_status ? (
+                  <Badge variant={viewOrder.payment_status === "paid" ? "success" : "warning"}>
+                    {viewOrder.payment_status}
+                  </Badge>
+                ) : null}
+                {viewOrder?.delivery_status ? (
+                  <Badge variant={viewOrder.delivery_status === "delivered" ? "success" : "secondary"}>
+                    {viewOrder.delivery_status}
+                  </Badge>
+                ) : null}
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          {viewOrder ? (
+            <div className="space-y-3 py-2">
+              <dl className="grid gap-2.5 text-sm sm:grid-cols-2">
+                {[
+                  ["Supplier", viewOrder.supplier_name],
+                  ["Purchase Date", viewOrder.purchase_date],
+                  ["Expected Delivery", viewOrder.expected_delivery_date],
+                  ["Total Cost", money(viewOrder.total_cost)],
+                  ["Invoice Number", viewOrder.invoice_number],
+                  ["Items Count", viewOrder.items_count ?? 0],
+                ].map(([k, v]) => (
+                  <div key={String(k)} className="rounded-md border bg-muted/20 p-2">
+                    <dt className="text-xs text-muted-foreground">{k}</dt>
+                    <dd className="font-medium mt-0.5">{String(v ?? "—")}</dd>
+                  </div>
+                ))}
+              </dl>
+              {viewOrder.receipt_url ? (
+                <div className="rounded-md border bg-muted/20 p-2">
+                  <dt className="text-xs text-muted-foreground">Receipt</dt>
+                  <dd className="mt-0.5">
+                    <a href={viewOrder.receipt_url} target="_blank" rel="noreferrer" className="text-primary hover:underline text-xs break-all">
+                      {viewOrder.receipt_url}
+                    </a>
+                  </dd>
+                </div>
+              ) : null}
+              {viewOrder.notes ? (
+                <div className="rounded-md border bg-muted/20 p-2">
+                  <dt className="text-xs text-muted-foreground">Notes</dt>
+                  <dd className="text-sm mt-0.5">{viewOrder.notes}</dd>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button type="button" variant="outline" onClick={() => setViewOrder(null)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

@@ -2,40 +2,38 @@ import { motion } from "framer-motion";
 
 const particles = Array.from({ length: 18 }, (_, i) => ({
   id: i,
-  left: `${8 + (i * 5.2) % 88}%`,
-  top: `${12 + (i * 7.3) % 76}%`,
-  size: 2 + (i % 3),
-  duration: 4 + (i % 5),
-  delay: (i % 7) * 0.4,
+  left: `${6 + (i * 5.4) % 88}%`,
+  top: `${10 + (i * 7.1) % 80}%`,
+  size: 2 + (i % 2),
+  duration: 4 + (i % 4),
+  delay: (i % 6) * 0.4,
 }));
 
 export default function AnimatedBackground() {
   return (
     <motion.div
-      className="pointer-events-none absolute inset-0 overflow-hidden bg-gradient-to-br from-blue-950/80 via-[#070d1e] to-black"
+      className="pointer-events-none absolute inset-0 overflow-hidden bg-[#121418]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 1.2 }}
+      transition={{ duration: 0.8 }}
     >
-      <div className="absolute -left-[10%] top-[10%] h-96 w-96 rounded-full bg-blue-500/15 blur-[120px]" />
-      <div className="absolute -bottom-[10%] -right-[10%] h-[30rem] w-[30rem] rounded-full bg-indigo-600/15 blur-[140px]" />
-      <div className="absolute left-1/3 top-1/2 h-80 w-80 rounded-full bg-blue-400/10 blur-[130px]" />
-
+      {/* Subtle Ash Geometric Grid */}
       <motion.div
-        className="absolute inset-0 opacity-[0.04]"
+        className="absolute inset-0 opacity-[0.07]"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.8) 1px, transparent 1px)",
-          backgroundSize: "64px 64px",
+            "linear-gradient(#4a505f 1px, transparent 1px), linear-gradient(90deg, #4a505f 1px, transparent 1px)",
+          backgroundSize: "48px 48px",
         }}
-        animate={{ backgroundPosition: ["0px 0px", "64px 64px"] }}
-        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+        animate={{ backgroundPosition: ["0px 0px", "48px 48px"] }}
+        transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
       />
 
+      {/* Subtle ash / white particles */}
       {particles.map((p) => (
         <motion.span
           key={p.id}
-          className="absolute rounded-full bg-white/40"
+          className="absolute rounded-full bg-[#9ba1b0]"
           style={{
             left: p.left,
             top: p.top,
@@ -43,8 +41,8 @@ export default function AnimatedBackground() {
             height: p.size,
           }}
           animate={{
-            opacity: [0.1, 0.5, 0.1],
-            y: [0, -12, 0],
+            opacity: [0.1, 0.4, 0.1],
+            y: [0, -10, 0],
           }}
           transition={{
             duration: p.duration,

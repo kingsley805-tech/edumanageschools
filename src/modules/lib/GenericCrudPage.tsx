@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Archive, Pencil, Plus, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
+import { Archive, Eye, Pencil, Plus, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -104,6 +104,7 @@ export function GenericCrudPage({
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [open, setOpen] = useState(false);
+  const [viewingRow, setViewingRow] = useState<Record<string, unknown> | null>(null);
   const [editing, setEditing] = useState<Record<string, unknown> | null>(null);
   const [form, setForm] = useState<Record<string, unknown>>(emptyFromFields(fields));
   const [saving, setSaving] = useState(false);
@@ -479,9 +480,18 @@ export function GenericCrudPage({
                         ))}
                         <TableCell className="py-3 px-4 text-right">
                           <div className="flex justify-end gap-1 whitespace-nowrap">
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => setViewingRow(row)}
+                              title={`View ${title} details`}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
                             {extraActions?.(row, () => void load())}
                             {access.canEdit ? (
-                              <Button type="button" size="icon" variant="ghost" onClick={() => openEdit(row)}>
+                              <Button type="button" size="icon" variant="ghost" onClick={() => openEdit(row)} title="Edit">
                                 <Pencil className="h-4 w-4" />
                               </Button>
                             ) : null}
@@ -687,6 +697,101 @@ export function GenericCrudPage({
               {saving ? "Saving…" : "Save"}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Entity Details View Dialog */}
+      <Dialog open={!!viewingRow} onOpenChange={(v) => !v && setViewingRow(null)}>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-2 pr-6">
+              <span>{title} Details</span>
+              {viewingRow?.status || viewingRow?.[statusKey] ? (
+                <Badge variant={String(viewingRow?.status ?? viewingRow?.[statusKey]) === "active" || String(viewingRow?.status ?? viewingRow?.[statusKey]) === "approved" || String(viewingRow?.status ?? viewingRow?.[statusKey]) === "paid" ? "success" : "secondary"}>
+                  {String(viewingRow?.status ?? viewingRow?.[statusKey])}
+                </Badge>
+              ) : null}
+            </DialogTitle>
+          </DialogHeader>
+          {viewingRow ? (
+            <div className="space-y-4 py-2">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {fields.map((f) => {
+                  const val = viewingRow[f.key];
+                  if (f.type === "image" && val) {
+                    return (
+                      <div key={f.key} className="sm:col-span-2 space-y-1">
+                        <span className="text-xs font-medium text-muted-foreground">{f.label}</span>
+                        <div className="aspect-video max-w-sm overflow-hidden rounded-lg border bg-muted">
+                          <img src={String(val)} alt={f.label} className="h-full w-full object-cover" />
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (f.type === "textarea") {
+                    return (
+                      <div key={f.key} className="sm:col-span-2 space-y-1 rounded-md border bg-muted/20 p-2.5">
+                        <span className="text-xs font-medium text-muted-foreground">{f.label}</span>
+                        <p className="text-sm whitespace-pre-wrap">{String(val ?? "—")}</p>
+                      </div>
+                    );
+                  }
+                  if (f.type === "student") {
+                    const studentObj = students.find((s) => s.id === val);
+                    return (
+                      <div key={f.key} className="space-y-1 rounded-md border bg-muted/20 p-2.5">
+                        <span className="text-xs font-medium text-muted-foreground">{f.label}</span>
+                        <p className="text-sm font-medium">{studentObj ? `${studentObj.name} (${studentObj.class_name})` : String(val ?? "—")}</p>
+                      </div>
+                    );
+                  }
+                  if (f.type === "checkbox") {
+                    return (
+                      <div key={f.key} className="space-y-1 rounded-md border bg-muted/20 p-2.5">
+                        <span className="text-xs font-medium text-muted-foreground">{f.label}</span>
+                        <p className="text-sm font-medium">{Boolean(val) ? "Yes" : "No"}</p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={f.key} className="space-y-1 rounded-md border bg-muted/20 p-2.5">
+                      <span className="text-xs font-medium text-muted-foreground">{f.label}</span>
+                      <p className="text-sm font-medium">{val != null && val !== "" ? String(val) : "—"}</p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {viewingRow.created_at || viewingRow.updated_at ? (
+                <div className="border-t pt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
+                  {viewingRow.created_at ? (
+                    <div>Created: <span className="font-medium text-foreground">{new Date(String(viewingRow.created_at)).toLocaleString()}</span></div>
+                  ) : null}
+                  {viewingRow.updated_at ? (
+                    <div>Updated: <span className="font-medium text-foreground">{new Date(String(viewingRow.updated_at)).toLocaleString()}</span></div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <Button type="button" variant="outline" onClick={() => setViewingRow(null)}>
+                  Close
+                </Button>
+                {access.canEdit ? (
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      const r = viewingRow;
+                      setViewingRow(null);
+                      openEdit(r);
+                    }}
+                  >
+                    Edit {title}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

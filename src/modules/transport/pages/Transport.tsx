@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Bus, Download, MapPin, Plus, Route, Trash2, Users } from "lucide-react";
+import { Bus, Download, Eye, MapPin, Plus, Route, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -245,6 +245,7 @@ function RoutesTab({
   onSaved: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [viewRoute, setViewRoute] = useState<TransportRoute | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 
@@ -320,17 +321,47 @@ function RoutesTab({
                 <TableCell className="font-medium">{r.name}</TableCell>
                 <TableCell>{r.description ?? "—"}</TableCell>
                 <TableCell className="text-right">
-                  {access.canDelete ? (
-                    <Button variant="ghost" size="icon" onClick={() => void remove(r.id)}>
-                      <Trash2 className="h-4 w-4" />
+                  <div className="flex justify-end gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => setViewRoute(r)} title="View route details">
+                      <Eye className="h-4 w-4" />
                     </Button>
-                  ) : null}
+                    {access.canDelete ? (
+                      <Button variant="ghost" size="icon" onClick={() => void remove(r.id)} title="Delete">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </CardContent>
+
+      <Dialog open={!!viewRoute} onOpenChange={(v) => !v && setViewRoute(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{viewRoute?.name}</DialogTitle>
+          </DialogHeader>
+          {viewRoute ? (
+            <div className="space-y-3 py-2 text-sm">
+              <div className="rounded-md border bg-muted/20 p-2.5">
+                <p className="text-xs text-muted-foreground">Route Name</p>
+                <p className="font-medium mt-0.5">{viewRoute.name}</p>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2.5">
+                <p className="text-xs text-muted-foreground">Description</p>
+                <p className="font-medium mt-0.5">{viewRoute.description ?? "No description provided."}</p>
+              </div>
+            </div>
+          ) : null}
+          <div className="flex justify-end pt-2 border-t">
+            <Button type="button" variant="outline" onClick={() => setViewRoute(null)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
@@ -351,6 +382,7 @@ function BusesTab({
   onSaved: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [viewBus, setViewBus] = useState<TransportBus | null>(null);
   const [name, setName] = useState("");
   const [routeId, setRouteId] = useState("");
   const [plate, setPlate] = useState("");
@@ -424,19 +456,17 @@ function BusesTab({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Plate</Label>
-                    <Input value={plate} onChange={(e) => setPlate(e.target.value)} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Driver</Label>
-                    <Input value={driver} onChange={(e) => setDriver(e.target.value)} />
-                  </div>
+                <div className="space-y-1.5">
+                  <Label>Vehicle plate</Label>
+                  <Input value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="GE-1234-24" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Driver name</Label>
+                  <Input value={driver} onChange={(e) => setDriver(e.target.value)} placeholder="Driver full name" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Capacity</Label>
-                  <Input type="number" value={capacity} onChange={(e) => setCapacity(e.target.value)} />
+                  <Input type="number" min={1} value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="30" />
                 </div>
                 <Button onClick={() => void create()}>Save</Button>
               </div>
@@ -465,17 +495,63 @@ function BusesTab({
                 <TableCell>{b.driver_name ?? "—"}</TableCell>
                 <TableCell>{b.capacity ?? "—"}</TableCell>
                 <TableCell className="text-right">
-                  {access.canDelete ? (
-                    <Button variant="ghost" size="icon" onClick={() => void remove(b.id)}>
-                      <Trash2 className="h-4 w-4" />
+                  <div className="flex justify-end gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => setViewBus(b)} title="View bus details">
+                      <Eye className="h-4 w-4" />
                     </Button>
-                  ) : null}
+                    {access.canDelete ? (
+                      <Button variant="ghost" size="icon" onClick={() => void remove(b.id)} title="Delete">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </CardContent>
+
+      <Dialog open={!!viewBus} onOpenChange={(v) => !v && setViewBus(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{viewBus?.name}</DialogTitle>
+          </DialogHeader>
+          {viewBus ? (
+            <dl className="grid gap-2.5 text-sm sm:grid-cols-2 py-2">
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Bus Name</dt>
+                <dd className="font-medium mt-0.5">{viewBus.name}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Assigned Route</dt>
+                <dd className="font-medium mt-0.5">{routeName(viewBus.route_id)}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Vehicle Plate</dt>
+                <dd className="font-mono text-xs mt-0.5">{viewBus.vehicle_plate ?? "—"}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Driver Name</dt>
+                <dd className="font-medium mt-0.5">{viewBus.driver_name ?? "—"}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Seating Capacity</dt>
+                <dd className="font-medium mt-0.5">{viewBus.capacity ?? "—"} seats</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Status</dt>
+                <dd className="font-medium mt-0.5">{viewBus.is_active ? "Active" : "Inactive"}</dd>
+              </div>
+            </dl>
+          ) : null}
+          <div className="flex justify-end pt-2 border-t">
+            <Button type="button" variant="outline" onClick={() => setViewBus(null)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
@@ -496,6 +572,7 @@ function StopsTab({
   onSaved: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [viewStop, setViewStop] = useState<TransportStop | null>(null);
   const [routeId, setRouteId] = useState("");
   const [name, setName] = useState("");
   const [fare, setFare] = useState("");
@@ -591,17 +668,51 @@ function StopsTab({
                 <TableCell>{routeName(s.route_id)}</TableCell>
                 <TableCell>{formatMoney(s.fare, "GHS")}</TableCell>
                 <TableCell className="text-right">
-                  {access.canDelete ? (
-                    <Button variant="ghost" size="icon" onClick={() => void remove(s.id)}>
-                      <Trash2 className="h-4 w-4" />
+                  <div className="flex justify-end gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => setViewStop(s)} title="View stop details">
+                      <Eye className="h-4 w-4" />
                     </Button>
-                  ) : null}
+                    {access.canDelete ? (
+                      <Button variant="ghost" size="icon" onClick={() => void remove(s.id)} title="Delete">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </CardContent>
+
+      <Dialog open={!!viewStop} onOpenChange={(v) => !v && setViewStop(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{viewStop?.name}</DialogTitle>
+          </DialogHeader>
+          {viewStop ? (
+            <dl className="grid gap-2.5 text-sm sm:grid-cols-2 py-2">
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Stop Name</dt>
+                <dd className="font-medium mt-0.5">{viewStop.name}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Route</dt>
+                <dd className="font-medium mt-0.5">{routeName(viewStop.route_id)}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2 sm:col-span-2">
+                <dt className="text-xs text-muted-foreground">Transport Fare</dt>
+                <dd className="text-base font-semibold text-primary mt-0.5">{formatMoney(viewStop.fare, "GHS")}</dd>
+              </div>
+            </dl>
+          ) : null}
+          <div className="flex justify-end pt-2 border-t">
+            <Button type="button" variant="outline" onClick={() => setViewStop(null)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
@@ -865,6 +976,7 @@ function AssignmentsTab({
                 <TableHead>Bus</TableHead>
                 <TableHead>Stop</TableHead>
                 <TableHead>Fare</TableHead>
+                <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -877,12 +989,65 @@ function AssignmentsTab({
                   <TableCell>{r.bus_name}</TableCell>
                   <TableCell>{r.stop_name}</TableCell>
                   <TableCell>{formatMoney(r.fare_amount, "GHS")}</TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => setViewAssignment(r)} title="View assignment details">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={!!viewAssignment} onOpenChange={(v) => !v && setViewAssignment(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-2 pr-6">
+              <span>{viewAssignment?.student_name}</span>
+              {viewAssignment?.status ? (
+                <Badge variant={viewAssignment.status === "active" ? "success" : "secondary"}>
+                  {viewAssignment.status}
+                </Badge>
+              ) : null}
+            </DialogTitle>
+          </DialogHeader>
+          {viewAssignment ? (
+            <dl className="grid gap-2.5 text-sm sm:grid-cols-2 py-2">
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Admission #</dt>
+                <dd className="font-medium mt-0.5">{viewAssignment.admission_number}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Class</dt>
+                <dd className="font-medium mt-0.5">{viewAssignment.class_name}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Assigned Bus</dt>
+                <dd className="font-medium mt-0.5">{viewAssignment.bus_name}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Route</dt>
+                <dd className="font-medium mt-0.5">{viewAssignment.route_name}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Pickup/Dropoff Stop</dt>
+                <dd className="font-medium mt-0.5">{viewAssignment.stop_name}</dd>
+              </div>
+              <div className="rounded-md border bg-muted/20 p-2">
+                <dt className="text-xs text-muted-foreground">Transport Fare</dt>
+                <dd className="font-semibold text-primary mt-0.5">{formatMoney(viewAssignment.fare_amount, "GHS")}</dd>
+              </div>
+            </dl>
+          ) : null}
+          <div className="flex justify-end pt-2 border-t">
+            <Button type="button" variant="outline" onClick={() => setViewAssignment(null)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
