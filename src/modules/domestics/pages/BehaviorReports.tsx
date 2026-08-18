@@ -1,7 +1,7 @@
 import { GenericCrudPage, type FieldDef } from "@/modules/lib/GenericCrudPage";
 
 const fields: FieldDef[] = [
-  { key: "student_id", label: "Student ID (UUID)", required: true, list: false, placeholder: "Paste student UUID" },
+  { key: "student_id", label: "Student name", type: "student", required: true },
   { key: "title", label: "Title", required: true },
   {
     key: "report_type",
@@ -51,7 +51,7 @@ export default function BehaviorReportsPage() {
       accentLabel="Domestics"
       fields={fields}
       orderBy="incident_date"
-      searchKeys={["title", "report_type", "reported_by_name", "status"]}
+      searchKeys={["title", "report_type", "reported_by_name", "status", "student_name", "admission_number", "class_name"]}
     />
   );
 }

@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { useModuleAccess } from "@/modules/lib/useModuleAccess";
 import { ModuleAccessDenied } from "@/modules/lib/ModuleAccessDenied";
-import { downloadCsv } from "@/modules/lib/exportCsv";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { isMissingTableError, operationsSchemaSetupMessage } from "@/modules/lib/missingSchema";
 import { TransportSchemaSetupCard } from "@/modules/transport/components/TransportSchemaSetupCard";
 import {
@@ -146,7 +146,7 @@ export default function TransportPage() {
       ) : null}
 
       <Tabs defaultValue="assignments" className="space-y-4">
-        <TabsList className="flex h-auto flex-wrap gap-1">
+        <TabsList className="flex-wrap">
           <TabsTrigger value="assignments" className="gap-1.5">
             <Users className="h-3.5 w-3.5" />
             Assignments
@@ -906,31 +906,28 @@ function ReportsTab({
     return map;
   }, [report]);
 
-  const exportAll = () => {
-    downloadCsv(
-      "transport-assignments.csv",
-      ["Student", "Admission", "Class", "Bus", "Route", "Stop", "Fare", "Status"],
-      report.map((r) => [
-        r.student_name,
-        r.admission_number,
-        r.class_name,
-        r.bus_name,
-        r.route_name,
-        r.stop_name,
-        r.fare_amount,
-        r.status,
-      ]),
-    );
-  };
+  const exportHeaders = ["Student", "Admission", "Class", "Bus", "Route", "Stop", "Fare", "Status"];
+  const exportRows = report.map((r) => [
+    r.student_name,
+    r.admission_number,
+    r.class_name,
+    r.bus_name,
+    r.route_name,
+    r.stop_name,
+    r.fare_amount,
+    r.status,
+  ]);
 
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
         {access.canExport ? (
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={exportAll}>
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
+          <ExportMenu
+            filename="transport-assignments"
+            title="Transport Assignments"
+            headers={exportHeaders}
+            rows={exportRows}
+          />
         ) : null}
       </div>
       {buses.map((bus) => {

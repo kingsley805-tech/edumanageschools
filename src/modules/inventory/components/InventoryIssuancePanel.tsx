@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Download, Plus, RotateCcw } from "lucide-react";
+import { Plus, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { returnIssuance, saveIssuance } from "@/modules/inventory/lib/api";
 import type { InventoryIssuance, InventoryItem } from "@/modules/inventory/lib/types";
-import { downloadCsv } from "@/modules/lib/exportCsv";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { toast } from "sonner";
 
 type Access = { canCreate: boolean; canEdit: boolean; canExport?: boolean };
@@ -118,31 +118,22 @@ export function InventoryIssuancePanel({ issuances, items, schoolId, access, onR
             onChange={(e) => setSearch(e.target.value)}
           />
           {access.canExport !== false ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={() =>
-                downloadCsv(
-                  "item-issuances.csv",
-                  ["Item", "Recipient", "Type", "Ref", "Class/Dept", "Qty", "Issue Date", "Return Date", "Status"],
-                  filtered.map((i) => [
-                    i.item_name,
-                    i.recipient_name,
-                    i.recipient_type,
-                    i.recipient_ref,
-                    i.class_or_department,
-                    i.quantity,
-                    i.issue_date,
-                    i.return_date,
-                    i.status,
-                  ]),
-                )
-              }
-            >
-              <Download className="h-4 w-4" />
-              Export
-            </Button>
+            <ExportMenu
+              filename="item-issuances"
+              title="Item Issuances"
+              headers={["Item", "Recipient", "Type", "Ref", "Class/Dept", "Qty", "Issue Date", "Return Date", "Status"]}
+              rows={filtered.map((i) => [
+                i.item_name,
+                i.recipient_name,
+                i.recipient_type,
+                i.recipient_ref,
+                i.class_or_department,
+                i.quantity,
+                i.issue_date,
+                i.return_date,
+                i.status,
+              ])}
+            />
           ) : null}
           {access.canCreate ? (
             <Dialog open={open} onOpenChange={setOpen}>

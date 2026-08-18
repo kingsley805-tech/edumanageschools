@@ -22,8 +22,6 @@ import {
   TrendingDown,
   Minus,
   Download,
-  FileSpreadsheet,
-  FileText,
   Printer,
   RefreshCw,
 } from "lucide-react";
@@ -47,6 +45,7 @@ import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { fetchSchoolAttendanceStats, fetchSchoolAttendanceTrend } from "@/lib/attendance-queries";
 import { formatMoney } from "@/lib/currency";
 import { exportGenericTableToExcel, exportGenericTableToPDF } from "@/lib/exportUtils";
+import { exportTable } from "@/modules/lib/exportTable";
 import { getDesktopAPI, isElectronDesktop, unwrapIpc } from "@/desktop/electronBridge";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -136,26 +135,25 @@ function KpiCard({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.06 }}
+      className="h-full"
     >
-      <Card className="overflow-hidden border-border transition-shadow hover:shadow-md">
-        <CardContent className="p-5">
-          <div className="flex items-start justify-between">
-            <div className="min-w-0">
-              <div className="text-[12.5px] font-medium text-muted-foreground">{label}</div>
-              <div className="mt-1.5 truncate font-display text-2xl font-semibold tracking-tight text-foreground">
-                {value}
-              </div>
-            </div>
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Icon className="h-4.5 w-4.5" />
+      <div className="kt-card channel-stats-bg h-full">
+        <div className="kt-card-content p-5 lg:p-6 flex flex-col justify-between gap-4 h-full">
+          <div className="flex items-center justify-between gap-2.5">
+            <span className="text-sm font-normal text-secondary-foreground">{label}</span>
+            <span className="flex items-center justify-center size-10 shrink-0 rounded-lg bg-accent/60 border border-border">
+              <Icon className="h-5 w-5 text-muted-foreground" />
+            </span>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-2xl lg:text-3xl font-semibold text-mono">{value}</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              {delta !== undefined && <TrendPill delta={delta} suffix={deltaSuffix} invert={invert} />}
+              {helper && <span className="text-xs text-muted-foreground">{helper}</span>}
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-2">
-            {delta !== undefined && <TrendPill delta={delta} suffix={deltaSuffix} invert={invert} />}
-            {helper && <span className="text-[11px] text-muted-foreground">{helper}</span>}
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </motion.div>
   );
 }
@@ -171,7 +169,7 @@ const Reports = () => {
   const [paymentStatus, setPaymentStatus] = useState<string>("all");
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
-  const [exporting, setExporting] = useState<"pdf" | "excel" | "print" | null>(null);
+  const [exporting, setExporting] = useState<"pdf" | "excel" | "word" | "csv" | "print" | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const [stats, setStats] = useState({
@@ -452,6 +450,38 @@ const Reports = () => {
     }
   };
 
+  const handleExportCsv = () => {
+    setExporting("csv");
+    try {
+      exportTable({
+        filename: activeExport.title.toLowerCase().replace(/\s+/g, "-"),
+        title: activeExport.title,
+        headers: activeExport.headers,
+        rows: activeExport.rows,
+        format: "csv",
+      });
+      toast({ title: "CSV export ready", description: `${activeExport.title}.csv downloaded` });
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportWord = () => {
+    setExporting("word");
+    try {
+      exportTable({
+        filename: activeExport.title.toLowerCase().replace(/\s+/g, "-"),
+        title: activeExport.title,
+        headers: activeExport.headers,
+        rows: activeExport.rows,
+        format: "word",
+      });
+      toast({ title: "Word export ready", description: `${activeExport.title}.doc downloaded` });
+    } finally {
+      setExporting(null);
+    }
+  };
+
   const handleExportPDF = async () => {
     setExporting("pdf");
     try {
@@ -516,87 +546,93 @@ const Reports = () => {
 
   return (
     <DashboardLayout role="admin">
-      <div className="mingo-content space-y-6 print:space-y-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between print:hidden">
-          <div>
-            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Reports &amp; Analytics</h2>
-            <p className="text-[12.5px] text-muted-foreground mt-1">
-              Comprehensive insights into school performance
-              {lastUpdated && <span className="text-muted-foreground/70"> · Updated {lastUpdated.toLocaleTimeString()}</span>}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Select value={range} onValueChange={(v) => setRange(v as RangeKey)}>
-              <SelectTrigger className="h-8 w-[150px] rounded-none text-[12.5px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {RANGE_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={selectedClass} onValueChange={setSelectedClass}>
-              <SelectTrigger className="h-8 w-[150px] rounded-none text-[12.5px]">
-                <SelectValue placeholder="All classes" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All classes</SelectItem>
-                {classes.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-              <SelectTrigger className="h-8 w-[130px] rounded-none text-[12.5px]">
-                <SelectValue placeholder="All statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All payments</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
-                <SelectItem value="unpaid">Unpaid</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 rounded-none"
-              onClick={handleRefresh}
-              title="Refresh"
-              aria-label="Refresh"
-            >
-              <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-            </Button>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="default" size="sm" className="h-8 gap-1.5 rounded-none px-3 text-[12.5px]">
-                  <Download className="h-3.5 w-3.5" />
-                  Export
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleExportPDF} disabled={exporting === "pdf"}>
-                  <FileText className="mr-2 h-4 w-4" /> Export as PDF
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExportExcel} disabled={exporting === "excel"}>
-                  <FileSpreadsheet className="mr-2 h-4 w-4" /> Export as Excel
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handlePrint} disabled={exporting === "print"}>
-                  <Printer className="mr-2 h-4 w-4" /> Print
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+      {/* Page Header — Metronic toolbar */}
+      <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5 print:hidden">
+        <div className="flex min-w-0 flex-col justify-center gap-2">
+          <h1 className="text-xl font-medium leading-none text-mono">Reports &amp; Analytics</h1>
+          <div className="flex items-center gap-2 text-sm font-normal text-secondary-foreground">
+            Comprehensive insights into school performance
+            {lastUpdated && <span className="text-muted-foreground/70"> · Updated {lastUpdated.toLocaleTimeString()}</span>}
           </div>
         </div>
+
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Select value={range} onValueChange={(v) => setRange(v as RangeKey)}>
+            <SelectTrigger className="h-9 w-[140px] text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {RANGE_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedClass} onValueChange={setSelectedClass}>
+            <SelectTrigger className="h-9 w-[140px] text-xs">
+              <SelectValue placeholder="All classes" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All classes</SelectItem>
+              {classes.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+            <SelectTrigger className="h-9 w-[130px] text-xs">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All payments</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+              <SelectItem value="unpaid">Unpaid</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="kt-btn kt-btn-outline h-9 w-9 p-0"
+            onClick={handleRefresh}
+            title="Refresh"
+            aria-label="Refresh"
+          >
+            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button className="kt-btn kt-btn-primary h-9 gap-1.5 px-3">
+                <i className="ki-filled ki-file-down text-base" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportPDF} disabled={exporting === "pdf"}>
+                PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportWord} disabled={exporting === "word"}>
+                Word doc
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportExcel} disabled={exporting === "excel"}>
+                Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportCsv} disabled={exporting === "csv"}>
+                CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handlePrint} disabled={exporting === "print"}>
+                <Printer className="mr-2 h-4 w-4" /> Print
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard
@@ -763,21 +799,20 @@ const Reports = () => {
             </ChartCard>
           </TabsContent>
         </Tabs>
-      </div>
-    </DashboardLayout>
-  );
-};
+      </DashboardLayout>
+    );
+  };
 
 function ChartCard({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-      <Card className="border-border">
-        <CardHeader className="pb-2">
-          <CardTitle className="font-display text-[15px] font-semibold">{title}</CardTitle>
-          {subtitle && <p className="text-[11.5px] text-muted-foreground">{subtitle}</p>}
-        </CardHeader>
-        <CardContent>{children}</CardContent>
-      </Card>
+      <div className="kt-card">
+        <div className="kt-card-header pb-2">
+          <h3 className="kt-card-title text-base">{title}</h3>
+          {subtitle && <p className="text-xs text-secondary-foreground">{subtitle}</p>}
+        </div>
+        <div className="kt-card-content p-5">{children}</div>
+      </div>
     </motion.div>
   );
 }

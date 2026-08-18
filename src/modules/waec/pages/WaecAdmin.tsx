@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Download, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +24,7 @@ import {
 import { checkWaecSchema, waecSchemaReady, type WaecSchemaStatus } from "@/modules/waec/lib/schema";
 import type { WaecQuestion, WaecSubject } from "@/modules/waec/lib/types";
 import { WAEC_LEVEL_LABELS, WAEC_PAPER_LABELS } from "@/modules/waec/lib/types";
-import { downloadCsv } from "@/modules/lib/exportCsv";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { toast } from "sonner";
 
 const emptyForm = {
@@ -142,7 +142,7 @@ export default function WaecAdminPage() {
         ) : null}
 
         <Tabs defaultValue="questions">
-          <TabsList className="flex h-auto flex-wrap gap-1">
+          <TabsList className="flex-wrap">
             <TabsTrigger value="questions">Questions</TabsTrigger>
             <TabsTrigger value="generate">AI Generator</TabsTrigger>
             <TabsTrigger value="approval">
@@ -186,16 +186,12 @@ export default function WaecAdminPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() =>
-                    downloadCsv(
-                      "waec-questions.csv",
-                      ["Subject", "Paper", "Topic", "Question", "Answer"],
-                      questions.map((q) => [q.subject_name, q.paper_type, q.topic, q.question_text, q.correct_answer]),
-                    )
-                  }>
-                    <Download className="h-4 w-4" />
-                    Export
-                  </Button>
+                  <ExportMenu
+                    filename="waec-questions"
+                    title="WAEC Questions"
+                    headers={["Subject", "Paper", "Topic", "Question", "Answer"]}
+                    rows={questions.map((q) => [q.subject_name, q.paper_type, q.topic, q.question_text, q.correct_answer])}
+                  />
                   <Dialog open={open} onOpenChange={setOpen}>
                     <DialogTrigger asChild>
                       <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" />Add question</Button>

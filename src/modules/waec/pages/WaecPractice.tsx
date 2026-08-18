@@ -295,7 +295,7 @@ export default function WaecPracticePage() {
           />
         ) : (
           <Tabs defaultValue="practice" className="space-y-4">
-            <TabsList className="flex h-auto flex-wrap gap-1">
+            <TabsList className="flex-wrap">
               <TabsTrigger value="practice" className="gap-1.5">
                 <GraduationCap className="h-3.5 w-3.5" />
                 Practice

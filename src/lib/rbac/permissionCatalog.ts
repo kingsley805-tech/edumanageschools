@@ -133,7 +133,7 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
       },
       { key: "billing_paid", label: "Paid Students", path: "/admin/billing/paid-students", actions: ["view", "export"] },
       { key: "billing_outstanding", label: "Outstanding", path: "/admin/billing/outstanding", actions: ["view", "export"] },
-      { key: "billing_reports", label: "Reports", path: "/admin/billing/reports", actions: ["view", "export", "manage"] },
+      { key: "billing_reports", label: "Billing Reports", path: "/admin/billing/reports", actions: ["view", "export", "manage"] },
       {
         key: "billing_family",
         label: "Family Billing",
@@ -297,6 +297,12 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
     modules: [
       { key: "announcements", label: "Announcements", path: "/admin/announcements", actions: ["view", "create", "edit", "delete", "manage"] },
       { key: "ai_assistant", label: "EduManage AI", path: "/ai-assistant", actions: ["view", "create", "manage"] },
+      {
+        key: "ai_receptionist",
+        label: "AI Receptionist",
+        path: "/admin/ai-receptionist",
+        actions: OPS_MODULE_ACTIONS,
+      },
     ],
   },
   {

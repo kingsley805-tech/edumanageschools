@@ -101,7 +101,7 @@ export function resolveReportThemePrimary(
 
 /** System font stack — unaffected by portal theme toggle */
 export const REPORT_CARD_SYSTEM_FONT =
-  'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+  '"Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 
 /** Fixed on-screen / print document colors: black header, white body, black text */
 export const REPORT_CARD_FIXED_COLORS: ReportBrandColors = {
@@ -247,7 +247,7 @@ export function buildReportCardCss(
 
     font-size: 14px;
     font-weight: 700;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
     line-height: 1;
     text-align: center;

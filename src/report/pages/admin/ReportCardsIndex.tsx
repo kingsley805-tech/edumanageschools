@@ -47,7 +47,6 @@ import {
   Send,
   Loader2,
   Download,
-  FileSpreadsheet,
   Printer,
   FilterX,
 } from "lucide-react";
@@ -58,6 +57,7 @@ import { deliverClassReportsToParents } from "@/report/lib/report-delivery";
 import { TERM_REPORT_ADMIN_LIST_SELECT } from "@/report/lib/term-report";
 import { toast } from "sonner";
 import { exportGenericTableToExcel, exportGenericTableToPDF } from "@/lib/exportUtils";
+import { exportTable } from "@/modules/lib/exportTable";
 import { getDesktopAPI, isElectronDesktop, unwrapIpc } from "@/desktop/electronBridge";
 const STATUS_CHART_COLORS: Record<string, string> = {
   "Pending Review": "hsl(var(--warning))",
@@ -80,7 +80,7 @@ function AdminReportReview() {
   const [termFilter, setTermFilter] = useState("all");
   const [bulkClassId, setBulkClassId] = useState("");
   const [bulkTermId, setBulkTermId] = useState("");
-  const [exporting, setExporting] = useState<"pdf" | "excel" | "print" | null>(null);
+  const [exporting, setExporting] = useState<"pdf" | "excel" | "word" | "csv" | "print" | null>(null);
 
   const { data: terms } = useQuery({
     queryKey: ["school-terms", schoolId],
@@ -334,6 +334,38 @@ function AdminReportReview() {
     }
   };
 
+  const handleExportCsv = () => {
+    setExporting("csv");
+    try {
+      exportTable({
+        filename: "report-card-review",
+        title: activeExport.title,
+        headers: activeExport.headers,
+        rows: activeExport.rows,
+        format: "csv",
+      });
+      toast.success(`${activeExport.title}.csv downloaded`);
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportWord = () => {
+    setExporting("word");
+    try {
+      exportTable({
+        filename: "report-card-review",
+        title: activeExport.title,
+        headers: activeExport.headers,
+        rows: activeExport.rows,
+        format: "word",
+      });
+      toast.success(`${activeExport.title}.doc downloaded`);
+    } finally {
+      setExporting(null);
+    }
+  };
+
   const handleExportPDF = async () => {
     setExporting("pdf");
     try {
@@ -408,10 +440,16 @@ function AdminReportReview() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={handleExportPDF} disabled={exporting === "pdf"}>
-                  <FileText className="mr-2 h-4 w-4" /> Export as PDF
+                  PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportWord} disabled={exporting === "word"}>
+                  Word doc
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleExportExcel} disabled={exporting === "excel"}>
-                  <FileSpreadsheet className="mr-2 h-4 w-4" /> Export as Excel
+                  Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportCsv} disabled={exporting === "csv"}>
+                  CSV
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handlePrint} disabled={exporting === "print"}>
                   <Printer className="mr-2 h-4 w-4" /> Print

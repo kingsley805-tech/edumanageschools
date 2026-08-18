@@ -29,9 +29,10 @@ import { fetchSchoolTerms, formatTermLabel } from "@/report/lib/terms";
 import { TERM_REPORT_HISTORY_LIST_SELECT } from "@/report/lib/term-report";
 import { fetchTeacherAssignedClassIds } from "@/report/lib/teacher-assignments";
 import { useMemo, useState } from "react";
-import { FileText, Clock, CheckCircle, XCircle, Download, FileSpreadsheet, Printer, FilterX } from "lucide-react";
+import { FileText, Clock, CheckCircle, XCircle, Download, Printer, FilterX } from "lucide-react";
 import { toast } from "sonner";
 import { exportGenericTableToExcel, exportGenericTableToPDF } from "@/lib/exportUtils";
+import { exportTable } from "@/modules/lib/exportTable";
 import { getDesktopAPI, isElectronDesktop, unwrapIpc } from "@/desktop/electronBridge";
 function TeacherReportHistory() {
   const { user, profile } = useAuth();
@@ -42,7 +43,7 @@ function TeacherReportHistory() {
   const [yearFilter, setYearFilter] = useState("all");
   const [termFilter, setTermFilter] = useState("all");
   const [classFilter, setClassFilter] = useState("all");
-  const [exporting, setExporting] = useState<"pdf" | "excel" | "print" | null>(null);
+  const [exporting, setExporting] = useState<"pdf" | "excel" | "word" | "csv" | "print" | null>(null);
 
   const { data: terms } = useQuery({
     queryKey: ["school-terms", schoolId],
@@ -199,6 +200,38 @@ function TeacherReportHistory() {
     }
   };
 
+  const handleExportCsv = () => {
+    setExporting("csv");
+    try {
+      exportTable({
+        filename: "report-history",
+        title: activeExport.title,
+        headers: activeExport.headers,
+        rows: activeExport.rows,
+        format: "csv",
+      });
+      toast.success(`${activeExport.title}.csv downloaded`);
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportWord = () => {
+    setExporting("word");
+    try {
+      exportTable({
+        filename: "report-history",
+        title: activeExport.title,
+        headers: activeExport.headers,
+        rows: activeExport.rows,
+        format: "word",
+      });
+      toast.success(`${activeExport.title}.doc downloaded`);
+    } finally {
+      setExporting(null);
+    }
+  };
+
   const handleExportPDF = async () => {
     setExporting("pdf");
     try {
@@ -270,17 +303,23 @@ function TeacherReportHistory() {
                 Export
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleExportPDF} disabled={exporting === "pdf"}>
-                <FileText className="mr-2 h-4 w-4" /> Export as PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportExcel} disabled={exporting === "excel"}>
-                <FileSpreadsheet className="mr-2 h-4 w-4" /> Export as Excel
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handlePrint} disabled={exporting === "print"}>
-                <Printer className="mr-2 h-4 w-4" /> Print
-              </DropdownMenuItem>
-            </DropdownMenuContent>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleExportPDF} disabled={exporting === "pdf"}>
+                  PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportWord} disabled={exporting === "word"}>
+                  Word doc
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportExcel} disabled={exporting === "excel"}>
+                  Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportCsv} disabled={exporting === "csv"}>
+                  CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handlePrint} disabled={exporting === "print"}>
+                  <Printer className="mr-2 h-4 w-4" /> Print
+                </DropdownMenuItem>
+              </DropdownMenuContent>
           </DropdownMenu>
         }
       />

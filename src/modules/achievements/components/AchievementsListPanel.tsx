@@ -3,7 +3,9 @@ import {
   Archive,
   Check,
   Eye,
+  FileText,
   Globe,
+  ImagePlus,
   Pencil,
   Plus,
   RotateCcw,
@@ -19,7 +21,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { downloadCsv } from "@/modules/lib/exportCsv";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import {
   addAchievementNote,
   archiveAchievement,
@@ -30,6 +32,7 @@ import {
   setAchievementPublished,
   setAchievementStatus,
 } from "@/modules/achievements/lib/api";
+import { uploadAchievementMedia } from "@/modules/achievements/lib/uploadAchievementMedia";
 import {
   ACHIEVEMENT_TYPE_LABELS,
   type Achievement,
@@ -60,6 +63,7 @@ type Props = {
 };
 
 const emptyForm = {
+  class_name: "",
   student_id: "",
   category_id: "",
   title: "",
@@ -75,8 +79,8 @@ const emptyForm = {
   document_url: "",
   recommendation_letter: "",
   notes: "",
-  status: "pending" as AchievementStatus,
-  is_published: false,
+  status: "approved" as AchievementStatus,
+  is_published: true,
 };
 
 function statusBadge(status: AchievementStatus) {
@@ -106,6 +110,7 @@ export function AchievementsListPanel({
   const [noteText, setNoteText] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState<"image" | "document" | null>(null);
   const [categoryName, setCategoryName] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -126,6 +131,19 @@ export function AchievementsListPanel({
     });
   }, [achievements, search, typeFilter, statusFilter, showArchived]);
 
+  const classOptions = useMemo(
+    () =>
+      [...new Set(students.map((s) => s.class_name).filter((c) => c && c !== "—"))].sort((a, b) =>
+        a.localeCompare(b),
+      ),
+    [students],
+  );
+
+  const studentsInClass = useMemo(() => {
+    if (!form.class_name) return [];
+    return students.filter((s) => s.class_name === form.class_name);
+  }, [students, form.class_name]);
+
   const openCreate = () => {
     setEditing(null);
     setForm(emptyForm);
@@ -135,6 +153,7 @@ export function AchievementsListPanel({
   const openEdit = (row: Achievement) => {
     setEditing(row);
     setForm({
+      class_name: row.class_name ?? "",
       student_id: row.student_id,
       category_id: row.category_id ?? "",
       title: row.title,
@@ -165,6 +184,26 @@ export function AchievementsListPanel({
     }
   };
 
+  const handleMediaUpload = async (file: File, kind: "image" | "document") => {
+    if (!schoolId) return;
+    setUploading(kind);
+    try {
+      const url = await uploadAchievementMedia({
+        schoolId,
+        file,
+        achievementId: editing?.id,
+        kind,
+      });
+      if (kind === "image") setForm((f) => ({ ...f, image_url: url }));
+      else setForm((f) => ({ ...f, document_url: url }));
+      toast.success(kind === "image" ? "Image uploaded" : "Document uploaded");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(null);
+    }
+  };
+
   const handleSave = async () => {
     if (!schoolId) return;
     if (!form.title.trim() || !form.student_id) {
@@ -176,10 +215,13 @@ export function AchievementsListPanel({
       await saveAchievement(
         schoolId,
         {
-          ...form,
+          student_id: form.student_id,
           category_id: form.category_id || null,
+          title: form.title,
+          achievement_type: form.achievement_type,
           description: form.description || null,
           awarded_by: form.awarded_by || null,
+          awarded_on: form.awarded_on,
           academic_year: form.academic_year || null,
           term_label: form.term_label || null,
           level: form.level || null,
@@ -188,6 +230,8 @@ export function AchievementsListPanel({
           document_url: form.document_url || null,
           recommendation_letter: form.recommendation_letter || null,
           notes: form.notes || null,
+          status: form.status,
+          is_published: form.is_published,
         },
         editing?.id,
         userId,
@@ -278,37 +322,32 @@ export function AchievementsListPanel({
     }
   };
 
-  const exportCsv = () => {
-    downloadCsv(
-      "achievements.csv",
-      [
-        "Title",
-        "Student",
-        "Admission",
-        "Class",
-        "Type",
-        "Category",
-        "Status",
-        "Published",
-        "Awarded On",
-        "Year",
-        "Term",
-      ],
-      filtered.map((a) => [
-        a.title,
-        a.student_name,
-        a.admission_number,
-        a.class_name,
-        a.achievement_type,
-        a.category_name,
-        a.status,
-        a.is_published ? "Yes" : "No",
-        a.awarded_on,
-        a.academic_year,
-        a.term_label,
-      ]),
-    );
-  };
+  const exportHeaders = [
+    "Title",
+    "Student",
+    "Admission",
+    "Class",
+    "Type",
+    "Category",
+    "Status",
+    "Published",
+    "Awarded On",
+    "Year",
+    "Term",
+  ];
+  const exportRows = filtered.map((a) => [
+    a.title,
+    a.student_name,
+    a.admission_number,
+    a.class_name,
+    a.achievement_type,
+    a.category_name,
+    a.status,
+    a.is_published ? "Yes" : "No",
+    a.awarded_on,
+    a.academic_year,
+    a.term_label,
+  ]);
 
   const bulkArchive = async () => {
     if (selected.size === 0) return;
@@ -341,9 +380,12 @@ export function AchievementsListPanel({
           </div>
           <div className="flex flex-wrap gap-2">
             {access.canExport ? (
-              <Button type="button" variant="outline" size="sm" onClick={exportCsv}>
-                Export CSV
-              </Button>
+              <ExportMenu
+                filename="achievements"
+                title="Achievements"
+                headers={exportHeaders}
+                rows={exportRows}
+              />
             ) : null}
             {access.canEdit && selected.size > 0 ? (
               <Button type="button" variant="outline" size="sm" onClick={bulkArchive}>
@@ -446,10 +488,28 @@ export function AchievementsListPanel({
                         />
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium text-foreground">{row.title}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {row.category_name ?? "Uncategorized"}
-                          {row.is_published ? " · Published" : ""}
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-md border bg-muted">
+                            {row.image_url ? (
+                              <img
+                                src={row.image_url}
+                                alt=""
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                                <ImagePlus className="h-4 w-4" />
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-medium text-foreground">{row.title}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {row.category_name ?? "Uncategorized"}
+                              {row.is_published ? " · Published" : ""}
+                            </div>
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -522,21 +582,62 @@ export function AchievementsListPanel({
             <DialogTitle>{editing ? "Edit achievement" : "New achievement"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1 sm:col-span-2">
-              <Label>Student *</Label>
+            <div className="space-y-1">
+              <Label>Class *</Label>
               <Select
-                value={form.student_id}
-                onValueChange={(v) => setForm((f) => ({ ...f, student_id: v }))}
+                value={form.class_name || undefined}
+                onValueChange={(v) =>
+                  setForm((f) => ({
+                    ...f,
+                    class_name: v,
+                    student_id: "",
+                  }))
+                }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select student" />
+                  <SelectValue placeholder="Select class first" />
                 </SelectTrigger>
                 <SelectContent>
-                  {students.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name} ({s.admission}) — {s.class_name}
-                    </SelectItem>
-                  ))}
+                  {classOptions.length === 0 ? (
+                    <div className="px-2 py-3 text-sm text-muted-foreground">No classes found.</div>
+                  ) : (
+                    classOptions.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Student *</Label>
+              <Select
+                value={form.student_id || undefined}
+                onValueChange={(v) => setForm((f) => ({ ...f, student_id: v }))}
+                disabled={!form.class_name}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      form.class_name
+                        ? `Select student (${studentsInClass.length})`
+                        : "Select class first"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {studentsInClass.length === 0 ? (
+                    <div className="px-2 py-3 text-sm text-muted-foreground">
+                      {form.class_name ? "No students in this class." : "Select a class first."}
+                    </div>
+                  ) : (
+                    studentsInClass.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name} ({s.admission})
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -632,19 +733,71 @@ export function AchievementsListPanel({
                 onChange={(e) => setForm((f) => ({ ...f, venue: e.target.value }))}
               />
             </div>
-            <div className="space-y-1">
-              <Label>Image URL</Label>
+            <div className="space-y-2 sm:col-span-2 rounded-lg border p-3">
+              <Label className="flex items-center gap-2">
+                <ImagePlus className="h-4 w-4" />
+                Achievement image
+              </Label>
+              {form.image_url ? (
+                <div className="relative aspect-video max-w-xs overflow-hidden rounded-lg border bg-muted">
+                  <img src={form.image_url} alt="" className="h-full w-full object-cover" />
+                </div>
+              ) : null}
               <Input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                disabled={uploading === "image"}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handleMediaUpload(file, "image");
+                  e.target.value = "";
+                }}
+              />
+              <Input
+                type="url"
+                placeholder="Or paste image URL"
                 value={form.image_url}
                 onChange={(e) => setForm((f) => ({ ...f, image_url: e.target.value }))}
               />
+              {uploading === "image" ? (
+                <p className="text-xs text-muted-foreground">Uploading image…</p>
+              ) : null}
             </div>
-            <div className="space-y-1">
-              <Label>Document URL</Label>
+
+            <div className="space-y-2 sm:col-span-2 rounded-lg border p-3">
+              <Label className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Supporting document
+              </Label>
+              {form.document_url ? (
+                <a
+                  href={form.document_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block truncate text-sm text-primary underline"
+                >
+                  {form.document_url}
+                </a>
+              ) : null}
               <Input
+                type="file"
+                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                disabled={uploading === "document"}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handleMediaUpload(file, "document");
+                  e.target.value = "";
+                }}
+              />
+              <Input
+                type="url"
+                placeholder="Or paste document URL"
                 value={form.document_url}
                 onChange={(e) => setForm((f) => ({ ...f, document_url: e.target.value }))}
               />
+              {uploading === "document" ? (
+                <p className="text-xs text-muted-foreground">Uploading document…</p>
+              ) : null}
             </div>
             <div className="space-y-1 sm:col-span-2">
               <Label>Description</Label>
@@ -691,6 +844,15 @@ export function AchievementsListPanel({
           </DialogHeader>
           {viewing ? (
             <div className="space-y-3 text-sm">
+              {viewing.image_url ? (
+                <div className="overflow-hidden rounded-xl border bg-muted">
+                  <img
+                    src={viewing.image_url}
+                    alt={viewing.title}
+                    className="aspect-video w-full object-cover"
+                  />
+                </div>
+              ) : null}
               <p>
                 <span className="text-muted-foreground">Student: </span>
                 {viewing.student_name} ({viewing.admission_number})
@@ -707,11 +869,12 @@ export function AchievementsListPanel({
               {viewing.description ? <p>{viewing.description}</p> : null}
               {viewing.document_url ? (
                 <a
-                  className="text-primary underline"
+                  className="inline-flex items-center gap-1.5 text-primary underline"
                   href={viewing.document_url}
                   target="_blank"
                   rel="noreferrer"
                 >
+                  <FileText className="h-4 w-4" />
                   Supporting document
                 </a>
               ) : null}

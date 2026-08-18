@@ -1,0 +1,5 @@
+verify_jwt = false
+
+# Telephony providers (Twilio/Vonage/Plivo) call this webhook with no Supabase JWT.
+# Requests are scoped by school_id and the AI receptionist must be explicitly
+# enabled in ai_voice_settings before any call is answered.

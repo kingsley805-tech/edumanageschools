@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Briefcase, Download, Search } from "lucide-react";
+import { Briefcase, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { useModuleAccess } from "@/modules/lib/useModuleAccess";
 import { ModuleAccessDenied } from "@/modules/lib/ModuleAccessDenied";
-import { downloadCsv } from "@/modules/lib/exportCsv";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { toast } from "sonner";
 
 type StaffRow = {
@@ -104,14 +104,6 @@ export default function StaffManagementPage() {
     );
   }, [rows, search]);
 
-  const exportRows = () => {
-    downloadCsv(
-      `staff-${schoolId?.slice(0, 8) ?? "export"}.csv`,
-      ["Name", "Email", "Roles", "Employee No"],
-      filtered.map((r) => [r.full_name, r.email, r.role, r.employee_no]),
-    );
-  };
-
   if (!access.canView) return <ModuleAccessDenied label="Staff Management" />;
 
   return (
@@ -126,10 +118,12 @@ export default function StaffManagementPage() {
         </div>
         <div className="flex gap-2">
           {access.canExport ? (
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={exportRows}>
-              <Download className="h-4 w-4" />
-              Export
-            </Button>
+            <ExportMenu
+              filename={`staff-${schoolId?.slice(0, 8) ?? "export"}`}
+              title="Staff Directory"
+              headers={["Name", "Email", "Roles", "Employee No"]}
+              rows={filtered.map((r) => [r.full_name, r.email, r.role, r.employee_no])}
+            />
           ) : null}
           {access.canCreate ? (
             <Button asChild size="sm">

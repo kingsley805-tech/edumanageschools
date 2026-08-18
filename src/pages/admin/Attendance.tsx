@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Users, TrendingUp, AlertCircle } from "lucide-react";
@@ -100,14 +101,17 @@ const Attendance = () => {
 
   return (
     <DashboardLayout role="admin">
-      <div className="mingo-content space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Attendance Reports</h2>
-            <p className="text-[12.5px] text-muted-foreground mt-1">Daily registers and teacher roll calls</p>
+      {/* Page Header — Metronic toolbar */}
+      <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">
+        <div className="flex min-w-0 flex-col justify-center gap-2">
+          <h1 className="text-xl font-medium leading-none text-mono">Attendance Reports</h1>
+          <div className="flex items-center gap-2 text-sm font-normal text-secondary-foreground">
+            Daily registers, student roll calls, and school-wide attendance rates
           </div>
+        </div>
+        <div className="flex items-center gap-2.5">
           <Select value={selectedClass} onValueChange={setSelectedClass}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-48 h-9">
               <SelectValue placeholder="Filter by class" />
             </SelectTrigger>
             <SelectContent>
@@ -118,88 +122,131 @@ const Attendance = () => {
             </SelectContent>
           </Select>
         </div>
+      </div>
 
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Records</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Present</CardTitle>
-              <TrendingUp className="h-4 w-4 text-success" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-success">{stats.present}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Absent</CardTitle>
-              <AlertCircle className="h-4 w-4 text-destructive" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-destructive">{stats.absent}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Attendance Rate</CardTitle>
-              <Calendar className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{attendanceRate}%</div>
-            </CardContent>
-          </Card>
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-5 lg:gap-7.5 mb-7.5">
+        <div className="kt-card channel-stats-bg">
+          <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-2.5">
+              <span className="text-sm font-normal text-secondary-foreground">Total Records</span>
+              <span className="flex items-center justify-center size-10 shrink-0 rounded-lg bg-accent/60 border border-border">
+                <i className="ki-filled ki-people text-lg text-muted-foreground" />
+              </span>
+            </div>
+            <span className="text-3xl font-semibold text-mono">{stats.total}</span>
+          </div>
         </div>
+        <div className="kt-card channel-stats-bg">
+          <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-2.5">
+              <span className="text-sm font-normal text-secondary-foreground">Present</span>
+              <span className="flex items-center justify-center size-10 shrink-0 rounded-lg bg-success/10 border border-success/20">
+                <i className="ki-filled ki-check-circle text-lg text-success" />
+              </span>
+            </div>
+            <span className="text-3xl font-semibold text-mono text-success">{stats.present}</span>
+          </div>
+        </div>
+        <div className="kt-card channel-stats-bg">
+          <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-2.5">
+              <span className="text-sm font-normal text-secondary-foreground">Absent</span>
+              <span className="flex items-center justify-center size-10 shrink-0 rounded-lg bg-danger/10 border border-danger/20">
+                <i className="ki-filled ki-cross-circle text-lg text-danger" />
+              </span>
+            </div>
+            <span className="text-3xl font-semibold text-mono text-danger">{stats.absent}</span>
+          </div>
+        </div>
+        <div className="kt-card channel-stats-bg">
+          <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-2.5">
+              <span className="text-sm font-normal text-secondary-foreground">Attendance Rate</span>
+              <span className="flex items-center justify-center size-10 shrink-0 rounded-lg bg-primary/10 border border-primary/20">
+                <i className="ki-filled ki-chart-line text-lg text-primary" />
+              </span>
+            </div>
+            <span className="text-3xl font-semibold text-mono text-primary">{attendanceRate}%</span>
+          </div>
+        </div>
+      </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Attendance Records</CardTitle>
-            <CardDescription>From class registers and daily roll calls</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <p className="text-center text-muted-foreground py-12">Loading attendance…</p>
-            ) : attendanceData.length === 0 ? (
-              <div className="text-center py-12">
-                <Calendar className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <p className="text-lg font-medium">No attendance records found</p>
-                <p className="text-sm text-muted-foreground">Data appears here when teachers mark attendance or submit registers</p>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Student</TableHead>
-                    <TableHead>Admission No</TableHead>
-                    <TableHead>Class</TableHead>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Status</TableHead>
+      <div className="kt-card">
+        <div className="kt-card-header flex justify-between items-center py-4 px-5">
+          <div>
+            <h3 className="kt-card-title">Recent Attendance Records</h3>
+            <p className="text-xs text-secondary-foreground">From class registers and daily roll calls</p>
+          </div>
+        </div>
+        <div className="kt-card-content p-0 overflow-x-auto">
+          {loading ? (
+            <p className="text-center text-muted-foreground py-12">Loading attendance…</p>
+          ) : attendanceData.length === 0 ? (
+            <div className="text-center py-12">
+              <i className="ki-filled ki-calendar-8 text-4xl text-muted-foreground mx-auto mb-3 block" />
+              <p className="text-base font-medium">No attendance records found</p>
+              <p className="text-sm text-muted-foreground">Data appears here when teachers mark attendance or submit registers</p>
+            </div>
+          ) : (
+            <Table className="kt-table min-w-full">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Admission No</TableHead>
+                  <TableHead>Class</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {attendanceData.map((record) => (
+                  <TableRow key={`${record.source}-${record.id}`}>
+                    <TableCell className="font-mono text-2sm">{new Date(record.date).toLocaleDateString()}</TableCell>
+                    <TableCell className="font-medium text-mono">
+                      {record.studentId ? (
+                        <Link
+                          to={`/admin/students/${record.studentId}`}
+                          className="text-foreground hover:text-primary hover:underline font-semibold"
+                        >
+                          {record.studentName}
+                        </Link>
+                      ) : (
+                        record.studentName
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono text-2sm">
+                      {record.studentId ? (
+                        <Link
+                          to={`/admin/students/${record.studentId}`}
+                          className="hover:text-primary hover:underline"
+                        >
+                          {record.admissionNo || "—"}
+                        </Link>
+                      ) : (
+                        record.admissionNo || "—"
+                      )}
+                    </TableCell>
+                    <TableCell className="text-secondary-foreground">
+                      {record.classId ? (
+                        <Link
+                          to={`/admin/classes/${record.classId}`}
+                          className="hover:text-primary hover:underline font-medium text-foreground"
+                        >
+                          {record.className}
+                        </Link>
+                      ) : (
+                        record.className
+                      )}
+                    </TableCell>
+                    <TableCell className="text-secondary-foreground">{record.subjectName ?? (record.source === "legacy" ? "Daily roll call" : "—")}</TableCell>
+                    <TableCell>{getStatusBadge(record.status)}</TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {attendanceData.map((record) => (
-                    <TableRow key={`${record.source}-${record.id}`}>
-                      <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
-                      <TableCell>{record.studentName}</TableCell>
-                      <TableCell>{record.admissionNo}</TableCell>
-                      <TableCell>{record.className}</TableCell>
-                      <TableCell>{record.subjectName ?? (record.source === "legacy" ? "Daily roll call" : "—")}</TableCell>
-                      <TableCell>{getStatusBadge(record.status)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
       </div>
     </DashboardLayout>
   );

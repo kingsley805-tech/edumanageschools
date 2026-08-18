@@ -29,7 +29,7 @@ const DASHBOARD_PATHS = new Set([
 
 /** Map nav labels → section headers (Overview / Academics / Operations / System) */
 function sectionFor(item: AdminNavItem | AdminNavGroup): string {
-  const label = item.label.toLowerCase();
+  const label = (item?.label || "").toLowerCase();
   if (
     label === "dashboard" ||
     ("path" in item && DASHBOARD_PATHS.has(item.path))
@@ -105,7 +105,7 @@ export function DynamicAdminSidebarNav({
     let last = "";
     return items.map((item) => {
       const section = sectionFor(item);
-      const sameAsGroup = item.label.toLowerCase() === section.toLowerCase();
+      const sameAsGroup = (item?.label || "").toLowerCase() === (section || "").toLowerCase();
       const showSection = section !== last && !sameAsGroup;
       if (section !== last) last = section;
       return { item, section: showSection ? section : null };

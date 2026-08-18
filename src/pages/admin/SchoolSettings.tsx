@@ -334,11 +334,7 @@ const SchoolSettings = () => {
   }
 
   if (!role) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-      </div>
-    );
+    return null;
   }
 
   const layoutRole = role === "super_admin" ? "admin" : (role as "admin" | "teacher" | "parent" | "student");
@@ -356,14 +352,17 @@ const SchoolSettings = () => {
 
   return (
     <DashboardLayout role={layoutRole}>
-      <div className="mingo-content space-y-6">
-        <div>
-          <h1 className="font-display text-[21px] font-semibold tracking-tight text-foreground">School Settings</h1>
-          <p className="text-[12.5px] text-muted-foreground mt-1">
+      {/* Page Header — Metronic toolbar */}
+      <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">
+        <div className="flex min-w-0 flex-col justify-center gap-2">
+          <h1 className="text-xl font-medium leading-none text-mono">School Settings</h1>
+          <div className="flex items-center gap-2 text-sm font-normal text-secondary-foreground">
             Manage your school profile, report card header details, logo, and brand colors
-          </p>
+          </div>
         </div>
+      </div>
 
+      <div className="space-y-6">
         <Card className="border-2 border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

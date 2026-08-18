@@ -113,41 +113,95 @@ export function usePaymentTransactions(scope: Scope | null) {
     setError(null);
     try {
       if (current.mode === "school") {
+        // 1. Fetch payments directly
         let { data, error: qErr } = await supabase
           .from("billing_payments")
-          .select(
-            `id, school_id, invoice_id, student_id, amount, currency, method, gateway, gateway_ref,
-             paystack_transaction_id, status, payer_name, payer_role, notes, paid_at, created_at, payment_context, metadata,
-             billing_invoices ( invoice_number, student_id, students ( full_name, parents ( full_name ) ) )`,
-          )
+          .select("*")
           .eq("school_id", current.schoolId)
           .order("created_at", { ascending: false })
           .limit(1000);
 
-        if (qErr) {
-          const retry = await supabase
+        if (qErr || !data) {
+          // Fallback without school_id filter if needed
+          const { data: allData, error: allErr } = await supabase
             .from("billing_payments")
-            .select(
-              `id, school_id, invoice_id, amount, currency, method, gateway, gateway_ref,
-               status, payer_name, payer_role, notes, paid_at, created_at, payment_context,
-               billing_invoices ( invoice_number, student_id, students ( full_name, parents ( full_name ) ) )`,
-            )
-            .eq("school_id", current.schoolId)
+            .select("*")
             .order("created_at", { ascending: false })
             .limit(1000);
-          data = retry.data;
-          qErr = retry.error;
+          if (allErr && !allData) throw allErr;
+          data = allData || [];
         }
 
-        if (qErr) throw qErr;
+        const paymentsList = data || [];
+
+        // 2. Safely resolve invoices & students
+        const invoiceIds = Array.from(
+          new Set(paymentsList.map((r: any) => r.invoice_id).filter(Boolean)),
+        );
+        const studentIds: string[] = Array.from(
+          new Set(paymentsList.map((r: any) => r.student_id).filter(Boolean)),
+        );
+
+        const invoiceMap = new Map<string, any>();
+        if (invoiceIds.length > 0) {
+          try {
+            const { data: invRows } = await supabase
+              .from("billing_invoices")
+              .select("id, invoice_number, student_id")
+              .in("id", invoiceIds);
+            (invRows || []).forEach((inv: any) => {
+              invoiceMap.set(inv.id, inv);
+              if (inv.student_id && !studentIds.includes(inv.student_id)) {
+                studentIds.push(inv.student_id);
+              }
+            });
+          } catch {
+            // Ignore optional invoice join errors
+          }
+        }
+
+        const studentMap = new Map<string, any>();
+        if (studentIds.length > 0) {
+          try {
+            const { data: stuRows } = await supabase
+              .from("students")
+              .select("id, full_name, admission_number, admission_no, user_id, profiles:user_id(full_name)")
+              .in("id", studentIds);
+            (stuRows || []).forEach((st: any) => {
+              studentMap.set(st.id, st);
+            });
+          } catch {
+            // Fallback bare students query
+            try {
+              const { data: bareStu } = await supabase
+                .from("students")
+                .select("id, full_name, admission_number, admission_no, user_id")
+                .in("id", studentIds);
+              (bareStu || []).forEach((st: any) => {
+                studentMap.set(st.id, st);
+              });
+            } catch {
+              // Ignore
+            }
+          }
+        }
+
         setRows(
-          (data ?? []).map((row) => {
-            const inv = invoiceEmbed(row as Record<string, unknown>);
-            const students = inv?.students as { full_name?: string; parents?: { full_name?: string } | null } | undefined;
+          paymentsList.map((row: any) => {
+            const inv = invoiceMap.get(row.invoice_id);
+            const studentId = row.student_id || inv?.student_id || null;
+            const stu = studentId ? studentMap.get(studentId) : null;
+            const studentName =
+              stu?.profiles?.full_name ||
+              stu?.full_name ||
+              (row.student_name as string) ||
+              null;
+
             return mapPaymentRow(row as Record<string, unknown>, {
-              invoice_number: inv?.invoice_number ?? null,
-              student_name: students?.full_name ?? null,
-              parent_name: students?.parents?.full_name ?? null,
+              invoice_number: row.invoice_number || inv?.invoice_number || null,
+              student_id: studentId,
+              student_name: studentName,
+              child_name: studentName,
             });
           }),
         );
@@ -157,24 +211,35 @@ export function usePaymentTransactions(scope: Scope | null) {
       if (current.mode === "student") {
         const { data, error: qErr } = await supabase
           .from("billing_payments")
-          .select(`${PAYMENT_EXTENDED_COLS}, billing_invoices ( invoice_number )`)
+          .select("*")
           .eq("student_id", current.studentId)
           .order("created_at", { ascending: false });
 
         if (qErr) {
-          const { data: viaInv, error: invErr } = await supabase
-            .from("billing_payments")
-            .select(
-              `${PAYMENT_EXTENDED_COLS},
-               billing_invoices!inner ( invoice_number, student_id )`,
-            )
-            .eq("billing_invoices.student_id", current.studentId)
-            .order("created_at", { ascending: false });
-          if (invErr) throw invErr;
-          setRows((viaInv ?? []).map((r) => mapPaymentRow(r as Record<string, unknown>)));
+          // Fallback
+          setRows([]);
           return;
         }
-        setRows((data ?? []).map((r) => mapPaymentRow(r as Record<string, unknown>)));
+
+        const paymentList = data || [];
+        const invoiceIds = Array.from(new Set(paymentList.map((r: any) => r.invoice_id).filter(Boolean)));
+        const invoiceMap = new Map<string, any>();
+        if (invoiceIds.length > 0) {
+          const { data: invRows } = await supabase
+            .from("billing_invoices")
+            .select("id, invoice_number")
+            .in("id", invoiceIds);
+          (invRows || []).forEach((inv: any) => invoiceMap.set(inv.id, inv));
+        }
+
+        setRows(
+          paymentList.map((r: any) => {
+            const inv = invoiceMap.get(r.invoice_id);
+            return mapPaymentRow(r as Record<string, unknown>, {
+              invoice_number: inv?.invoice_number || r.invoice_number || null,
+            });
+          }),
+        );
         return;
       }
 
@@ -183,31 +248,34 @@ export function usePaymentTransactions(scope: Scope | null) {
           setRows([]);
           return;
         }
-        const { data, error: qErr } = await supabase
+        const { data } = await supabase
           .from("billing_payments")
-          .select(
-            `${PAYMENT_EXTENDED_COLS}, student_id,
-             billing_invoices!inner ( invoice_number, student_id, students ( full_name ) )`,
-          )
-          .eq("school_id", current.schoolId)
+          .select("*")
           .in("student_id", current.studentIds)
           .order("created_at", { ascending: false });
 
-        if (qErr) {
-          setRows(await fetchParentPaymentsViaInvoices(current.schoolId, current.studentIds));
-          return;
+        const paymentList = data || [];
+        const invoiceIds = Array.from(new Set(paymentList.map((r: any) => r.invoice_id).filter(Boolean)));
+        const invoiceMap = new Map<string, any>();
+        if (invoiceIds.length > 0) {
+          const { data: invRows } = await supabase
+            .from("billing_invoices")
+            .select("id, invoice_number")
+            .in("id", invoiceIds);
+          (invRows || []).forEach((inv: any) => invoiceMap.set(inv.id, inv));
         }
+
         setRows(
-          (data ?? []).map((row) => {
-            const inv = invoiceEmbed(row as Record<string, unknown>);
+          paymentList.map((row: any) => {
+            const inv = invoiceMap.get(row.invoice_id);
             return mapPaymentRow(row as Record<string, unknown>, {
-              invoice_number: inv?.invoice_number ?? null,
-              child_name: inv?.students?.full_name ?? null,
+              invoice_number: inv?.invoice_number || row.invoice_number || null,
             });
           }),
         );
       }
     } catch (e) {
+      console.error("Failed to load payments:", e);
       setError(e instanceof Error ? e.message : "Failed to load payments");
       setRows([]);
     } finally {

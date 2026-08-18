@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1280" />
+<link rel="stylesheet" href="/assets/vendors/keenicons/styles.bundle.css" />
+<link rel="stylesheet" href="/assets/css/styles.css" />
+<link rel="stylesheet" href="/assets/css/app.css" />
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { display: flex; flex-direction: column; background: #fafafa; font: 13px system-ui; }
+  #toolbar { display: flex; gap: 10px; padding: 10px 14px; align-items: center; border-bottom: 1px solid #e4e4e7; background: #fff; }
+  #toolbar button { padding: 6px 12px; border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: pointer; }
+  #shell { flex: 1; min-height: 0; overflow: auto; padding: 30px; display: flex; gap: 40px; align-items: flex-start; }
+  .stage { position: relative; }
+  .stage-label { font-size: 11px; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .05em; }
+  .sidebar { width: 280px; height: 220px; border-radius: 10px; border: 1px solid hsl(var(--border)); background: hsl(var(--sidebar-background)); }
+</style>
+</head>
+<body>
+  <div id="toolbar">
+    <button id="btn-dark">Toggle dark mode</button>
+    <span>Sidebar toggle reproduction — desktop collapse toggle, mobile close, hamburger</span>
+  </div>
+  <div id="shell"></div>
+<script>
+  const T = (label, markup) => `
+    <div class="stage">
+      <div class="stage-label">${label}</div>
+      <div class="sidebar" data-portal-layout>
+        <div class="kt-sidebar-header hidden lg:flex items-center relative justify-between px-3 lg:px-6 shrink-0" id="sidebar_header">
+          <a class="flex items-center gap-2.5" href="#">
+            <span class="default-logo flex items-center gap-2">
+              <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">E</span>
+              <span class="text-base font-semibold leading-none text-foreground">EduManage</span>
+            </span>
+          </a>
+          ${markup.toggle}
+        </div>
+      </div>
+    </div>`;
+
+  const toggleMarkup = `
+    <div class="kt-btn kt-btn-outline kt-btn-icon rounded-lg absolute start-full top-1/2 cursor-pointer bg-white text-black hover:text-black/80 [&_i]:text-black hover:[&_i]:text-black/80"
+      role="button" tabindex="0" aria-label="Toggle sidebar"
+      style="width:30px;height:30px;marginInlineStart:-15px;marginTop:-15px;backgroundColor:#ffffff;border:1px solid #ffffff;boxShadow:0 0 0 1px rgba(255,255,255,.14),0 4px 12px rgba(0,0,0,.45),0 2px 4px rgba(0,0,0,.3)">
+      <span class="inline-flex transition-transform duration-300" style="transform:rotate(180deg)">
+        <i class="ki-filled ki-black-left-line"></i>
+      </span>
+    </div>`;
+
+  const closeMarkup = `
+    <button type="button" class="kt-btn kt-btn-icon kt-btn-ghost" aria-label="Close menu" style="box-shadow:0 2px 6px rgba(0,0,0,.3),0 1px 2px rgba(0,0,0,.2)">
+      <i class="ki-filled ki-cross text-lg"></i>
+    </button>`;
+
+  const burgerMarkup = `
+    <button type="button" class="kt-btn kt-btn-icon kt-btn-ghost" aria-label="Open menu" style="box-shadow:0 2px 6px rgba(0,0,0,.3),0 1px 2px rgba(0,0,0,.2)">
+      <i class="ki-filled ki-burger-menu-2"></i>
+    </button>`;
+
+  document.getElementById("shell").innerHTML =
+    T("Desktop collapse toggle", { toggle: toggleMarkup }) +
+    T("Mobile close (cross)", { toggle: closeMarkup }) +
+    T("Mobile hamburger", { toggle: burgerMarkup });
+
+  document.getElementById("btn-dark").addEventListener("click", () => {
+    document.documentElement.classList.toggle("dark");
+  });
+</script>
+</body>
+</html>

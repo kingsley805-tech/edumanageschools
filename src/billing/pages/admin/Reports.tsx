@@ -1,13 +1,11 @@
 // @ts-nocheck
 ﻿import { useEffect, useMemo, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useBillingAuth } from "@/billing/hooks/useBillingAuth";
-import { exportToCSV } from "@/billing/lib/exportUtils";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 
 type InvoiceRow = { student_id: string | null; status: string };
 type PaymentRow = { amount: number; method: string };
@@ -100,13 +98,8 @@ export default function BillingReports() {
     ];
   }, [invoices]);
 
-  const handleExport = () => {
-    exportToCSV(
-      "reports-payment-methods",
-      ["Method", "Amount"],
-      methodData.map((row) => [row.method, String(row.amount)])
-    );
-  };
+  const exportHeaders = ["Method", "Amount"];
+  const exportRows = methodData.map((row) => [row.method, String(row.amount)]);
 
   return (
     <div className="space-y-6">
@@ -115,9 +108,12 @@ export default function BillingReports() {
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Reports</h1>
           <p className="text-sm text-muted-foreground mt-1">School financial reports and analytics</p>
         </div>
-        <Button variant="outline" onClick={handleExport}>
-          <Download className="mr-2 h-4 w-4" /> Export CSV
-        </Button>
+        <ExportMenu
+          filename="reports-payment-methods"
+          title="Revenue by Payment Method"
+          headers={exportHeaders}
+          rows={exportRows}
+        />
       </div>
 
       <Tabs defaultValue="method" className="space-y-4">

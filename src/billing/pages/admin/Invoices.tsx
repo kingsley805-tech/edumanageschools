@@ -10,12 +10,13 @@ import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/currency";
 import { useBillingPermissions } from "@/billing/hooks/useBillingPermissions";
 import { useBillingAuth } from "@/billing/hooks/useBillingAuth";
-import { Search, Download, FileText, Undo2, Loader2, UserRoundPen } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Search, Undo2, Loader2, UserRoundPen, Eye } from "lucide-react";
 import BulkGenerateDialog from "@/billing/components/invoices/BulkGenerateDialog";
 import NewInvoiceDialog from "@/billing/components/invoices/NewInvoiceDialog";
 import TablePagination from "@/billing/components/TablePagination";
 import { usePagination } from "@/billing/hooks/usePagination";
-import { exportToCSV, exportToPDF } from "@/billing/lib/exportUtils";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { toast } from "sonner";
 import { InvoicePaymentsDialog } from "@/billing/components/invoices/InvoicePaymentsDialog";
 import ConfirmActionButton from "@/billing/components/ConfirmActionButton";
@@ -96,13 +97,25 @@ export default function BillingInvoices() {
       setLoading(false);
       return;
     }
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("billing_invoices")
-      .select("id, invoice_number, total_amount, amount_paid, balance_due, status, due_date, currency, student_id, term_id")
+      .select("id, invoice_number, total_amount, amount_paid, balance_due, status, due_date, currency, student_id, term_id, students:student_id(id, full_name, admission_number, admission_no, profiles:user_id(full_name))")
       .eq("school_id", schoolId)
       .order("created_at", { ascending: false })
       .limit(500);
-    setInvoices(data || []);
+
+    if (error || !data) {
+      // Fallback query if join has alias issue
+      const { data: bareData } = await supabase
+        .from("billing_invoices")
+        .select("id, invoice_number, total_amount, amount_paid, balance_due, status, due_date, currency, student_id, term_id")
+        .eq("school_id", schoolId)
+        .order("created_at", { ascending: false })
+        .limit(500);
+      setInvoices(bareData || []);
+    } else {
+      setInvoices(data || []);
+    }
     setLoading(false);
   }, [schoolId]);
 
@@ -231,15 +244,8 @@ export default function BillingInvoices() {
     invoice.due_date,
   ];
 
-  const handleBulkExportCSV = () => {
-    const selected = filtered.filter((invoice) => selectedIds.has(invoice.id));
-    exportToCSV("invoices-selected", headers, selected.map(toRow));
-  };
-
-  const handleBulkExportPDF = () => {
-    const selected = filtered.filter((invoice) => selectedIds.has(invoice.id));
-    exportToPDF("invoices-selected", "Selected Invoices", headers, selected.map(toRow));
-  };
+  const selectedRows = filtered.filter((invoice) => selectedIds.has(invoice.id)).map(toRow);
+  const allRows = filtered.map(toRow);
 
   return (
     <div className="space-y-6">
@@ -252,24 +258,12 @@ export default function BillingInvoices() {
         </div>
         <div className="flex gap-2">
           {canManageInvoices ? (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-xl border-border/80 bg-card/80 shadow-sm transition-all hover:bg-muted/70"
-                onClick={() => exportToCSV("invoices", headers, filtered.map(toRow))}
-              >
-                <Download className="mr-1 h-4 w-4" />CSV
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-xl border-border/80 bg-card/80 shadow-sm transition-all hover:bg-muted/70"
-                onClick={() => exportToPDF("invoices", "Invoices Report", headers, filtered.map(toRow))}
-              >
-                <FileText className="mr-1 h-4 w-4" />PDF
-              </Button>
-            </>
+            <ExportMenu
+              filename="invoices"
+              title="Invoices Report"
+              headers={headers}
+              rows={allRows}
+            />
           ) : null}
           {canCreateInvoices ? <BulkGenerateDialog onSuccess={fetchInvoices} /> : null}
           {canCreateInvoices ? <NewInvoiceDialog onSuccess={fetchInvoices} /> : null}
@@ -299,10 +293,12 @@ export default function BillingInvoices() {
         <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2">
           <span className="text-sm font-medium">{selectedIds.size} selected</span>
           {canManageInvoices ? (
-            <>
-              <Button variant="outline" size="sm" onClick={handleBulkExportCSV}><Download className="mr-1 h-3.5 w-3.5" />Export CSV</Button>
-              <Button variant="outline" size="sm" onClick={handleBulkExportPDF}><FileText className="mr-1 h-3.5 w-3.5" />Export PDF</Button>
-            </>
+            <ExportMenu
+              filename="invoices-selected"
+              title="Selected Invoices"
+              headers={headers}
+              rows={selectedRows}
+            />
           ) : null}
           {isAdmin ? (
             <Button
@@ -339,6 +335,7 @@ export default function BillingInvoices() {
                   <Checkbox checked={paged.length > 0 && selectedIds.size === paged.length} onCheckedChange={toggleSelectAll} />
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Invoice</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Student</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Total</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Paid</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Balance</th>
@@ -349,77 +346,107 @@ export default function BillingInvoices() {
             </thead>
             <tbody className="divide-y divide-border">
               {loading ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">Loading...</td></tr>
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-muted-foreground">Loading...</td></tr>
               ) : paged.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">No invoices found</td></tr>
-              ) : paged.map((invoice) => (
-                <tr key={invoice.id} className="transition-colors hover:bg-muted/30">
-                  <td className="px-4 py-3.5">
-                    <Checkbox checked={selectedIds.has(invoice.id)} onCheckedChange={() => toggleSelect(invoice.id)} />
-                  </td>
-                  <td className="px-4 py-3.5 font-mono text-sm font-medium text-card-foreground">{invoice.invoice_number}</td>
-                  <td className="px-4 py-3.5 text-sm">{formatMoney(Number(invoice.total_amount), invoice.currency)}</td>
-                  <td className="px-4 py-3.5 text-sm text-success">{formatMoney(Number(invoice.amount_paid), invoice.currency)}</td>
-                  <td className="px-4 py-3.5 text-sm font-medium">{formatMoney(Number(invoice.balance_due ?? (Number(invoice.total_amount) - Number(invoice.amount_paid))), invoice.currency)}</td>
-                  <td className="px-4 py-3.5">
-                    <Badge variant="outline" className={cn("text-xs font-medium", (statusConfig[invoice.status] || statusConfig.draft).className)}>
-                      {(statusConfig[invoice.status] || statusConfig.draft).label}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3.5 text-sm text-muted-foreground">{invoice.due_date}</td>
-                  <td className="px-4 py-3.5 text-right">
-                    <div className="flex flex-wrap justify-end gap-1">
-                      {schoolId ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8"
-                          onClick={() => {
-                            setPaymentsDialogInvoice({ id: invoice.id, number: invoice.invoice_number });
-                            setPaymentsDialogOpen(true);
-                          }}
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-muted-foreground">No invoices found</td></tr>
+              ) : paged.map((invoice) => {
+                const studentName = invoice.students?.profiles?.full_name || invoice.students?.full_name || "—";
+                const studentId = invoice.students?.id || invoice.student_id;
+                return (
+                  <tr key={invoice.id} className="transition-colors hover:bg-muted/30">
+                    <td className="px-4 py-3.5">
+                      <Checkbox checked={selectedIds.has(invoice.id)} onCheckedChange={() => toggleSelect(invoice.id)} />
+                    </td>
+                    <td className="px-4 py-3.5 font-mono text-sm font-medium">
+                      <Link
+                        to={`/admin/billing/invoices/${invoice.id}`}
+                        className="text-foreground hover:text-primary hover:underline font-semibold"
+                      >
+                        {invoice.invoice_number}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3.5 text-sm">
+                      {studentId ? (
+                        <Link
+                          to={`/admin/students/${studentId}`}
+                          className="font-medium text-foreground hover:text-primary hover:underline"
                         >
-                          Payments
-                        </Button>
-                      ) : null}
-                      {isAdmin && canReverseSentInvoice(invoice) ? (
-                        <ConfirmActionButton
-                          title="Revert invoice to draft?"
-                          description={`${invoice.invoice_number} will return to draft and will no longer appear as sent to students or parents. This is only allowed when no payments have been recorded.`}
-                          confirmLabel="Revert to draft"
-                          onConfirm={() => void reverseSentInvoice(invoice)}
-                          trigger={
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8"
-                              disabled={reversingId === invoice.id}
-                            >
-                              {reversingId === invoice.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Undo2 className="mr-1 h-3.5 w-3.5" />
-                              )}
-                              Reverse
-                            </Button>
-                          }
-                        />
-                      ) : null}
-                      {isAdmin && canReassignInvoice(invoice) ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8"
-                          onClick={() => openReassign(invoice)}
+                          {studentName}
+                        </Link>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5 text-sm">{formatMoney(Number(invoice.total_amount), invoice.currency)}</td>
+                    <td className="px-4 py-3.5 text-sm text-success">{formatMoney(Number(invoice.amount_paid), invoice.currency)}</td>
+                    <td className="px-4 py-3.5 text-sm font-medium">{formatMoney(Number(invoice.balance_due ?? (Number(invoice.total_amount) - Number(invoice.amount_paid))), invoice.currency)}</td>
+                    <td className="px-4 py-3.5">
+                      <Badge variant="outline" className={cn("text-xs font-medium", (statusConfig[invoice.status] || statusConfig.draft).className)}>
+                        {(statusConfig[invoice.status] || statusConfig.draft).label}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3.5 text-sm text-muted-foreground">{invoice.due_date}</td>
+                    <td className="px-4 py-3.5 text-right">
+                      <div className="flex flex-wrap justify-end gap-1">
+                        <Link
+                          to={`/admin/billing/invoices/${invoice.id}`}
+                          className="inline-flex items-center justify-center rounded-md border border-input bg-background px-2.5 h-8 text-xs font-medium hover:bg-accent hover:text-accent-foreground transition-colors gap-1"
                         >
-                          <UserRoundPen className="mr-1 h-3.5 w-3.5" />
-                          Reassign
-                        </Button>
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                          <Eye className="h-3.5 w-3.5" />
+                          View
+                        </Link>
+                        {schoolId ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8"
+                            onClick={() => {
+                              setPaymentsDialogInvoice({ id: invoice.id, number: invoice.invoice_number });
+                              setPaymentsDialogOpen(true);
+                            }}
+                          >
+                            Payments
+                          </Button>
+                        ) : null}
+                        {isAdmin && canReverseSentInvoice(invoice) ? (
+                          <ConfirmActionButton
+                            title="Revert invoice to draft?"
+                            description={`${invoice.invoice_number} will return to draft and will no longer appear as sent to students or parents. This is only allowed when no payments have been recorded.`}
+                            confirmLabel="Revert to draft"
+                            onConfirm={() => void reverseSentInvoice(invoice)}
+                            trigger={
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8"
+                                disabled={reversingId === invoice.id}
+                              >
+                                {reversingId === invoice.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Undo2 className="mr-1 h-3.5 w-3.5" />
+                                )}
+                                Reverse
+                              </Button>
+                            }
+                          />
+                        ) : null}
+                        {isAdmin && canReassignInvoice(invoice) ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8"
+                            onClick={() => openReassign(invoice)}
+                          >
+                            <UserRoundPen className="mr-1 h-3.5 w-3.5" />
+                            Reassign
+                          </Button>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

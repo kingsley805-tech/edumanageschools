@@ -11,9 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import { downloadPayrollCsv, downloadPayrollPdf, payoutSummaryFromSnapshot } from "@/billing/lib/payrollExport";
+import { payoutSummaryFromSnapshot } from "@/billing/lib/payrollExport";
 import { fetchStaffSalaries, fetchTeachersForPayroll, type PayrollTeacherRow } from "@/billing/lib/payrollTeachers";
-import { FileSpreadsheet, Loader2 } from "lucide-react";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
+import { Loader2 } from "lucide-react";
 
 type TeacherRow = Pick<PayrollTeacherRow, "user_id" | "email" | "first_name" | "last_name">;
 
@@ -74,41 +75,32 @@ export default function PayrollHistoryPage() {
     });
   }, [salaries, month, teacherId, status]);
 
-  const exportRows = () => {
-    const headers = [
-      "Teacher",
-      "Month",
-      "Amount",
-      "Allowances",
-      "Deductions",
-      "Status",
-      "Method",
-      "Payout summary",
-      "Gateway ref",
-      "Paid at",
-      "Notes",
-    ];
-    const body = filtered.map((s) => [
-      nameById.get(s.staff_user_id) || s.staff_user_id,
-      s.month,
-      s.amount,
-      s.allowances ?? 0,
-      s.deductions ?? 0,
-      s.status,
-      s.method,
-      payoutSummaryFromSnapshot(s.payout_snapshot, s.method),
-      s.gateway_ref || "",
-      s.paid_at || "",
-      (s.notes || "").replace(/\n/g, " "),
-    ]);
-    downloadPayrollCsv(headers, body, `payroll-export-${schoolId?.slice(0, 8)}`);
-    downloadPayrollPdf(
-      "Payroll history",
-      headers,
-      body as (string | number)[][],
-      `payroll-export-${schoolId?.slice(0, 8)}`,
-    );
-  };
+  const exportHeaders = [
+    "Teacher",
+    "Month",
+    "Amount",
+    "Allowances",
+    "Deductions",
+    "Status",
+    "Method",
+    "Payout summary",
+    "Gateway ref",
+    "Paid at",
+    "Notes",
+  ];
+  const exportBody = filtered.map((s) => [
+    nameById.get(s.staff_user_id) || s.staff_user_id,
+    s.month,
+    s.amount,
+    s.allowances ?? 0,
+    s.deductions ?? 0,
+    s.status,
+    s.method,
+    payoutSummaryFromSnapshot(s.payout_snapshot, s.method),
+    s.gateway_ref || "",
+    s.paid_at || "",
+    (s.notes || "").replace(/\n/g, " "),
+  ]);
 
   if (!perm.view) {
     return <div className="py-16 text-center text-muted-foreground">You do not have access to payroll history.</div>;
@@ -163,10 +155,13 @@ export default function PayrollHistoryPage() {
               </SelectContent>
             </Select>
           </div>
-          <Button type="button" variant="secondary" onClick={exportRows} disabled={filtered.length === 0}>
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-            Export CSV &amp; PDF
-          </Button>
+          <ExportMenu
+            filename={`payroll-export-${schoolId?.slice(0, 8) || "school"}`}
+            title="Payroll history"
+            headers={exportHeaders}
+            rows={exportBody}
+            disabled={filtered.length === 0}
+          />
         </CardContent>
       </Card>
 

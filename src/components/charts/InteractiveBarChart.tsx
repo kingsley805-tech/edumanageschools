@@ -163,7 +163,7 @@ export function InteractiveBarChart({
                   {metric.label}
                 </span>
                 <span
-                  className="text-lg font-bold leading-none tabular-nums sm:text-2xl"
+                  className="text-lg font-semibold leading-none tabular-nums sm:text-2xl"
                   style={{ color: metric.color }}
                 >
                   {valueFormatter

@@ -545,7 +545,7 @@ export default function TimetableDashboard() {
         </div>
 
         <Tabs value={tab} onValueChange={setTab} className="print:hidden">
-          <TabsList className="bg-muted/50 flex-wrap h-auto">
+          <TabsList className="flex-wrap">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="builder">Timetable Builder</TabsTrigger>
             <TabsTrigger value="teacher">Teacher View</TabsTrigger>

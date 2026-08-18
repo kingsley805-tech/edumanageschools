@@ -109,15 +109,15 @@ export default function PlatformSmsManagement() {
         <PlatformArkeselSetupCard />
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border bg-card p-4">
+          <div className="channel-stats-bg rounded-xl border border-border bg-card p-4">
             <p className="text-sm text-muted-foreground">Schools with SMS active</p>
             <p className="text-2xl font-bold">{stats.active}</p>
           </div>
-          <div className="rounded-xl border bg-card p-4">
+          <div className="channel-stats-bg rounded-xl border border-border bg-card p-4">
             <p className="text-sm text-muted-foreground">Total organizations</p>
             <p className="text-2xl font-bold">{stats.total}</p>
           </div>
-          <div className="rounded-xl border bg-card p-4">
+          <div className="channel-stats-bg rounded-xl border border-border bg-card p-4">
             <p className="text-sm text-muted-foreground">SMS sent (30 days)</p>
             <p className="text-2xl font-bold">{stats.sent30d.toLocaleString()}</p>
           </div>

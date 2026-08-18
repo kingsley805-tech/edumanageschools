@@ -113,7 +113,7 @@ export default function RegisterDashboard() {
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="flex-wrap h-auto">
+          <TabsList className="flex-wrap">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="approval">Approval queue</TabsTrigger>
             <TabsTrigger value="archive">Archive</TabsTrigger>

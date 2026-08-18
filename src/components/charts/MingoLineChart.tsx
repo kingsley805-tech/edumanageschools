@@ -134,7 +134,7 @@ export function MingoLineChart({
         <text
           x={-8}
           y={8}
-          fontFamily="IBM Plex Mono, monospace"
+          fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
           fontSize={9}
           fill={MINGO.inkFaint}
           textAnchor="end"
@@ -144,7 +144,7 @@ export function MingoLineChart({
         <text
           x={-8}
           y={84}
-          fontFamily="IBM Plex Mono, monospace"
+          fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
           fontSize={9}
           fill={MINGO.inkFaint}
           textAnchor="end"
@@ -154,7 +154,7 @@ export function MingoLineChart({
         <text
           x={-8}
           y={164}
-          fontFamily="IBM Plex Mono, monospace"
+          fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
           fontSize={9}
           fill={MINGO.inkFaint}
           textAnchor="end"
@@ -194,7 +194,7 @@ export function MingoLineChart({
               key={`${l.x}-${l.text}`}
               x={l.x}
               y={178}
-              fontFamily="IBM Plex Mono, monospace"
+              fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
               fontSize={9}
               fill={MINGO.inkFaint}
             >

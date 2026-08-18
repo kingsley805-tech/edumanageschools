@@ -33,7 +33,7 @@ export function RegisterStatsCards({ stats }: { stats: RegisterDashboardStats })
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {items.map((item) => (
-        <Card key={item.label} className="border-border/80 shadow-sm">
+        <Card key={item.label} className="channel-stats-bg border-border/80 shadow-sm">
           <CardContent className="pt-5 pb-4">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{item.label}</p>
             <p className="text-2xl font-bold mt-1">{item.value}</p>

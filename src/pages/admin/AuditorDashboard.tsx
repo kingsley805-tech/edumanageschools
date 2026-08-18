@@ -100,92 +100,117 @@ const AuditorDashboard = () => {
   return (
     <PermissionGate permission={PERMISSIONS.admin.viewAudit} showDenied>
       <DashboardLayout role="auditor">
-        <div className="mingo-content">
-          <div className="mingo-page-head">
-            <div>
-              <h1>Auditor portal</h1>
-              <p>Read-only financial and compliance overview for your school.</p>
+        {/* Page head — Metronic page title block */}
+        <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">
+          <div className="flex min-w-0 flex-col justify-center gap-2">
+            <h1 className="text-xl font-medium leading-none text-mono">Auditor portal</h1>
+            <div className="flex items-center gap-2 text-sm font-normal text-secondary-foreground">
+              Read-only financial and compliance overview for your school.
             </div>
-            <div className="mingo-head-actions">
-              {hasPermission(PERMISSIONS.admin.viewAudit) && (
-                <button type="button" className="mingo-btn mingo-btn-ghost" onClick={() => navigate("/admin/audit-logs")}>
-                  Audit logs
-                </button>
+          </div>
+          <div className="flex items-center gap-2.5">
+            {hasPermission(PERMISSIONS.admin.viewAudit) ? (
+              <button
+                type="button"
+                className="kt-btn kt-btn-outline"
+                onClick={() => navigate("/admin/audit-logs")}
+              >
+                <i className="ki-filled ki-shield-tick text-base" />
+                Audit logs
+              </button>
+            ) : null}
+            {hasPermission(PERMISSIONS.reports.exportFinancial) ? (
+              <button
+                type="button"
+                className="kt-btn kt-btn-primary"
+                onClick={() => navigate("/admin/reports")}
+              >
+                <i className="ki-filled ki-file-down text-base" />
+                Export reports
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        {/* KPI row */}
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-5 lg:gap-7.5 mb-5 lg:mb-7.5">
+          {[
+            { label: "Invoices On Record", value: summary.invoiceCount, icon: "document" },
+            { label: "Payment Transactions", value: summary.paymentCount, icon: "credit-cart" },
+            { label: "Audit Log Entries", value: summary.auditEntries, icon: "shield-tick" },
+            {
+              label: "Logged Last 14 Days",
+              value: recentLogs.length ? trendPoints.reduce((s, p) => s + p.primary, 0) : 0,
+              icon: "timer",
+            },
+          ].map((kpi) => (
+            <div className="kt-card channel-stats-bg" key={kpi.label}>
+              <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-4">
+                <div className="flex items-center justify-between gap-2.5">
+                  <span className="text-sm font-normal text-secondary-foreground">{kpi.label}</span>
+                  <span className="flex items-center justify-center size-10 shrink-0 rounded-lg bg-accent/60 border border-border">
+                    <i className={`ki-filled ki-${kpi.icon} text-lg text-muted-foreground`} />
+                  </span>
+                </div>
+                <span className="text-3xl font-semibold text-mono">{kpi.value}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Charts row */}
+        <div className="grid lg:grid-cols-3 gap-5 lg:gap-7.5 items-stretch mb-5 lg:mb-7.5">
+          <div className="kt-card lg:col-span-2">
+            <div className="kt-card-header">
+              <h3 className="kt-card-title">System activity — last 7 days</h3>
+            </div>
+            <div className="kt-card-content p-5 lg:p-7.5">
+              {trendPoints.some((p) => p.primary > 0 || p.secondary > 0) ? (
+                <MingoLineChart
+                  points={trendPoints}
+                  primaryLabel="Total events"
+                  secondaryLabel="Data changes"
+                  yMaxLabel={String(
+                    Math.max(1, ...trendPoints.map((p) => Math.max(p.primary, p.secondary))),
+                  )}
+                  yMidLabel=""
+                  yMinLabel="0"
+                />
+              ) : (
+                <p className="text-sm text-secondary-foreground">No audit activity recorded yet.</p>
               )}
-              {hasPermission(PERMISSIONS.reports.exportFinancial) && (
-                <button
-                  type="button"
-                  className="mingo-btn mingo-btn-primary"
-                  onClick={() => navigate("/admin/reports")}
-                >
-                  Export reports
-                </button>
+            </div>
+          </div>
+
+          <div className="kt-card">
+            <div className="kt-card-header">
+              <h3 className="kt-card-title">Activity by module</h3>
+            </div>
+            <div className="kt-card-content p-5 lg:p-7.5">
+              {moduleItems.length ? (
+                <MingoCategoryBars items={moduleItems} bordered={false} />
+              ) : (
+                <p className="text-sm text-secondary-foreground">No data yet.</p>
               )}
             </div>
           </div>
+        </div>
 
-          <div className="mingo-kpi-row">
-            <div className="mingo-kpi">
-              <div className="label">Invoices On Record</div>
-              <div className="val mono">{summary.invoiceCount}</div>
-            </div>
-            <div className="mingo-kpi">
-              <div className="label">Payment Transactions</div>
-              <div className="val mono">{summary.paymentCount}</div>
-            </div>
-            <div className="mingo-kpi">
-              <div className="label">Audit Log Entries</div>
-              <div className="val mono">{summary.auditEntries}</div>
-            </div>
-            <div className="mingo-kpi">
-              <div className="label">Logged Last 14 Days</div>
-              <div className="val mono">{recentLogs.length ? trendPoints.reduce((s, p) => s + p.primary, 0) : 0}</div>
-            </div>
-          </div>
-
-          <div className="mingo-charts-row">
-            <div className="mingo-panel mingo-charts-line">
-              <div className="mingo-panel-head">
-                <h2>System activity — last 7 days</h2>
-              </div>
-              <div className="mingo-panel-body" style={{ paddingTop: 14 }}>
-                {trendPoints.some((p) => p.primary > 0 || p.secondary > 0) ? (
-                  <MingoLineChart
-                    points={trendPoints}
-                    primaryLabel="Total events"
-                    secondaryLabel="Data changes"
-                    yMaxLabel={String(Math.max(1, ...trendPoints.map((p) => Math.max(p.primary, p.secondary))))}
-                    yMidLabel=""
-                    yMinLabel="0"
-                  />
-                ) : (
-                  <p className="text-[12.5px] text-[hsl(var(--ink-faint))]">No audit activity recorded yet.</p>
-                )}
-              </div>
-            </div>
-
-            <div className="mingo-panel mingo-charts-cat">
-              <div className="mingo-panel-head">
-                <h2>Activity by module</h2>
-              </div>
-              <div className="mingo-panel-body">
-                {moduleItems.length ? (
-                  <MingoCategoryBars items={moduleItems} bordered={false} />
-                ) : (
-                  <p className="text-[12.5px] text-[hsl(var(--ink-faint))]">No data yet.</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="mingo-panel-head mingo-table-cap">
-            <h2>Recent audit entries</h2>
-            <button type="button" className="meta" onClick={() => navigate("/admin/audit-logs")}>
-              VIEW ALL →
+        {/* Recent audit entries */}
+        <div className="kt-card mb-5 lg:mb-7.5">
+          <div className="kt-card-header">
+            <h3 className="kt-card-title">Recent audit entries</h3>
+            <button
+              type="button"
+              className="kt-btn kt-btn-ghost kt-btn-sm text-muted-foreground hover:text-primary"
+              onClick={() => navigate("/admin/audit-logs")}
+            >
+              View all
+              <i className="ki-filled ki-right text-xs" />
             </button>
           </div>
-          <div className="mingo-table-wrap">
-            <table>
+          <div className="kt-card-content p-0 overflow-x-auto">
+            <table className="kt-table min-w-full">
               <thead>
                 <tr>
                   <th>Action</th>
@@ -201,13 +226,19 @@ const AuditorDashboard = () => {
                 ).map((row, i) => (
                   <tr key={i}>
                     <td>
-                      <span className={cn("mingo-status-pill", row.action_type === "delete" ? "overdue" : "paid")}>
+                      <span
+                        className={
+                          row.action_type === "delete"
+                            ? "kt-badge kt-badge-sm kt-badge-danger kt-badge-outline"
+                            : "kt-badge kt-badge-sm kt-badge-success kt-badge-outline"
+                        }
+                      >
                         {row.action_type ?? "—"}
                       </span>
                     </td>
-                    <td>{row.entity_type ?? "—"}</td>
-                    <td>{row.module ?? "—"}</td>
-                    <td className="mono-cell">
+                    <td className="text-2sm text-secondary-foreground">{row.entity_type ?? "—"}</td>
+                    <td className="text-2sm text-secondary-foreground">{row.module ?? "—"}</td>
+                    <td className="font-mono text-2sm text-secondary-foreground">
                       {row.created_at
                         ? new Date(row.created_at).toLocaleString(undefined, {
                             month: "short",
@@ -222,43 +253,44 @@ const AuditorDashboard = () => {
               </tbody>
             </table>
           </div>
+        </div>
 
-          <div className="mingo-panel-head mingo-table-cap" style={{ marginTop: 18 }}>
-            <h2>Quick links</h2>
+        {/* Quick links */}
+        <div className="kt-card">
+          <div className="kt-card-header">
+            <h3 className="kt-card-title">Quick links</h3>
           </div>
-          <div className="mingo-table-wrap" style={{ padding: 4 }}>
-            <div className="grid gap-3 p-3 sm:grid-cols-3">
-              {hasPermission(PERMISSIONS.invoices.view) && (
-                <button
-                  type="button"
-                  className="mingo-btn mingo-btn-ghost"
-                  style={{ justifyContent: "flex-start" }}
-                  onClick={() => navigate("/admin/billing/invoices")}
-                >
-                  <FileText className="h-4 w-4" /> View invoices
-                </button>
-              )}
-              {hasPermission(PERMISSIONS.admin.viewAudit) && (
-                <button
-                  type="button"
-                  className="mingo-btn mingo-btn-ghost"
-                  style={{ justifyContent: "flex-start" }}
-                  onClick={() => navigate("/admin/audit-logs")}
-                >
-                  <Eye className="h-4 w-4" /> Audit logs
-                </button>
-              )}
-              {hasPermission(PERMISSIONS.reports.exportFinancial) && (
-                <button
-                  type="button"
-                  className="mingo-btn mingo-btn-ghost"
-                  style={{ justifyContent: "flex-start" }}
-                  onClick={() => navigate("/admin/reports")}
-                >
-                  <Download className="h-4 w-4" /> Export reports
-                </button>
-              )}
-            </div>
+          <div className="kt-card-content p-5 lg:p-7.5 grid gap-3 sm:grid-cols-3">
+            {hasPermission(PERMISSIONS.invoices.view) ? (
+              <button
+                type="button"
+                className="kt-btn kt-btn-outline justify-start"
+                onClick={() => navigate("/admin/billing/invoices")}
+              >
+                <FileText className="h-4 w-4 shrink-0" />
+                View invoices
+              </button>
+            ) : null}
+            {hasPermission(PERMISSIONS.admin.viewAudit) ? (
+              <button
+                type="button"
+                className="kt-btn kt-btn-outline justify-start"
+                onClick={() => navigate("/admin/audit-logs")}
+              >
+                <Eye className="h-4 w-4 shrink-0" />
+                Audit logs
+              </button>
+            ) : null}
+            {hasPermission(PERMISSIONS.reports.exportFinancial) ? (
+              <button
+                type="button"
+                className="kt-btn kt-btn-outline justify-start"
+                onClick={() => navigate("/admin/reports")}
+              >
+                <Download className="h-4 w-4 shrink-0" />
+                Export reports
+              </button>
+            ) : null}
           </div>
         </div>
       </DashboardLayout>

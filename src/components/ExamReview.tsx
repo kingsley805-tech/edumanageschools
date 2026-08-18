@@ -173,13 +173,13 @@ export const ExamReview = ({ attemptId, examTitle, open, onOpenChange }: ExamRev
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <Card className="p-3">
                   <div className="text-center">
-                    <p className="text-2xl font-bold">{totalObtained}/{studentTotalMarks}</p>
+                    <p className="text-3xl font-semibold">{totalObtained}/{studentTotalMarks}</p>
                     <p className="text-xs text-muted-foreground">Score</p>
                   </div>
                 </Card>
                 <Card className="p-3">
                   <div className="text-center">
-                    <p className={`text-2xl font-bold ${stats.passed ? "text-green-600" : "text-red-600"}`}>
+                    <p className={`text-3xl font-semibold ${stats.passed ? "text-green-600" : "text-red-600"}`}>
                       {stats.percentage.toFixed(1)}%
                     </p>
                     <p className="text-xs text-muted-foreground">{stats.passed ? "Passed" : "Failed"}</p>
@@ -188,21 +188,21 @@ export const ExamReview = ({ attemptId, examTitle, open, onOpenChange }: ExamRev
                 <Card className="p-3">
                   <div className="flex items-center justify-center gap-2">
                     <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span className="text-xl font-bold">{stats.correct}</span>
+                    <span className="text-xl font-semibold">{stats.correct}</span>
                   </div>
                   <p className="text-xs text-muted-foreground text-center">Correct</p>
                 </Card>
                 <Card className="p-3">
                   <div className="flex items-center justify-center gap-2">
                     <XCircle className="h-5 w-5 text-red-500" />
-                    <span className="text-xl font-bold">{stats.wrong}</span>
+                    <span className="text-xl font-semibold">{stats.wrong}</span>
                   </div>
                   <p className="text-xs text-muted-foreground text-center">Wrong</p>
                 </Card>
                 <Card className="p-3">
                   <div className="flex items-center justify-center gap-2">
                     <MinusCircle className="h-5 w-5 text-gray-400" />
-                    <span className="text-xl font-bold">{stats.skipped}</span>
+                    <span className="text-xl font-semibold">{stats.skipped}</span>
                   </div>
                   <p className="text-xs text-muted-foreground text-center">Skipped</p>
                 </Card>

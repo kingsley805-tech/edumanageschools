@@ -95,15 +95,11 @@ export const ProtectedRoute = ({
     }
   }, [role, roles, roleLoading, allowedRoles, navigate, isStudent, location.pathname]);
 
-  /** Core auth/RBAC first; entitlements load once then stay cached (no spinner on every route). */
-  const loading = authLoading || roleLoading || permLoading || entLoading;
+  /** Core auth/role first — render portal immediately without blocking on secondary network checks */
+  const loading = authLoading || roleLoading;
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-      </div>
-    );
+    return null;
   }
 
   if (!user) return null;

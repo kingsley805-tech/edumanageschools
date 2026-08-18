@@ -11,7 +11,6 @@ import { SchoolThemeProvider } from "./contexts/SchoolThemeContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { DesktopShell, isElectronDesktop } from "@/desktop";
 import Landing from "./pages/Landing";
-import Loader from "./pages/loader";
 import Auth from "./pages/Auth";
 import Contact from "./pages/Contact";
 import Privacy from "./pages/Privacy";
@@ -21,9 +20,14 @@ import TeacherDashboard from "./pages/TeacherDashboard";
 import ParentDashboard from "./pages/ParentDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
 import Students from "./pages/admin/Students";
+import StudentProfile from "./pages/admin/StudentProfile";
 import Settings from "./pages/Settings";
 import Teachers from "./pages/admin/Teachers";
+import TeacherProfile from "./pages/admin/TeacherProfile";
+import AdminProfile from "./pages/admin/AdminProfile";
 import Classes from "./pages/admin/Classes";
+import ClassProfile from "./pages/admin/ClassProfile";
+import InvoiceProfile from "./pages/admin/InvoiceProfile";
 import AdminAttendance from "./pages/admin/Attendance";
 import RegisterDashboard from "@/register/pages/admin/RegisterDashboard";
 import AdminRegisterReview from "@/register/pages/admin/AdminRegisterReview";
@@ -78,6 +82,7 @@ import Messages from "./pages/Messages";
 import StudentTimetable from "./pages/student/Timetable";
 import TeacherTimetable from "./pages/teacher/Timetable";
 import NotFound from "./pages/NotFound";
+import DashboardLayout from "./components/DashboardLayout";
 
 import GradeScales from "./pages/admin/GradeScales";
 import QuestionBank from "./pages/teacher/QuestionBank";
@@ -87,6 +92,14 @@ import WaecPracticePage from "@/modules/waec/pages/WaecPractice";
 import WaecAdminPage from "@/modules/waec/pages/WaecAdmin";
 import StudentBilling from "./pages/student/Billing";
 import StudentPaymentHistory from "./pages/student/PaymentHistory";
+import StudentShopPage from "@/modules/shop/pages/StudentShop";
+import ParentShopPage from "@/modules/shop/pages/ParentShop";
+import TeacherShopPage from "@/modules/shop/pages/TeacherShop";
+import StudentAchievementsPage from "@/modules/achievements/pages/StudentAchievements";
+import ParentAchievementsPage from "@/modules/achievements/pages/ParentAchievements";
+import StudentProgramsPage from "@/modules/programs/pages/StudentPrograms";
+import ParentProgramsPage from "@/modules/programs/pages/ParentPrograms";
+import TeacherProgramsPage from "@/modules/programs/pages/TeacherPrograms";
 import ParentPaymentHistory from "./pages/parent/PaymentHistory";
 import ParentTimetable from "./pages/parent/Timetable";
 import SuperAdminManagement from "./pages/admin/SuperAdminManagement";
@@ -150,9 +163,11 @@ function App() {
               <SchoolThemeProvider>
                 <DesktopShell>
                 <Routes>
-                  <Route path="/" element={<Loader />} />
+                  <Route path="/" element={<Landing />} />
                   <Route path="/landing" element={<Landing />} />
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/auth/:uuid" element={<Auth />} />
+                  <Route path="/auth/:id" element={<Auth />} />
                   <Route
                     path="/platform-admin/login"
                     element={<PlatformOwnerLogin />}
@@ -201,6 +216,14 @@ function App() {
                     }
                   />
                   <Route
+                    path="/admin/students/:id"
+                    element={
+                      <ProtectedRoute allowedRoles={["admin", "super_admin", "teacher"]}>
+                        <StudentProfile />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
                     path="/admin/teachers"
                     element={
                       <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
@@ -209,10 +232,86 @@ function App() {
                     }
                   />
                   <Route
+                    path="/admin/teachers/:id"
+                    element={
+                      <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                        <TeacherProfile />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/admins/:id"
+                    element={
+                      <ProtectedRoute
+                        allowedRoles={[
+                          "admin",
+                          "super_admin",
+                          "accountant",
+                          "auditor",
+                        ]}
+                      >
+                        <AdminProfile />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/profile"
+                    element={
+                      <ProtectedRoute
+                        allowedRoles={[
+                          "admin",
+                          "super_admin",
+                          "accountant",
+                          "auditor",
+                        ]}
+                      >
+                        <AdminProfile />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/profile/:id"
+                    element={
+                      <ProtectedRoute
+                        allowedRoles={[
+                          "admin",
+                          "super_admin",
+                          "accountant",
+                          "auditor",
+                        ]}
+                      >
+                        <AdminProfile />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/staff/:id"
+                    element={
+                      <ProtectedRoute
+                        allowedRoles={[
+                          "admin",
+                          "super_admin",
+                          "accountant",
+                          "auditor",
+                        ]}
+                      >
+                        <AdminProfile />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
                     path="/admin/classes"
                     element={
                       <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
                         <Classes />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/classes/:id"
+                    element={
+                      <ProtectedRoute allowedRoles={["admin", "super_admin", "teacher"]}>
+                        <ClassProfile />
                       </ProtectedRoute>
                     }
                   />
@@ -279,6 +378,22 @@ function App() {
                         ]}
                       >
                         <BillingInvoicesPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/billing/invoices/:id"
+                    element={
+                      <ProtectedRoute
+                        allowedRoles={[
+                          "admin",
+                          "super_admin",
+                          "accountant",
+                          "auditor",
+                          "teacher",
+                        ]}
+                      >
+                        <InvoiceProfile />
                       </ProtectedRoute>
                     }
                   />
@@ -851,6 +966,14 @@ function App() {
                     }
                   />
                   <Route
+                    path="/parent/shop"
+                    element={
+                      <ProtectedRoute allowedRoles={["parent"]}>
+                        <ParentShopPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
                     path="/parent/children"
                     element={
                       <ProtectedRoute allowedRoles={["parent"]}>
@@ -907,6 +1030,22 @@ function App() {
                     }
                   />
                   <Route
+                    path="/parent/achievements"
+                    element={
+                      <ProtectedRoute allowedRoles={["parent"]}>
+                        <ParentAchievementsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/parent/programs"
+                    element={
+                      <ProtectedRoute allowedRoles={["parent"]}>
+                        <ParentProgramsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
                     path="/teacher/my-class"
                     element={
                       <ProtectedRoute allowedRoles={["teacher"]}>
@@ -951,6 +1090,22 @@ function App() {
                     element={
                       <ProtectedRoute allowedRoles={["teacher"]}>
                         <TeacherResources />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/teacher/shop"
+                    element={
+                      <ProtectedRoute allowedRoles={["teacher"]}>
+                        <TeacherShopPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/teacher/programs"
+                    element={
+                      <ProtectedRoute allowedRoles={["teacher"]}>
+                        <TeacherProgramsPage />
                       </ProtectedRoute>
                     }
                   />
@@ -1019,6 +1174,22 @@ function App() {
                     }
                   />
                   <Route
+                    path="/student/achievements"
+                    element={
+                      <ProtectedRoute allowedRoles={["student"]}>
+                        <StudentAchievementsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/student/programs"
+                    element={
+                      <ProtectedRoute allowedRoles={["student"]}>
+                        <StudentProgramsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
                     path="/student/register"
                     element={
                       <ProtectedRoute allowedRoles={["student"]}>
@@ -1079,6 +1250,14 @@ function App() {
                     element={
                       <ProtectedRoute allowedRoles={["student"]}>
                         <StudentPaymentHistory />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/student/shop"
+                    element={
+                      <ProtectedRoute allowedRoles={["student"]}>
+                        <StudentShopPage />
                       </ProtectedRoute>
                     }
                   />

@@ -1,4 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -44,6 +45,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { EntityProfileModal } from "@/components/entities/EntityProfileModal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -618,20 +620,21 @@ const Teachers = () => {
 
   return (
     <DashboardLayout role="admin">
-      <div className="mingo-content space-y-4 md:space-y-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">
-              Teachers
-            </h2>
-            <p className="text-[12.5px] text-muted-foreground mt-1">
-              Manage teaching staff
-            </p>
+      {/* Page Header — Metronic toolbar */}
+      <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">
+        <div className="flex min-w-0 flex-col justify-center gap-2">
+          <h1 className="text-xl font-medium leading-none text-mono">
+            Teachers
+          </h1>
+          <div className="flex items-center gap-2 text-sm font-normal text-secondary-foreground">
+            Manage teaching staff, employee profiles, and subject assignments
           </div>
+        </div>
+        <div className="flex items-center gap-2.5">
           <Dialog open={open} onOpenChange={handleAddDialogChange}>
             <DialogTrigger asChild>
-              <Button className="gap-2 w-full sm:w-auto">
-                <Plus className="h-4 w-4" />
+              <Button className="kt-btn kt-btn-primary gap-2">
+                <i className="ki-filled ki-plus text-base" />
                 Add Teacher
               </Button>
             </DialogTrigger>
@@ -882,30 +885,27 @@ const Teachers = () => {
             </DialogContent>
           </Dialog>
         </div>
+      </div>
 
-        <Card>
-          <CardHeader className="p-4 md:p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
-                <CardTitle className="text-lg md:text-xl">
-                  All Teachers
-                </CardTitle>
-                <CardDescription className="text-sm md:text-base">
-                  View and manage teacher information
-                </CardDescription>
-              </div>
-              <div className="relative w-full sm:w-auto">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search teachers..."
-                  className="pl-10 w-full sm:w-64 text-base"
-                />
-              </div>
+      <div className="kt-card">
+        <div className="kt-card-header flex flex-wrap gap-2.5 py-4 px-5 justify-between items-center">
+          <div>
+            <h3 className="kt-card-title">
+              All Teachers
+            </h3>
+          </div>
+          <div className="flex items-center gap-2.5 w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-initial">
+              <i className="ki-filled ki-magnifier absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search teachers..."
+                className="pl-9 w-full sm:w-64 h-9"
+              />
             </div>
-          </CardHeader>
-          <CardContent className="p-0 md:p-6 pt-0">
-            <div className="overflow-x-auto">
-              <Table>
+          </div>
+        </div>
+        <div className="kt-card-content p-0 overflow-x-auto">
+          <Table className="kt-table min-w-full">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="min-w-[120px]">
@@ -941,15 +941,27 @@ const Teachers = () => {
                   ) : (
                     teachers.map((teacher) => (
                       <TableRow key={teacher.id}>
-                        <TableCell className="font-medium">
-                          {teacher.employee_no || (
+                        <TableCell className="font-medium font-mono text-xs">
+                          {teacher.employee_no ? (
+                            <Link
+                              to={`/admin/teachers/${teacher.id}`}
+                              className="text-foreground font-semibold hover:text-primary hover:underline"
+                            >
+                              {teacher.employee_no}
+                            </Link>
+                          ) : (
                             <Badge variant="outline" className="text-xs">
                               Not assigned
                             </Badge>
                           )}
                         </TableCell>
                         <TableCell className="font-medium">
-                          {teacher.profiles?.full_name}
+                          <Link
+                            to={`/admin/teachers/${teacher.id}`}
+                            className="text-foreground hover:text-primary hover:underline"
+                          >
+                            {teacher.profiles?.full_name}
+                          </Link>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           {formatTeacherClasses(teacher)}
@@ -1055,17 +1067,12 @@ const Teachers = () => {
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedTeacher(teacher);
-                                setViewDialogOpen(true);
-                              }}
-                              className="h-8 md:h-9"
+                            <Link
+                              to={`/admin/teachers/${teacher.id}`}
+                              className="kt-btn kt-btn-outline kt-btn-sm h-8 md:h-9 px-2.5 text-xs text-primary inline-flex items-center"
                             >
                               View
-                            </Button>
+                            </Link>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button
@@ -1108,8 +1115,7 @@ const Teachers = () => {
                 </TableBody>
               </Table>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
         {/* Edit Teacher Dialog */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
@@ -1169,70 +1175,90 @@ const Teachers = () => {
           </DialogContent>
         </Dialog>
 
-        {/* View Teacher Dialog */}
-        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Teacher Details</DialogTitle>
-              <DialogDescription>
-                View complete teacher information
-              </DialogDescription>
-            </DialogHeader>
-            {selectedTeacher && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-muted-foreground">
-                      Employee Number
-                    </Label>
-                    <p className="font-medium">
-                      {selectedTeacher.employee_no || "Not assigned"}
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Full Name</Label>
-                    <p className="font-medium">
-                      {selectedTeacher.profiles?.full_name}
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Email</Label>
-                    <p className="font-medium">
-                      {selectedTeacher.profiles?.email}
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">
-                      Assigned Class
-                    </Label>
-                    <p className="font-medium">
-                      {formatTeacherClasses(selectedTeacher)}
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">
-                      Assigned Subject
-                    </Label>
-                    <p className="font-medium">
-                      {formatTeacherSubjects(selectedTeacher)}
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Status</Label>
-                    {isTeacherActive(selectedTeacher) ? (
-                      <Badge variant="success">Active</Badge>
-                    ) : (
-                      <Badge variant="secondary">Inactive</Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-      </div>
-    </DashboardLayout>
-  );
-};
+        {/* View Teacher Modal */}
+        {selectedTeacher && (
+          <EntityProfileModal
+            open={viewDialogOpen}
+            onOpenChange={setViewDialogOpen}
+            entityType="Teacher"
+            entityCode={selectedTeacher.employee_no ? `#${selectedTeacher.employee_no}` : undefined}
+            name={selectedTeacher.profiles?.full_name || "Teacher"}
+            statusText={isTeacherActive(selectedTeacher) ? "Active" : "Inactive"}
+            statusVariant={isTeacherActive(selectedTeacher) ? "success" : "secondary"}
+            metaItems={[
+              {
+                icon: "ki-barcode",
+                text: `#${selectedTeacher.employee_no || "UNASSIGNED"}`,
+              },
+              {
+                icon: "ki-book-open",
+                text: formatTeacherSubjects(selectedTeacher) || "No subjects",
+              },
+              {
+                icon: "ki-sms",
+                text: selectedTeacher.profiles?.email || "No email",
+              },
+              {
+                icon: "ki-calendar-8",
+                text: formatTeacherClasses(selectedTeacher) || "No classes",
+              },
+            ]}
+            rightMetric={{
+              label: "Account Status",
+              value: isTeacherActive(selectedTeacher) ? "Active" : "Inactive",
+            }}
+            generalInfo={[
+              {
+                label: "Employee No",
+                value: selectedTeacher.employee_no || "Not assigned",
+              },
+              {
+                label: "Full Name",
+                value: selectedTeacher.profiles?.full_name || "—",
+              },
+              {
+                label: "Email",
+                value: selectedTeacher.profiles?.email || "—",
+              },
+              {
+                label: "Assigned Classes",
+                value: formatTeacherClasses(selectedTeacher),
+              },
+              {
+                label: "Assigned Subjects",
+                value: formatTeacherSubjects(selectedTeacher),
+              },
+              {
+                label: "Role",
+                value: "Academic Staff",
+              },
+            ]}
+            stats={[
+              {
+                label: "Classes",
+                value: selectedTeacher.teacher_classes?.length ?? 1,
+              },
+              {
+                label: "Subjects",
+                value: selectedTeacher.teacher_subjects?.length ?? 1,
+              },
+              {
+                label: "Status",
+                value: isTeacherActive(selectedTeacher) ? "Active" : "Inactive",
+              },
+              {
+                label: "Attendance",
+                value: "Marked",
+              },
+            ]}
+            onEdit={() => {
+              setViewDialogOpen(false);
+              openEditDialog(selectedTeacher);
+            }}
+          />
+        )}
+      </DashboardLayout>
+    );
+  };
 
-export default Teachers;
+  export default Teachers;

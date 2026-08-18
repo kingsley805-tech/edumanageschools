@@ -367,17 +367,17 @@ const Children = () => {
                     <div className="space-y-2 text-center p-3 rounded-lg bg-primary/5">
                       <Calendar className="h-5 w-5 text-primary mx-auto" />
                       <p className="text-sm text-muted-foreground">Attendance</p>
-                      <p className="text-xl font-bold">{child.attendance ?? 0}%</p>
+                      <p className="text-xl font-semibold">{child.attendance ?? 0}%</p>
                     </div>
                     <div className="space-y-2 text-center p-3 rounded-lg bg-accent/5">
                       <Award className="h-5 w-5 text-accent mx-auto" />
                       <p className="text-sm text-muted-foreground">Avg Grade</p>
-                      <p className="text-xl font-bold">{child.avgGrade ?? "--"}</p>
+                      <p className="text-xl font-semibold">{child.avgGrade ?? "--"}</p>
                     </div>
                     <div className="space-y-2 text-center p-3 rounded-lg bg-success/5">
                       <BookOpen className="h-5 w-5 text-success mx-auto" />
                       <p className="text-sm text-muted-foreground">Classes</p>
-                      <p className="text-xl font-bold">{child.totalClasses ?? 0}</p>
+                      <p className="text-xl font-semibold">{child.totalClasses ?? 0}</p>
                     </div>
                   </div>
                 </CardContent>

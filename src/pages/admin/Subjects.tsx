@@ -148,95 +148,105 @@ export default function Subjects() {
 
   return (
     <DashboardLayout role="admin">
-      <div className="mingo-content space-y-6">
-        <PortalPageHeader
-          title="Subjects Management"
-          description="Define the subjects taught at your school"
-          actions={
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <button type="button" className="mingo-btn mingo-btn-primary">
-                  <Plus className="h-4 w-4" />
-                  Add subject
-                </button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{editingSubject ? "Edit Subject" : "Add New Subject"}</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Subject Name</Label>
-                    <Input id="name" {...register("name")} placeholder="e.g., Mathematics" />
-                    {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="code">Subject Code</Label>
-                    <Input id="code" {...register("code")} placeholder="e.g., MATH101" />
-                    {errors.code && <p className="text-sm text-destructive">{errors.code.message}</p>}
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={handleDialogClose}>
-                      Cancel
-                    </Button>
-                    <Button type="submit">
-                      {editingSubject ? "Update" : "Create"} Subject
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
-          }
-        />
+      {/* Page Header — Metronic toolbar */}
+      <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">
+        <div className="flex min-w-0 flex-col justify-center gap-2">
+          <h1 className="text-xl font-medium leading-none text-mono">Subjects Management</h1>
+          <div className="flex items-center gap-2 text-sm font-normal text-secondary-foreground">
+            Define curriculum subjects, subject codes, and academic offerings
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="kt-btn kt-btn-primary gap-2">
+                <i className="ki-filled ki-plus text-base" />
+                Add subject
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editingSubject ? "Edit Subject" : "Add New Subject"}</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Subject Name</Label>
+                  <Input id="name" {...register("name")} placeholder="e.g., Mathematics" />
+                  {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="code">Subject Code</Label>
+                  <Input id="code" {...register("code")} placeholder="e.g., MATH101" />
+                  {errors.code && <p className="text-sm text-destructive">{errors.code.message}</p>}
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={handleDialogClose}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">
+                    {editingSubject ? "Update" : "Create"} Subject
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>All Subjects</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
+      <div className="kt-card">
+        <div className="kt-card-header flex justify-between items-center py-4 px-5">
+          <h3 className="kt-card-title">All Subjects</h3>
+          <span className="kt-badge kt-badge-outline kt-badge-sm">
+            {subjects.length} subjects
+          </span>
+        </div>
+        <div className="kt-card-content p-0 overflow-x-auto">
+          <Table className="kt-table min-w-full">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Subject Name</TableHead>
+                <TableHead>Subject Code</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {subjects.length === 0 ? (
                 <TableRow>
-                  <TableHead>Subject Name</TableHead>
-                  <TableHead>Subject Code</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                    No subjects found. Add your first subject to get started.
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {subjects.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center text-muted-foreground">
-                      No subjects found. Add your first subject to get started.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  subjects.map((subject) => (
-                    <TableRow key={subject.id}>
-                      <TableCell className="font-medium">{subject.name}</TableCell>
-                      <TableCell>{subject.code}</TableCell>
-                      <TableCell className="text-right">
+              ) : (
+                subjects.map((subject) => (
+                  <TableRow key={subject.id}>
+                    <TableCell className="font-medium text-mono">{subject.name}</TableCell>
+                    <TableCell className="font-mono text-2sm">{subject.code || "—"}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="sm"
+                          className="kt-btn kt-btn-ghost kt-btn-sm"
                           onClick={() => handleEdit(subject)}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="sm"
+                          className="kt-btn kt-btn-ghost kt-btn-sm text-destructive hover:text-destructive"
                           onClick={() => handleDelete(subject.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </DashboardLayout>
   );

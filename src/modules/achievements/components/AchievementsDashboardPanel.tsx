@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ChartCard } from "@/components/charts/ChartCard";
 import { StatCounter } from "@/components/charts/StatCounter";
 import { AnimatedBarChart } from "@/components/charts/AnimatedBarChart";
+import { CHART_CURRENT_SOLID } from "@/components/charts/chartTheme";
 import type { AchievementsDashboardStats } from "@/modules/achievements/lib/types";
 
 type Props = { stats: AchievementsDashboardStats };
@@ -56,7 +57,12 @@ export function AchievementsDashboardPanel({ stats }: Props) {
         <Kpi title="Certificates" value={stats.certificates} icon={FileBadge} color="bg-rose-500/10 text-rose-700 dark:text-rose-400" />
       </div>
       <ChartCard title="Achievement mix" description="Breakdown by type and pipeline status">
-        <AnimatedBarChart data={chartData} />
+        <AnimatedBarChart
+          data={chartData}
+          categoryKey="label"
+          series={[{ key: "value", label: "Count", color: CHART_CURRENT_SOLID }]}
+          showLegend={false}
+        />
       </ChartCard>
     </div>
   );

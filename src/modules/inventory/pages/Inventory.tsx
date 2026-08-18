@@ -240,7 +240,7 @@ export default function InventoryPage() {
       ) : null}
 
       <Tabs defaultValue="dashboard" className="space-y-4">
-        <TabsList className="flex h-auto flex-wrap gap-1">
+        <TabsList className="flex-wrap">
           <TabsTrigger value="dashboard" className="gap-1.5">
             <LayoutGrid className="h-3.5 w-3.5" />
             Dashboard

@@ -50,97 +50,121 @@ const AccountantDashboard = () => {
   return (
     <PermissionGate anyOf={[PERMISSIONS.reports.viewFinancial, PERMISSIONS.payments.view]} showDenied>
       <DashboardLayout role="accountant">
-        <div className="mingo-content">
-          <div className="mingo-page-head">
-            <div>
-              <h1>Finance dashboard</h1>
-              <p>{schoolName ? `${schoolName} · live billing summary` : "Live billing summary"}</p>
+        {/* Page head — Metronic page title block */}
+        <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">
+          <div className="flex min-w-0 flex-col justify-center gap-2">
+            <h1 className="text-xl font-medium leading-none text-mono">Finance dashboard</h1>
+            <div className="flex items-center gap-2 text-sm font-normal text-secondary-foreground">
+              {schoolName ? `${schoolName} · live billing summary` : "Live billing summary"}
             </div>
-            <div className="mingo-head-actions">
-              <button
-                type="button"
-                className="mingo-btn mingo-btn-primary"
-                onClick={() => navigate("/admin/billing")}
-              >
-                Open billing overview →
-              </button>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              className="kt-btn kt-btn-primary"
+              onClick={() => navigate("/admin/billing")}
+            >
+              Open billing overview
+              <i className="ki-filled ki-right text-xs" />
+            </button>
+          </div>
+        </div>
+
+        {/* KPI row */}
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-5 lg:gap-7.5 mb-5 lg:mb-7.5">
+          {[
+            { label: "Total Billed", value: loading ? "—" : fmt(totalBilled), icon: "document", tone: "" },
+            {
+              label: "Collected",
+              value: loading ? "—" : fmt(totalCollected),
+              icon: "wallet",
+              tone: "kt-badge-success",
+              sub: `${collectionRate.toFixed(0)}% collection rate`,
+            },
+            { label: "Outstanding", value: loading ? "—" : fmt(outstandingBalance), icon: "bank", tone: "kt-badge-warning" },
+            {
+              label: "Overdue",
+              value: loading ? "—" : fmt(overdueFees),
+              icon: "calendar-remove",
+              tone: "kt-badge-danger",
+              sub: `${defaulterCount} defaulter(s)`,
+            },
+          ].map((kpi) => (
+            <div className="kt-card channel-stats-bg" key={kpi.label}>
+              <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-4">
+                <div className="flex items-center justify-between gap-2.5">
+                  <span className="text-sm font-normal text-secondary-foreground">{kpi.label}</span>
+                  <span className="flex items-center justify-center size-10 shrink-0 rounded-lg bg-accent/60 border border-border">
+                    <i className={`ki-filled ki-${kpi.icon} text-lg text-muted-foreground`} />
+                  </span>
+                </div>
+                <span className="text-3xl font-semibold text-mono">{kpi.value}</span>
+                {kpi.sub ? (
+                  <span className={`kt-badge kt-badge-outline kt-badge-sm ${kpi.tone}`}>{kpi.sub}</span>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Charts row */}
+        <div className="grid lg:grid-cols-3 gap-5 lg:gap-7.5 items-stretch mb-5 lg:mb-7.5">
+          <div className="kt-card lg:col-span-2">
+            <div className="kt-card-header">
+              <h3 className="kt-card-title">Collections trend</h3>
+            </div>
+            <div className="kt-card-content p-5 lg:p-7.5">
+              {trendPoints.length ? (
+                <MingoLineChart
+                  points={trendPoints}
+                  primaryLabel="Total collected"
+                  secondaryLabel="Manual"
+                  yMaxLabel={fmt(trendMax)}
+                  yMidLabel=""
+                  yMinLabel="0"
+                />
+              ) : (
+                <p className="text-sm text-secondary-foreground">No payment data yet.</p>
+              )}
             </div>
           </div>
 
-          <div className="mingo-kpi-row">
-            <div className="mingo-kpi">
-              <div className="label">Total Billed</div>
-              <div className="val mono">{loading ? "—" : fmt(totalBilled)}</div>
+          <div className="kt-card">
+            <div className="kt-card-header">
+              <h3 className="kt-card-title">Billing funnel</h3>
             </div>
-            <div className="mingo-kpi">
-              <div className="label">Collected</div>
-              <div className="val mono">{loading ? "—" : fmt(totalCollected)}</div>
-              <div className="sub up">▲ {collectionRate.toFixed(0)}% collection rate</div>
-            </div>
-            <div className="mingo-kpi warn">
-              <div className="label">Outstanding</div>
-              <div className="val mono">{loading ? "—" : fmt(outstandingBalance)}</div>
-            </div>
-            <div className="mingo-kpi crit">
-              <div className="label">Overdue</div>
-              <div className="val mono">{loading ? "—" : fmt(overdueFees)}</div>
-              <div className="sub down">{defaulterCount} defaulter(s)</div>
+            <div className="kt-card-content p-5 lg:p-7.5">
+              {funnelItems.length ? (
+                <MingoCategoryBars items={funnelItems} bordered={false} />
+              ) : (
+                <p className="text-sm text-secondary-foreground">No billing data yet.</p>
+              )}
             </div>
           </div>
+        </div>
 
-          <div className="mingo-charts-row">
-            <div className="mingo-panel mingo-charts-line">
-              <div className="mingo-panel-head">
-                <h2>Collections trend</h2>
-              </div>
-              <div className="mingo-panel-body" style={{ paddingTop: 14 }}>
-                {trendPoints.length ? (
-                  <MingoLineChart
-                    points={trendPoints}
-                    primaryLabel="Total collected"
-                    secondaryLabel="Manual"
-                    yMaxLabel={fmt(trendMax)}
-                    yMidLabel=""
-                    yMinLabel="0"
-                  />
-                ) : (
-                  <p className="text-[12.5px] text-[hsl(var(--ink-faint))]">No payment data yet.</p>
-                )}
-              </div>
-            </div>
-
-            <div className="mingo-panel mingo-charts-cat">
-              <div className="mingo-panel-head">
-                <h2>Billing funnel</h2>
-              </div>
-              <div className="mingo-panel-body">
-                {funnelItems.length ? (
-                  <MingoCategoryBars items={funnelItems} bordered={false} />
-                ) : (
-                  <p className="text-[12.5px] text-[hsl(var(--ink-faint))]">No billing data yet.</p>
-                )}
-              </div>
-            </div>
+        {/* Quick links */}
+        <div className="kt-card">
+          <div className="kt-card-header">
+            <h3 className="kt-card-title">Quick links</h3>
           </div>
-
-          <div className="mingo-panel-head mingo-table-cap">
-            <h2>Quick links</h2>
-          </div>
-          <div className="mingo-table-wrap" style={{ padding: 4 }}>
-            <div className="grid gap-3 p-3 sm:grid-cols-4">
-              <Link to="/admin/billing/invoices" className="mingo-btn mingo-btn-ghost" style={{ justifyContent: "flex-start" }}>
-                Invoices
-              </Link>
-              <Link to="/admin/billing/payments" className="mingo-btn mingo-btn-ghost" style={{ justifyContent: "flex-start" }}>
-                Payments
-              </Link>
-              <Link to="/admin/billing/reports" className="mingo-btn mingo-btn-ghost" style={{ justifyContent: "flex-start" }}>
-                Reports
-              </Link>
-              <Link to="/admin/billing/payroll" className="mingo-btn mingo-btn-ghost" style={{ justifyContent: "flex-start" }}>
-                Payroll
-              </Link>
-            </div>
+          <div className="kt-card-content p-5 lg:p-7.5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Link to="/admin/billing/invoices" className="kt-btn kt-btn-outline justify-start">
+              <i className="ki-filled ki-document text-base" />
+              Invoices
+            </Link>
+            <Link to="/admin/billing/payments" className="kt-btn kt-btn-outline justify-start">
+              <i className="ki-filled ki-credit-cart text-base" />
+              Payments
+            </Link>
+            <Link to="/admin/billing/reports" className="kt-btn kt-btn-outline justify-start">
+              <i className="ki-filled ki-chart-simple text-base" />
+              Reports
+            </Link>
+            <Link to="/admin/billing/payroll" className="kt-btn kt-btn-outline justify-start">
+              <i className="ki-filled ki-wallet text-base" />
+              Payroll
+            </Link>
           </div>
         </div>
       </DashboardLayout>

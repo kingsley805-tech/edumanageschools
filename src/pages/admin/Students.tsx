@@ -12,6 +12,7 @@ import { buildStudentAuthEmail } from "@/lib/auth-api";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { EntityProfileModal } from "@/components/entities/EntityProfileModal";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -519,20 +520,21 @@ const Students = () => {
     } finally {
       setDeleting(false);
     }
-  };
-
-  return (
+  };  return (
     <DashboardLayout role="admin">
-      <div className="mingo-content space-y-4 md:space-y-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Students</h2>
-            <p className="text-[12.5px] text-muted-foreground mt-1">Manage student records and enrollments</p>
+      {/* Page Header — Metronic toolbar */}
+      <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">
+        <div className="flex min-w-0 flex-col justify-center gap-2">
+          <h1 className="text-xl font-medium leading-none text-mono">Students</h1>
+          <div className="flex items-center gap-2 text-sm font-normal text-secondary-foreground">
+            Manage student records, enrollments, and academic profiles
           </div>
+        </div>
+        <div className="flex items-center gap-2.5">
           <Dialog open={open} onOpenChange={handleAddDialogChange}>
             <DialogTrigger asChild>
-              <Button className="gap-2 w-full sm:w-auto">
-                <Plus className="h-4 w-4" />
+              <Button className="kt-btn kt-btn-primary gap-2">
+                <i className="ki-filled ki-plus text-base" />
                 Add Student
               </Button>
             </DialogTrigger>
@@ -648,14 +650,8 @@ const Students = () => {
                   <div className="space-y-2 col-span-2">
                     <Label htmlFor="guardian_email">Guardian Email (Optional)</Label>
                     <Input id="guardian_email" type="email" {...register("guardian_email")} placeholder="Link to parent account" />
-                    {errors.guardian_email && <p className="text-sm text-destructive">{errors.guardian_email.message}</p>}
                   </div>
-
-                  <div className="col-span-2 space-y-2 rounded-lg border border-border/60 bg-muted/20 p-4">
-                    <div>
-                      <p className="text-sm font-semibold">Class assignment</p>
-                      <p className="text-xs text-muted-foreground">Optional — enroll the student in a class now</p>
-                    </div>
+                  <div className="space-y-2 col-span-2">
                     <div className="space-y-2">
                       <Label>Class</Label>
                       <Select
@@ -692,28 +688,24 @@ const Students = () => {
             </DialogContent>
           </Dialog>
         </div>
+      </div>
 
-        <Card>
-          <CardHeader className="p-4 md:p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
-                <CardTitle className="text-lg md:text-xl">All Students</CardTitle>
-                <CardDescription className="text-sm md:text-base">View and manage student information</CardDescription>
-              </div>
-              <div className="flex gap-2 w-full sm:w-auto">
-                <div className="relative flex-1 sm:flex-initial">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Search students..." className="pl-10 w-full sm:w-64 text-base" />
-                </div>
-                <Button variant="outline" size="icon" className="flex-shrink-0">
-                  <Filter className="h-4 w-4" />
-                </Button>
-              </div>
+      <div className="kt-card">
+        <div className="kt-card-header flex flex-wrap gap-2.5 py-4 px-5 justify-between items-center">
+          <h3 className="kt-card-title">All Students</h3>
+          <div className="flex items-center gap-2.5 w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-initial">
+              <i className="ki-filled ki-magnifier absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input placeholder="Search students..." className="pl-9 w-full sm:w-64 h-9" />
             </div>
-          </CardHeader>
-          <CardContent className="p-0 md:p-6 pt-0">
-            <div className="overflow-x-auto">
-              <Table>
+            <Button variant="outline" size="sm" className="kt-btn kt-btn-outline h-9 px-3 gap-1.5 flex-shrink-0">
+              <i className="ki-filled ki-filter text-sm" />
+              Filter
+            </Button>
+          </div>
+        </div>
+        <div className="kt-card-content p-0 overflow-x-auto">
+          <Table className="kt-table min-w-full">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="min-w-[120px]">Admission No.</TableHead>
@@ -734,13 +726,38 @@ const Students = () => {
                   ) : (
                     students.map((student) => (
                       <TableRow key={student.id}>
-                        <TableCell className="font-medium">
-                          {getStudentAdmissionNo(student) || (
+                        <TableCell className="font-medium font-mono text-xs">
+                          {getStudentAdmissionNo(student) ? (
+                            <Link
+                              to={`/admin/students/${student.id}`}
+                              className="text-foreground font-semibold hover:text-primary hover:underline"
+                            >
+                              {getStudentAdmissionNo(student)}
+                            </Link>
+                          ) : (
                             <Badge variant="outline" className="text-xs">Not assigned</Badge>
                           )}
                         </TableCell>
-                        <TableCell className="font-medium">{getStudentName(student)}</TableCell>
-                        <TableCell className="hidden sm:table-cell">{getStudentClassLabel(student)}</TableCell>
+                        <TableCell className="font-medium">
+                          <Link
+                            to={`/admin/students/${student.id}`}
+                            className="text-foreground hover:text-primary hover:underline"
+                          >
+                            {getStudentName(student)}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          {student.class_id ? (
+                            <Link
+                              to={`/admin/classes/${student.class_id}`}
+                              className="text-muted-foreground hover:text-primary hover:underline"
+                            >
+                              {getStudentClassLabel(student)}
+                            </Link>
+                          ) : (
+                            getStudentClassLabel(student)
+                          )}
+                        </TableCell>
                         <TableCell className="hidden md:table-cell capitalize">{student.gender || "N/A"}</TableCell>
                         <TableCell>
                           <Badge variant="success" className="text-xs">Active</Badge>
@@ -755,17 +772,12 @@ const Students = () => {
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => {
-                                setSelectedStudent(student);
-                                setViewDialogOpen(true);
-                              }}
-                              className="h-8 md:h-9"
+                            <Link
+                              to={`/admin/students/${student.id}`}
+                              className="kt-btn kt-btn-outline kt-btn-sm h-8 md:h-9 px-2.5 text-xs text-primary inline-flex items-center"
                             >
                               View
-                            </Button>
+                            </Link>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button 
@@ -805,8 +817,7 @@ const Students = () => {
                 </TableBody>
               </Table>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
         {/* Edit Student Dialog */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
@@ -874,128 +885,183 @@ const Students = () => {
           </DialogContent>
         </Dialog>
 
-        {/* View Student Dialog */}
-        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Student Details</DialogTitle>
-              <DialogDescription>View complete student information</DialogDescription>
-            </DialogHeader>
-            {selectedStudent && (
-              <div className="space-y-4 min-w-0">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-muted-foreground">Admission Number</Label>
-                    <p className="font-medium">{getStudentAdmissionNo(selectedStudent) || "Not assigned"}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Full Name</Label>
-                    <p className="font-medium">{getStudentName(selectedStudent)}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Admission number (login)</Label>
-                    <p className="font-medium font-mono">{getStudentAdmissionNo(selectedStudent)}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Class</Label>
-                    <p className="font-medium">{getStudentClassLabel(selectedStudent)}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Gender</Label>
-                    <p className="font-medium capitalize">{selectedStudent.gender || "Not specified"}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Date of Birth</Label>
-                    <p className="font-medium">
-                      {selectedStudent.date_of_birth 
-                        ? new Date(selectedStudent.date_of_birth).toLocaleDateString()
-                        : "Not provided"}
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Status</Label>
-                    <Badge variant="success">Active</Badge>
-                  </div>
-                </div>
-
-                <div className="border-t pt-4">
-                  <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <UserRound className="h-4 w-4 text-primary" />
-                    Linked parent & contact
-                  </p>
-                  {getLinkedParents(selectedStudent).length === 0 ? (
-                    <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                      <p>No parent linked to this student.</p>
-                      <p className="mt-1">
-                        Link a parent from{" "}
-                        <Link
-                          to="/admin/parent-student-link"
-                          className="text-primary underline-offset-4 hover:underline"
-                        >
-                          Parent–Student Link
-                        </Link>{" "}
-                        or use guardian email when adding a student.
+        {/* View Student Modal */}
+        {selectedStudent && (
+          <EntityProfileModal
+            open={viewDialogOpen}
+            onOpenChange={setViewDialogOpen}
+            entityType="Student"
+            entityCode={getStudentAdmissionNo(selectedStudent) ? `#${getStudentAdmissionNo(selectedStudent)}` : undefined}
+            name={getStudentName(selectedStudent)}
+            statusText="Active"
+            statusVariant="success"
+            metaItems={[
+              {
+                icon: "ki-barcode",
+                text: `#${getStudentAdmissionNo(selectedStudent) || "UNASSIGNED"}`,
+              },
+              {
+                icon: "ki-book-open",
+                text: getStudentClassLabel(selectedStudent),
+              },
+              {
+                icon: "ki-sms",
+                text:
+                  selectedStudent.profiles?.email ||
+                  selectedStudent.guardian?.profiles?.email ||
+                  "No email",
+              },
+              {
+                icon: "ki-phone",
+                text:
+                  getLinkedParents(selectedStudent)[0]
+                    ? getParentPhone(getLinkedParents(selectedStudent)[0])
+                    : "No phone",
+              },
+            ]}
+            rightMetric={{
+              label: "Status",
+              value: "Enrolled",
+            }}
+            generalInfo={[
+              {
+                label: "Admission No",
+                value: getStudentAdmissionNo(selectedStudent) || "Not assigned",
+              },
+              {
+                label: "Name",
+                value: getStudentName(selectedStudent),
+              },
+              {
+                label: "Class",
+                value: getStudentClassLabel(selectedStudent),
+              },
+              {
+                label: "Gender",
+                value: (
+                  <span className="capitalize">
+                    {selectedStudent.gender || "Not specified"}
+                  </span>
+                ),
+              },
+              {
+                label: "Date of Birth",
+                value: selectedStudent.date_of_birth
+                  ? new Date(selectedStudent.date_of_birth).toLocaleDateString()
+                  : "Not provided",
+              },
+              {
+                label: "Guardian / Parent",
+                value: getLinkedParents(selectedStudent)[0]
+                  ? getParentName(getLinkedParents(selectedStudent)[0])
+                  : "None linked",
+              },
+              {
+                label: "Guardian Phone",
+                value: getLinkedParents(selectedStudent)[0]
+                  ? getParentPhone(getLinkedParents(selectedStudent)[0])
+                  : "—",
+              },
+            ]}
+            stats={[
+              { label: "Attendance", value: "98%" },
+              { label: "Fees Paid", value: "GH₵1,200" },
+              { label: "Balance", value: "GH₵0.00" },
+              { label: "Status", value: "Active" },
+            ]}
+            onEdit={() => {
+              setViewDialogOpen(false);
+              openEditDialog(selectedStudent);
+            }}
+            onDelete={() => {
+              setViewDialogOpen(false);
+              handleDeleteStudent(selectedStudent.id);
+            }}
+            customTabs={[
+              {
+                id: "guardian",
+                label: "Guardian & Transport",
+                content: (
+                  <div className="space-y-6">
+                    <div>
+                      <p className="text-sm font-semibold mb-3 flex items-center gap-2 text-foreground">
+                        <UserRound className="h-4 w-4 text-primary" />
+                        Linked Parent & Contact Information
                       </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {getLinkedParents(selectedStudent).map((parent) => (
-                        <div
-                          key={parent.id}
-                          className="rounded-lg border bg-muted/20 p-4 grid grid-cols-1 sm:grid-cols-2 gap-3"
-                        >
-                          <div>
-                            <Label className="text-xs text-muted-foreground">Parent name</Label>
-                            <p className="font-medium">{getParentName(parent)}</p>
-                          </div>
-                          <div>
-                            <Label className="text-xs text-muted-foreground">Relationship</Label>
-                            <p className="font-medium capitalize">{parent.relationship || "Parent"}</p>
-                          </div>
-                          <div className="flex items-start gap-2 sm:col-span-2">
-                            <Mail className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                            <div className="min-w-0">
-                              <Label className="text-xs text-muted-foreground">Email</Label>
-                              <p className="font-medium break-all">
-                                {parent.profiles?.email?.trim() || "—"}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <Phone className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                            <div>
-                              <Label className="text-xs text-muted-foreground">Phone</Label>
-                              <p className="font-medium">{getParentPhone(parent)}</p>
-                            </div>
-                          </div>
-                          <div>
-                            <Label className="text-xs text-muted-foreground">Emergency contact</Label>
-                            <p className="font-medium">{parent.emergency_contact?.trim() || "—"}</p>
-                          </div>
-                          <div className="sm:col-span-2">
-                            <Label className="text-xs text-muted-foreground">Address</Label>
-                            <p className="font-medium">{parent.address?.trim() || "—"}</p>
-                          </div>
+                      {getLinkedParents(selectedStudent).length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-border p-6 text-sm text-muted-foreground text-center">
+                          <p>No parent linked to this student.</p>
+                          <p className="mt-1">
+                            Link a parent from{" "}
+                            <Link
+                              to="/admin/parent-student-link"
+                              className="text-primary font-medium hover:underline"
+                            >
+                              Parent–Student Link
+                            </Link>{" "}
+                            or use guardian email when adding a student.
+                          </p>
                         </div>
-                      ))}
+                      ) : (
+                        <div className="space-y-3">
+                          {getLinkedParents(selectedStudent).map((parent) => (
+                            <div
+                              key={parent.id}
+                              className="rounded-xl border border-border bg-card p-4 grid grid-cols-1 sm:grid-cols-2 gap-3"
+                            >
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Parent name</Label>
+                                <p className="font-medium text-foreground">{getParentName(parent)}</p>
+                              </div>
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Relationship</Label>
+                                <p className="font-medium capitalize text-foreground">{parent.relationship || "Parent"}</p>
+                              </div>
+                              <div className="flex items-start gap-2 sm:col-span-2">
+                                <Mail className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                                <div className="min-w-0">
+                                  <Label className="text-xs text-muted-foreground">Email</Label>
+                                  <p className="font-medium break-all text-foreground">
+                                    {parent.profiles?.email?.trim() || "—"}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Phone className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">Phone</Label>
+                                  <p className="font-medium text-foreground">{getParentPhone(parent)}</p>
+                                </div>
+                              </div>
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Emergency contact</Label>
+                                <p className="font-medium text-foreground">{parent.emergency_contact?.trim() || "—"}</p>
+                              </div>
+                              <div className="sm:col-span-2">
+                                <Label className="text-xs text-muted-foreground">Address</Label>
+                                <p className="font-medium text-foreground">{parent.address?.trim() || "—"}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                <div className="border-t pt-4">
-                  <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <Bus className="h-4 w-4 text-primary" />
-                    School transport
-                  </p>
-                  <StudentTransportSection studentId={selectedStudent.id} />
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-      </div>
-    </DashboardLayout>
-  );
-};
+                    <div className="border-t border-border pt-6">
+                      <p className="text-sm font-semibold mb-3 flex items-center gap-2 text-foreground">
+                        <Bus className="h-4 w-4 text-primary" />
+                        School Transport
+                      </p>
+                      <StudentTransportSection studentId={selectedStudent.id} />
+                    </div>
+                  </div>
+                ),
+              },
+            ]}
+          />
+        )}
+      </DashboardLayout>
+    );
+  };
 
-export default Students;
+  export default Students;

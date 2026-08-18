@@ -13,6 +13,11 @@ type SubjectEntry = {
   remark?: string;
 };
 
+function toFiniteNumber(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 function countFailedSubjects(subjects: unknown): number {
   if (!Array.isArray(subjects)) return 0;
   let failed = 0;
@@ -85,8 +90,12 @@ export async function fetchPerformanceRows(
       class_name: r.class_name ?? "",
       academic_year: r.academic_year,
       term_label: r.term_label,
-      total_score: Number(r.total_score ?? 0),
-      class_position: r.class_position != null ? Number(r.class_position) : null,
+      total_score: toFiniteNumber(r.total_score, 0),
+      class_position: (() => {
+        if (r.class_position == null || String(r.class_position).trim() === "") return null;
+        const n = Number(r.class_position);
+        return Number.isFinite(n) ? n : null;
+      })(),
       attendance_rate: attendanceRate(r.attendance_made, r.attendance_total),
       conduct: r.conduct,
       attitude: r.attitude,
@@ -109,10 +118,24 @@ export function computePerformanceStats(rows: PerformanceRow[]): PerformanceDash
   if (rows.length === 0) {
     return { total_ranked: 0, avg_score: 0, top_avg: 0, low_count: 0, attendance_issues: 0 };
   }
-  const scores = rows.map((r) => r.total_score);
+  const scores = rows.map((r) => r.total_score).filter((n) => Number.isFinite(n));
+  if (scores.length === 0) {
+    return {
+      total_ranked: rows.length,
+      avg_score: 0,
+      top_avg: 0,
+      low_count: rows.filter((r) => r.failed_subjects > 0).length,
+      attendance_issues: rows.filter(
+        (r) => r.attendance_rate != null && r.attendance_rate < 80,
+      ).length,
+    };
+  }
   const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-  const top = [...rows].sort((a, b) => b.total_score - a.total_score).slice(0, 10);
-  const topAvg = top.reduce((a, b) => a + b.total_score, 0) / top.length;
+  const top = [...rows]
+    .filter((r) => Number.isFinite(r.total_score))
+    .sort((a, b) => b.total_score - a.total_score)
+    .slice(0, 10);
+  const topAvg = top.reduce((a, b) => a + b.total_score, 0) / Math.max(top.length, 1);
   return {
     total_ranked: rows.length,
     avg_score: Math.round(avg * 10) / 10,

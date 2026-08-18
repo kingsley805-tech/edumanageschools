@@ -76,9 +76,9 @@ function CustomTooltipContent({
 }
 
 type AnimatedBarChartProps = {
-  data: Record<string, string | number>[];
-  categoryKey: string;
-  series: BarSeries[];
+  data?: Record<string, string | number>[];
+  categoryKey?: string;
+  series?: BarSeries[];
   height?: number;
   layout?: "horizontal" | "vertical";
   stacked?: boolean;
@@ -98,9 +98,9 @@ type AnimatedBarChartProps = {
  * Motion for entrance animation and smooth hover feedback.
  */
 export function AnimatedBarChart({
-  data,
-  categoryKey,
-  series,
+  data = [],
+  categoryKey = "label",
+  series = [],
   height = 280,
   layout = "horizontal",
   stacked = false,
@@ -116,6 +116,7 @@ export function AnimatedBarChart({
   const isEmpty = useMemo(
     () =>
       !data.length ||
+      !series.length ||
       data.every((row) => series.every((s) => !Number(row[s.key]))),
     [data, series],
   );

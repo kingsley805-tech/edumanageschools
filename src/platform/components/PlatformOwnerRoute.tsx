@@ -31,11 +31,7 @@ export function PlatformOwnerRoute({ children }: Props) {
   const loading = authLoading || roleLoading;
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-primary" />
-      </div>
-    );
+    return null;
   }
 
   if (!user) return null;

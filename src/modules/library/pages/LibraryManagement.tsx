@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Download, Library, Plus, Trash2 } from "lucide-react";
+import { Library, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { useModuleAccess } from "@/modules/lib/useModuleAccess";
 import { ModuleAccessDenied } from "@/modules/lib/ModuleAccessDenied";
-import { downloadCsv } from "@/modules/lib/exportCsv";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { isMissingTableError, operationsSchemaSetupMessage } from "@/modules/lib/missingSchema";
 import { OperationsSchemaSetupCard } from "@/modules/lib/OperationsSchemaSetupCard";
 import { toast } from "sonner";
@@ -116,29 +116,20 @@ export default function LibraryManagementPage() {
         </div>
         <div className="flex gap-2">
           {access.canExport ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={() =>
-                downloadCsv(
-                  "library-books.csv",
-                  ["Title", "Author", "ISBN", "Category", "Copies", "Available", "Shelf"],
-                  rows.map((r) => [
-                    r.title,
-                    r.author,
-                    r.isbn,
-                    r.category,
-                    r.copies_total,
-                    r.copies_available,
-                    r.shelf_location,
-                  ]),
-                )
-              }
-            >
-              <Download className="h-4 w-4" />
-              Export
-            </Button>
+            <ExportMenu
+              filename="library-books"
+              title="Library Books"
+              headers={["Title", "Author", "ISBN", "Category", "Copies", "Available", "Shelf"]}
+              rows={rows.map((r) => [
+                r.title,
+                r.author,
+                r.isbn,
+                r.category,
+                r.copies_total,
+                r.copies_available,
+                r.shelf_location,
+              ])}
+            />
           ) : null}
           {access.canCreate ? (
             <Dialog open={open} onOpenChange={setOpen}>

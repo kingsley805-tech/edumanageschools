@@ -494,7 +494,7 @@ export const BulkQuestionUpload = ({ subjects, onSuccess }: BulkQuestionUploadPr
             </div>
 
             <Tabs defaultValue="manual" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="flex-wrap">
                 <TabsTrigger value="manual"><Plus className="mr-2 h-4 w-4" />Manual Entry</TabsTrigger>
                 <TabsTrigger value="import"><FileUp className="mr-2 h-4 w-4" />Import CSV</TabsTrigger>
                 <TabsTrigger value="export"><Download className="mr-2 h-4 w-4" />Export CSV</TabsTrigger>

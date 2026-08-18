@@ -222,7 +222,7 @@ const TeacherMyClass = () => {
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Daily attendance
                   </p>
-                  <p className="text-lg font-bold leading-tight">
+                  <p className="text-lg font-semibold leading-tight">
                     {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
                   </p>
                   <p className="text-sm text-muted-foreground">

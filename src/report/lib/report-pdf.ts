@@ -138,11 +138,11 @@ function injectReportStyles(doc: Document) {
     });
   }
 
-  if (!doc.querySelector('link[href*="Manrope"]')) {
+  if (!doc.querySelector('link[href*="Inter"]')) {
     const link = doc.createElement("link");
     link.rel = "stylesheet";
     link.href =
-      "https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap";
+      "https://fonts.googleapis.com/css2?family=Inter:wght@200..800&display=swap";
     doc.head.appendChild(link);
   }
 }

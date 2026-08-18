@@ -10,10 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { ChartCard } from "@/components/charts/ChartCard";
 import { StatCounter } from "@/components/charts/StatCounter";
 import { AnimatedBarChart } from "@/components/charts/AnimatedBarChart";
+import { CHART_CURRENT_SOLID } from "@/components/charts/chartTheme";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { useModuleAccess } from "@/modules/lib/useModuleAccess";
 import { ModuleAccessDenied } from "@/modules/lib/ModuleAccessDenied";
-import { downloadCsv } from "@/modules/lib/exportCsv";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import {
   computePerformanceStats,
   fetchPerformanceFilterOptions,
@@ -112,37 +113,33 @@ export default function StudentPerformancePage() {
 
   if (!access.canView) return <ModuleAccessDenied label="Student Performance" />;
 
-  const exportRows = (list: PerformanceRow[], filename: string) => {
-    downloadCsv(
-      filename,
-      [
-        "Rank context",
-        "Student",
-        "Admission",
-        "Class",
-        "Score",
-        "Position",
-        "Attendance %",
-        "Failed subjects",
-        "Awards",
-        "Conduct",
-        "Intervention",
-      ],
-      list.map((r, i) => [
-        i + 1,
-        r.student_name,
-        r.admission_number,
-        r.class_name,
-        r.total_score,
-        r.class_position,
-        r.attendance_rate,
-        r.failed_subjects,
-        r.awards_count,
-        r.conduct,
-        interventionFor(r),
-      ]),
-    );
-  };
+  const performanceHeaders = [
+    "Rank context",
+    "Student",
+    "Admission",
+    "Class",
+    "Score",
+    "Position",
+    "Attendance %",
+    "Failed subjects",
+    "Awards",
+    "Conduct",
+    "Intervention",
+  ];
+  const toExportRows = (list: PerformanceRow[]) =>
+    list.map((r, i) => [
+      i + 1,
+      r.student_name,
+      r.admission_number,
+      r.class_name,
+      r.total_score,
+      r.class_position,
+      r.attendance_rate,
+      r.failed_subjects,
+      r.awards_count,
+      r.conduct,
+      interventionFor(r),
+    ]);
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -230,7 +227,13 @@ export default function StudentPerformancePage() {
       </div>
 
       <ChartCard title="Score distribution" description="How students cluster by total score">
-        <AnimatedBarChart data={chartData} />
+        <AnimatedBarChart
+          data={chartData}
+          categoryKey="label"
+          series={[{ key: "value", label: "Students", color: CHART_CURRENT_SOLID }]}
+          loading={loading}
+          showLegend={false}
+        />
       </ChartCard>
 
       <Tabs defaultValue="top">
@@ -247,14 +250,12 @@ export default function StudentPerformancePage() {
                 <CardDescription>Highest total scores for the selected period</CardDescription>
               </div>
               {access.canExport ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => exportRows(topStudents, "top-students.csv")}
-                >
-                  Export CSV
-                </Button>
+                <ExportMenu
+                  filename="top-students"
+                  title="Top Students"
+                  headers={performanceHeaders}
+                  rows={toExportRows(topStudents)}
+                />
               ) : null}
             </CardHeader>
             <CardContent>
@@ -273,14 +274,12 @@ export default function StudentPerformancePage() {
                 </CardDescription>
               </div>
               {access.canExport ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => exportRows(lowStudents, "at-risk-students.csv")}
-                >
-                  Export CSV
-                </Button>
+                <ExportMenu
+                  filename="at-risk-students"
+                  title="Lowest Performing / At Risk"
+                  headers={performanceHeaders}
+                  rows={toExportRows(lowStudents)}
+                />
               ) : null}
             </CardHeader>
             <CardContent>
@@ -363,10 +362,16 @@ function PerformanceTable({
                 <div className="text-xs text-muted-foreground">{r.admission_number}</div>
               </TableCell>
               <TableCell>{r.class_name}</TableCell>
-              <TableCell className="font-semibold tabular-nums">{r.total_score}</TableCell>
-              <TableCell>{r.class_position ?? "—"}</TableCell>
+              <TableCell className="font-semibold tabular-nums">
+                {Number.isFinite(r.total_score) ? r.total_score : "—"}
+              </TableCell>
               <TableCell>
-                {r.attendance_rate != null ? (
+                {r.class_position != null && Number.isFinite(r.class_position)
+                  ? r.class_position
+                  : "—"}
+              </TableCell>
+              <TableCell>
+                {r.attendance_rate != null && Number.isFinite(r.attendance_rate) ? (
                   <Badge variant={r.attendance_rate < 80 ? "destructive" : "success"}>
                     {r.attendance_rate}%
                   </Badge>
@@ -381,7 +386,7 @@ function PerformanceTable({
                   "0"
                 )}
               </TableCell>
-              <TableCell>{r.awards_count}</TableCell>
+              <TableCell>{Number.isFinite(r.awards_count) ? r.awards_count : 0}</TableCell>
               {showIntervention ? (
                 <TableCell className="max-w-[260px] text-xs text-muted-foreground">
                   {interventionFor(r)}

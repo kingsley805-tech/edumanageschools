@@ -41,7 +41,7 @@ export function PortalAccessMatrix({ pages, access, disabled, onChange }: Props)
           {sections.map((section) => (
             <Fragment key={section}>
               <tr className="bg-muted/30">
-                <td colSpan={5} className="px-4 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                <td colSpan={5} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {section}
                 </td>
               </tr>

@@ -154,235 +154,282 @@ const ParentDashboard = () => {
 
   return (
     <DashboardLayout role="parent">
-      <div className="mingo-content">
-        <div className="mingo-page-head">
-          <div>
-            <h1>Parent dashboard</h1>
-            <p>Track your children's attendance, grades, fees, and school updates.</p>
+      {/* Page head — Metronic page title block */}
+      <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">
+        <div className="flex min-w-0 flex-col justify-center gap-2">
+          <h1 className="text-xl font-medium leading-none text-mono">Dashboard</h1>
+          <div className="flex items-center gap-2 text-sm font-normal text-secondary-foreground">
+            Track your children&apos;s attendance, grades, fees, and school updates.
           </div>
-          <div className="mingo-head-actions">
-            <button type="button" className="mingo-btn mingo-btn-ghost" onClick={() => navigate("/parent/grades")}>
-              View report card
-            </button>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            className="kt-btn kt-btn-outline"
+            onClick={() => navigate("/parent/grades")}
+          >
+            <i className="ki-filled ki-document text-base" />
+            View report card
+          </button>
+          <button
+            type="button"
+            className="kt-btn kt-btn-primary"
+            onClick={() => navigate("/parent/payments")}
+          >
+            <i className="ki-filled ki-plus text-base" />
+            Pay fees
+          </button>
+        </div>
+      </div>
+
+      {/* KPI row */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-5 lg:gap-7.5 mb-5 lg:mb-7.5">
+        {[
+          { label: "Children Linked", value: String(children.length), icon: "users" },
+          { label: "Avg Attendance", value: `${avgAttendance}%`, icon: "calendar-8" },
+          { label: "Avg Grade Score", value: String(avgScoreAll || "-"), icon: "medal-star" },
+          { label: "Next Fee Due", value: nextFeeChild?.nextFee ?? "N/A", icon: "wallet" },
+        ].map((kpi) => (
+          <div className="kt-card channel-stats-bg" key={kpi.label}>
+            <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-4">
+              <div className="flex items-center justify-between gap-2.5">
+                <span className="text-sm font-normal text-secondary-foreground">
+                  {kpi.label}
+                </span>
+                <span className="flex items-center justify-center size-10 shrink-0 rounded-lg bg-accent/60 border border-border">
+                  <i className={`ki-filled ki-${kpi.icon} text-lg text-muted-foreground`} />
+                </span>
+              </div>
+              <span className="text-3xl font-semibold text-mono">{kpi.value}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {children.length === 0 ? (
+        <div className="kt-card mb-5 lg:mb-7.5">
+          <div className="kt-card-content p-8 flex flex-col items-center gap-3 text-center">
+            <span className="flex items-center justify-center size-12 rounded-full bg-accent/60 border border-border">
+              <i className="ki-filled ki-users text-xl text-muted-foreground" />
+            </span>
+            <p className="text-sm text-secondary-foreground">No children linked yet.</p>
+            {signupAdmissionNumbers.length > 0 && (
+              <p className="text-2sm text-secondary-foreground">
+                Admission number from signup:{" "}
+                <span className="font-mono font-semibold text-foreground">
+                  {signupAdmissionNumbers.join(", ")}
+                </span>
+              </p>
+            )}
             <button
               type="button"
-              className="mingo-btn mingo-btn-primary"
-              onClick={() => navigate("/parent/payments")}
+              className="kt-btn kt-btn-outline"
+              onClick={() => navigate("/parent/children")}
             >
-              + Pay fees
+              Link a child
             </button>
           </div>
         </div>
+      ) : (
+        <div className="grid lg:grid-cols-3 gap-5 lg:gap-7.5 items-stretch mb-5 lg:mb-7.5">
+          <div className="kt-card lg:col-span-2">
+            <div className="kt-card-header">
+              <h3 className="kt-card-title">
+                Monthly attendance — {studentDisplayNameForParent(primaryChild)}
+              </h3>
+            </div>
+            <div className="kt-card-content p-5 lg:p-7.5">
+              {trendPoints.length ? (
+                <MingoLineChart
+                  points={trendPoints}
+                  primaryLabel="Present"
+                  secondaryLabel="Absent"
+                  yMaxLabel={String(
+                    Math.max(1, ...trendPoints.map((p) => Math.max(p.primary, p.secondary))),
+                  )}
+                  yMidLabel=""
+                  yMinLabel="0"
+                />
+              ) : (
+                <p className="text-sm text-secondary-foreground">No attendance history yet.</p>
+              )}
+            </div>
+          </div>
 
-        <div className="mingo-kpi-row">
-          <div className="mingo-kpi">
-            <div className="label">Children Linked</div>
-            <div className="val mono">{children.length}</div>
-          </div>
-          <div className="mingo-kpi">
-            <div className="label">Avg Attendance</div>
-            <div className="val mono">{avgAttendance}%</div>
-          </div>
-          <div className="mingo-kpi">
-            <div className="label">Avg Grade Score</div>
-            <div className="val mono">{avgScoreAll || "-"}</div>
-          </div>
-          <div className="mingo-kpi warn">
-            <div className="label">Next Fee Due</div>
-            <div className="val mono">{nextFeeChild?.nextFee ?? "N/A"}</div>
+          <div className="kt-card">
+            <div className="kt-card-header">
+              <h3 className="kt-card-title">
+                {childAttendanceItems.length ? "Attendance by child" : "Recent grades by subject"}
+              </h3>
+            </div>
+            <div className="kt-card-content p-5 lg:p-7.5">
+              {(childAttendanceItems.length ? childAttendanceItems : gradeItems).length ? (
+                <MingoCategoryBars
+                  items={childAttendanceItems.length ? childAttendanceItems : gradeItems}
+                  bordered={false}
+                />
+              ) : (
+                <p className="text-sm text-secondary-foreground">No data yet.</p>
+              )}
+            </div>
           </div>
         </div>
+      )}
 
-        {children.length === 0 ? (
-          <div className="mingo-panel" style={{ marginBottom: 18 }}>
-            <div className="mingo-panel-body" style={{ textAlign: "center", padding: 32 }}>
-              <p className="text-[12.5px] text-[hsl(var(--ink-faint))]">No children linked yet.</p>
-              {signupAdmissionNumbers.length > 0 && (
-                <p className="text-[12.5px] mt-2">
-                  Admission number from signup:{" "}
-                  <span className="mono font-semibold">{signupAdmissionNumbers.join(", ")}</span>
-                </p>
-              )}
-              <button
-                type="button"
-                className="mingo-btn mingo-btn-ghost"
-                style={{ margin: "12px auto 0" }}
-                onClick={() => navigate("/parent/children")}
-              >
-                Link a child
-              </button>
-            </div>
+      {children.length > 0 ? (
+        <div className="kt-card mb-5 lg:mb-7.5">
+          <div className="kt-card-header">
+            <h3 className="kt-card-title">My children</h3>
           </div>
-        ) : (
-          <div className="mingo-charts-row">
-            <div className="mingo-panel mingo-charts-line">
-              <div className="mingo-panel-head">
-                <h2>Monthly attendance — {studentDisplayNameForParent(primaryChild)}</h2>
-              </div>
-              <div className="mingo-panel-body" style={{ paddingTop: 14 }}>
-                {trendPoints.length ? (
-                  <MingoLineChart
-                    points={trendPoints}
-                    primaryLabel="Present"
-                    secondaryLabel="Absent"
-                    yMaxLabel={String(Math.max(1, ...trendPoints.map((p) => Math.max(p.primary, p.secondary))))}
-                    yMidLabel=""
-                    yMinLabel="0"
-                  />
-                ) : (
-                  <p className="text-[12.5px] text-[hsl(var(--ink-faint))]">No attendance history yet.</p>
-                )}
-              </div>
-            </div>
-
-            <div className="mingo-panel mingo-charts-cat">
-              <div className="mingo-panel-head">
-                <h2>{childAttendanceItems.length ? "Attendance by child" : "Recent grades by subject"}</h2>
-              </div>
-              <div className="mingo-panel-body">
-                {(childAttendanceItems.length ? childAttendanceItems : gradeItems).length ? (
-                  <MingoCategoryBars
-                    items={childAttendanceItems.length ? childAttendanceItems : gradeItems}
-                    bordered={false}
-                  />
-                ) : (
-                  <p className="text-[12.5px] text-[hsl(var(--ink-faint))]">No data yet.</p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {children.length > 0 && (
-          <>
-            <div className="mingo-panel-head mingo-table-cap">
-              <h2>My children</h2>
-            </div>
-            <div className="mingo-table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Student</th>
-                    <th>Class</th>
-                    <th className="num">Attendance</th>
-                    <th>Avg Grade</th>
-                    <th>Next Fee</th>
-                    <th>Due</th>
+          <div className="kt-card-content p-0 overflow-x-auto">
+            <table className="kt-table min-w-full">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Class</th>
+                  <th className="text-end">Attendance</th>
+                  <th>Avg Grade</th>
+                  <th>Next Fee</th>
+                  <th>Due</th>
+                </tr>
+              </thead>
+              <tbody>
+                {children.map((child, index) => (
+                  <tr key={index}>
+                    <td className="text-sm font-medium text-mono">
+                      {studentDisplayNameForParent(child)}
+                    </td>
+                    <td className="text-2sm text-secondary-foreground">
+                      {child.class?.name || "—"}
+                    </td>
+                    <td className="text-end text-sm text-foreground">{child.attendance}%</td>
+                    <td>
+                      <span className="kt-badge kt-badge-sm kt-badge-success kt-badge-outline">
+                        {child.avgGrade}
+                      </span>
+                    </td>
+                    <td className="font-mono text-2sm">{child.nextFee}</td>
+                    <td className="font-mono text-2sm text-secondary-foreground">
+                      {child.feeDue}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {children.map((child, index) => (
-                    <tr key={index}>
-                      <td>{studentDisplayNameForParent(child)}</td>
-                      <td>{child.class?.name || "—"}</td>
-                      <td className="num">{child.attendance}%</td>
-                      <td>
-                        <span className="mingo-status-pill paid">{child.avgGrade}</span>
-                      </td>
-                      <td className="mono-cell">{child.nextFee}</td>
-                      <td className="mono-cell">{child.feeDue}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-
-        {primaryChild ? (
-          <div style={{ marginTop: 18 }}>
-            <div className="mingo-panel-head mingo-table-cap">
-              <h2>Attendance analytics — {studentDisplayNameForParent(primaryChild)}</h2>
-            </div>
-            <div className="mingo-table-wrap" style={{ padding: 18 }}>
-              <AttendanceAnalyticsPanel
-                summary={attendanceSummary}
-                classSummary={classSummary}
-                monthlyTrend={monthlyTrend}
-                loading={attendanceLoading}
-                compact
-              />
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ) : null}
+        </div>
+      ) : null}
 
-        {children.map((child) =>
-          child.class_id ? (
+      {primaryChild ? (
+        <div className="kt-card mb-5 lg:mb-7.5">
+          <div className="kt-card-header">
+            <h3 className="kt-card-title">
+              Attendance analytics — {studentDisplayNameForParent(primaryChild)}
+            </h3>
+          </div>
+          <div className="kt-card-content p-5 lg:p-7.5">
+            <AttendanceAnalyticsPanel
+              summary={attendanceSummary}
+              classSummary={classSummary}
+              monthlyTrend={monthlyTrend}
+              loading={attendanceLoading}
+              compact
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {children.map((child) =>
+        child.class_id ? (
+          <div className="mb-5 lg:mb-7.5" key={child.id}>
             <ClassSubjectTeachersPanel
-              key={child.id}
               classId={child.class_id}
               title={`Subjects & teachers — ${studentDisplayNameForParent(child)}`}
               description="Teachers assigned to your child's class"
             />
-          ) : null,
-        )}
-
-        <div className="mingo-grid-2b" style={{ marginTop: 18 }}>
-          <div className="mingo-panel">
-            <div className="mingo-panel-head">
-              <h2>Academic performance</h2>
-              <button type="button" className="meta" onClick={() => navigate("/parent/grades")}>
-                VIEW ALL →
-              </button>
-            </div>
-            <div className="mingo-panel-body" style={{ paddingTop: 6, paddingBottom: 6 }}>
-              {recentGrades.length === 0 ? (
-                <p className="text-[12.5px] text-[hsl(var(--ink-faint))] py-4">No grades available yet.</p>
-              ) : (
-                recentGrades.map((grade, index) => (
-                  <div className="mingo-activity-row" key={index}>
-                    <span className="mingo-a-tag exm">GRD</span>
-                    <div className="a-desc">
-                      {grade.subject?.name} <span className="who">· Score {grade.score}%</span>
-                    </div>
-                    <span className="a-time">
-                      {Number(grade.score) >= 90
-                        ? "A"
-                        : Number(grade.score) >= 80
-                          ? "B"
-                          : Number(grade.score) >= 70
-                            ? "C"
-                            : "D"}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
           </div>
+        ) : null,
+      )}
 
-          <EventsCalendar />
-        </div>
-
-        <div className="mingo-panel-head mingo-table-cap" style={{ marginTop: 18 }}>
-          <h2>Quick actions</h2>
-        </div>
-        <div className="mingo-table-wrap" style={{ padding: 4 }}>
-          <div className="grid gap-3 p-3 sm:grid-cols-3">
+      <div className="grid lg:grid-cols-2 gap-5 lg:gap-7.5 items-stretch mb-5 lg:mb-7.5">
+        <div className="kt-card">
+          <div className="kt-card-header">
+            <h3 className="kt-card-title">Academic performance</h3>
             <button
               type="button"
-              className="mingo-btn mingo-btn-primary"
-              style={{ justifyContent: "flex-start" }}
-              onClick={() => navigate("/parent/payments")}
-            >
-              Pay fees
-            </button>
-            <button
-              type="button"
-              className="mingo-btn mingo-btn-ghost"
-              style={{ justifyContent: "flex-start" }}
+              className="kt-btn kt-btn-ghost kt-btn-sm text-muted-foreground hover:text-primary"
               onClick={() => navigate("/parent/grades")}
             >
-              View report card
-            </button>
-            <button
-              type="button"
-              className="mingo-btn mingo-btn-ghost"
-              style={{ justifyContent: "flex-start" }}
-              onClick={() => navigate("/parent/attendance")}
-            >
-              Check attendance
+              View all
+              <i className="ki-filled ki-right text-xs" />
             </button>
           </div>
+          <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-1">
+            {recentGrades.length === 0 ? (
+              <p className="text-sm text-secondary-foreground py-4">No grades available yet.</p>
+            ) : (
+              recentGrades.map((grade, index) => (
+                <div
+                  className="flex items-center justify-between gap-3 py-2.5 border-b border-b-border last:border-b-0"
+                  key={index}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="kt-badge kt-badge-sm kt-badge-info kt-badge-outline shrink-0">
+                      GRD
+                    </span>
+                    <span className="text-sm font-normal text-foreground truncate">
+                      {grade.subject?.name}{" "}
+                      <span className="text-secondary-foreground">· Score {grade.score}%</span>
+                    </span>
+                  </div>
+                  <span className="shrink-0 text-2sm font-semibold text-mono">
+                    {Number(grade.score) >= 90
+                      ? "A"
+                      : Number(grade.score) >= 80
+                        ? "B"
+                        : Number(grade.score) >= 70
+                          ? "C"
+                          : "D"}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <EventsCalendar />
+      </div>
+
+      {/* Quick actions */}
+      <div className="kt-card">
+        <div className="kt-card-header">
+          <h3 className="kt-card-title">Quick actions</h3>
+        </div>
+        <div className="kt-card-content p-5 lg:p-7.5 grid gap-3 sm:grid-cols-3">
+          <button
+            type="button"
+            className="kt-btn kt-btn-primary justify-start"
+            onClick={() => navigate("/parent/payments")}
+          >
+            <i className="ki-filled ki-wallet text-base" />
+            Pay fees
+          </button>
+          <button
+            type="button"
+            className="kt-btn kt-btn-outline justify-start"
+            onClick={() => navigate("/parent/grades")}
+          >
+            <i className="ki-filled ki-document text-base" />
+            View report card
+          </button>
+          <button
+            type="button"
+            className="kt-btn kt-btn-outline justify-start"
+            onClick={() => navigate("/parent/attendance")}
+          >
+            <i className="ki-filled ki-calendar-8 text-base" />
+            Check attendance
+          </button>
         </div>
       </div>
     </DashboardLayout>

@@ -15,6 +15,9 @@ export type AcademicProgram = {
   coordinator_name: string | null;
   coordinator_teacher_id: string | null;
   subjects: string[] | null;
+  image_url: string | null;
+  video_url: string | null;
+  gallery_urls: string[];
   status: ProgramStatus;
   is_archived: boolean;
   created_by: string | null;

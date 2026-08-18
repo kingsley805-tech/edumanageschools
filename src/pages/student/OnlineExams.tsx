@@ -444,7 +444,7 @@ const StudentOnlineExams = () => {
 
           <div className="flex justify-between items-center mb-4">
             <div>
-              <h2 className="text-2xl font-bold">{takingExam.title}</h2>
+              <h2 className="text-xl font-semibold leading-none text-mono">{takingExam.title}</h2>
               <p className="text-sm text-muted-foreground">Subject: {takingExam.subjects?.name}</p>
             </div>
             <div className="flex items-center gap-2 text-lg font-mono">
@@ -709,10 +709,10 @@ const StudentOnlineExams = () => {
             </DialogHeader>
             <div className="text-center py-8">
               <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-              <p className="text-2xl font-bold">{result?.obtained} / {result?.total}</p>
+              <p className="text-3xl font-semibold">{result?.obtained} / {result?.total}</p>
               <p className="text-muted-foreground">marks obtained</p>
               {result?.grade && (
-                <p className="text-3xl font-bold mt-4 text-primary">Grade: {result.grade}</p>
+                <p className="text-3xl font-semibold mt-4 text-primary">Grade: {result.grade}</p>
               )}
               <p className="text-lg mt-4">
                 {result && result.obtained / result.total >= 0.5 ? "Congratulations! You passed!" : "Keep studying!"}

@@ -8,21 +8,24 @@ type Props = {
   className?: string;
 };
 
-/** Page title block — mingo page-head (no card chrome) */
+/**
+ * Metronic page head — mirrors the demo's page title block:
+ * `<div class="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">`
+ */
 export function PortalPageHeader({ title, description, actions, className }: Props) {
   return (
     <div
       className={cn(
-        "portal-page-header mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between",
+        "flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5",
         className,
       )}
     >
-      <div className="min-w-0 space-y-1">
-        <h1 className="font-display text-[21px] font-semibold leading-tight tracking-tight text-foreground">
-          {title}
-        </h1>
+      <div className="flex min-w-0 flex-col justify-center gap-2">
+        <h1 className="text-xl font-medium leading-none text-mono">{title}</h1>
         {description ? (
-          <p className="text-[12.5px] text-muted-foreground">{description}</p>
+          <div className="flex items-center gap-2 text-sm font-normal text-secondary-foreground">
+            {description}
+          </div>
         ) : null}
       </div>
       {actions ? (

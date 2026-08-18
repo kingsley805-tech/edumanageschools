@@ -1,7 +1,7 @@
 import { GenericCrudPage, type FieldDef } from "@/modules/lib/GenericCrudPage";
 
 const fields: FieldDef[] = [
-  { key: "student_id", label: "Student ID (UUID)", required: true, list: false, placeholder: "Paste student UUID" },
+  { key: "student_id", label: "Student name", type: "student", required: true },
   {
     key: "exeat_type",
     label: "Type",
@@ -48,7 +48,16 @@ export default function ExeatsPage() {
       fields={fields}
       statusKey="approval_status"
       orderBy="departure_at"
-      searchKeys={["reason", "destination", "exeat_type", "approval_status", "qr_code"]}
+      searchKeys={[
+        "reason",
+        "destination",
+        "exeat_type",
+        "approval_status",
+        "qr_code",
+        "student_name",
+        "admission_number",
+        "class_name",
+      ]}
       beforeSave={(form) => {
         for (const key of ["departure_at", "return_at", "actual_checkout_at", "actual_checkin_at"]) {
           const v = form[key];

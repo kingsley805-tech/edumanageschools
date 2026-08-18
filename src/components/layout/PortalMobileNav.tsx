@@ -2,10 +2,9 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { ChevronLast, LogOut, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DynamicAdminSidebarNav } from "@/components/layout/DynamicAdminSidebarNav";
-import { PortalSidebarSearch } from "@/components/PortalSidebarSearch";
 import {
   portalNavLinkActive,
   portalNavLinkBase,
@@ -62,16 +61,21 @@ export function PortalMobileNav({
         side="left"
         className="portal-nav-drawer flex w-[290px] flex-col gap-0 border-r border-sidebar-border bg-sidebar p-0 text-sidebar-foreground sm:w-[320px]"
       >
+        <SheetHeader className="sr-only">
+          <SheetTitle>{schoolName ?? "Portal"} navigation</SheetTitle>
+          <SheetDescription>Browse modules and pages in your {portalLabel.toLowerCase()} portal.</SheetDescription>
+        </SheetHeader>
+
         <div className="flex items-center gap-2.5 border-b border-sidebar-border px-5 py-[18px]">
           {schoolLogoUrl ? (
             <Avatar className="h-7 w-7 shrink-0 border border-sidebar-border">
               <AvatarImage src={schoolLogoUrl} alt={schoolName ?? "School"} />
-              <AvatarFallback className="bg-sidebar-primary font-display text-[13px] font-bold text-sidebar-primary-foreground">
+              <AvatarFallback className="bg-sidebar-primary font-display text-[13px] font-medium text-sidebar-primary-foreground">
                 {initial}
               </AvatarFallback>
             </Avatar>
           ) : (
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center bg-sidebar-primary font-display text-[13px] font-bold text-sidebar-primary-foreground">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sidebar-primary font-display text-[13px] font-medium text-sidebar-primary-foreground">
               {initial}
             </div>
           )}
@@ -84,8 +88,6 @@ export function PortalMobileNav({
             </p>
           </div>
         </div>
-
-        <PortalSidebarSearch value={navQuery} onChange={onNavQueryChange} />
 
         <nav className="custom-scrollbar flex-1 overflow-y-auto overflow-x-hidden pb-2 pt-1">
           <DynamicAdminSidebarNav

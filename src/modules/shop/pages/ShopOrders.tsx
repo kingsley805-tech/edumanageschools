@@ -3,8 +3,11 @@ import { GenericCrudPage, type FieldDef } from "@/modules/lib/GenericCrudPage";
 const fields: FieldDef[] = [
   { key: "order_number", label: "Order #", required: true },
   { key: "customer_name", label: "Customer", required: true },
+  { key: "portal_role", label: "Portal", list: true },
+  { key: "paystack_reference", label: "Paystack ref", list: false },
   { key: "customer_phone", label: "Phone", list: false },
   { key: "customer_email", label: "Email", list: false },
+  { key: "coupon_code", label: "Coupon", list: false },
   { key: "subtotal", label: "Subtotal", type: "number", list: false },
   { key: "discount", label: "Discount", type: "number", list: false },
   { key: "total", label: "Total", type: "number", required: true },
@@ -44,6 +47,7 @@ const fields: FieldDef[] = [
       { value: "shipping", label: "Shipping" },
     ],
   },
+  { key: "shipping_address", label: "Address", type: "textarea", list: false },
   { key: "notes", label: "Notes", type: "textarea", list: false },
 ];
 

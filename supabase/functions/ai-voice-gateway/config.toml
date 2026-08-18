@@ -1,0 +1,2 @@
+[functions.ai-voice-gateway]
+verify_jwt = false

@@ -86,6 +86,7 @@ export function HostelAllocationsPanel({
   const [saving, setSaving] = useState(false);
 
   const [assignForm, setAssignForm] = useState({
+    class_name: "",
     student_id: "",
     block_id: "",
     room_id: "",
@@ -105,6 +106,19 @@ export function HostelAllocationsPanel({
     () => [...new Set(allocations.map((a) => a.class_name).filter(Boolean))].sort(),
     [allocations],
   );
+
+  const studentClassOptions = useMemo(
+    () =>
+      [...new Set(students.map((s) => s.class_name).filter((c) => c && c !== "—"))].sort((a, b) =>
+        a.localeCompare(b),
+      ),
+    [students],
+  );
+
+  const studentsInClass = useMemo(() => {
+    if (!assignForm.class_name) return [];
+    return students.filter((s) => s.class_name === assignForm.class_name);
+  }, [students, assignForm.class_name]);
 
   const filtered = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
@@ -260,7 +274,21 @@ export function HostelAllocationsPanel({
               </Button>
             ) : null}
             {access.canCreate ? (
-              <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+              <Dialog open={assignOpen} onOpenChange={(v) => {
+                setAssignOpen(v);
+                if (!v) {
+                  setAssignForm({
+                    class_name: "",
+                    student_id: "",
+                    block_id: "",
+                    room_id: "",
+                    bed_id: "",
+                    check_in_date: new Date().toISOString().slice(0, 10),
+                    expected_check_out_date: "",
+                    fee_amount: "",
+                  });
+                }
+              }}>
                 <DialogTrigger asChild>
                   <Button size="sm" className="gap-1.5">
                     <UserPlus className="h-4 w-4" />
@@ -271,12 +299,46 @@ export function HostelAllocationsPanel({
                   <DialogHeader><DialogTitle>Assign student to hostel</DialogTitle></DialogHeader>
                   <div className="space-y-3">
                     <div className="space-y-1.5">
-                      <Label>Student</Label>
-                      <Select value={assignForm.student_id} onValueChange={(v) => setAssignForm({ ...assignForm, student_id: v })}>
-                        <SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger>
+                      <Label>Class</Label>
+                      <Select
+                        value={assignForm.class_name || undefined}
+                        onValueChange={(v) =>
+                          setAssignForm({ ...assignForm, class_name: v, student_id: "" })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select class first" />
+                        </SelectTrigger>
                         <SelectContent>
-                          {students.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>{s.name} ({s.admission})</SelectItem>
+                          {studentClassOptions.map((c) => (
+                            <SelectItem key={c} value={c}>
+                              {c}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Student</Label>
+                      <Select
+                        value={assignForm.student_id || undefined}
+                        onValueChange={(v) => setAssignForm({ ...assignForm, student_id: v })}
+                        disabled={!assignForm.class_name}
+                      >
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={
+                              assignForm.class_name
+                                ? `Select student (${studentsInClass.length})`
+                                : "Select class first"
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {studentsInClass.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {s.name} ({s.admission})
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>

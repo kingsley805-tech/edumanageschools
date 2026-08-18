@@ -1,9 +1,8 @@
 import { useMemo } from "react";
-import { BarChart3, Download, Package } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { BarChart3, Package } from "lucide-react";
 import { ChartCard } from "@/components/charts/ChartCard";
 import { AnimatedBarChart } from "@/components/charts/AnimatedBarChart";
-import { downloadCsv } from "@/modules/lib/exportCsv";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { formatMoney } from "@/lib/currency";
 import type {
   InventoryAsset,
@@ -76,97 +75,61 @@ export function InventoryReportsPanel({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-          onClick={() =>
-            downloadCsv(
-              "current-inventory.csv",
-              ["SKU", "Name", "Category", "Qty", "Unit Cost", "Value", "Status"],
-              items.map((i) => [i.sku, i.name, i.category, i.quantity, i.unit_cost, i.stock_value, i.item_status]),
-            )
-          }
-        >
-          <Download className="h-4 w-4" />
-          Current Inventory
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-          onClick={() =>
-            downloadCsv(
-              "low-stock-report.csv",
-              ["SKU", "Name", "Qty", "Reorder"],
-              lowStock.map((i) => [i.sku, i.name, i.quantity, i.reorder_level]),
-            )
-          }
-        >
-          <Download className="h-4 w-4" />
-          Low Stock
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-          onClick={() =>
-            downloadCsv(
-              "asset-register.csv",
-              ["Code", "Name", "Category", "Purchase", "Current", "Condition", "Status"],
-              assets.map((a) => [a.asset_code, a.name, a.category, a.purchase_cost, a.current_value, a.asset_condition, a.asset_status]),
-            )
-          }
-        >
-          <Download className="h-4 w-4" />
-          Asset Register
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-          onClick={() =>
-            downloadCsv(
-              "stock-movements.csv",
-              ["Date", "Item", "Type", "Qty", "Prev", "Current"],
-              movements.map((m) => [m.created_at, m.item_name, m.transaction_type, m.quantity, m.previous_stock, m.current_stock]),
-            )
-          }
-        >
-          <Download className="h-4 w-4" />
-          Stock Movements
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-          onClick={() =>
-            downloadCsv(
-              "purchase-history.csv",
-              ["PO#", "Supplier", "Date", "Total", "Payment", "Delivery"],
-              orders.map((o) => [o.po_number, o.supplier_name, o.purchase_date, o.total_cost, o.payment_status, o.delivery_status]),
-            )
-          }
-        >
-          <Download className="h-4 w-4" />
-          Purchase History
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-          onClick={() =>
-            downloadCsv(
-              "issuance-report.csv",
-              ["Item", "Recipient", "Qty", "Date", "Status"],
-              issuances.map((i) => [i.item_name, i.recipient_name, i.quantity, i.issue_date, i.status]),
-            )
-          }
-        >
-          <Download className="h-4 w-4" />
-          Issuance Report
-        </Button>
+      <div className="flex flex-wrap gap-3">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">Current Inventory</span>
+          <ExportMenu
+            filename="current-inventory"
+            title="Current Inventory"
+            headers={["SKU", "Name", "Category", "Qty", "Unit Cost", "Value", "Status"]}
+            rows={items.map((i) => [i.sku, i.name, i.category, i.quantity, i.unit_cost, i.stock_value, i.item_status])}
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">Low Stock</span>
+          <ExportMenu
+            filename="low-stock-report"
+            title="Low Stock"
+            headers={["SKU", "Name", "Qty", "Reorder"]}
+            rows={lowStock.map((i) => [i.sku, i.name, i.quantity, i.reorder_level])}
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">Asset Register</span>
+          <ExportMenu
+            filename="asset-register"
+            title="Asset Register"
+            headers={["Code", "Name", "Category", "Purchase", "Current", "Condition", "Status"]}
+            rows={assets.map((a) => [a.asset_code, a.name, a.category, a.purchase_cost, a.current_value, a.asset_condition, a.asset_status])}
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">Stock Movements</span>
+          <ExportMenu
+            filename="stock-movements"
+            title="Stock Movements"
+            headers={["Date", "Item", "Type", "Qty", "Prev", "Current"]}
+            rows={movements.map((m) => [m.created_at, m.item_name, m.transaction_type, m.quantity, m.previous_stock, m.current_stock])}
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">Purchase History</span>
+          <ExportMenu
+            filename="purchase-history"
+            title="Purchase History"
+            headers={["PO#", "Supplier", "Date", "Total", "Payment", "Delivery"]}
+            rows={orders.map((o) => [o.po_number, o.supplier_name, o.purchase_date, o.total_cost, o.payment_status, o.delivery_status])}
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">Issuance Report</span>
+          <ExportMenu
+            filename="issuance-report"
+            title="Issuance Report"
+            headers={["Item", "Recipient", "Qty", "Date", "Status"]}
+            rows={issuances.map((i) => [i.item_name, i.recipient_name, i.quantity, i.issue_date, i.status])}
+          />
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

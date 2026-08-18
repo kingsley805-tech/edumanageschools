@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import {
   Archive,
   ArchiveRestore,
-  Download,
   Eye,
   PackageMinus,
   PackagePlus,
@@ -27,7 +26,7 @@ import {
   saveInventoryItem,
 } from "@/modules/inventory/lib/api";
 import type { InventoryFilters, InventoryItem, InventorySupplier } from "@/modules/inventory/lib/types";
-import { downloadCsv } from "@/modules/lib/exportCsv";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { formatMoney } from "@/lib/currency";
 import { toast } from "sonner";
 
@@ -234,25 +233,32 @@ export function InventoryItemsPanel({ items, suppliers, schoolId, access, curren
     }
   };
 
-  const exportCsv = () => {
-    downloadCsv(
-      "inventory-items.csv",
-      ["SKU", "Barcode", "Name", "Category", "Qty", "Unit", "Unit Cost", "Stock Value", "Location", "Status", "Supplier"],
-      filtered.map((r) => [
-        r.sku,
-        r.barcode,
-        r.name,
-        r.category,
-        r.quantity,
-        r.unit,
-        r.unit_cost,
-        r.stock_value,
-        r.location,
-        r.item_status,
-        r.supplier_name,
-      ]),
-    );
-  };
+  const exportHeaders = [
+    "SKU",
+    "Barcode",
+    "Name",
+    "Category",
+    "Qty",
+    "Unit",
+    "Unit Cost",
+    "Stock Value",
+    "Location",
+    "Status",
+    "Supplier",
+  ];
+  const exportRows = filtered.map((r) => [
+    r.sku,
+    r.barcode,
+    r.name,
+    r.category,
+    r.quantity,
+    r.unit,
+    r.unit_cost,
+    r.stock_value,
+    r.location,
+    r.item_status,
+    r.supplier_name,
+  ]);
 
   return (
     <div className="space-y-4">
@@ -272,10 +278,12 @@ export function InventoryItemsPanel({ items, suppliers, schoolId, access, curren
           </div>
           <div className="flex flex-wrap gap-2">
             {access.canExport !== false ? (
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={exportCsv}>
-                <Download className="h-4 w-4" />
-                Export CSV
-              </Button>
+              <ExportMenu
+                filename="inventory-items"
+                title="Inventory Items"
+                headers={exportHeaders}
+                rows={exportRows}
+              />
             ) : null}
             {access.canCreate ? (
               <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>

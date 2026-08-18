@@ -46,6 +46,7 @@ import {
   CircleDollarSign,
   ShoppingBag,
   FlaskConical,
+  PhoneCall,
 } from "lucide-react";
 import { PORTAL_CATEGORIES, permissionCode, type PermissionAction } from "@/lib/rbac/permissionCatalog";
 
@@ -115,6 +116,7 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
   parent_contacts: UserCircle,
   announcements: Megaphone,
   ai_assistant: BrainCircuit,
+  ai_receptionist: PhoneCall,
   school_settings: Building,
   staff_access: Shield,
   approvals: FileText,
@@ -238,7 +240,9 @@ export function buildAdminNav(hasPermission: (code: string) => boolean): (AdminN
     }
     if (items.length === 0) continue;
 
-    if (category.modules.length === 1 && category.key === "dashboard") {
+    // Categories with a single module render as a direct link instead of a
+    // one-item accordion (e.g. Library, Health, Transport, Hostel, Inventory).
+    if (category.modules.length === 1) {
       result.push(items[0]);
       continue;
     }

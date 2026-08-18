@@ -1,5 +1,6 @@
 // @ts-nocheck
 ﻿import { useState, useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,14 +10,15 @@ import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Download, FileText, Upload, RefreshCcw, RotateCw, Eye } from "lucide-react";
+import { Search, Upload, RefreshCcw, RotateCw, Eye } from "lucide-react";
 import RecordPaymentDialog from "@/billing/components/payments/RecordPaymentDialog";
 import PaySalaryDialog from "@/billing/components/payments/PaySalaryDialog";
 import { PaymentDetailsDialog, type PaymentDetailsPayload } from "@/billing/components/payments/PaymentDetailsDialog";
 import { TruncatedMonoText } from "@/billing/components/payments/TruncatedMonoText";
 import TablePagination from "@/billing/components/TablePagination";
 import { usePagination } from "@/billing/hooks/usePagination";
-import { exportToCSV, exportToPDF } from "@/billing/lib/exportUtils";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
+import { downloadCsv } from "@/modules/lib/exportTable";
 import { parseCsvLine } from "@/billing/lib/parseCsvLine";
 import { toast } from "sonner";
 import { useBillingPermissions } from "@/billing/hooks/useBillingPermissions";
@@ -434,7 +436,7 @@ export default function BillingPayments() {
   };
 
   const downloadImportErrorReport = () => {
-    exportToCSV(
+    downloadCsv(
       "manual-payment-import-errors",
       ["Row", "Message"],
       csvImportErrors.map((e) => [String(e.row), e.message])
@@ -597,15 +599,8 @@ export default function BillingPayments() {
     payment.paid_at ? new Date(payment.paid_at).toLocaleDateString() : new Date(payment.created_at).toLocaleDateString(),
   ];
 
-  const handleBulkExportCSV = () => {
-    const selected = filtered.filter((payment) => selectedIds.has(payment.id));
-    exportToCSV("payments-selected", headers, selected.map(toRow));
-  };
-
-  const handleBulkExportPDF = () => {
-    const selected = filtered.filter((payment) => selectedIds.has(payment.id));
-    exportToPDF("payments-selected", "Selected Payments", headers, selected.map(toRow));
-  };
+  const selectedRows = filtered.filter((payment) => selectedIds.has(payment.id)).map(toRow);
+  const allRows = filtered.map(toRow);
 
   return (
     <div className="space-y-6">
@@ -618,10 +613,12 @@ export default function BillingPayments() {
         </div>
         <div className="flex gap-2">
           {canManagePayments ? (
-            <>
-              <Button variant="outline" size="sm" onClick={() => exportToCSV("payments", headers, filtered.map(toRow))}><Download className="h-4 w-4 mr-1" />CSV</Button>
-              <Button variant="outline" size="sm" onClick={() => exportToPDF("payments", "Payments Report", headers, filtered.map(toRow))}><FileText className="h-4 w-4 mr-1" />PDF</Button>
-            </>
+            <ExportMenu
+              filename="payments"
+              title="Payments Report"
+              headers={headers}
+              rows={allRows}
+            />
           ) : null}
           {canCreatePayments ? <RecordPaymentDialog onSuccess={fetchPayments} /> : null}
           {canCreatePayments ? <PaySalaryDialog /> : null}
@@ -633,19 +630,19 @@ export default function BillingPayments() {
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="channel-stats-bg rounded-xl border border-border bg-card p-4 shadow-sm">
           <p className="text-xs font-medium uppercase text-muted-foreground">Total revenue</p>
           <p className="mt-1 text-2xl font-bold text-emerald-700">
             {formatMoney(revenueStats.total, revenueStats.currency, { maximumFractionDigits: 0 })}
           </p>
           <p className="text-xs text-muted-foreground">Successful payments (filtered)</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="channel-stats-bg rounded-xl border border-border bg-card p-4 shadow-sm">
           <p className="text-xs font-medium uppercase text-muted-foreground">Transactions</p>
           <p className="mt-1 text-2xl font-bold">{filtered.length}</p>
           <p className="text-xs text-muted-foreground">{revenueStats.count} successful</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="channel-stats-bg rounded-xl border border-border bg-card p-4 shadow-sm">
           <p className="text-xs font-medium uppercase text-muted-foreground">Gateways</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Paystack, manual, and others appear as recorded
@@ -715,10 +712,12 @@ export default function BillingPayments() {
         <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2">
           <span className="text-sm font-medium">{selectedIds.size} selected</span>
           {canManagePayments ? (
-            <>
-              <Button variant="outline" size="sm" onClick={handleBulkExportCSV}><Download className="mr-1 h-3.5 w-3.5" />Export CSV</Button>
-              <Button variant="outline" size="sm" onClick={handleBulkExportPDF}><FileText className="mr-1 h-3.5 w-3.5" />Export PDF</Button>
-            </>
+            <ExportMenu
+              filename="payments-selected"
+              title="Selected Payments"
+              headers={headers}
+              rows={selectedRows}
+            />
           ) : null}
           {canUpdatePayments ? (
             <Select onValueChange={handleBulkStatusChange}>
@@ -768,13 +767,35 @@ export default function BillingPayments() {
                   <td className="px-4 py-3.5">
                     <Checkbox checked={selectedIds.has(payment.id)} onCheckedChange={() => toggleSelect(payment.id)} />
                   </td>
-                  <td className="px-4 py-3.5 text-sm">{payment.student_name || "—"}</td>
+                  <td className="px-4 py-3.5 text-sm">
+                    {payment.student_id ? (
+                      <Link
+                        to={`/admin/students/${payment.student_id}`}
+                        className="font-medium text-foreground hover:text-primary hover:underline"
+                      >
+                        {payment.student_name || "Student"}
+                      </Link>
+                    ) : (
+                      payment.student_name || "—"
+                    )}
+                  </td>
                   <td className="px-4 py-3.5 text-sm text-muted-foreground">{payment.parent_name || "—"}</td>
                   <td className="px-4 py-3.5 text-sm font-medium text-card-foreground">{formatMoney(Number(payment.amount), payment.currency)}</td>
                   <td className="px-4 py-3.5 text-sm capitalize text-muted-foreground">{payment.method.replace("_", " ")}</td>
                   <td className="px-4 py-3.5 text-sm capitalize text-muted-foreground">{payment.gateway}</td>
                   <td className="px-4 py-3.5 text-sm text-muted-foreground">{payment.payer_name || (payment.payer_role ? payment.payer_role.replace("_", " ") : "--")}</td>
-                  <td className="max-w-[120px] truncate px-4 py-3.5 font-mono text-xs text-muted-foreground">{payment.invoice_number || payment.invoice_id.slice(0, 8)}</td>
+                  <td className="max-w-[120px] truncate px-4 py-3.5 font-mono text-xs text-muted-foreground">
+                    {payment.invoice_id ? (
+                      <Link
+                        to={`/admin/billing/invoices/${payment.invoice_id}`}
+                        className="font-semibold text-foreground hover:text-primary hover:underline"
+                      >
+                        {payment.invoice_number || payment.invoice_id.slice(0, 8)}
+                      </Link>
+                    ) : (
+                      payment.invoice_number || "—"
+                    )}
+                  </td>
                   <td className="px-4 py-3.5">
                     <TruncatedMonoText value={payment.gateway_ref} emptyLabel="--" />
                   </td>

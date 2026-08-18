@@ -129,11 +129,7 @@ const Settings = () => {
 
   // Wait for role to load before rendering
   if (roleLoading || !role) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
+    return null;
   }
 
   // Map super_admin to admin for DashboardLayout
@@ -141,116 +137,122 @@ const Settings = () => {
 
   return (
     <DashboardLayout role={layoutRole}>
-      <div className="mingo-content space-y-4 md:space-y-6">
-        <div>
-          <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Settings</h2>
-          <p className="text-[12.5px] text-muted-foreground mt-1">Manage your account preferences</p>
+      {/* Page Header — Metronic toolbar */}
+      <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">
+        <div className="flex min-w-0 flex-col justify-center gap-2">
+          <h1 className="text-xl font-medium leading-none text-mono">Settings</h1>
+          <div className="flex items-center gap-2 text-sm font-normal text-secondary-foreground">
+            Manage your account preferences, profile details, and security settings
+          </div>
         </div>
+      </div>
 
-        <div className="grid gap-4 md:gap-6 md:grid-cols-2">
-          <Card className="md:col-span-2">
-            <CardHeader className="p-4 md:p-6">
-              <CardTitle className="text-lg md:text-xl">Profile</CardTitle>
-              <CardDescription className="text-sm md:text-base">Manage your profile information</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 md:space-y-6 p-4 md:p-6 pt-0">
-              {loading ? (
-                <div className="space-y-4">
-                  <Skeleton className="h-24 w-24 rounded-full mx-auto sm:mx-0" />
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-              ) : (
-                <>
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 md:gap-6">
-                <Avatar className="h-20 w-20 md:h-24 md:w-24 flex-shrink-0">
-                  <AvatarImage src={profile?.avatar_url} />
-                  <AvatarFallback className="text-xl md:text-2xl">
-                    {fullName?.charAt(0) || admissionNumber?.charAt(0) || "S"}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 w-full sm:w-auto text-center sm:text-left">
-                  <Label htmlFor="avatar" className="cursor-pointer">
-                    <div className="flex items-center justify-center sm:justify-start gap-2 text-sm text-primary hover:underline">
-                      <Camera className="h-4 w-4" />
-                      {uploading ? "Uploading..." : "Change avatar"}
-                    </div>
-                  </Label>
-                  <Input
-                    id="avatar"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleAvatarUpload}
-                    disabled={uploading}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    JPG, PNG or WEBP (max. 2MB)
-                  </p>
-                </div>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <div className="kt-card lg:col-span-2">
+          <div className="kt-card-header flex justify-between items-center py-4 px-5">
+            <div>
+              <h3 className="kt-card-title">Profile Details</h3>
+              <p className="text-xs text-secondary-foreground">Manage your personal information and contact details</p>
+            </div>
+          </div>
+          <div className="kt-card-content p-5 space-y-6">
+            {loading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-20 w-20 rounded-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
               </div>
+            ) : (
+              <>
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 md:gap-6">
+                  <Avatar className="h-20 w-20 flex-shrink-0 border-2 border-border">
+                    <AvatarImage src={profile?.avatar_url} />
+                    <AvatarFallback className="text-xl font-semibold bg-primary text-primary-foreground">
+                      {fullName?.charAt(0) || admissionNumber?.charAt(0) || "S"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 w-full sm:w-auto text-center sm:text-left">
+                    <Label htmlFor="avatar" className="cursor-pointer">
+                      <div className="inline-flex items-center justify-center gap-2 text-sm text-primary hover:underline font-medium">
+                        <i className="ki-filled ki-picture text-base" />
+                        {uploading ? "Uploading..." : "Change avatar"}
+                      </div>
+                    </Label>
+                    <Input
+                      id="avatar"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleAvatarUpload}
+                      disabled={uploading}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      JPG, PNG or WEBP (max. 2MB)
+                    </p>
+                  </div>
+                </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName" className="text-sm md:text-base">Full Name</Label>
-                  <Input
-                    id="fullName"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Enter your full name"
-                    className="text-base py-5 md:py-6"
-                  />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Full Name</Label>
+                    <Input
+                      id="fullName"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Enter your full name"
+                      className="h-10"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="Enter your phone number"
+                      className="h-10"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-sm md:text-base">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="Enter your phone number"
-                    className="text-base py-5 md:py-6"
-                  />
-                </div>
-              </div>
 
-              {role === "student" ? (
-                <div className="space-y-2">
-                  <Label htmlFor="admission-number" className="text-sm md:text-base">
-                    Admission number (login ID)
-                  </Label>
-                  <Input
-                    id="admission-number"
-                    value={admissionNumber}
-                    disabled
-                    className="bg-muted text-base py-5 md:py-6 font-mono uppercase"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Use this number with your password to sign in. Contact your school admin if it
-                    is incorrect.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm md:text-base">Email Address</Label>
-                  <Input
-                    id="email"
-                    value={user?.email || ""}
-                    disabled
-                    className="bg-muted text-base py-5 md:py-6"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Contact admin to change your email
-                  </p>
-                </div>
-              )}
+                {role === "student" ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="admission-number">
+                      Admission number (login ID)
+                    </Label>
+                    <Input
+                      id="admission-number"
+                      value={admissionNumber}
+                      disabled
+                      className="bg-muted h-10 font-mono uppercase"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Use this number with your password to sign in. Contact your school admin if it
+                      is incorrect.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input
+                      id="email"
+                      value={user?.email || ""}
+                      disabled
+                      className="bg-muted h-10"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Contact admin to change your email
+                    </p>
+                  </div>
+                )}
 
-              <Button onClick={handleUpdateProfile} className="w-full sm:w-auto">
-                Update Profile
-              </Button>
+                <Button onClick={handleUpdateProfile} className="kt-btn kt-btn-primary">
+                  Update Profile
+                </Button>
               </>
-              )}
-            </CardContent>
-          </Card>
+            )}
+          </div>
+        </div>
 
           <Suspense fallback={
             <Card>
@@ -351,9 +353,8 @@ const Settings = () => {
             </Card>
           )}
         </div>
-      </div>
-    </DashboardLayout>
-  );
-};
+      </DashboardLayout>
+    );
+  };
 
 export default Settings;

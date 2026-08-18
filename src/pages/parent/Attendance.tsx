@@ -100,35 +100,35 @@ const Attendance = () => {
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <Card>
+          <Card className="channel-stats-bg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Attendance Rate</CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.rate}%</div>
+              <div className="text-3xl font-semibold">{stats.rate}%</div>
               <p className="text-xs text-muted-foreground">Current term / recent sessions</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="channel-stats-bg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Present Days</CardTitle>
               <CheckCircle className="h-4 w-4 text-success" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.present}</div>
+              <div className="text-3xl font-semibold">{stats.present}</div>
               <p className="text-xs text-muted-foreground">Out of {stats.total} days</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="channel-stats-bg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Absent Days</CardTitle>
               <XCircle className="h-4 w-4 text-destructive" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.absent}</div>
+              <div className="text-3xl font-semibold">{stats.absent}</div>
               <p className="text-xs text-muted-foreground">Out of {stats.total} days</p>
             </CardContent>
           </Card>

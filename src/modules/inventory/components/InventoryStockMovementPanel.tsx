@@ -1,12 +1,10 @@
 import { useMemo, useState } from "react";
-import { Download } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { InventoryFiltersBar } from "@/modules/inventory/components/InventoryFiltersBar";
 import type { InventoryFilters, StockMovement } from "@/modules/inventory/lib/types";
-import { downloadCsv } from "@/modules/lib/exportCsv";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 
 type Props = {
   movements: StockMovement[];
@@ -75,32 +73,23 @@ export function InventoryStockMovementPanel({ movements, canExport }: Props) {
             <CardDescription>{filtered.length} transaction(s) — audit trail</CardDescription>
           </div>
           {canExport !== false ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={() =>
-                downloadCsv(
-                  "stock-movements.csv",
-                  ["Date", "Item", "SKU", "Type", "Qty", "Prev", "Current", "Dept", "Source/Dest", "Remarks"],
-                  filtered.map((m) => [
-                    new Date(m.created_at).toLocaleString(),
-                    m.item_name,
-                    m.item_sku,
-                    TYPE_LABELS[m.transaction_type],
-                    m.quantity,
-                    m.previous_stock,
-                    m.current_stock,
-                    m.department,
-                    m.source_destination,
-                    m.remarks,
-                  ]),
-                )
-              }
-            >
-              <Download className="h-4 w-4" />
-              Export
-            </Button>
+            <ExportMenu
+              filename="stock-movements"
+              title="Stock Movements"
+              headers={["Date", "Item", "SKU", "Type", "Qty", "Prev", "Current", "Dept", "Source/Dest", "Remarks"]}
+              rows={filtered.map((m) => [
+                new Date(m.created_at).toLocaleString(),
+                m.item_name,
+                m.item_sku,
+                TYPE_LABELS[m.transaction_type],
+                m.quantity,
+                m.previous_stock,
+                m.current_stock,
+                m.department,
+                m.source_destination,
+                m.remarks,
+              ])}
+            />
           ) : null}
         </CardHeader>
         <CardContent className="overflow-x-auto">

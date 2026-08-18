@@ -23,7 +23,7 @@ export default function LandingNavbar() {
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
     >
       <nav className="mx-auto flex max-w-7xl items-center justify-between rounded-2xl border border-white/15 bg-black/80 px-4 py-2.5 shadow-lg shadow-black/40 backdrop-blur-xl sm:px-5">
-        <EduManageLogo imgClassName="h-8 sm:h-9" />
+        <EduManageLogo imgClassName="h-9 sm:h-10 brightness-0 invert drop-shadow-sm" />
 
         <motion.div
           className="hidden items-center gap-8 md:flex"
@@ -36,7 +36,7 @@ export default function LandingNavbar() {
               <a
                 key={link.label}
                 href={link.href}
-                className="text-sm font-medium text-white/70 transition-colors hover:text-green-400"
+                className="text-sm font-medium text-white/70 transition-colors hover:text-blue-300"
               >
                 {link.label}
               </a>
@@ -44,7 +44,7 @@ export default function LandingNavbar() {
               <Link
                 key={link.label}
                 to={link.href}
-                className="text-sm font-medium text-white/70 transition-colors hover:text-green-400"
+                className="text-sm font-medium text-white/70 transition-colors hover:text-blue-300"
               >
                 {link.label}
               </Link>
@@ -52,7 +52,7 @@ export default function LandingNavbar() {
           )}
           <Link
             to="/auth"
-            className="text-sm font-medium text-white/70 transition-colors hover:text-green-400"
+            className="text-sm font-medium text-white/70 transition-colors hover:text-blue-300"
           >
             Sign in
           </Link>

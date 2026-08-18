@@ -6,6 +6,8 @@ import { Link } from "react-router-dom";
 import { Building2, Users, GraduationCap, UserCircle, AlertTriangle, Loader2, ArrowRight } from "lucide-react";
 import { usePlatformDashboardStats, usePlatformTenants } from "@/platform/hooks/usePlatformDashboard";
 
+import { cn } from "@/lib/utils";
+
 function StatCard({
   title,
   value,
@@ -20,7 +22,7 @@ function StatCard({
   className?: string;
 }) {
   return (
-    <Card className={className}>
+    <Card className={cn("channel-stats-bg", className)}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         <Icon className="h-4 w-4 text-muted-foreground" />

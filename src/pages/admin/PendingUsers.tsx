@@ -309,73 +309,74 @@ const PendingUsers = () => {
 
   return (
     <DashboardLayout role="admin">
-      <div className="mingo-content space-y-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground flex items-center gap-2">
-              <UserPlus className="h-5 w-5" />
-              Pending User Approvals
-            </h2>
-            <p className="text-[12.5px] text-muted-foreground mt-1">
-              Review and approve self-registered users
-            </p>
-          </div>
-          <Badge variant="secondary" className="text-lg px-4 py-2">
-            <Clock className="h-4 w-4 mr-2" />
-            {totalPending} Pending
-          </Badge>
-        </div>
-
-        <div className="flex gap-2">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search users..." 
-              className="pl-10"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+      {/* Page Header — Metronic toolbar */}
+      <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">
+        <div className="flex min-w-0 flex-col justify-center gap-2">
+          <h1 className="text-xl font-medium leading-none text-mono">Pending User Approvals</h1>
+          <div className="flex items-center gap-2 text-sm font-normal text-secondary-foreground">
+            Review and approve self-registered student, teacher, and parent accounts
           </div>
         </div>
+        <div className="flex items-center gap-2.5">
+          <span className="kt-badge kt-badge-outline kt-badge-warning gap-1.5 py-1.5 px-3">
+            <Clock className="h-4 w-4" />
+            {totalPending} Pending Approval
+          </span>
+        </div>
+      </div>
 
-        <Tabs defaultValue="students" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="students" className="relative">
-              Students
-              {pendingStudents.length > 0 && (
-                <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                  {pendingStudents.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="teachers" className="relative">
-              Teachers
-              {pendingTeachers.length > 0 && (
-                <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                  {pendingTeachers.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="parents" className="relative">
-              Parents
-              {pendingParents.length > 0 && (
-                <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                  {pendingParents.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
+      <div className="flex gap-2.5 mb-5">
+        <div className="relative flex-1 max-w-sm">
+          <i className="ki-filled ki-magnifier absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input 
+            placeholder="Search users..." 
+            className="pl-9 h-9"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+      </div>
 
-          <TabsContent value="students">
-            <Card>
-              <CardHeader>
-                <CardTitle>Pending Students</CardTitle>
-                <CardDescription>
+      <Tabs defaultValue="students" className="w-full">
+        <TabsList className="flex-wrap mb-5">
+          <TabsTrigger value="students" className="relative gap-2">
+            Students
+            {pendingStudents.length > 0 && (
+              <Badge variant="destructive" className="ml-1.5 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                {pendingStudents.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="teachers" className="relative gap-2">
+            Teachers
+            {pendingTeachers.length > 0 && (
+              <Badge variant="destructive" className="ml-1.5 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                {pendingTeachers.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="parents" className="relative gap-2">
+            Parents
+            {pendingParents.length > 0 && (
+              <Badge variant="destructive" className="ml-1.5 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                {pendingParents.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="students">
+          <div className="kt-card">
+            <div className="kt-card-header flex justify-between items-center py-4 px-5">
+              <div>
+                <h3 className="kt-card-title">Pending Students</h3>
+                <p className="text-xs text-secondary-foreground">
                   Students who registered with your school code but haven't been assigned admission numbers
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
+                </p>
+              </div>
+            </div>
+            <div className="kt-card-content p-0 overflow-x-auto">
+              <Table className="kt-table min-w-full">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
@@ -430,142 +431,148 @@ const PendingUsers = () => {
                     )}
                   </TableBody>
                 </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
+            </div>
+          </div>
+        </TabsContent>
 
-          <TabsContent value="teachers">
-            <Card>
-              <CardHeader>
-                <CardTitle>Pending Teachers</CardTitle>
-                <CardDescription>
+        <TabsContent value="teachers">
+          <div className="kt-card">
+            <div className="kt-card-header flex justify-between items-center py-4 px-5">
+              <div>
+                <h3 className="kt-card-title">Pending Teachers</h3>
+                <p className="text-xs text-secondary-foreground">
                   Teachers who registered with your school code but haven't been assigned employee numbers
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
+                </p>
+              </div>
+            </div>
+            <div className="kt-card-content p-0 overflow-x-auto">
+              <Table className="kt-table min-w-full">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Registered</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Registered</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableCell colSpan={4} className="text-center py-6">Loading...</TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center">Loading...</TableCell>
-                      </TableRow>
-                    ) : filterUsers(pendingTeachers).length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground">
-                          No pending teachers
+                  ) : filterUsers(pendingTeachers).length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
+                        No pending teachers
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filterUsers(pendingTeachers).map((teacher) => (
+                      <TableRow key={teacher.id}>
+                        <TableCell className="font-medium text-mono">{teacher.full_name}</TableCell>
+                        <TableCell className="text-secondary-foreground">{teacher.email}</TableCell>
+                        <TableCell className="font-mono text-2sm">
+                          {teacher.created_at ? format(new Date(teacher.created_at), "PP") : "N/A"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              className="kt-btn kt-btn-primary kt-btn-sm"
+                              onClick={() => openApprovalDialog(teacher)}
+                            >
+                              <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="kt-btn kt-btn-destructive kt-btn-sm"
+                              onClick={() => handleReject(teacher)}
+                            >
+                              <XCircle className="h-3.5 w-3.5 mr-1" />
+                              Reject
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
-                    ) : (
-                      filterUsers(pendingTeachers).map((teacher) => (
-                        <TableRow key={teacher.id}>
-                          <TableCell className="font-medium">{teacher.full_name}</TableCell>
-                          <TableCell>{teacher.email}</TableCell>
-                          <TableCell>
-                            {teacher.created_at ? format(new Date(teacher.created_at), "PP") : "N/A"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                size="sm"
-                                variant="default"
-                                onClick={() => openApprovalDialog(teacher)}
-                              >
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleReject(teacher)}
-                              >
-                                <XCircle className="h-4 w-4 mr-1" />
-                                Reject
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
 
-          <TabsContent value="parents">
-            <Card>
-              <CardHeader>
-                <CardTitle>Pending Parents</CardTitle>
-                <CardDescription>
+        <TabsContent value="parents">
+          <div className="kt-card">
+            <div className="kt-card-header flex justify-between items-center py-4 px-5">
+              <div>
+                <h3 className="kt-card-title">Pending Parents</h3>
+                <p className="text-xs text-secondary-foreground">
                   Parents who registered but haven't been linked to any students yet
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
+                </p>
+              </div>
+            </div>
+            <div className="kt-card-content p-0 overflow-x-auto">
+              <Table className="kt-table min-w-full">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Registered</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Registered</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableCell colSpan={4} className="text-center py-6">Loading...</TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center">Loading...</TableCell>
-                      </TableRow>
-                    ) : filterUsers(pendingParents).length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground">
-                          No pending parents
+                  ) : filterUsers(pendingParents).length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
+                        No pending parents
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filterUsers(pendingParents).map((parent) => (
+                      <TableRow key={parent.id}>
+                        <TableCell className="font-medium text-mono">{parent.full_name}</TableCell>
+                        <TableCell className="text-secondary-foreground">{parent.email}</TableCell>
+                        <TableCell className="font-mono text-2sm">
+                          {parent.created_at ? format(new Date(parent.created_at), "PP") : "N/A"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="kt-btn kt-btn-outline kt-btn-sm"
+                              onClick={() => window.location.href = "/admin/parent-student-link"}
+                            >
+                              Link to Student
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="kt-btn kt-btn-destructive kt-btn-sm"
+                              onClick={() => handleReject(parent)}
+                            >
+                              <XCircle className="h-3.5 w-3.5 mr-1" />
+                              Reject
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
-                    ) : (
-                      filterUsers(pendingParents).map((parent) => (
-                        <TableRow key={parent.id}>
-                          <TableCell className="font-medium">{parent.full_name}</TableCell>
-                          <TableCell>{parent.email}</TableCell>
-                          <TableCell>
-                            {parent.created_at ? format(new Date(parent.created_at), "PP") : "N/A"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => window.location.href = "/admin/parent-student-link"}
-                              >
-                                Link to Student
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleReject(parent)}
-                              >
-                                <XCircle className="h-4 w-4 mr-1" />
-                                Reject
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Approval Dialog */}
       <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>

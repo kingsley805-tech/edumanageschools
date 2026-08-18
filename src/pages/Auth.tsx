@@ -1,14 +1,26 @@
-// @ts-nocheck
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { GraduationCap, Lock, Mail, User, Eye, EyeOff, Shield, BookOpen, Users, ArrowRight, Hash, Plus, X, Sparkles, CheckCircle2, TrendingUp, Bell, MessageSquare, Calendar } from "lucide-react";
+import {
+  GraduationCap,
+  Lock,
+  Mail,
+  User,
+  Shield,
+  BookOpen,
+  Users,
+  Hash,
+  Phone,
+  Plus,
+  X,
+  Loader2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
+import { usePublicSignup } from "@/hooks/usePublicSignup";
 import { supabase } from "@/integrations/supabase/client";
 import { logLoginActivity } from "@/lib/auditLog";
 import { normalizeAdmissionNumber, derivePrefixFromSchoolName } from "@/lib/admission-numbers";
@@ -23,134 +35,24 @@ import {
 } from "@/lib/auth-api";
 import { TEACHER_DEACTIVATED_MESSAGE } from "@/lib/teacherAccountStatus";
 import { EduManageLogo } from "@/components/EduManageLogo";
-import { motion, AnimatePresence } from "framer-motion";
-
-const EducationHubAnimation = () => {
-  return (
-    <div className="relative w-full max-w-[320px] aspect-square flex items-center justify-center scale-95 sm:scale-100">
-      {/* Background glow in center */}
-      <div className="absolute w-40 h-40 rounded-full bg-green-500/10 blur-3xl opacity-60 pointer-events-none" />
-
-      {/* Orbit 3 (Outer) */}
-      <motion.div 
-        className="absolute w-[300px] h-[300px] rounded-full border border-dashed border-white/15"
-        animate={{ rotate: 360 }}
-        transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-      />
-
-      {/* Orbit 2 (Middle) */}
-      <motion.div 
-        className="absolute w-[220px] h-[220px] rounded-full border border-dashed border-white/10"
-        animate={{ rotate: -360 }}
-        transition={{ duration: 28, repeat: Infinity, ease: "linear" }}
-      />
-
-      {/* Orbit 1 (Inner) */}
-      <motion.div 
-        className="absolute w-[140px] h-[140px] rounded-full border border-dashed border-white/5"
-        animate={{ rotate: 360 }}
-        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-      />
-
-      {/* Center Cap */}
-      <div className="absolute z-20 flex flex-col items-center">
-        <motion.div 
-          className="flex h-16 w-16 items-center justify-center rounded-2xl bg-green-500 shadow-xl shadow-green-500/30 border border-green-400/30 relative"
-          animate={{ y: [0, -4, 0] }}
-          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <GraduationCap className="h-8 w-8 text-white" />
-          
-          {/* Pulsing rings */}
-          <motion.div 
-            className="absolute -inset-3 rounded-2xl border border-green-400/40 pointer-events-none"
-            animate={{ scale: [0.9, 1.2, 0.9], opacity: [0.8, 0, 0.8] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-          />
-          <motion.div 
-            className="absolute -inset-6 rounded-[1.5rem] border border-green-500/20 pointer-events-none"
-            animate={{ scale: [0.9, 1.3, 0.9], opacity: [0.5, 0, 0.5] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-          />
-        </motion.div>
-      </div>
-
-      {/* Icon 1: Academics (BookOpen) - Top Left */}
-      <motion.div 
-        className="absolute top-2 left-6 z-10"
-        animate={{ y: [0, -8, 0], x: [0, 4, 0] }}
-        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-black/80 border border-white/15 backdrop-blur-md shadow-xl relative group">
-          <div className="absolute -inset-0.5 rounded-xl bg-white/10 opacity-0 group-hover:opacity-100 blur-[2px] transition-opacity" />
-          <div className="absolute w-5 h-5 rounded-full bg-white/20 blur-md pointer-events-none" />
-          <BookOpen className="h-5 w-5 text-white relative z-10" />
-        </div>
-      </motion.div>
-
-      {/* Icon 2: Administration (Shield) - Bottom Left */}
-      <motion.div 
-        className="absolute bottom-6 left-8 z-10"
-        animate={{ y: [0, 6, 0], x: [0, -4, 0] }}
-        transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-      >
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-black/80 border border-white/15 backdrop-blur-md shadow-xl relative group">
-          <div className="absolute -inset-0.5 rounded-xl bg-white/10 opacity-0 group-hover:opacity-100 blur-[2px] transition-opacity" />
-          <div className="absolute w-5 h-5 rounded-full bg-white/20 blur-md pointer-events-none" />
-          <Shield className="h-5 w-5 text-white relative z-10" />
-        </div>
-      </motion.div>
-
-      {/* Icon 3: Communication (MessageSquare) - Top Right */}
-      <motion.div 
-        className="absolute top-8 right-6 z-10"
-        animate={{ y: [0, -6, 0], x: [0, -6, 0] }}
-        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-      >
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-black/80 border border-white/15 backdrop-blur-md shadow-xl relative group">
-          <div className="absolute -inset-0.5 rounded-xl bg-white/10 opacity-0 group-hover:opacity-100 blur-[2px] transition-opacity" />
-          <div className="absolute w-5 h-5 rounded-full bg-white/20 blur-md pointer-events-none" />
-          <MessageSquare className="h-5 w-5 text-white relative z-10" />
-        </div>
-      </motion.div>
-
-      {/* Icon 4: Analytics (TrendingUp) - Bottom Right */}
-      <motion.div 
-        className="absolute bottom-10 right-8 z-10"
-        animate={{ y: [0, 8, 0], x: [0, 4, 0] }}
-        transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-      >
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-black/80 border border-white/15 backdrop-blur-md shadow-xl relative group">
-          <div className="absolute -inset-0.5 rounded-xl bg-white/10 opacity-0 group-hover:opacity-100 blur-[2px] transition-opacity" />
-          <div className="absolute w-5 h-5 rounded-full bg-white/20 blur-md pointer-events-none" />
-          <TrendingUp className="h-5 w-5 text-white relative z-10" />
-        </div>
-      </motion.div>
-
-      {/* Icon 5: Calendar (Calendar) - Top Center (offset) */}
-      <motion.div 
-        className="absolute -top-6 left-1/2 -translate-x-1/2 z-10"
-        animate={{ y: [0, -10, 0] }}
-        transition={{ duration: 5.2, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-      >
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-black/80 border border-white/15 backdrop-blur-md shadow-xl relative group">
-          <div className="absolute -inset-0.5 rounded-xl bg-white/10 opacity-0 group-hover:opacity-100 blur-[2px] transition-opacity" />
-          <div className="absolute w-5 h-5 rounded-full bg-white/20 blur-md pointer-events-none" />
-          <Calendar className="h-5 w-5 text-white relative z-10" />
-        </div>
-      </motion.div>
-    </div>
-  );
-};
+import { AuthHeroPanel } from "@/components/auth/AuthHeroPanel";
+import {
+  AuthField,
+  AuthPasswordField,
+  AuthSectionDivider,
+  AuthSegmentedControl,
+} from "@/components/auth/AuthFormControls";
 
 const Auth = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { uuid, id } = useParams<{ uuid?: string; id?: string }>();
+  const [searchParams] = useSearchParams();
   const { signIn, signUp, user } = useAuth();
   const { role } = useUserRole();
+  const { isSignupEnabled } = usePublicSignup();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"login" | "signup" | "forgot-password">("login");
-  const [showPassword, setShowPassword] = useState(false);
   
   // Login fields
   const [loginIdentifier, setLoginIdentifier] = useState("");
@@ -198,6 +100,32 @@ const Auth = () => {
     setDeactivatedNotice(params.get("deactivated") === "teacher");
   }, [location.search]);
 
+  // If signup is disabled by super admin, ensure activeTab stays on login
+  useEffect(() => {
+    if (!isSignupEnabled && activeTab === "signup") {
+      setActiveTab("login");
+    }
+  }, [isSignupEnabled, activeTab]);
+
+  // Support school UUID passed in route / query
+  useEffect(() => {
+    const targetUuid = uuid || id || searchParams.get("school_id") || searchParams.get("id");
+    if (targetUuid && !schoolCode) {
+      supabase
+        .from("schools")
+        .select("school_code, school_name, admission_prefix")
+        .eq("id", targetUuid)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            setSchoolCode(data.school_code);
+            setSchoolName(data.school_name);
+            if (data.admission_prefix) setAdmissionPrefix(data.admission_prefix);
+          }
+        });
+    }
+  }, [uuid, id, searchParams]);
+
   useEffect(() => {
     if (resetCooldown <= 0) return;
     const t = setTimeout(() => setResetCooldown((c) => Math.max(0, c - 1)), 1000);
@@ -205,7 +133,7 @@ const Auth = () => {
   }, [resetCooldown]);
 
   useEffect(() => {
-    if (user && role && (location.pathname === "/auth" || location.pathname.startsWith("/auth?"))) {
+    if (user && role && (location.pathname === "/auth" || location.pathname.startsWith("/auth/") || location.pathname.startsWith("/auth?"))) {
       const roleRoutes: Record<string, string> = {
         admin: "/admin",
         super_admin: "/platform",
@@ -667,414 +595,310 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-black text-white font-sans relative overflow-hidden">
-      {/* Background Mesh Glow Effects */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-green-500/10 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-green-500/5 blur-[120px] pointer-events-none" />
-      <div className="absolute top-[30%] left-[40%] w-[40%] h-[40%] rounded-full bg-green-500/5 blur-[150px] pointer-events-none" />
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-25 pointer-events-none" />
+    <div className="flex min-h-screen bg-background text-foreground">
+      <AuthHeroPanel />
 
-      {/* Left Panel - Hero Section */}
-      <div className="relative lg:w-1/2 min-h-[360px] lg:min-h-screen flex flex-col justify-between p-8 lg:p-12 overflow-hidden border-b lg:border-b-0 lg:border-r border-white/15 z-10">
-        {/* African Education Image with Gradient Overlay */}
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1763718528755-4bca23f82ac3?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8c2Nob29sJTIwc3lzdGVtJTIwZGFzaGJvYXJkJTIwYmxhY2t8ZW58MHx8MHx8fDA%3D')] bg-cover bg-center">
-          <div className="absolute inset-0 bg-gradient-to-b from-black/80 to-black/90" />
-        </div>
-
-        <div className="relative z-20 flex flex-col h-full justify-between gap-12">
-          {/* Logo & Title */}
-          <div className="w-fit space-y-2">
-            <EduManageLogo
-              to="/landing"
-              className="transition-transform hover:scale-[1.02]"
-              imgClassName="h-10 lg:h-12 drop-shadow-md"
-            />
-            <h1 className="text-lg lg:text-xl font-bold text-white tracking-tight">
-              Your school, organized.
-            </h1>
-          </div>
-          
-          {/* Center Animation */}
-          <div className="flex flex-1 items-center justify-center min-h-[300px] lg:min-h-0 relative">
-            <EducationHubAnimation />
-          </div>
-          
-          {/* Feature Badges */}
-          <div className="grid grid-cols-2 gap-4 mt-auto">
-            <div className="bg-white/5 border border-white/15 backdrop-blur-md rounded-2xl p-4 lg:p-5 hover:border-green-500/30 transition-colors duration-300">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/10 mb-3 border border-green-500/30">
-                <Shield className="h-4.5 w-4.5 text-green-400" />
-              </div>
-              <span className="text-[9px] font-bold tracking-[2px] text-white uppercase block mb-1 font-mono">
-                SECURE ACCESS
-              </span>
-              <span className="text-xs lg:text-sm font-semibold text-white">
-                Role-based dashboards
-              </span>
-            </div>
-            <div className="bg-white/5 border border-white/15 backdrop-blur-md rounded-2xl p-4 lg:p-5 hover:border-green-500/30 transition-colors duration-300">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/10 mb-3 border border-green-500/30">
-                <CheckCircle2 className="h-4.5 w-4.5 text-green-400" />
-              </div>
-              <span className="text-[9px] font-bold tracking-[2px] text-white uppercase block mb-1 font-mono">
-                SCHOOLS
-              </span>
-              <span className="text-xs lg:text-sm font-semibold text-white">
-                Admission-based access
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Right Panel - Auth Form */}
-      <div className="lg:w-1/2 flex items-center justify-center p-6 lg:p-12 relative z-10">
-        <div className="w-full max-w-lg space-y-6 bg-white/5 border border-white/15 backdrop-blur-xl rounded-3xl p-6 lg:p-8 shadow-2xl relative">
-          <div className="absolute top-0 left-10 right-10 h-[2px] bg-gradient-to-r from-transparent via-green-500/40 to-transparent blur-[1px]" />
-          
-          {/* Header */}
-          <div>
-            <span className="text-[10px] tracking-[2px] font-bold text-white uppercase block font-mono">
-              WELCOME TO EDUMANAGE
-            </span>
-            <h2 className="text-xl lg:text-2xl font-bold text-white tracking-tight mt-1">
-              Access your school portal
-            </h2>
+      <main className="flex flex-1 flex-col items-center justify-start overflow-y-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 pb-12">
+        <div className="w-full max-w-[580px] xl:max-w-[620px]">
+          <div className="mb-6 lg:hidden flex justify-center">
+            <EduManageLogo to="/landing" imgClassName="h-9" />
           </div>
 
-          {/* Tab Toggle */}
-          {activeTab !== "forgot-password" && (
-            <div className="flex bg-black/60 border border-white/15 rounded-xl p-1 relative">
-              <button
-                type="button"
-                onClick={() => setActiveTab("login")}
-                className="flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold relative z-10 transition-colors duration-200"
-                style={{ color: activeTab === "login" ? "#ffffff" : "rgba(255,255,255,0.5)" }}
-              >
-                Login
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("signup")}
-                className="flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold relative z-10 transition-colors duration-200"
-                style={{ color: activeTab === "signup" ? "#ffffff" : "rgba(255,255,255,0.5)" }}
-              >
-                Create Account
-              </button>
-              
-              {/* Sliding active tab indicator */}
-              <motion.div
-                className="absolute top-1 bottom-1 rounded-lg bg-green-500 shadow-md shadow-green-500/20"
-                layout
-                initial={false}
-                animate={{
-                  left: activeTab === "login" ? "4px" : "50%",
-                  right: activeTab === "login" ? "50%" : "4px"
-                }}
-                transition={{ type: "spring", stiffness: 380, damping: 30 }}
-              />
-            </div>
-          )}
+          <div className="w-full rounded-2xl border border-border/80 bg-card/95 p-6 sm:p-9 shadow-2xl backdrop-blur-xl">
+            <div className="flex flex-col gap-6">
+              <header className="text-center space-y-1.5">
+                <h2 className="text-2xl font-bold tracking-tight text-foreground">
+                  {activeTab === "forgot-password"
+                    ? "Reset your password"
+                    : activeTab === "signup"
+                      ? "Create your account"
+                      : "Sign in to your portal"}
+                </h2>
+                <p className="text-sm font-normal text-muted-foreground">
+                  {activeTab === "forgot-password"
+                    ? "We'll help you get back into your account."
+                    : activeTab === "signup"
+                      ? "Set up access for your school in a few steps."
+                      : "Welcome back. Enter your details to continue."}
+                </p>
+              </header>
 
-          {/* Login Form */}
-          {activeTab === "login" && (
-            <form onSubmit={handleLogin} className="space-y-5 animate-fade-in">
-              {deactivatedNotice && (
-                <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-                  {TEACHER_DEACTIVATED_MESSAGE}
+              {/* Tab Toggle (Only visible if public signup is enabled) */}
+              {activeTab !== "forgot-password" && isSignupEnabled && (
+                <div>
+                  <AuthSegmentedControl
+                    ariaLabel="Authentication mode"
+                    value={activeTab}
+                    onChange={(value) => setActiveTab(value)}
+                    options={[
+                      { value: "login", label: "Sign in" },
+                      { value: "signup", label: "Create account" },
+                    ]}
+                  />
                 </div>
               )}
-              <div className="space-y-2">
-                <Label htmlFor="login-identifier" className="text-xs font-semibold text-white/80">
-                  Admission number or email
-                </Label>
-                <div className="relative group">
-                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
-                  <Input
+
+              {/* Login Form */}
+              {activeTab === "login" && (
+                <form onSubmit={handleLogin} className="animate-fade-in space-y-5">
+                  {deactivatedNotice && (
+                    <div
+                      role="alert"
+                      className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-100"
+                    >
+                      {TEACHER_DEACTIVATED_MESSAGE}
+                    </div>
+                  )}
+
+                  <AuthField
                     id="login-identifier"
+                    label="Admission number or email"
+                    icon={Hash}
                     type="text"
+                    autoComplete="username"
                     placeholder="MINGO-Stu-2026-001"
-                    className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl"
                     value={loginIdentifier}
                     onChange={(e) => setLoginIdentifier(e.target.value)}
+                    hint="Students sign in with their admission number. Staff and parents may use email."
                     required
                   />
-                </div>
-                <p className="text-[11px] text-white/50 leading-normal">
-                  Students: use your admission number and password. Staff and parents may use email.
-                </p>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="login-password" className="text-xs font-semibold text-white/80">
-                  Password
-                </Label>
-                <div className="relative group">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
-                  <Input
-                    id="login-password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    className="pl-10 pr-12 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl"
-                    value={loginPassword}
-                    onChange={e => setLoginPassword(e.target.value)}
-                    required
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full h-12 bg-green-500 hover:bg-green-400 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-green-500/20 flex items-center justify-center gap-2 group"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Signing in...
-                  </div>
-                ) : (
-                  <>
-                    Sign In
-                    <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-                  </>
-                )}
-              </Button>
-
-              <div className="text-center space-y-3 pt-2">
-                <button
-                  type="button"
-                  className="text-xs font-bold text-green-400 hover:text-green-300 hover:underline transition-all"
-                  onClick={() => setActiveTab("forgot-password")}
-                >
-                  Forgot your password?
-                </button>
-                <p className="text-[10px] text-white/50 leading-normal max-w-sm mx-auto">
-                  Having trouble? The account may exist but be incomplete. Try password reset or contact support.
-                </p>
-              </div>
-            </form>
-          )}
-
-          {/* Forgot Password */}
-          {activeTab === "forgot-password" && resetStep === "request" && (
-            <div className="space-y-5 animate-fade-in">
-              <div className="flex bg-black/60 border border-white/15 rounded-xl p-1 relative">
-                <button
-                  type="button"
-                  onClick={() => setForgotPasswordMode("staff")}
-                  className="flex-1 py-2.5 px-3 rounded-lg text-sm font-semibold relative z-10 transition-colors duration-200"
-                  style={{ color: forgotPasswordMode === "staff" ? "#ffffff" : "rgba(255,255,255,0.5)" }}
-                >
-                  Staff / Parent
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setForgotPasswordMode("student")}
-                  className="flex-1 py-2.5 px-3 rounded-lg text-sm font-semibold relative z-10 transition-colors duration-200"
-                  style={{ color: forgotPasswordMode === "student" ? "#ffffff" : "rgba(255,255,255,0.5)" }}
-                >
-                  Student
-                </button>
-                <motion.div
-                  className="absolute top-1 bottom-1 rounded-lg bg-green-500 shadow-md shadow-green-500/20"
-                  layout
-                  initial={false}
-                  animate={{
-                    left: forgotPasswordMode === "staff" ? "4px" : "50%",
-                    right: forgotPasswordMode === "staff" ? "50%" : "4px",
-                  }}
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                />
-              </div>
-
-              {forgotPasswordMode === "student" ? (
-                <form onSubmit={handleStudentResetRequest} className="space-y-5">
-                  <div className="text-center py-1 space-y-2">
-                    <p className="text-sm font-semibold text-white">Student password recovery</p>
-                    <p className="text-xs text-white/60 leading-relaxed">
-                      Enter your admission number. Your school administrator will verify it and send a temporary password to your parent/guardian.
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="student-reset-admission" className="text-xs font-semibold text-white/80">
-                      Admission number
-                    </Label>
-                    <div className="relative group">
-                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
-                      <Input
-                        id="student-reset-admission"
-                        type="text"
-                        placeholder="MINGO-Stu-2026-001"
-                        className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl uppercase"
-                        value={studentResetAdmission}
-                        onChange={(e) => setStudentResetAdmission(normalizeAdmissionNumber(e.target.value))}
-                        required
-                      />
+                  <div className="space-y-1.5">
+                    <AuthPasswordField
+                      id="login-password"
+                      label="Password"
+                      icon={Lock}
+                      autoComplete="current-password"
+                      placeholder="Enter your password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      required
+                    />
+                    <div className="flex justify-end pt-1">
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-primary underline-offset-4 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => setActiveTab("forgot-password")}
+                      >
+                        Forgot password?
+                      </button>
                     </div>
                   </div>
 
                   <Button
                     type="submit"
-                    className="w-full h-12 bg-green-500 hover:bg-green-400 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-green-500/20 flex items-center justify-center gap-2 group"
+                    className="h-12 w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm shadow-md shadow-primary/25 hover:shadow-primary/40 active:scale-[0.99] transition-all"
                     disabled={isLoading}
                   >
-                    {isLoading ? "Submitting request..." : (<>Submit reset request <ArrowRight className="h-4 w-4" /></>)}
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" aria-hidden="true" />
+                        Signing in…
+                      </>
+                    ) : (
+                      "Sign in"
+                    )}
                   </Button>
 
-                  <button
-                    type="button"
-                    className="w-full text-xs font-semibold text-white/60 hover:text-white transition-colors py-1"
-                    onClick={() => { resetReset(); setActiveTab("login"); }}
-                  >
-                    Back to Login
-                  </button>
+                  <p className="text-center text-xs leading-relaxed text-muted-foreground/80 px-2">
+                    Having trouble? Your account may exist but be incomplete — try a password reset or
+                    contact your school administrator.
+                  </p>
                 </form>
-              ) : (
-            <form onSubmit={handleRequestOtp} className="space-y-5">
-              <div className="text-center py-1 space-y-2">
-                <p className="text-sm font-semibold text-white">Reset your password</p>
-                <p className="text-xs text-white/60 leading-relaxed">
-                  Enter your registered email. We'll send an 8-digit code to your email and phone.
-                </p>
-              </div>
+              )}
 
-              <div className="space-y-2">
-                <Label htmlFor="reset-email" className="text-xs font-semibold text-white/80">
-                  Registered email or staff number
-                </Label>
-                <div className="relative group">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
-                  <Input
-                    id="reset-email"
+          {/* Forgot Password */}
+          {activeTab === "forgot-password" && resetStep === "request" && (
+            <div className="animate-fade-in space-y-6">
+              <AuthSegmentedControl
+                ariaLabel="Account type for password reset"
+                value={forgotPasswordMode}
+                onChange={(value) => setForgotPasswordMode(value)}
+                options={[
+                  { value: "staff", label: "Staff / Parent" },
+                  { value: "student", label: "Student" },
+                ]}
+              />
+
+              {forgotPasswordMode === "student" ? (
+                <form onSubmit={handleStudentResetRequest} className="space-y-5">
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    Enter your admission number. Your school administrator will verify it and send a
+                    temporary password to your parent or guardian.
+                  </p>
+
+                  <AuthField
+                    id="student-reset-admission"
+                    label="Admission number"
+                    icon={Hash}
                     type="text"
-                    placeholder="you@school.edu"
-                    className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl"
-                    value={resetEmail}
-                    onChange={e => setResetEmail(e.target.value)}
+                    autoComplete="username"
+                    placeholder="MINGO-Stu-2026-001"
+                    className="uppercase"
+                    value={studentResetAdmission}
+                    onChange={(e) => setStudentResetAdmission(normalizeAdmissionNumber(e.target.value))}
                     required
                   />
-                </div>
-              </div>
 
-              <Button
-                type="submit"
-                className="w-full h-12 bg-green-500 hover:bg-green-400 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-green-500/20 flex items-center justify-center gap-2 group"
-                disabled={isLoading}
-              >
-                {isLoading ? "Sending code..." : (<>Send OTP code <ArrowRight className="h-4 w-4" /></>)}
-              </Button>
+                  <Button type="submit" className="h-11 w-full" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        Submitting request…
+                      </>
+                    ) : (
+                      "Submit reset request"
+                    )}
+                  </Button>
 
-              <button
-                type="button"
-                className="w-full text-xs font-semibold text-white/60 hover:text-white transition-colors py-1"
-                onClick={() => { resetReset(); setActiveTab("login"); }}
-              >
-                Back to Login
-              </button>
-            </form>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-10 w-full"
+                    onClick={() => {
+                      resetReset();
+                      setActiveTab("login");
+                    }}
+                  >
+                    Back to sign in
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={handleRequestOtp} className="space-y-5">
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    Enter your registered email and we'll send an 8-digit verification code to your
+                    email and phone.
+                  </p>
+
+                  <AuthField
+                    id="reset-email"
+                    label="Registered email or staff number"
+                    icon={Mail}
+                    type="text"
+                    autoComplete="username"
+                    placeholder="you@school.edu"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    required
+                  />
+
+                  <Button type="submit" className="h-11 w-full" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        Sending code…
+                      </>
+                    ) : (
+                      "Send verification code"
+                    )}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-10 w-full"
+                    onClick={() => {
+                      resetReset();
+                      setActiveTab("login");
+                    }}
+                  >
+                    Back to sign in
+                  </Button>
+                </form>
               )}
             </div>
           )}
 
           {activeTab === "forgot-password" && resetStep === "verify" && (
-            <form onSubmit={handleVerifyAndReset} className="space-y-4 animate-fade-in">
-              <div className="text-center space-y-1">
-                <p className="text-sm font-semibold text-white">Enter your code</p>
-                <p className="text-[11px] text-white/60">
-                  Sent to {resetMaskedEmail ?? "your email"}{resetMaskedPhone ? ` and ${resetMaskedPhone}` : ""}. Expires in 15 minutes.
+            <form onSubmit={handleVerifyAndReset} className="animate-fade-in space-y-5">
+              <div className="rounded-md border bg-muted/40 px-4 py-3">
+                <p className="text-sm text-muted-foreground">
+                  We sent a code to{" "}
+                  <span className="font-medium text-foreground">
+                    {resetMaskedEmail ?? "your email"}
+                  </span>
+                  {resetMaskedPhone ? (
+                    <>
+                      {" "}
+                      and{" "}
+                      <span className="font-medium text-foreground">{resetMaskedPhone}</span>
+                    </>
+                  ) : null}
+                  . It expires in 15 minutes.
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="reset-otp" className="text-xs font-semibold text-white/80">8-digit code</Label>
-                <Input
-                  id="reset-otp"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="\d{8}"
-                  maxLength={8}
-                  placeholder="••••••••"
-                  className="h-12 text-center tracking-[0.6em] text-lg font-mono border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white rounded-xl"
-                  value={resetOtp}
-                  onChange={e => setResetOtp(e.target.value.replace(/\D/g, ""))}
-                  required
-                />
-              </div>
+              <AuthField
+                id="reset-otp"
+                label="8-digit verification code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="\d{8}"
+                maxLength={8}
+                placeholder="00000000"
+                className="text-center font-mono text-lg tracking-[0.5em]"
+                value={resetOtp}
+                onChange={(e) => setResetOtp(e.target.value.replace(/\D/g, ""))}
+                required
+              />
 
-              <div className="space-y-2">
-                <Label htmlFor="reset-new" className="text-xs font-semibold text-white/80">New password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50" />
-                  <Input
-                    id="reset-new"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="At least 8 characters"
-                    className="pl-10 pr-12 h-12 border-white/15 bg-black/40 text-white rounded-xl"
-                    value={resetNewPassword}
-                    onChange={e => setResetNewPassword(e.target.value)}
-                    minLength={8}
-                    required
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
-              </div>
+              <AuthPasswordField
+                id="reset-new"
+                label="New password"
+                icon={Lock}
+                autoComplete="new-password"
+                placeholder="At least 8 characters"
+                value={resetNewPassword}
+                onChange={(e) => setResetNewPassword(e.target.value)}
+                minLength={8}
+                required
+              />
 
-              <div className="space-y-2">
-                <Label htmlFor="reset-confirm" className="text-xs font-semibold text-white/80">Confirm password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50" />
-                  <Input
-                    id="reset-confirm"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Re-enter password"
-                    className="pl-10 h-12 border-white/15 bg-black/40 text-white rounded-xl"
-                    value={resetConfirmPassword}
-                    onChange={e => setResetConfirmPassword(e.target.value)}
-                    minLength={8}
-                    required
-                  />
-                </div>
-              </div>
+              <AuthPasswordField
+                id="reset-confirm"
+                label="Confirm new password"
+                icon={Lock}
+                autoComplete="new-password"
+                placeholder="Re-enter your new password"
+                value={resetConfirmPassword}
+                onChange={(e) => setResetConfirmPassword(e.target.value)}
+                minLength={8}
+                required
+              />
 
-              <Button
-                type="submit"
-                className="w-full h-12 bg-green-500 hover:bg-green-400 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
-                disabled={isLoading}
-              >
-                {isLoading ? "Verifying..." : "Verify & Reset Password"}
+              <Button type="submit" className="h-11 w-full" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    Verifying…
+                  </>
+                ) : (
+                  "Reset password"
+                )}
               </Button>
 
-              <div className="flex items-center justify-between text-xs pt-1">
-                <button
+              <div className="flex items-center justify-between">
+                <Button
                   type="button"
-                  className="font-semibold text-white/60 hover:text-white"
-                  onClick={() => { setResetStep("request"); setResetOtp(""); }}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setResetStep("request");
+                    setResetOtp("");
+                  }}
                 >
-                  ← Change email
-                </button>
-                <button
+                  Change email
+                </Button>
+                <Button
                   type="button"
+                  variant="link"
+                  size="sm"
                   disabled={resetCooldown > 0 || isLoading}
-                  className="font-semibold text-green-400 hover:text-green-300 hover:underline disabled:text-white/40 disabled:no-underline"
                   onClick={handleResendOtp}
                 >
                   {resetCooldown > 0 ? `Resend in ${resetCooldown}s` : "Resend code"}
-                </button>
+                </Button>
               </div>
             </form>
           )}
@@ -1082,91 +906,79 @@ const Auth = () => {
 
           {/* Signup Form */}
           {activeTab === "signup" && (
-            <form onSubmit={handleSignup} className="space-y-4 animate-fade-in max-h-[60vh] overflow-y-auto pr-2 pb-2 scrollbar-thin scrollbar-thumb-white/20">
-              <div className="space-y-2">
-                <Label htmlFor="signup-name" className="text-xs font-semibold text-white/80">
-                  Full Name
-                </Label>
-                <div className="relative group">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
-                  <Input
-                    id="signup-name"
-                    type="text"
-                    placeholder="John Doe"
-                    className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl"
-                    value={signupFullName}
-                    onChange={e => setSignupFullName(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
+            <form onSubmit={handleSignup} className="animate-fade-in space-y-5">
+              <AuthField
+                id="signup-name"
+                label="Full name"
+                icon={User}
+                type="text"
+                autoComplete="name"
+                placeholder="John Doe"
+                value={signupFullName}
+                onChange={(e) => setSignupFullName(e.target.value)}
+                required
+              />
 
               {signupRole !== "student" && (
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email" className="text-xs font-semibold text-white/80">
-                    Email Address
-                  </Label>
-                  <div className="relative group">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="you@school.edu"
-                      className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl"
-                      value={signupEmail}
-                      onChange={(e) => setSignupEmail(e.target.value)}
-                      required={signupRole !== "" && signupRole !== "student"}
-                    />
-                  </div>
-                </div>
+                <AuthField
+                  id="signup-email"
+                  label="Email address"
+                  icon={Mail}
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@school.edu"
+                  value={signupEmail}
+                  onChange={(e) => setSignupEmail(e.target.value)}
+                  required={signupRole !== "" && signupRole !== "student"}
+                />
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="signup-password" className="text-xs font-semibold text-white/80">
-                  Password
-                </Label>
-                <div className="relative group">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
-                  <Input
-                    id="signup-password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    className="pl-10 pr-12 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl"
-                    value={signupPassword}
-                    onChange={e => setSignupPassword(e.target.value)}
-                    required
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
-              </div>
+              <AuthPasswordField
+                id="signup-password"
+                label="Password"
+                icon={Lock}
+                autoComplete="new-password"
+                placeholder="At least 8 characters"
+                value={signupPassword}
+                onChange={(e) => setSignupPassword(e.target.value)}
+                required
+              />
+
+              <AuthPasswordField
+                id="signup-confirm-password"
+                label="Confirm password"
+                icon={Lock}
+                autoComplete="new-password"
+                placeholder="Re-enter your password"
+                value={signupConfirmPassword}
+                onChange={(e) => setSignupConfirmPassword(e.target.value)}
+                required
+              />
 
               {/* Account Type Selection */}
-              <div className="space-y-2">
-                <Label htmlFor="signup-role" className="text-xs font-semibold text-white/80">
-                  Account Type
+              <div className="space-y-1.5">
+                <Label htmlFor="signup-role" className="text-sm font-medium">
+                  Account type
                 </Label>
                 <Select value={signupRole} onValueChange={setSignupRole} required>
-                  <SelectTrigger id="signup-role" className="h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white rounded-xl">
+                  <SelectTrigger id="signup-role" className="h-11">
                     <SelectValue placeholder="Select your role" />
                   </SelectTrigger>
-                  <SelectContent className="bg-black border-white/15 text-white">
+                  <SelectContent>
                     {Object.entries(roleConfig).map(([key, config]) => {
                       const IconComponent = config.icon;
                       return (
-                        <SelectItem key={key} value={key} className="py-2.5 hover:bg-white/10 text-white focus:bg-white/10 focus:text-white rounded-lg">
+                        <SelectItem key={key} value={key} className="py-2.5">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 border border-white/20">
-                              <IconComponent className="h-4 w-4 text-white" />
-                            </div>
+                            <IconComponent
+                              className="h-4 w-4 text-muted-foreground"
+                              aria-hidden="true"
+                            />
                             <div className="flex flex-col text-left">
-                              <span className="font-semibold text-xs text-white">{config.label}</span>
-                              <span className="text-[10px] text-white/50">{config.description}</span>
+                              <span className="text-sm font-medium">{config.label}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {config.description}
+                              </span>
                             </div>
                           </div>
                         </SelectItem>
@@ -1178,114 +990,94 @@ const Auth = () => {
 
               {/* Admin - New School Creation */}
               {signupRole === "admin" && (
-                <div className="space-y-4 animate-fade-in border-t border-white/15 pt-4 mt-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="school-name" className="text-xs font-semibold text-white/80">
-                      School Name
-                    </Label>
-                    <div className="relative group">
-                      <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
-                      <Input
-                        id="school-name"
-                        type="text"
-                        placeholder="Enter your school name"
-                        className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl"
-                        value={schoolName}
-                        onChange={(e) => {
-                          const name = e.target.value;
-                          setSchoolName(name);
-                          if (!admissionPrefixManual) {
-                            setAdmissionPrefix(derivePrefixFromSchoolName(name));
-                          }
-                        }}
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="school-code" className="text-xs font-semibold text-white/80">
-                      School Code (login)
-                    </Label>
-                    <div className="relative group">
-                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
-                      <Input
-                        id="school-code"
-                        type="text"
-                        placeholder="Create a unique school code"
-                        className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl uppercase"
-                        value={schoolCode}
-                        onChange={(e) => setSchoolCode(e.target.value.toUpperCase())}
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="admission-prefix" className="text-xs font-semibold text-white/80">
-                      Admission number prefix
-                    </Label>
-                    <div className="relative group">
-                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
-                      <Input
-                        id="admission-prefix"
-                        type="text"
-                        placeholder="MINGO"
-                        className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl uppercase"
-                        value={admissionPrefix}
-                        onChange={(e) => {
-                          setAdmissionPrefixManual(true);
-                          setAdmissionPrefix(
-                            e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12)
-                          );
-                        }}
-                        required
-                      />
-                    </div>
-                    <p className="text-[10px] text-white/50 leading-normal">
-                      Auto-filled from school name (first 3 letters), not school code. Example:{" "}
-                      {admissionPrefix || derivePrefixFromSchoolName(schoolName) || "MIN"}-Stu-2026-001
-                    </p>
-                  </div>
+                <div className="animate-fade-in space-y-5">
+                  <AuthSectionDivider>School setup</AuthSectionDivider>
+
+                  <AuthField
+                    id="school-name"
+                    label="School name"
+                    icon={GraduationCap}
+                    type="text"
+                    placeholder="Enter your school name"
+                    value={schoolName}
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      setSchoolName(name);
+                      if (!admissionPrefixManual) {
+                        setAdmissionPrefix(derivePrefixFromSchoolName(name));
+                      }
+                    }}
+                    required
+                  />
+
+                  <AuthField
+                    id="school-code"
+                    label="School code (login)"
+                    icon={Hash}
+                    type="text"
+                    placeholder="Create a unique school code"
+                    className="uppercase"
+                    value={schoolCode}
+                    onChange={(e) => setSchoolCode(e.target.value.toUpperCase())}
+                    required
+                  />
+
+                  <AuthField
+                    id="admission-prefix"
+                    label="Admission number prefix"
+                    icon={Hash}
+                    type="text"
+                    placeholder="MINGO"
+                    className="uppercase"
+                    value={admissionPrefix}
+                    onChange={(e) => {
+                      setAdmissionPrefixManual(true);
+                      setAdmissionPrefix(
+                        e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12),
+                      );
+                    }}
+                    hint={`Auto-filled from school name, not school code. Example: ${admissionPrefix || derivePrefixFromSchoolName(schoolName) || "MIN"}-Stu-2026-001`}
+                    required
+                  />
                 </div>
               )}
 
               {/* Teacher/Student — admission number only (school auto-detected) */}
               {(signupRole === "teacher" || signupRole === "student") && (
-                <div className="space-y-4 animate-fade-in border-t border-white/15 pt-4 mt-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-number" className="text-xs font-semibold text-white/80">
-                      {signupRole === "student" ? "Admission Number" : "Employee Number"}
-                    </Label>
-                    <div className="relative group">
-                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
-                      <Input
-                        id="reg-number"
-                        type="text"
-                        placeholder={`Enter your ${signupRole === "student" ? "student" : "employee"} number`}
-                        className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl uppercase"
-                        value={registrationNumber}
-                        onChange={e => setRegistrationNumber(e.target.value.toUpperCase())}
-                        required
-                      />
-                    </div>
-                    <p className="text-[10px] text-white/50 leading-normal">
-                      {signupRole === "student"
+                <div className="animate-fade-in space-y-5">
+                  <AuthSectionDivider>
+                    {signupRole === "student" ? "Student details" : "Staff details"}
+                  </AuthSectionDivider>
+
+                  <AuthField
+                    id="reg-number"
+                    label={signupRole === "student" ? "Admission number" : "Employee number"}
+                    icon={Hash}
+                    placeholder={`Enter your ${signupRole === "student" ? "student" : "employee"} number`}
+                    className="uppercase"
+                    autoComplete="off"
+                    value={registrationNumber}
+                    onChange={(e) => setRegistrationNumber(e.target.value.toUpperCase())}
+                    hint={
+                      signupRole === "student"
                         ? "This is your login ID. You will sign in with this number and your password — no personal email."
-                        : "Format: SCHOOL-Stu-2026-001 — school is detected from your number"}
-                    </p>
-                  </div>
-                  
+                        : "Format: SCHOOL-Stu-2026-001 — your school is detected from this number."
+                    }
+                    required
+                  />
+
                   {signupRole === "student" && (
                     <div className="space-y-2">
-                      <Label htmlFor="gender" className="text-xs font-semibold text-white/80">
+                      <Label htmlFor="gender" className="text-sm font-medium">
                         Gender
                       </Label>
                       <Select value={gender} onValueChange={setGender} required>
-                        <SelectTrigger id="gender" className="h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white rounded-xl">
+                        <SelectTrigger id="gender" className="h-11">
                           <SelectValue placeholder="Select your gender" />
                         </SelectTrigger>
-                        <SelectContent className="bg-black border-white/15 text-white">
-                          <SelectItem value="male" className="hover:bg-white/10 text-white focus:bg-white/10 focus:text-white rounded-lg">Male</SelectItem>
-                          <SelectItem value="female" className="hover:bg-white/10 text-white focus:bg-white/10 focus:text-white rounded-lg">Female</SelectItem>
+                        <SelectContent>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1294,15 +1086,14 @@ const Auth = () => {
               )}
 
               {(signupRole === "parent" || signupRole === "admin") && (
-                <div className="space-y-2 animate-fade-in">
-                  <Label htmlFor="signup-phone" className="text-xs font-semibold text-white/80">
-                    Phone Number
-                  </Label>
-                  <Input
+                <div className="animate-fade-in">
+                  <AuthField
                     id="signup-phone"
+                    label="Phone number"
                     type="tel"
-                    placeholder="+233..."
-                    className="h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl"
+                    icon={Phone}
+                    placeholder="+233 20 123 4567"
+                    autoComplete="tel"
                     value={signupPhone}
                     onChange={(e) => setSignupPhone(e.target.value)}
                     required
@@ -1310,60 +1101,57 @@ const Auth = () => {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="signup-confirm-password" className="text-xs font-semibold text-white/80">
-                  Confirm Password
-                </Label>
-                <div className="relative group">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
-                  <Input
-                    id="signup-confirm-password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl"
-                    value={signupConfirmPassword}
-                    onChange={(e) => setSignupConfirmPassword(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-
               {/* Parent — admission number links child & school */}
               {signupRole === "parent" && (
-                <div className="space-y-4 animate-fade-in border-t border-white/15 pt-4 mt-2">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-semibold text-white/80">
-                      Child&apos;s admission number
-                    </Label>
-                    <p className="text-[10px] text-white/50 leading-normal mb-2">
-                      Enter your child&apos;s admission number — school and class are detected automatically
-                    </p>
+                <div className="animate-fade-in space-y-4">
+                  <AuthSectionDivider>Link your children</AuthSectionDivider>
 
-                    {previewLoading && (
-                      <p className="text-[11px] text-white/60">Verifying admission number…</p>
-                    )}
-                    {childPreview?.valid && (
-                      <div className="rounded-xl border border-white/30 bg-white/5 p-4 text-xs space-y-1 animate-fade-in">
-                        <p className="font-semibold text-white">{childPreview.student_name}</p>
-                        <p className="text-white/60">School: {childPreview.school_name}</p>
-                        <p className="text-white/60">Class: {childPreview.class_name}</p>
-                        <p className="font-mono text-[10px] text-white/50">{childPreview.admission_number}</p>
-                      </div>
-                    )}
-                    {childPreview && !childPreview.valid && !previewLoading && (
-                      <p className="text-xs text-white bg-white/5 border border-white/25 rounded-xl p-3">{childPreview.error}</p>
-                    )}
-                    
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    Enter your child&apos;s admission number — the school and class are detected
+                    automatically.
+                  </p>
+
+                  {previewLoading && (
+                    <p className="text-xs text-muted-foreground" role="status">
+                      Verifying admission number…
+                    </p>
+                  )}
+                  {childPreview?.valid && (
+                    <div className="animate-fade-in space-y-1 rounded-lg border bg-muted/40 p-4 text-sm">
+                      <p className="font-medium text-foreground">{childPreview.student_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        School: {childPreview.school_name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Class: {childPreview.class_name}
+                      </p>
+                      <p className="pt-1 font-mono text-xs text-muted-foreground">
+                        {childPreview.admission_number}
+                      </p>
+                    </div>
+                  )}
+                  {childPreview && !childPreview.valid && !previewLoading && (
+                    <p
+                      role="alert"
+                      className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive"
+                    >
+                      {childPreview.error}
+                    </p>
+                  )}
+
+                  <div className="space-y-3">
                     {childStudentNumbers.map((num, index) => (
-                      <div key={index} className="flex gap-2">
-                        <div className="relative flex-1 group">
-                          <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-green-400 transition-colors" />
-                          <Input
-                            type="text"
-                            placeholder={`Child ${index + 1} student number`}
-                            className="pl-10 h-12 border-white/15 focus:border-green-500/50 focus:ring-green-500/20 bg-black/40 text-white placeholder-white/40 rounded-xl uppercase"
+                      <div key={index} className="flex items-end gap-2">
+                        <div className="flex-1">
+                          <AuthField
+                            id={`child-admission-${index}`}
+                            label={`Child ${index + 1} admission number`}
+                            icon={Hash}
+                            placeholder="SCHOOL-Stu-2026-001"
+                            className="uppercase"
+                            autoComplete="off"
                             value={num}
-                            onChange={e => updateChildNumber(index, e.target.value)}
+                            onChange={(e) => updateChildNumber(index, e.target.value)}
                             required={index === 0}
                           />
                         </div>
@@ -1372,7 +1160,8 @@ const Auth = () => {
                             type="button"
                             variant="outline"
                             size="icon"
-                            className="h-12 w-12 border-white/15 hover:bg-white/10 text-white/60 hover:text-white rounded-xl shrink-0"
+                            className="h-11 w-11 shrink-0"
+                            aria-label={`Remove child ${index + 1}`}
                             onClick={() => removeChildNumberField(index)}
                           >
                             <X className="h-4 w-4" />
@@ -1380,39 +1169,67 @@ const Auth = () => {
                         )}
                       </div>
                     ))}
-                    
-                    {childStudentNumbers.length < 10 && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={addChildNumberField}
-                        className="w-full h-11 border-dashed border-white/20 hover:bg-black/60 hover:text-white rounded-xl text-white/60 mt-2 flex items-center justify-center gap-1.5"
-                      >
-                        <Plus className="h-4 w-4" />
-                        Add Another Child
-                      </Button>
-                    )}
                   </div>
+
+                  {childStudentNumbers.length < 10 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={addChildNumberField}
+                      className="h-11 w-full border-dashed"
+                    >
+                      <Plus className="mr-1.5 h-4 w-4" />
+                      Add another child
+                    </Button>
+                  )}
                 </div>
               )}
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-green-500 hover:bg-green-400 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-green-500/20 flex items-center justify-center gap-2 group mt-2"
+                className="h-12 w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm shadow-md shadow-primary/25 hover:shadow-primary/40 active:scale-[0.99] transition-all"
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Creating account...
-                  </div>
-                ) : "Create Account"}
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating account…
+                  </>
+                ) : (
+                  "Create account"
+                )}
               </Button>
+
+              <p className="text-center text-xs leading-relaxed text-muted-foreground">
+                By creating an account you agree to your school&apos;s acceptable use policy.
+              </p>
             </form>
           )}
+
+          {/* Fallback when signup is visited while disabled */}
+          {activeTab === "signup" && !isSignupEnabled && (
+            <div className="rounded-2xl border border-border bg-muted/30 p-6 text-center space-y-3">
+              <div className="size-10 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 mx-auto flex items-center justify-center">
+                <Lock className="size-5" />
+              </div>
+              <h3 className="font-bold text-foreground text-sm">Public Registration Disabled</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-sm mx-auto">
+                Self-service account registration is currently disabled by system administration. Please contact your school administrator to obtain an account.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={() => setActiveTab("login")}
+              >
+                Return to Sign in
+              </Button>
+            </div>
+          )}
+            </div>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

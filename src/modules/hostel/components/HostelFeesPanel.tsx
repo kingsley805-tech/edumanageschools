@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Plus, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,6 +42,7 @@ export function HostelFeesPanel({ payments, allocations, access, onRefresh, scho
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const [form, setForm] = useState({
+    class_name: "",
     allocation_id: "",
     amount: "",
     payment_method: "cash",
@@ -51,6 +52,19 @@ export function HostelFeesPanel({ payments, allocations, access, onRefresh, scho
   });
 
   const activeAllocations = allocations.filter((a) => a.allocation_status !== "checked_out");
+
+  const classOptions = useMemo(
+    () =>
+      [...new Set(activeAllocations.map((a) => a.class_name).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b),
+      ),
+    [activeAllocations],
+  );
+
+  const allocationsInClass = useMemo(() => {
+    if (!form.class_name) return [];
+    return activeAllocations.filter((a) => a.class_name === form.class_name);
+  }, [activeAllocations, form.class_name]);
 
   const selectedAllocation = activeAllocations.find((a) => a.id === form.allocation_id);
   const balance = selectedAllocation
@@ -87,6 +101,7 @@ export function HostelFeesPanel({ payments, allocations, access, onRefresh, scho
       toast.success("Payment recorded");
       setOpen(false);
       setForm({
+        class_name: "",
         allocation_id: "",
         amount: "",
         payment_method: "cash",
@@ -157,13 +172,44 @@ export function HostelFeesPanel({ payments, allocations, access, onRefresh, scho
                 <DialogHeader><DialogTitle>Record hostel payment</DialogTitle></DialogHeader>
                 <div className="space-y-3">
                   <div className="space-y-1.5">
-                    <Label>Student allocation</Label>
-                    <Select value={form.allocation_id} onValueChange={(v) => setForm({ ...form, allocation_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger>
+                    <Label>Class</Label>
+                    <Select
+                      value={form.class_name || undefined}
+                      onValueChange={(v) => setForm({ ...form, class_name: v, allocation_id: "" })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select class first" />
+                      </SelectTrigger>
                       <SelectContent>
-                        {activeAllocations.map((a) => (
+                        {classOptions.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Student allocation</Label>
+                    <Select
+                      value={form.allocation_id || undefined}
+                      onValueChange={(v) => setForm({ ...form, allocation_id: v })}
+                      disabled={!form.class_name}
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            form.class_name
+                              ? `Select student (${allocationsInClass.length})`
+                              : "Select class first"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allocationsInClass.map((a) => (
                           <SelectItem key={a.id} value={a.id}>
-                            {a.student_name} — {a.hostel_name} / {a.room_number} (bal: {formatMoney(a.fee_amount - a.amount_paid)})
+                            {a.student_name} — {a.hostel_name} / {a.room_number} (bal:{" "}
+                            {formatMoney(a.fee_amount - a.amount_paid)})
                           </SelectItem>
                         ))}
                       </SelectContent>

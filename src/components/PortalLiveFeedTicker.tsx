@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { cn } from "@/lib/utils";
 import { MINGO } from "@/lib/designTokens";
 import { supabase } from "@/integrations/supabase/client";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
@@ -18,6 +19,7 @@ export type LiveFeedEvent = {
 type Props = {
   /** Optional override; when omitted, loads live school activity */
   events?: LiveFeedEvent[];
+  className?: string;
 };
 
 function timeAgo(iso: string | null | undefined): string {
@@ -30,7 +32,7 @@ function timeAgo(iso: string | null | undefined): string {
 }
 
 /** mingo LIVE FEED ticker — real school activity */
-export function PortalLiveFeedTicker({ events: eventsProp }: Props) {
+export function PortalLiveFeedTicker({ events: eventsProp, className }: Props) {
   const { currentSchool } = useSchoolInfo();
   const { currency, format } = useSchoolCurrency();
   const [liveEvents, setLiveEvents] = useState<LiveFeedEvent[]>([]);
@@ -333,23 +335,27 @@ export function PortalLiveFeedTicker({ events: eventsProp }: Props) {
 
   return (
     <div
-      className="portal-ticker-wrap flex h-[34px] min-w-0 shrink-0 items-center overflow-hidden whitespace-nowrap border-b"
-      style={{ background: MINGO.lineStrong }}
+      className={cn(
+        "portal-ticker-wrap flex h-[34px] min-w-0 grow items-center overflow-hidden whitespace-nowrap rounded-md border border-border/60 bg-muted/40",
+        className,
+      )}
       aria-live="polite"
     >
-      <div className="portal-ticker-label z-[2] flex h-full shrink-0 items-center px-3">
+      <div className="portal-ticker-label z-[2] flex h-full shrink-0 items-center px-2.5 font-mono text-[10.5px] font-semibold tracking-wider rounded-s-md bg-foreground text-background">
         LIVE FEED
       </div>
       <div className="portal-ticker-track">
         {doubled.map((e, i) => (
           <div
             key={`${e.id}-${i}`}
-            className="portal-tick flex shrink-0 items-center gap-2 border-r border-[#333336] px-[22px] font-mono text-[11.5px] text-[#d4d4d8]"
+            className="portal-tick flex shrink-0 items-center gap-2 border-r border-border/40 px-[18px] font-mono text-[11.5px] text-foreground/80"
           >
-            <span className={`portal-tick-tag tag-${e.tag}`}>{e.label}</span>
+            <span className={`portal-tick-tag tag-${e.tag} rounded px-1.5 py-0.5 text-[9.5px] font-semibold uppercase`}>
+              {e.label}
+            </span>
             <span>{e.text}</span>
-            <span className="text-white">{e.qty}</span>
-            <span style={{ color: MINGO.sidebarMutedText }}>{e.loc}</span>
+            <span className="font-semibold text-foreground">{e.qty}</span>
+            <span className="text-muted-foreground">{e.loc}</span>
           </div>
         ))}
       </div>

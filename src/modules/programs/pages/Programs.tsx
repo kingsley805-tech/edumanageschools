@@ -104,6 +104,12 @@ export default function ProgramsPage() {
         />
       ) : (
         <>
+          {schemaStatus && !schemaStatus.media ? (
+            <OperationsSchemaSetupCard
+              moduleLabel="Program images & video"
+              quickScript="apply-program-media.sql"
+            />
+          ) : null}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {[
               ["Total programs", stats.total],

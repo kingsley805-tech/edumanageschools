@@ -30,10 +30,33 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function getInitialAuth(): { user: User | null; session: Session | null; loading: boolean } {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith("sb-") || key.includes("supabase")) && key.endsWith("-auth-token")) {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const sess = parsed?.session || (parsed?.access_token ? parsed : null);
+          const u = sess?.user || parsed?.user;
+          if (u) {
+            return { user: u, session: sess, loading: false };
+          }
+        }
+      }
+    }
+  } catch {
+    // fallback
+  }
+  return { user: null, session: null, loading: true };
+}
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [initial] = useState(getInitialAuth);
+  const [user, setUser] = useState<User | null>(initial.user);
+  const [session, setSession] = useState<Session | null>(initial.session);
+  const [loading, setLoading] = useState(initial.loading);
   const navigate = useNavigate();
 
   useEffect(() => {

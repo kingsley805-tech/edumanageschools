@@ -491,31 +491,31 @@ const ClassDetails = () => {
           // Original UI for normal subject teachers
           <>
             <div className="grid gap-6 md:grid-cols-3">
-              <Card>
+              <Card className="channel-stats-bg">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">Total Students</CardTitle>
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{students.length}</div>
+                  <div className="text-3xl font-semibold">{students.length}</div>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="channel-stats-bg">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">Class Sessions</CardTitle>
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{schedules.length}</div>
+                  <div className="text-3xl font-semibold">{schedules.length}</div>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="channel-stats-bg">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">Recent Assignments</CardTitle>
                   <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{assignments.length}</div>
+                  <div className="text-3xl font-semibold">{assignments.length}</div>
                 </CardContent>
               </Card>
             </div>
@@ -625,14 +625,14 @@ const ClassDetails = () => {
         ) : (
           // Premium Advisor tabs
           <Tabs defaultValue="roster" className="space-y-6">
-            <TabsList className="bg-muted/50 p-1 rounded-xl">
-              <TabsTrigger value="roster" className="rounded-lg gap-2">
+            <TabsList className="flex-wrap">
+              <TabsTrigger value="roster" className="gap-2">
                 <Users className="h-4 w-4" /> Roster & Schedule
               </TabsTrigger>
-              <TabsTrigger value="attendance" className="rounded-lg gap-2">
+              <TabsTrigger value="attendance" className="gap-2">
                 <Clock className="h-4 w-4" /> Attendance Trends
               </TabsTrigger>
-              <TabsTrigger value="reports" className="rounded-lg gap-2">
+              <TabsTrigger value="reports" className="gap-2">
                 <FileText className="h-4 w-4" /> Report Cards & Ranks
               </TabsTrigger>
               <TabsTrigger value="performance" className="rounded-lg gap-2">
@@ -734,7 +734,7 @@ const ClassDetails = () => {
                     <CardTitle className="text-sm font-medium text-muted-foreground">Class Attendance Average</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl font-bold text-primary">{getAverageClassAttendance()}%</div>
+                    <div className="text-3xl font-semibold text-primary">{getAverageClassAttendance()}%</div>
                   </CardContent>
                 </Card>
                 <Card className="bg-red-50 border-red-100">
@@ -742,7 +742,7 @@ const ClassDetails = () => {
                     <CardTitle className="text-sm font-medium text-red-600">Poor Attendance Warning</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl font-bold text-red-600">
+                    <div className="text-3xl font-semibold text-red-600">
                       {students.filter(s => getAttendanceRate(s.id) < 80).length} students
                     </div>
                   </CardContent>
@@ -787,7 +787,7 @@ const ClassDetails = () => {
                               <TableCell className="font-semibold">{student.user.full_name}</TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-2">
-                                  <span className="font-bold text-base">{attRate}%</span>
+                                  <span className="font-semibold text-base">{attRate}%</span>
                                   <span className="text-xs text-muted-foreground">
                                     ({present} Present, {absent} Absent, {late} Late, {excused} Excused)
                                   </span>
@@ -874,7 +874,7 @@ const ClassDetails = () => {
                                 {report?.total_score != null ? `${report.total_score}` : "—"}
                               </TableCell>
                               <TableCell>
-                                <Badge variant="outline" className="font-bold border-primary text-primary bg-primary/5 px-2 py-0.5">
+                                <Badge variant="outline" className="font-medium border-primary text-primary bg-primary/5 px-2 py-0.5">
                                   {report?.class_position || "—"}
                                 </Badge>
                               </TableCell>
@@ -925,7 +925,7 @@ const ClassDetails = () => {
                           <div key={sub.id} className="space-y-2">
                             <div className="flex items-center justify-between text-sm">
                               <span className="font-medium">{idx + 1}. {sub.name}</span>
-                              <span className={`font-bold ${sub.average >= 75 ? "text-green-600" : sub.average < 50 ? "text-destructive" : "text-amber-600"}`}>{sub.average}%</span>
+                              <span className={`font-semibold ${sub.average >= 75 ? "text-green-600" : sub.average < 50 ? "text-destructive" : "text-amber-600"}`}>{sub.average}%</span>
                             </div>
                             <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                               <div 

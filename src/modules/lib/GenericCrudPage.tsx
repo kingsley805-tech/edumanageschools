@@ -14,19 +14,31 @@ import { ModuleAccessDenied } from "@/modules/lib/ModuleAccessDenied";
 import { useModuleAccess } from "@/modules/lib/useModuleAccess";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { useAuth } from "@/contexts/AuthContext";
-import { downloadCsv } from "@/modules/lib/exportCsv";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { isMissingTableError } from "@/modules/lib/missingSchema";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { uploadShopProductImage } from "@/modules/shop/lib/uploadProductImage";
 
 export type FieldDef = {
   key: string;
   label: string;
-  type?: "text" | "number" | "date" | "datetime" | "textarea" | "select" | "checkbox";
+  type?: "text" | "number" | "date" | "datetime" | "textarea" | "select" | "checkbox" | "image" | "student";
   required?: boolean;
   options?: { value: string; label: string }[];
   list?: boolean;
+  /** When false, field is kept for list/search/save but hidden from the create/edit dialog */
+  form?: boolean;
   placeholder?: string;
+  /** Storage bucket for type="image" uploads */
+  uploadBucket?: string;
+};
+
+type StudentOption = {
+  id: string;
+  name: string;
+  admission: string;
+  class_name: string;
 };
 
 type Props = {
@@ -55,8 +67,13 @@ function emptyFromFields(fields: FieldDef[]) {
     else if (f.type === "select" && f.options?.[0]) o[f.key] = f.options[0].value;
     else if (f.type === "date") o[f.key] = new Date().toISOString().slice(0, 10);
     else o[f.key] = "";
+    if (f.type === "student") o[`_class_${f.key}`] = "";
   }
   return o;
+}
+
+function pickerClassKey(fieldKey: string) {
+  return `_class_${fieldKey}`;
 }
 
 export function GenericCrudPage({
@@ -90,17 +107,55 @@ export function GenericCrudPage({
   const [editing, setEditing] = useState<Record<string, unknown> | null>(null);
   const [form, setForm] = useState<Record<string, unknown>>(emptyFromFields(fields));
   const [saving, setSaving] = useState(false);
+  const [uploadingField, setUploadingField] = useState<string | null>(null);
+  const [students, setStudents] = useState<StudentOption[]>([]);
 
-  const listFields = fields.filter((f) => f.list !== false).slice(0, 5);
+  const listFields = fields.filter((f) => f.list !== false);
   const keysToSearch = searchKeys ?? fields.map((f) => f.key);
+  const hasStudentField = fields.some((f) => f.type === "student");
+
+  const classOptions = useMemo(
+    () =>
+      [...new Set(students.map((s) => s.class_name).filter((c) => c && c !== "—"))].sort((a, b) =>
+        a.localeCompare(b),
+      ),
+    [students],
+  );
+
+  const loadStudents = useCallback(async () => {
+    if (!schoolId || !hasStudentField) {
+      setStudents([]);
+      return;
+    }
+    const { data, error } = await supabase
+      .from("students")
+      .select("id, full_name, admission_number, classes(name)")
+      .eq("school_id", schoolId)
+      .order("full_name");
+    if (error) {
+      console.error(error);
+      return;
+    }
+    setStudents(
+      (data ?? []).map((s) => ({
+        id: s.id as string,
+        name: (s.full_name as string) ?? "Student",
+        admission: (s.admission_number as string) ?? "",
+        class_name: (s.classes as { name?: string } | null)?.name ?? "—",
+      })),
+    );
+  }, [schoolId, hasStudentField]);
 
   const load = useCallback(async () => {
     if (!schoolId) return;
     setLoading(true);
     try {
+      const select = hasStudentField
+        ? "*, students(full_name, admission_number, classes(name))"
+        : "*";
       const { data, error } = await supabase
         .from(table)
-        .select("*")
+        .select(select)
         .eq("school_id", schoolId)
         .order(orderBy, { ascending: false });
       if (error) {
@@ -112,18 +167,35 @@ export function GenericCrudPage({
         throw error;
       }
       setSchemaMissing(false);
-      const mapped = (data ?? []).map((r) => (transformRow ? transformRow(r as Record<string, unknown>) : (r as Record<string, unknown>)));
+      const mapped = (data ?? []).map((raw) => {
+        const r = raw as Record<string, unknown>;
+        if (hasStudentField) {
+          const st = r.students as {
+            full_name?: string;
+            admission_number?: string;
+            classes?: { name?: string } | null;
+          } | null;
+          r.student_name = st?.full_name ?? "";
+          r.admission_number = st?.admission_number ?? "";
+          r.class_name = st?.classes?.name ?? "";
+        }
+        return transformRow ? transformRow(r) : r;
+      });
       setRows(mapped);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load");
     } finally {
       setLoading(false);
     }
-  }, [schoolId, table, orderBy, transformRow]);
+  }, [schoolId, table, orderBy, transformRow, hasStudentField]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void loadStudents();
+  }, [loadStudents]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -151,9 +223,37 @@ export function GenericCrudPage({
       if (f.type === "datetime" && typeof v === "string") next[f.key] = v.slice(0, 16);
       else if (f.type === "date" && typeof v === "string") next[f.key] = v.slice(0, 10);
       else next[f.key] = v;
+      if (f.type === "student") {
+        const sid = String(v);
+        const match = students.find((s) => s.id === sid);
+        next[pickerClassKey(f.key)] = match?.class_name || String(row.class_name ?? "") || "";
+      }
     }
     setForm(next);
     setOpen(true);
+  };
+
+  const handleImageUpload = async (field: FieldDef, file: File) => {
+    if (!schoolId) return;
+    setUploadingField(field.key);
+    try {
+      let url: string;
+      if (field.uploadBucket === "shop-products") {
+        url = await uploadShopProductImage({
+          schoolId,
+          file,
+          productId: editing?.id ? String(editing.id) : undefined,
+        });
+      } else {
+        throw new Error("Image upload bucket not configured");
+      }
+      setForm((prev) => ({ ...prev, [field.key]: url }));
+      toast.success("Image uploaded");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploadingField(null);
+    }
   };
 
   const handleSave = async () => {
@@ -166,29 +266,56 @@ export function GenericCrudPage({
     }
     setSaving(true);
     try {
-      let payload: Record<string, unknown> = { school_id: schoolId, updated_at: new Date().toISOString(), updated_by: user?.id ?? null };
+      let payload: Record<string, unknown> = {
+        school_id: schoolId,
+        updated_at: new Date().toISOString(),
+      };
+      if (user?.id) payload.updated_by = user.id;
+
       for (const f of fields) {
+        if (f.key.startsWith("_class_")) continue;
         let v = form[f.key];
         if (f.type === "number") v = v === "" || v == null ? null : Number(v);
         if (f.type === "checkbox") v = Boolean(v);
-        if (typeof v === "string" && v.trim() === "" && f.type !== "text") v = null;
+        if (typeof v === "string" && v.trim() === "") v = null;
+        if (f.type === "number" && typeof v === "number" && Number.isNaN(v)) v = null;
         payload[f.key] = v;
+      }
+      // Strip any picker-only keys
+      for (const key of Object.keys(payload)) {
+        if (key.startsWith("_class_")) delete payload[key];
       }
       if (beforeSave) payload = beforeSave(payload);
 
       if (editing?.id) {
-        const { error } = await supabase.from(table).update(payload).eq("id", editing.id as string);
+        let { error } = await supabase.from(table).update(payload).eq("id", editing.id as string);
+        if (error && /foreign key|updated_by|created_by/i.test(`${error.message} ${error.details ?? ""}`)) {
+          const retry = { ...payload };
+          delete retry.updated_by;
+          delete retry.created_by;
+          ({ error } = await supabase.from(table).update(retry).eq("id", editing.id as string));
+        }
         if (error) throw error;
         toast.success("Updated");
       } else {
-        const { error } = await supabase.from(table).insert({ ...payload, created_by: user?.id ?? null });
+        const insertRow = { ...payload };
+        if (user?.id) insertRow.created_by = user.id;
+        let { error } = await supabase.from(table).insert(insertRow);
+        if (error && /foreign key|updated_by|created_by/i.test(`${error.message} ${error.details ?? ""}`)) {
+          const retry = { ...insertRow };
+          delete retry.updated_by;
+          delete retry.created_by;
+          ({ error } = await supabase.from(table).insert(retry));
+        }
         if (error) throw error;
         toast.success("Created");
       }
       setOpen(false);
       void load();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Save failed");
+      const err = e as { message?: string; details?: string; hint?: string; code?: string };
+      const parts = [err.message, err.details, err.hint].filter(Boolean);
+      toast.error(parts.length ? parts.join(" — ") : e instanceof Error ? e.message : "Save failed");
     } finally {
       setSaving(false);
     }
@@ -226,15 +353,17 @@ export function GenericCrudPage({
     }
   };
 
-  const exportCsv = () => {
-    downloadCsv(
-      `${table}.csv`,
-      fields.map((f) => f.label),
-      filtered.map((r) => fields.map((f) => r[f.key] as string | number | null)),
-    );
-  };
-
   if (!access.canView) return <ModuleAccessDenied label={title} />;
+
+  const exportHeaders = fields.map((f) => (f.type === "student" ? "Student" : f.label));
+  const exportRows = filtered.map((r) =>
+    fields.map((f) => {
+      if (f.type === "student") {
+        return (r.student_name as string) || (r[f.key] as string) || "";
+      }
+      return r[f.key] as string | number | null;
+    }),
+  );
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -261,9 +390,7 @@ export function GenericCrudPage({
             </div>
             <div className="flex flex-wrap gap-2">
               {access.canExport ? (
-                <Button type="button" variant="outline" size="sm" onClick={exportCsv}>
-                  Export CSV
-                </Button>
+                <ExportMenu filename={table} title={title} headers={exportHeaders} rows={exportRows} />
               ) : null}
               {access.canCreate ? (
                 <Button type="button" size="sm" onClick={openCreate}>
@@ -295,34 +422,63 @@ export function GenericCrudPage({
             {filtered.length === 0 ? (
               <div className="py-12 text-center text-sm text-muted-foreground">No records found.</div>
             ) : (
-              <div className="overflow-x-auto rounded-md border">
-                <Table>
+              <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
+                <Table className="min-w-full">
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="bg-muted/40 hover:bg-muted/40">
                       {listFields.map((f) => (
-                        <TableHead key={f.key}>{f.label}</TableHead>
+                        <TableHead key={f.key} className="whitespace-nowrap font-semibold text-xs py-3 px-4 text-foreground">
+                          {f.type === "student" ? "Student" : f.label}
+                        </TableHead>
                       ))}
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead className="text-right whitespace-nowrap font-semibold text-xs py-3 px-4 text-foreground">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.map((row) => (
-                      <TableRow key={String(row.id)}>
+                      <TableRow key={String(row.id)} className="hover:bg-muted/30 transition-colors">
                         {listFields.map((f, idx) => (
-                          <TableCell key={f.key}>
-                            {idx === 0 ? (
-                              <span className="font-medium text-foreground">{String(row[f.key] ?? "—")}</span>
-                            ) : f.key === statusKey ? (
-                              <Badge variant={String(row[f.key]) === "active" || String(row[f.key]) === "approved" || String(row[f.key]) === "paid" ? "success" : "secondary"}>
+                          <TableCell key={f.key} className="py-3 px-4 text-xs">
+                            {f.type === "image" ? (
+                              row[f.key] ? (
+                                <img
+                                  src={String(row[f.key])}
+                                  alt=""
+                                  className="h-10 w-10 rounded-md border object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-10 w-10 items-center justify-center rounded-md border bg-muted text-[10px] text-muted-foreground">
+                                  —
+                                </div>
+                              )
+                            ) : f.type === "student" ? (
+                              <div>
+                                <div className="font-medium text-foreground whitespace-nowrap">
+                                  {String(row.student_name || row[f.key] || "—")}
+                                </div>
+                                {(row.admission_number || row.class_name) && (
+                                  <div className="text-[11px] text-muted-foreground whitespace-nowrap">
+                                    {[row.admission_number, row.class_name].filter(Boolean).join(" · ")}
+                                  </div>
+                                )}
+                              </div>
+                            ) : idx === 0 || (idx === 1 && listFields[0]?.type === "image") ? (
+                              <span className="font-medium text-foreground whitespace-nowrap">{String(row[f.key] ?? "—")}</span>
+                            ) : f.key === statusKey || f.key.includes("status") ? (
+                              <Badge variant={String(row[f.key]) === "active" || String(row[f.key]) === "approved" || String(row[f.key]) === "paid" || String(row[f.key]) === "delivered" ? "success" : String(row[f.key]) === "pending" || String(row[f.key]) === "processing" || String(row[f.key]) === "ready" ? "warning" : String(row[f.key]) === "unpaid" || String(row[f.key]) === "cancelled" || String(row[f.key]) === "returned" ? "destructive" : "secondary"}>
                                 {String(row[f.key] ?? "—")}
                               </Badge>
+                            ) : f.type === "checkbox" ? (
+                              Boolean(row[f.key]) ? "Yes" : "No"
+                            ) : f.type === "number" ? (
+                              <span className="font-mono text-foreground whitespace-nowrap">{row[f.key] != null ? Number(row[f.key]).toLocaleString() : "—"}</span>
                             ) : (
-                              String(row[f.key] ?? "—")
+                              <span className="whitespace-nowrap">{String(row[f.key] ?? "—")}</span>
                             )}
                           </TableCell>
                         ))}
-                        <TableCell>
-                          <div className="flex justify-end gap-1">
+                        <TableCell className="py-3 px-4 text-right">
+                          <div className="flex justify-end gap-1 whitespace-nowrap">
                             {extraActions?.(row, () => void load())}
                             {access.canEdit ? (
                               <Button type="button" size="icon" variant="ghost" onClick={() => openEdit(row)}>
@@ -362,16 +518,124 @@ export function GenericCrudPage({
             <DialogTitle>{editing ? `Edit ${title}` : `New ${title}`}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
-            {fields.map((f) => (
+            {fields.filter((f) => f.form !== false).map((f) => (
               <div
                 key={f.key}
-                className={`space-y-1 ${f.type === "textarea" ? "sm:col-span-2" : ""}`}
+                className={`space-y-1 ${
+                  f.type === "textarea" || f.type === "image" || f.type === "student"
+                    ? "sm:col-span-2"
+                    : ""
+                }`}
               >
+                {f.type === "student" ? (
+                  <div className="space-y-3 rounded-md border border-border bg-muted/30 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Student
+                    </p>
+                    <div className="space-y-1">
+                      <Label>Class *</Label>
+                      <Select
+                        value={String(form[pickerClassKey(f.key)] || "") || undefined}
+                        onValueChange={(v) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            [pickerClassKey(f.key)]: v,
+                            [f.key]: "",
+                          }))
+                        }
+                        disabled={Boolean(editing)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select class first" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {classOptions.map((c) => (
+                            <SelectItem key={c} value={c}>
+                              {c}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>
+                        {f.label}
+                        {f.required ? " *" : ""}
+                      </Label>
+                      <Select
+                        value={String(form[f.key] || "") || undefined}
+                        onValueChange={(v) => setForm((prev) => ({ ...prev, [f.key]: v }))}
+                        disabled={Boolean(editing) || !String(form[pickerClassKey(f.key)] || "")}
+                      >
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={
+                              String(form[pickerClassKey(f.key)] || "")
+                                ? "Select student"
+                                : "Select class first"
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          {students.filter((s) => s.class_name === String(form[pickerClassKey(f.key)] || "")).length ===
+                          0 ? (
+                            <div className="px-2 py-3 text-sm text-muted-foreground">
+                              {String(form[pickerClassKey(f.key)] || "")
+                                ? "No students in this class."
+                                : "Select a class first."}
+                            </div>
+                          ) : (
+                            students
+                              .filter((s) => s.class_name === String(form[pickerClassKey(f.key)] || ""))
+                              .map((s) => (
+                                <SelectItem key={s.id} value={s.id}>
+                                  {s.name}
+                                  {s.admission ? ` (${s.admission})` : ""}
+                                </SelectItem>
+                              ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ) : (
+                  <>
                 <Label>
                   {f.label}
                   {f.required ? " *" : ""}
                 </Label>
-                {f.type === "textarea" ? (
+                {f.type === "image" ? (
+                  <div className="space-y-2">
+                    {form[f.key] ? (
+                      <div className="relative aspect-video max-w-xs overflow-hidden rounded-lg border bg-muted">
+                        <img
+                          src={String(form[f.key])}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    ) : null}
+                    <Input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      disabled={uploadingField === f.key}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void handleImageUpload(f, file);
+                        e.target.value = "";
+                      }}
+                    />
+                    <Input
+                      type="url"
+                      placeholder="Or paste image URL"
+                      value={String(form[f.key] ?? "")}
+                      onChange={(e) => setForm((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                    />
+                    {uploadingField === f.key ? (
+                      <p className="text-xs text-muted-foreground">Uploading…</p>
+                    ) : null}
+                  </div>
+                ) : f.type === "textarea" ? (
                   <Textarea
                     rows={3}
                     value={String(form[f.key] ?? "")}
@@ -409,6 +673,8 @@ export function GenericCrudPage({
                     value={String(form[f.key] ?? "")}
                     onChange={(e) => setForm((prev) => ({ ...prev, [f.key]: e.target.value }))}
                   />
+                )}
+                  </>
                 )}
               </div>
             ))}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { CalendarOff, Download, Plus, Trash2 } from "lucide-react";
+import { CalendarOff, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { useModuleAccess } from "@/modules/lib/useModuleAccess";
 import { ModuleAccessDenied } from "@/modules/lib/ModuleAccessDenied";
-import { downloadCsv } from "@/modules/lib/exportCsv";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { isMissingTableError, operationsSchemaSetupMessage } from "@/modules/lib/missingSchema";
 import { OperationsSchemaSetupCard } from "@/modules/lib/OperationsSchemaSetupCard";
 import { toast } from "sonner";
@@ -158,21 +158,12 @@ export default function LeaveManagementPage() {
         </div>
         <div className="flex gap-2">
           {access.canExport ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={() =>
-                downloadCsv(
-                  "leave-requests.csv",
-                  ["Staff", "Type", "Start", "End", "Status", "Reason"],
-                  rows.map((r) => [r.staff_name, r.leave_type, r.start_date, r.end_date, r.status, r.reason]),
-                )
-              }
-            >
-              <Download className="h-4 w-4" />
-              Export
-            </Button>
+            <ExportMenu
+              filename="leave-requests"
+              title="Leave Requests"
+              headers={["Staff", "Type", "Start", "End", "Status", "Reason"]}
+              rows={rows.map((r) => [r.staff_name, r.leave_type, r.start_date, r.end_date, r.status, r.reason])}
+            />
           ) : null}
           {access.canCreate ? (
             <Dialog open={open} onOpenChange={setOpen}>

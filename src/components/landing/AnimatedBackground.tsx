@@ -12,13 +12,14 @@ const particles = Array.from({ length: 18 }, (_, i) => ({
 export default function AnimatedBackground() {
   return (
     <motion.div
-      className="pointer-events-none absolute inset-0 overflow-hidden bg-black"
+      className="pointer-events-none absolute inset-0 overflow-hidden bg-gradient-to-br from-blue-950/80 via-[#070d1e] to-black"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 1.2 }}
     >
-      <div className="absolute -left-[10%] top-[10%] h-80 w-80 rounded-full bg-green-500/10 blur-[100px]" />
-      <div className="absolute -bottom-[10%] -right-[10%] h-96 w-96 rounded-full bg-green-500/5 blur-[120px]" />
+      <div className="absolute -left-[10%] top-[10%] h-96 w-96 rounded-full bg-blue-500/15 blur-[120px]" />
+      <div className="absolute -bottom-[10%] -right-[10%] h-[30rem] w-[30rem] rounded-full bg-indigo-600/15 blur-[140px]" />
+      <div className="absolute left-1/3 top-1/2 h-80 w-80 rounded-full bg-blue-400/10 blur-[130px]" />
 
       <motion.div
         className="absolute inset-0 opacity-[0.04]"

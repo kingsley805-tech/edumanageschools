@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Download, Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { deleteSupplier, saveSupplier } from "@/modules/inventory/lib/api";
 import type { InventorySupplier } from "@/modules/inventory/lib/types";
-import { downloadCsv } from "@/modules/lib/exportCsv";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { toast } from "sonner";
 
 type Access = { canCreate: boolean; canEdit: boolean; canDelete: boolean; canExport?: boolean };
@@ -121,30 +121,21 @@ export function InventorySuppliersPanel({ suppliers, schoolId, access, onRefresh
             onChange={(e) => setSearch(e.target.value)}
           />
           {access.canExport !== false ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={() =>
-                downloadCsv(
-                  "suppliers.csv",
-                  ["Name", "Company", "Contact", "Phone", "Email", "Products", "Status", "POs"],
-                  filtered.map((s) => [
-                    s.name,
-                    s.company_name,
-                    s.contact_person,
-                    s.phone,
-                    s.email,
-                    s.products_supplied,
-                    s.status,
-                    s.purchase_count,
-                  ]),
-                )
-              }
-            >
-              <Download className="h-4 w-4" />
-              Export
-            </Button>
+            <ExportMenu
+              filename="suppliers"
+              title="Suppliers"
+              headers={["Name", "Company", "Contact", "Phone", "Email", "Products", "Status", "POs"]}
+              rows={filtered.map((s) => [
+                s.name,
+                s.company_name,
+                s.contact_person,
+                s.phone,
+                s.email,
+                s.products_supplied,
+                s.status,
+                s.purchase_count,
+              ])}
+            />
           ) : null}
           {access.canCreate ? (
             <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>

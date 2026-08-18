@@ -75,7 +75,7 @@ export function StatCard({
     >
       <Card
         className={cn(
-          "border-border transition-shadow hover:shadow-md",
+          "channel-stats-bg border-border transition-shadow hover:shadow-md",
           onClick && "cursor-pointer hover:-translate-y-0.5",
         )}
         onClick={onClick}

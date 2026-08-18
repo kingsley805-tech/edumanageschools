@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -204,14 +205,23 @@ const ParentContacts = () => {
                     <Users className="h-5 w-5" />
                     {child ? (
                       <>
-                        {child.profiles?.full_name || "Unknown Student"}
-                        <Badge variant="outline" className="ml-2">
-                          {child.admission_no || "No ID"}
-                        </Badge>
-                        {child.classes?.name && (
-                          <Badge variant="secondary" className="ml-1">
-                            {child.classes.name}
+                        <Link
+                          to={`/admin/students/${child.id}`}
+                          className="hover:text-primary hover:underline font-semibold text-foreground"
+                        >
+                          {child.profiles?.full_name || "Unknown Student"}
+                        </Link>
+                        <Link to={`/admin/students/${child.id}`}>
+                          <Badge variant="outline" className="ml-2 hover:bg-muted cursor-pointer">
+                            {child.admission_no || "No ID"}
                           </Badge>
+                        </Link>
+                        {child.classes?.name && (
+                          <Link to={`/admin/classes/${child.classes.id || child.classes.name}`}>
+                            <Badge variant="secondary" className="ml-1 hover:bg-muted/80 cursor-pointer">
+                              {child.classes.name}
+                            </Badge>
+                          </Link>
                         )}
                       </>
                     ) : (

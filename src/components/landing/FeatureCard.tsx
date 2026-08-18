@@ -23,7 +23,7 @@ export default function FeatureCard({ feature }: Props) {
       transition={{ type: "spring", stiffness: 400, damping: 28 }}
       className={`group relative overflow-hidden rounded-2xl p-5 backdrop-blur-sm transition-colors sm:p-6 ${landingPalette.card}`}
     >
-      <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-green-500/10 transition-transform group-hover:scale-105`}>
+      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-white/20 bg-blue-500/15 text-blue-200 shadow-sm transition-transform group-hover:scale-105">
         <Icon className={`h-5 w-5 ${landingPalette.icon}`} />
       </div>
 

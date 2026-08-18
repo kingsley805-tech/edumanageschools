@@ -23,6 +23,7 @@ import OtherIncomePage from "@/modules/finance/pages/OtherIncome";
 import BudgetsPage from "@/modules/finance/pages/Budgets";
 import SchoolShopPage from "@/modules/shop/pages/SchoolShop";
 import LaboratoryPage from "@/modules/laboratory/pages/Laboratory";
+import AiReceptionistPage from "@/modules/ai-receptionist/pages/AiReceptionist";
 
 const StaffManagement = withAdminModuleLayout(StaffManagementPage);
 const LeaveManagement = withAdminModuleLayout(LeaveManagementPage);
@@ -45,6 +46,7 @@ const OtherIncome = withAdminModuleLayout(OtherIncomePage);
 const Budgets = withAdminModuleLayout(BudgetsPage);
 const SchoolShop = withAdminModuleLayout(SchoolShopPage);
 const Laboratory = withAdminModuleLayout(LaboratoryPage);
+const AiReceptionist = withAdminModuleLayout(AiReceptionistPage);
 
 const ADMIN_ROLES = ["admin", "super_admin"] as const;
 const FINANCE_ROLES = [...ADMIN_ROLES, "accountant"] as const;
@@ -82,6 +84,7 @@ export function OperationsModuleRoutes() {
       {adminRoute("/admin/finance/budgets", <Budgets />, FINANCE_ROLES)}
       {adminRoute("/admin/shop", <SchoolShop />, FINANCE_ROLES)}
       {adminRoute("/admin/laboratory", <Laboratory />)}
+      {adminRoute("/admin/ai-receptionist", <AiReceptionist />)}
     </>
   );
 }

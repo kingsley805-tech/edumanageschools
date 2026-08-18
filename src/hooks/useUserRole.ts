@@ -14,12 +14,34 @@ const ROLE_PRIORITY = [
 ] as const;
 
 const ROLE_CACHE_TTL_MS = 10 * 60 * 1000;
+const ROLE_STORAGE_KEY = "schoolhub_user_roles_v1";
 const roleCache = new Map<string, { roles: string[]; isStudent: boolean; expires: number }>();
 
 function readRoleCache(userId: string) {
   const hit = roleCache.get(userId);
-  if (!hit || hit.expires <= Date.now()) return null;
-  return hit;
+  if (hit && hit.expires > Date.now()) return hit;
+  try {
+    const raw = localStorage.getItem(`${ROLE_STORAGE_KEY}_${userId}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.expires > Date.now()) {
+        roleCache.set(userId, parsed);
+        return parsed;
+      }
+    }
+  } catch {
+    // fallback
+  }
+  return null;
+}
+
+function writeRoleCache(userId: string, data: { roles: string[]; isStudent: boolean; expires: number }) {
+  roleCache.set(userId, data);
+  try {
+    localStorage.setItem(`${ROLE_STORAGE_KEY}_${userId}`, JSON.stringify(data));
+  } catch {
+    // fallback
+  }
 }
 
 export const useUserRole = () => {
@@ -56,7 +78,7 @@ export const useUserRole = () => {
       const nextRoles = effectivePortalRoles(rawRoles, studentAccount);
       setIsStudent(studentAccount);
       setRoles(nextRoles);
-      roleCache.set(user.id, {
+      writeRoleCache(user.id, {
         roles: nextRoles,
         isStudent: studentAccount,
         expires: Date.now() + ROLE_CACHE_TTL_MS,

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Download, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { deletePurchaseOrder, savePurchaseOrder } from "@/modules/inventory/lib/api";
 import type { InventoryItem, InventorySupplier, PurchaseOrder } from "@/modules/inventory/lib/types";
-import { downloadCsv } from "@/modules/lib/exportCsv";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { formatMoney } from "@/lib/currency";
 import { toast } from "sonner";
 
@@ -146,30 +146,21 @@ export function InventoryPurchasesPanel({
             onChange={(e) => setSearch(e.target.value)}
           />
           {access.canExport !== false ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={() =>
-                downloadCsv(
-                  "purchase-orders.csv",
-                  ["PO#", "Supplier", "Date", "Expected", "Total", "Payment", "Delivery", "Invoice"],
-                  filtered.map((o) => [
-                    o.po_number,
-                    o.supplier_name,
-                    o.purchase_date,
-                    o.expected_delivery_date,
-                    o.total_cost,
-                    o.payment_status,
-                    o.delivery_status,
-                    o.invoice_number,
-                  ]),
-                )
-              }
-            >
-              <Download className="h-4 w-4" />
-              Export
-            </Button>
+            <ExportMenu
+              filename="purchase-orders"
+              title="Purchase Orders"
+              headers={["PO#", "Supplier", "Date", "Expected", "Total", "Payment", "Delivery", "Invoice"]}
+              rows={filtered.map((o) => [
+                o.po_number,
+                o.supplier_name,
+                o.purchase_date,
+                o.expected_delivery_date,
+                o.total_cost,
+                o.payment_status,
+                o.delivery_status,
+                o.invoice_number,
+              ])}
+            />
           ) : null}
           {access.canCreate ? (
             <Dialog open={open} onOpenChange={setOpen}>

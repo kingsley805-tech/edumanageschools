@@ -70,7 +70,17 @@ export default {
            resolve to Inter for a single-family type system. */
         display: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
         report: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
-        mono: ["IBM Plex Mono", "ui-monospace", "SFMono-Regular", "monospace"],
+        /* Metronic v9 mono: system stack (the demo never loads a webfont for mono) */
+        mono: [
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "Monaco",
+          "Consolas",
+          "Liberation Mono",
+          "Courier New",
+          "monospace",
+        ],
       },
       colors: {
         /**

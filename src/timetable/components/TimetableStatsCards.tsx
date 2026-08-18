@@ -26,7 +26,7 @@ export function TimetableStatsCards({
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
       {items.map((item) => (
-        <Card key={item.label} className="border-border/80 bg-card shadow-sm">
+        <Card key={item.label} className="channel-stats-bg border-border/80 bg-card shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">{item.label}</CardTitle>
             <item.icon className={`h-4 w-4 ${item.accent}`} />

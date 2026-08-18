@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Download, Eye, Pencil, Plus, Trash2 } from "lucide-react";
+import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { InventoryFiltersBar } from "@/modules/inventory/components/InventoryFiltersBar";
 import { deleteAsset, saveAsset } from "@/modules/inventory/lib/api";
 import type { InventoryAsset, InventoryFilters } from "@/modules/inventory/lib/types";
-import { downloadCsv } from "@/modules/lib/exportCsv";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { formatMoney } from "@/lib/currency";
 import { toast } from "sonner";
 
@@ -221,31 +221,32 @@ export function InventoryAssetsPanel({
           </div>
           <div className="flex gap-2">
             {access.canExport !== false ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                onClick={() =>
-                  downloadCsv(
-                    "asset-register.csv",
-                    ["Code", "Name", "Category", "Serial", "Purchase Cost", "Current Value", "Department", "Condition", "Status"],
-                    filtered.map((a) => [
-                      a.asset_code,
-                      a.name,
-                      a.category,
-                      a.serial_number,
-                      a.purchase_cost,
-                      a.current_value,
-                      a.assigned_department,
-                      a.asset_condition,
-                      a.asset_status,
-                    ]),
-                  )
-                }
-              >
-                <Download className="h-4 w-4" />
-                Export
-              </Button>
+              <ExportMenu
+                filename="asset-register"
+                title="Asset Register"
+                headers={[
+                  "Code",
+                  "Name",
+                  "Category",
+                  "Serial",
+                  "Purchase Cost",
+                  "Current Value",
+                  "Department",
+                  "Condition",
+                  "Status",
+                ]}
+                rows={filtered.map((a) => [
+                  a.asset_code,
+                  a.name,
+                  a.category,
+                  a.serial_number,
+                  a.purchase_cost,
+                  a.current_value,
+                  a.assigned_department,
+                  a.asset_condition,
+                  a.asset_status,
+                ])}
+              />
             ) : null}
             {access.canCreate ? (
               <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>

@@ -1,12 +1,15 @@
 // @ts-nocheck
 import {
   ReactNode,
-  useState,
+  useEffect,
   useMemo,
+  useRef,
+  useState,
 } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import {
   GraduationCap,
   LayoutDashboard,
@@ -42,6 +45,9 @@ import {
   Video,
   BrainCircuit,
   Activity,
+  ShoppingBag,
+  Trophy,
+  BookMarked,
 } from "lucide-react";
 import { NotificationCenter } from "./NotificationCenter";
 import { SyncStatusIndicator } from "./SyncStatusIndicator";
@@ -76,6 +82,8 @@ import SubscriptionExpiryBanner from "@/subscription/components/SubscriptionExpi
 import { useOrganizationSubscription } from "@/subscription/hooks/useOrganizationSubscription";
 import { useTheme } from "@/contexts/ThemeContext";
 import { PORTAL_ROLE_META } from "@/lib/portalNavStyles";
+import { Ki } from "@/metronic/KiIcon";
+import { MetronicSidebarMenu } from "@/components/layout/MetronicSidebarMenu";
 import type { AdminNavGroup, AdminNavItem } from "@/lib/rbac/adminNavConfig";
 import { AiFloatingButton } from "@/ai-assistant/components/AiFloatingButton";
 
@@ -185,11 +193,94 @@ const DashboardLayout = ({
   const { hasPermission, isSuperAdmin: isSuperAdminPerm } = usePermissions();
   const isSuperAdmin = userRole === "super_admin" || isSuperAdminPerm;
   // Fall back to the signed-in user's role when the prop is omitted.
-  const role = (roleProp ?? userRole ?? undefined) as PortalRole | undefined;
+  const role = (roleProp ?? userRole ?? "admin") as PortalRole;
   const { navItems: dynamicNavItems } = usePortalAccess();
   const { access: subscriptionAccess } = useOrganizationSubscription();
   const { toggleTheme, isDark } = useTheme();
   useTeacherAccountGuard();
+
+  /* ── Metronic shell state ─────────────────────────────────────────── */
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
+  const [headerScrolled, setHeaderScrolled] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
+  const themeMenuRef = useRef<HTMLDivElement | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const location = useLocation();
+
+  // Mirrors the demo's data-kt-sticky: the header gains a bottom border once
+  // the page scrolls (the wrapper is the scroll container, not the window).
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const onScroll = () => setHeaderScrolled(el.scrollTop > 0);
+    onScroll();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Close floating panels whenever the route changes.
+  useEffect(() => {
+    setMobileOpen(false);
+    setSearchOpen(false);
+    setUserMenuOpen(false);
+    setThemeMenuOpen(false);
+  }, [location.pathname]);
+
+  // Close the user menu on outside click / Escape.
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!userMenuRef.current?.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setUserMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [userMenuOpen]);
+
+  // Close the theme menu on outside click / Escape.
+  useEffect(() => {
+    if (!themeMenuOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!themeMenuRef.current?.contains(event.target as Node)) {
+        setThemeMenuOpen(false);
+      }
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setThemeMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [themeMenuOpen]);
+  // Global search shortcut (Ctrl+K / Cmd+K) and Escape handler
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === "k") {
+        event.preventDefault();
+        setSearchOpen((prev) => !prev);
+      } else if (event.key === "Escape" && searchOpen) {
+        setSearchOpen(false);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [searchOpen]);
+
   const usesDynamicAdminNav = (ADMIN_SHELL_ROLES as readonly string[]).includes(
     role,
   );
@@ -320,7 +411,7 @@ const DashboardLayout = ({
             },
             {
               icon: BarChart3,
-              label: "Reports",
+              label: "Billing Reports",
               path: "/admin/billing/reports",
             },
             {
@@ -495,7 +586,7 @@ const DashboardLayout = ({
             },
             {
               icon: BarChart3,
-              label: "Reports",
+              label: "Billing Reports",
               path: "/admin/billing/reports",
               permission: PERMISSIONS.reports.viewFinancial,
             },
@@ -509,19 +600,6 @@ const DashboardLayout = ({
               label: "Payroll",
               path: "/admin/billing/payroll",
               permission: PERMISSIONS.payroll.view,
-            },
-          ],
-        },
-        {
-          type: "group",
-          label: "Reports",
-          icon: BarChart3,
-          items: [
-            {
-              icon: BarChart3,
-              label: "Financial Reports",
-              path: "/admin/billing/reports",
-              permission: PERMISSIONS.reports.viewFinancial,
             },
           ],
         },
@@ -627,24 +705,22 @@ const DashboardLayout = ({
               path: "/teacher/assignments",
             },
             { icon: Award, label: "Grades", path: "/teacher/grades" },
-            { icon: FileText, label: "Enter Scores", path: "/teacher/scores" },
-            {
-              icon: FileText,
-              label: "Report Cards",
-              path: "/teacher/report-cards",
-            },
-            { icon: PenLine, label: "Signatures", path: "/teacher/signatures" },
             { icon: BookOpen, label: "Resources", path: "/teacher/resources" },
             {
               icon: FileText,
               label: "Lesson notes",
               path: "/teacher/lesson-notes",
             },
+            {
+              icon: BookMarked,
+              label: "Programs",
+              path: "/teacher/programs",
+            },
           ],
         },
         {
           type: "group",
-          label: "Examinations",
+          label: "Examinations & Results",
           icon: MonitorPlay,
           items: [
             { icon: FileText, label: "Exams", path: "/teacher/exams" },
@@ -658,8 +734,16 @@ const DashboardLayout = ({
               label: "Online Exams",
               path: "/teacher/online-exams",
             },
+            { icon: FileText, label: "Enter Scores", path: "/teacher/scores" },
+            {
+              icon: FileText,
+              label: "Report Cards",
+              path: "/teacher/report-cards",
+            },
+            { icon: PenLine, label: "Signatures", path: "/teacher/signatures" },
           ],
         },
+        { icon: ShoppingBag, label: "School shop", path: "/teacher/shop" },
         {
           type: "group",
           label: "Communication",
@@ -678,12 +762,7 @@ const DashboardLayout = ({
             },
           ],
         },
-        {
-          type: "group",
-          label: "Account",
-          icon: Settings,
-          items: [{ icon: Settings, label: "Settings", path: "/settings" }],
-        },
+        { icon: Settings, label: "Settings", path: "/settings" },
       ] as MenuItemDef[],
     },
     parent: {
@@ -713,6 +792,16 @@ const DashboardLayout = ({
               label: "Recommendations",
               path: "/parent/recommendations",
             },
+            {
+              icon: Trophy,
+              label: "Achievements",
+              path: "/parent/achievements",
+            },
+            {
+              icon: BookMarked,
+              label: "Programs",
+              path: "/parent/programs",
+            },
             { icon: Clock, label: "Timetable", path: "/parent/timetable" },
             {
               icon: Video,
@@ -738,6 +827,7 @@ const DashboardLayout = ({
             },
           ],
         },
+        { icon: ShoppingBag, label: "School shop", path: "/parent/shop" },
         {
           type: "group",
           label: "Communication",
@@ -756,12 +846,7 @@ const DashboardLayout = ({
             },
           ],
         },
-        {
-          type: "group",
-          label: "Account",
-          icon: Settings,
-          items: [{ icon: Settings, label: "Settings", path: "/settings" }],
-        },
+        { icon: Settings, label: "Settings", path: "/settings" },
       ] as MenuItemDef[],
     },
     student: {
@@ -792,9 +877,14 @@ const DashboardLayout = ({
             { icon: Award, label: "Grades", path: "/student/grades" },
             { icon: Award, label: "Performance", path: "/student/performance" },
             {
-              icon: FileText,
-              label: "Report Card",
-              path: "/student/report-card",
+              icon: Trophy,
+              label: "Achievements",
+              path: "/student/achievements",
+            },
+            {
+              icon: BookMarked,
+              label: "Programs",
+              path: "/student/programs",
             },
             { icon: BookOpen, label: "Resources", path: "/student/resources" },
           ],
@@ -814,6 +904,11 @@ const DashboardLayout = ({
               label: "Online Exams",
               path: "/student/online-exams",
             },
+            {
+              icon: FileText,
+              label: "Report Card",
+              path: "/student/report-card",
+            },
           ],
         },
         {
@@ -829,6 +924,7 @@ const DashboardLayout = ({
             },
           ],
         },
+        { icon: ShoppingBag, label: "School shop", path: "/student/shop" },
         {
           type: "group",
           label: "Account",
@@ -890,6 +986,92 @@ const DashboardLayout = ({
   };
 
   const accountEmail = user?.email ?? "";
+  const [userEntityUrl, setUserEntityUrl] = useState<string>(
+    role === "student"
+      ? `/admin/students/${user?.id || ""}`
+      : role === "teacher"
+      ? `/admin/teachers/${user?.id || ""}`
+      : role === "parent"
+      ? `/parent`
+      : `/admin/admins/${user?.id || ""}`,
+  );
+  const [userFullName, setUserFullName] = useState<string>("");
+
+  useEffect(() => {
+    let active = true;
+    const resolveEntity = async () => {
+      if (!user?.id) return;
+      try {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("id, full_name, role, email")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (prof?.full_name && active) {
+          setUserFullName(prof.full_name);
+        }
+
+        const effectiveRole = prof?.role || role;
+
+        if (effectiveRole === "student") {
+          const { data: stu } = await supabase
+            .from("students")
+            .select("id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+          if (stu?.id && active) {
+            setUserEntityUrl(`/admin/students/${stu.id}`);
+            return;
+          }
+          if (active) setUserEntityUrl(`/admin/students/${user.id}`);
+        } else if (effectiveRole === "teacher") {
+          const { data: tea } = await supabase
+            .from("teachers")
+            .select("id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+          if (tea?.id && active) {
+            setUserEntityUrl(`/admin/teachers/${tea.id}`);
+            return;
+          }
+          if (active) setUserEntityUrl(`/admin/teachers/${user.id}`);
+        } else if (effectiveRole === "parent") {
+          if (active) setUserEntityUrl(`/parent`);
+        } else {
+          // Admin / super_admin / accountant / auditor / staff:
+          // Check if teacher record exists or link to admin profile
+          const { data: tea } = await supabase
+            .from("teachers")
+            .select("id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+          if (tea?.id && active) {
+            setUserEntityUrl(`/admin/teachers/${tea.id}`);
+          } else if (active) {
+            setUserEntityUrl(`/admin/admins/${user.id}`);
+          }
+        }
+      } catch {
+        if (active) {
+          const fallback =
+            role === "student"
+              ? `/admin/students/${user?.id || ""}`
+              : role === "teacher"
+              ? `/admin/teachers/${user?.id || ""}`
+              : role === "parent"
+              ? `/parent`
+              : `/admin/admins/${user?.id || ""}`;
+          setUserEntityUrl(fallback);
+        }
+      }
+    };
+
+    void resolveEntity();
+    return () => {
+      active = false;
+    };
+  }, [user?.id, role]);
 
   const handleCopySchoolCode = async () => {
     const code = currentSchool?.school_code?.trim();
@@ -907,243 +1089,571 @@ const DashboardLayout = ({
 
   // Guard against invalid or missing role
   if (!role || (usesDynamicAdminNav ? false : !config)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
+    return null;
   }
 
   const portalLabel = PORTAL_LABELS[role] ?? "School portal";
   const schoolInitial = (currentSchool?.school_name ?? "E")
     .substring(0, 1)
     .toUpperCase();
+  const schoolName = currentSchool?.school_name ?? config?.title ?? "EduManage";
+  const schoolLogoUrl = currentSchool?.logo_url;
+
+  const navigateTo = () => {
+    setMobileOpen(false);
+    setSearchOpen(false);
+  };
+
+  const homePath = `/${role ?? "admin"}`;
+
+  // Renders both logo variants like the demo: `default-logo` (wordmark) plus
+  // `small-logo` which the Metronic CSS reveals when the sidebar collapses.
+  const brandBlock = () => (
+    <Link to={homePath} className="flex items-center gap-2.5" onClick={navigateTo}>
+      {schoolLogoUrl ? (
+        <>
+          <span className="default-logo flex items-center gap-2.5 min-w-0">
+            <img
+              src={schoolLogoUrl}
+              alt={schoolName}
+              className="size-8 shrink-0 rounded-full object-cover border border-border/40"
+            />
+            <span className="text-base font-semibold leading-none text-foreground truncate max-w-[170px]">
+              {schoolName}
+            </span>
+          </span>
+          <img
+            src={schoolLogoUrl}
+            alt={schoolName}
+            className="small-logo hidden size-8 shrink-0 rounded-full object-cover border border-border/40"
+          />
+        </>
+      ) : (
+        <>
+          <span className="default-logo flex items-center gap-2.5 min-w-0">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+              {schoolInitial}
+            </span>
+            <span className="text-base font-semibold leading-none text-foreground truncate max-w-[170px]">
+              {schoolName}
+            </span>
+          </span>
+          <span className="small-logo hidden flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+            {schoolInitial}
+          </span>
+        </>
+      )}
+    </Link>
+  );
+
+  const sidebarMenu = (
+    <MetronicSidebarMenu
+      items={filteredNavItems}
+      unreadMessages={unreadMessages}
+      onNavigate={navigateTo}
+    />
+  );
+
+  const headerIconBtn =
+    "kt-btn kt-btn-ghost kt-btn-icon size-9 rounded-full hover:bg-primary/10 hover:[&_i]:text-primary";
 
   return (
     <div
       className={cn(
-        "relative flex h-screen max-h-screen w-full flex-col overflow-hidden bg-background",
+        "demo1 kt-sidebar-fixed kt-header-fixed relative flex h-screen w-full overflow-hidden bg-background text-base text-foreground antialiased",
+        collapsed && "kt-sidebar-collapse",
         roleMeta.accentClass,
       )}
       data-portal-layout
-      data-portal-nav="top"
       data-portal-role={role}
     >
-      {/* ── Single bar: brand · navigation · search · account ───────────── */}
-      <header className="portal-topbar z-40 flex h-[56px] shrink-0 items-center gap-3 border-b border-border bg-background pl-3 pr-3 md:pl-4 md:pr-5">
-        {!hideSidebar ? (
-          <PortalMobileNav
-            items={filteredNavItems}
-            unreadMessages={unreadMessages}
-            schoolName={currentSchool?.school_name}
-            schoolLogoUrl={currentSchool?.logo_url}
-            portalLabel={portalLabel}
-            navQuery={navQuery}
-            onNavQueryChange={setNavQuery}
-            onSignOut={handleLogout}
-          />
-        ) : null}
-
-        {/* Primary navigation — desktop only, fills the middle of the bar */}
-        {!hideSidebar ? (
-          <>
-            <span className="portal-topbar-divider hidden lg:block" aria-hidden />
-            <PortalTopNav
-              items={filteredNavItems}
-              unreadMessages={unreadMessages}
-              className="hidden lg:block"
-            />
-          </>
-        ) : (
-          <div className="flex-1" />
+      {/* ── Sidebar (desktop) ─────────────────────────────────────────── */}
+      <div
+        className={cn(
+          // Width is driven by the Metronic CSS var (--sidebar-width) exactly
+          // like the demo — no manual width utilities needed.
+          "kt-sidebar dark fixed top-0 bottom-0 start-0 z-20 hidden lg:flex flex-col items-stretch shrink-0 bg-background border-e border-e-border transition-all duration-300",
         )}
-
-        {/* Account controls */}
-        <div className="topbar-right ml-auto flex shrink-0 items-center gap-1.5 md:gap-2">
-          {!hideSidebar ? (
-            <>
-              {role === "parent" ? (
-                <div className="hidden md:block">
-                  <ParentAdmissionNav variant="header" />
-                </div>
-              ) : null}
-              {isSuperAdmin ? (
-                <div className="hidden lg:block">
-                  <SchoolSwitcher />
-                </div>
-              ) : null}
-            </>
-          ) : null}
-
-          <SyncStatusIndicator />
-          <NotificationCenter />
-
-          <button
-            type="button"
-            className="portal-icon-button"
-            onClick={toggleTheme}
-            aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
-            title={isDark ? "Switch to light theme" : "Switch to dark theme"}
+        id="sidebar"
+      >
+        <div
+          className="kt-sidebar-header hidden lg:flex items-center relative justify-between px-3 lg:px-6 shrink-0"
+          id="sidebar_header"
+        >
+          {brandBlock()}
+          {/* Toggle centered on the sidebar's right edge, aligned with the
+              brand row — mirrors the demo / TASKER reference. Inline styles
+              are used instead of the translate/rotate utilities because those
+              classes exist in BOTH the school-hub Tailwind v3 build (transform
+              property) and the Metronic v4 CSS (translate/rotate properties),
+              which double-applies the shift. */}
+          <div
+            className="kt-btn kt-btn-outline kt-btn-icon rounded-lg absolute start-full top-1/2 cursor-pointer bg-white text-black hover:text-black/80 [&_i]:text-black hover:[&_i]:text-black/80"
+            role="button"
+            tabIndex={0}
+            onClick={() => setCollapsed((c) => !c)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setCollapsed((c) => !c);
+              }
+            }}
+            aria-label="Toggle sidebar"
+            style={{
+              width: 30,
+              height: 30,
+              marginInlineStart: -15,
+              marginTop: -15,
+              /* The Metronic kt-btn-outline rules consume --background/--input,
+                 which are bare HSL triplets here and resolve to a dark color in
+                 dark mode, overriding the `bg-white`/`border-white` utilities.
+                 Inline white bg + border keep the toggle crisply black-and-white
+                 in both themes. */
+              backgroundColor: "#ffffff",
+              border: "1px solid #ffffff",
+              boxShadow:
+                "0 0 0 1px rgba(255, 255, 255, 0.14), 0 4px 12px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.3)",
+            }}
           >
-            {isDark ? (
-              <Sun className="h-[18px] w-[18px]" />
-            ) : (
-              <Moon className="h-[18px] w-[18px]" />
-            )}
-          </button>
+            <span
+              className="inline-flex transition-transform duration-300"
+              style={collapsed ? { transform: "rotate(180deg)" } : undefined}
+            >
+              <Ki name="black-left-line" />
+            </span>
+          </div>
+        </div>
+        <div
+          className="kt-sidebar-content kt-sidebar-scroll flex flex-col grow overflow-y-auto overflow-x-hidden py-5 pe-2"
+          id="sidebar_content"
+        >
+          <div className="grow flex flex-col ps-2 lg:ps-5 pe-1 lg:pe-3">
+            <div className="flex w-full grow flex-col gap-3">
+              {sidebarMenu}
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* End of Sidebar */}
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+      {/* ── Mobile drawer ─────────────────────────────────────────────── */}
+      {mobileOpen ? (
+        <div className="lg:hidden fixed inset-0 z-[70]">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setMobileOpen(false)}
+            aria-hidden
+          />
+          <aside className="absolute top-0 bottom-0 start-0 flex w-[290px] max-w-[85vw] flex-col overflow-hidden bg-background border-e border-e-border">
+            <div className="flex h-[60px] shrink-0 items-center justify-between border-b border-b-border px-4">
+              {brandBlock()}
               <button
                 type="button"
-                className="portal-account-trigger"
-                aria-label={`${currentSchool?.school_name ?? roleMeta.label} account menu`}
+                className="kt-btn kt-btn-icon kt-btn-ghost"
+                onClick={() => setMobileOpen(false)}
+                aria-label="Close menu"
+                style={{ boxShadow: "0 2px 6px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2)" }}
               >
-                <span className="portal-account-avatar">
-                  {currentSchool?.logo_url ? (
-                    <img
-                      src={currentSchool.logo_url}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    schoolInitial
-                  )}
-                </span>
-                <ChevronDown
-                  aria-hidden
-                  className="h-3.5 w-3.5 shrink-0 opacity-60"
-                />
+                <Ki name="cross" className="text-lg" />
               </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-72 border-border"
-            >
-              <DropdownMenuLabel className="p-0 font-normal">
-                <div className="flex items-center gap-3 px-3 py-3">
-                  <Avatar className="h-10 w-10 shrink-0 rounded-md border border-border">
-                    <AvatarImage
-                      src={currentSchool?.logo_url ?? undefined}
-                      alt={currentSchool?.school_name ?? "School"}
-                    />
-                    <AvatarFallback className="rounded-md bg-foreground font-display text-sm font-bold text-background">
-                      {schoolInitial}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1 leading-tight">
-                    <p className="truncate font-display text-[13px] font-semibold text-foreground">
-                      {currentSchool?.school_name ?? config?.title ?? "mingo"}
-                    </p>
-                    <p className="truncate text-[11px] text-muted-foreground">
-                      {roleMeta.label}
-                    </p>
-                    {accountEmail ? (
-                      <p className="truncate text-[11px] text-muted-foreground/80">
-                        {accountEmail}
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-              </DropdownMenuLabel>
-
-              {currentSchool?.school_code &&
-              role !== "student" &&
-              role !== "parent" ? (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-[13px] focus:bg-muted"
-                    onSelect={(event) => {
-                      event.preventDefault();
-                      handleCopySchoolCode();
-                    }}
-                  >
-                    <Building className="mr-2 h-4 w-4 shrink-0" />
-                    <span className="text-muted-foreground">School code</span>
-                    <span className="ml-auto flex items-center gap-1.5">
-                      <span className="font-mono text-[12.5px] font-semibold text-foreground">
-                        {currentSchool.school_code}
-                      </span>
-                      {schoolCodeCopied ? (
-                        <Check className="h-3.5 w-3.5 text-foreground" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                      )}
-                    </span>
-                  </DropdownMenuItem>
-                </>
-              ) : null}
-
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild className="text-[13px]">
-                <Link to="/settings">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Account settings
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild className="text-[13px]">
-                <Link to="/messages">
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Messages
-                  {unreadMessages > 0 ? (
-                    <span className="ml-auto text-[11px] font-semibold text-destructive">
-                      {unreadMessages > 9 ? "9+" : unreadMessages}
-                    </span>
-                  ) : null}
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="text-[13px]"
-                onSelect={(event) => {
-                  event.preventDefault();
-                  toggleTheme();
-                }}
+            </div>
+            <div className="kt-sidebar-scroll grow overflow-y-auto py-3">
+              <div className="px-2 pt-1">{sidebarMenu}</div>
+            </div>
+            <div className="shrink-0 border-t border-t-border p-3">
+              <div className="flex items-center justify-between gap-2.5 px-1.5 pb-2.5">
+                <span className="flex items-center gap-2">
+                  <Ki name="moon" className="text-base text-muted-foreground" />
+                  <span className="font-medium text-2sm text-foreground">Dark Mode</span>
+                </span>
+                <input
+                  className="kt-switch"
+                  type="checkbox"
+                  checked={isDark}
+                  onChange={toggleTheme}
+                  aria-label="Toggle dark mode"
+                />
+              </div>
+              <button
+                type="button"
+                className="kt-btn kt-btn-outline justify-center w-full text-destructive"
+                onClick={handleLogout}
               >
-                {isDark ? (
-                  <Sun className="mr-2 h-4 w-4" />
-                ) : (
-                  <Moon className="mr-2 h-4 w-4" />
-                )}
-                {isDark ? "Light theme" : "Dark theme"}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-[13px] text-destructive focus:text-destructive"
-                onSelect={handleLogout}
-              >
-                <LogOut className="mr-2 h-4 w-4" />
+                <Ki name="exit-down" className="text-base" />
                 Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </button>
+            </div>
+          </aside>
         </div>
-      </header>
+      ) : null}
 
-      {!hideSidebar ? <PortalLiveFeedTicker /> : null}
-
-      {/* ── Page content — the only vertically scrolling region ─────────── */}
-      <main
+      {/* ── Wrapper ───────────────────────────────────────────────────── */}
+      {/* Offsets are driven by the Metronic CSS vars (--sidebar-width /
+          --header-height) via the root `kt-sidebar-fixed kt-header-fixed`
+          classes, exactly like the demo. No manual ps/start utilities. */}
+      <div
+        ref={wrapperRef}
         className={cn(
-          "portal-main-scroll relative z-10 min-h-0 flex-1 overflow-x-hidden bg-background",
-          hideSidebar
-            ? "overflow-hidden p-0"
-            : "overflow-y-auto px-4 pb-10 pt-6 md:px-7 md:pt-[26px]",
+          "kt-wrapper flex flex-col grow min-w-0 h-screen overflow-y-auto overflow-x-hidden transition-all duration-300",
         )}
       >
-        {role === "admin" && subscriptionAccess?.can_use_platform ? (
-          <SubscriptionExpiryBanner access={subscriptionAccess} />
-        ) : null}
-        <div
+        {/* Header */}
+        <header
           className={cn(
-            "mx-auto w-full min-w-0",
-            hideSidebar ? "h-full max-w-none" : "max-w-none",
+            "kt-header fixed top-0 z-10 start-0 end-0 flex items-stretch shrink-0 bg-background transition-all duration-300",
+            headerScrolled && "border-b border-border",
           )}
+          id="header"
         >
-          {children}
+          <div
+            className="kt-container-fixed flex justify-between items-stretch lg:gap-4"
+            id="headerContainer"
+          >
+            {/* Mobile: logo + hamburger */}
+            <div className="flex gap-2.5 lg:hidden items-center -ms-1">
+              <button
+                type="button"
+                className="kt-btn kt-btn-icon kt-btn-ghost"
+                onClick={() => setMobileOpen(true)}
+                aria-label="Open menu"
+                style={{ boxShadow: "0 2px 6px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2)" }}
+              >
+                <Ki name="burger-menu-2" />
+              </button>
+              <span className="text-sm font-semibold text-foreground">{schoolName}</span>
+            </div>
+
+            {/* Search (desktop) */}
+            <div className="hidden lg:flex items-center shrink-0">
+              <button
+                type="button"
+                className={`group ${headerIconBtn}`}
+                onClick={() => setSearchOpen(true)}
+                aria-label="Search pages"
+              >
+                <Ki name="magnifier" className="text-lg group-hover:text-primary" />
+              </button>
+            </div>
+
+            {/* Live Feed ticker in between Search and Topbar right */}
+            {!hideSidebar ? (
+              <div className="hidden md:flex items-center grow min-w-0 mx-2 lg:mx-4 overflow-hidden">
+                <PortalLiveFeedTicker />
+              </div>
+            ) : (
+              <div className="grow" />
+            )}
+
+            {/* Topbar right */}
+            <div className="flex items-center gap-1.5 lg:gap-2.5 shrink-0">
+              {!hideSidebar ? (
+                <>
+                  {role === "parent" ? (
+                    <div className="hidden md:block">
+                      <ParentAdmissionNav variant="header" />
+                    </div>
+                  ) : null}
+                  {isSuperAdmin ? (
+                    <div className="hidden lg:block">
+                      <SchoolSwitcher />
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+              <SyncStatusIndicator />
+              <NotificationCenter />
+              {/* Theme dropdown */}
+              <div className="relative shrink-0" ref={themeMenuRef}>
+                <button
+                  type="button"
+                  className={headerIconBtn}
+                  onClick={() => setThemeMenuOpen((o) => !o)}
+                  aria-label="Theme settings"
+                  aria-expanded={themeMenuOpen}
+                >
+                  {isDark ? (
+                    <Ki name="sun" className="text-lg" />
+                  ) : (
+                    <Ki name="moon" className="text-lg" />
+                  )}
+                </button>
+                {themeMenuOpen ? (
+                  <div
+                    className={cn(
+                      "kt-dropdown-menu absolute end-0 top-full z-50 mt-2 w-[220px] rounded-xl border border-border bg-card shadow-xl overflow-hidden p-0",
+                      themeMenuOpen && "open",
+                    )}
+                    data-kt-dropdown-menu="true"
+                  >
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
+                      <h3 className="font-semibold text-sm text-foreground">Theme</h3>
+                    </div>
+                    <div className="p-2 flex flex-col gap-1">
+                      <button
+                        type="button"
+                        className={cn(
+                          "w-full text-start px-3 py-2 rounded-lg hover:bg-accent/60 transition-colors flex items-center justify-between text-sm",
+                          !isDark && "bg-accent/40 font-semibold text-primary",
+                        )}
+                        onClick={() => {
+                          if (isDark) toggleTheme();
+                          setThemeMenuOpen(false);
+                        }}
+                      >
+                        <span className="flex items-center gap-2">
+                          <Ki name="sun" className="text-base" />
+                          <span>Light Mode</span>
+                        </span>
+                        {!isDark && <Ki name="check" className="text-base text-primary" />}
+                      </button>
+                      <button
+                        type="button"
+                        className={cn(
+                          "w-full text-start px-3 py-2 rounded-lg hover:bg-accent/60 transition-colors flex items-center justify-between text-sm",
+                          isDark && "bg-accent/40 font-semibold text-primary",
+                        )}
+                        onClick={() => {
+                          if (!isDark) toggleTheme();
+                          setThemeMenuOpen(false);
+                        }}
+                      >
+                        <span className="flex items-center gap-2">
+                          <Ki name="moon" className="text-base" />
+                          <span>Dark Mode</span>
+                        </span>
+                        {isDark && <Ki name="check" className="text-base text-primary" />}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              {/* User dropdown */}
+              <div className="relative shrink-0" ref={userMenuRef}>
+                <button
+                  type="button"
+                  className="flex items-center gap-2 cursor-pointer group rounded-full py-1 px-1.5 hover:bg-muted/60 transition-colors"
+                  onClick={() => setUserMenuOpen((o) => !o)}
+                  aria-haspopup="menu"
+                  aria-expanded={userMenuOpen}
+                  aria-label={`${userFullName || schoolName} account menu`}
+                >
+                  <span className="flex size-9 items-center justify-center overflow-hidden rounded-full border-2 border-primary bg-muted text-sm font-semibold text-foreground group-hover:scale-105 transition-transform">
+                    {schoolLogoUrl ? (
+                      <img src={schoolLogoUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      userFullName ? userFullName.charAt(0).toUpperCase() : schoolInitial
+                    )}
+                  </span>
+                  <span className="hidden lg:inline-block text-xs font-semibold text-foreground group-hover:text-primary transition-colors max-w-[120px] truncate">
+                    {userFullName || schoolName}
+                  </span>
+                  <ChevronDown
+                    className="hidden lg:block h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform"
+                    style={userMenuOpen ? { transform: "rotate(180deg)" } : undefined}
+                    aria-hidden
+                  />
+                </button>
+                {userMenuOpen ? (
+                  <div
+                    className={cn(
+                      "kt-dropdown-menu absolute end-0 top-full z-50 mt-2 w-[280px] rounded-xl border border-border bg-card shadow-xl overflow-hidden p-0",
+                      userMenuOpen && "open",
+                    )}
+                    data-kt-dropdown-menu="true"
+                  >
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
+                      <Link
+                        to={userEntityUrl}
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          navigateTo();
+                        }}
+                        className="font-semibold text-sm text-foreground hover:text-primary hover:underline flex items-center gap-1.5 transition-colors"
+                      >
+                        <span>User Profile</span>
+                        <Ki name="arrow-up-right" className="text-xs text-muted-foreground" />
+                      </Link>
+                      <Link
+                        to={userEntityUrl}
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          navigateTo();
+                        }}
+                        className="kt-badge kt-badge-sm kt-badge-primary kt-badge-outline font-medium hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer"
+                        title="View profile entity page"
+                      >
+                        {roleMeta.label}
+                      </Link>
+                    </div>
+
+                    <Link
+                      to={userEntityUrl}
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        navigateTo();
+                      }}
+                      className="flex items-center gap-3 px-4 py-3 border-b border-border/60 bg-muted/20 hover:bg-muted/40 transition-colors group cursor-pointer"
+                    >
+                      <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-sm font-bold text-foreground group-hover:border-primary transition-colors">
+                        {schoolLogoUrl ? (
+                          <img src={schoolLogoUrl} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          userFullName ? userFullName.charAt(0).toUpperCase() : schoolInitial
+                        )}
+                      </span>
+                      <div className="flex min-w-0 flex-col gap-0.5">
+                        <span className="truncate text-sm text-foreground font-semibold group-hover:text-primary group-hover:underline transition-colors">
+                          {userFullName || schoolName}
+                        </span>
+                        <span className="truncate text-xs text-muted-foreground font-medium group-hover:text-foreground transition-colors">
+                          {accountEmail || roleMeta.label}
+                        </span>
+                      </div>
+                      <Ki name="right" className="ms-auto text-xs text-muted-foreground group-hover:text-primary transition-colors" />
+                    </Link>
+
+                    <div className="p-2 flex flex-col gap-0.5">
+                      {currentSchool?.school_code && role !== "student" && role !== "parent" ? (
+                        <button
+                          type="button"
+                          className="kt-dropdown-menu-link w-full text-start px-3 py-2 rounded-lg hover:bg-accent/60 transition-colors flex items-center gap-2.5 text-sm"
+                          onClick={handleCopySchoolCode}
+                        >
+                          <Ki name="information" className="text-base text-muted-foreground" />
+                          <span>School code</span>
+                          <span className="ms-auto flex items-center gap-1.5 font-mono text-xs font-semibold text-primary">
+                            {currentSchool.school_code}
+                            {schoolCodeCopied ? (
+                              <Ki name="check" className="text-base text-primary" />
+                            ) : (
+                              <Ki name="copy" className="text-base text-muted-foreground" />
+                            )}
+                          </span>
+                        </button>
+                      ) : null}
+
+                      <Link
+                        className="kt-dropdown-menu-link w-full text-start px-3 py-2 rounded-lg hover:bg-accent/60 transition-colors flex items-center gap-2.5 text-sm"
+                        to="/settings"
+                        onClick={navigateTo}
+                      >
+                        <Ki name="setting-2" className="text-base text-muted-foreground" />
+                        <span>Account settings</span>
+                      </Link>
+
+                      <Link
+                        className="kt-dropdown-menu-link w-full text-start px-3 py-2 rounded-lg hover:bg-accent/60 transition-colors flex items-center gap-2.5 text-sm"
+                        to="/messages"
+                        onClick={navigateTo}
+                      >
+                        <Ki name="message-text" className="text-base text-muted-foreground" />
+                        <span>Messages</span>
+                        {unreadMessages > 0 ? (
+                          <span className="ms-auto kt-badge kt-badge-sm kt-badge-danger kt-badge-outline font-semibold">
+                            {unreadMessages > 9 ? "9+" : unreadMessages}
+                          </span>
+                        ) : null}
+                      </Link>
+                    </div>
+
+                    <div className="p-2 border-t border-border bg-card">
+                      <button
+                        type="button"
+                        className="kt-dropdown-menu-link w-full text-start px-3 py-2 rounded-lg hover:bg-destructive/10 text-destructive transition-colors flex items-center gap-2.5 text-sm font-medium"
+                        onClick={handleLogout}
+                      >
+                        <Ki name="exit-down" className="text-base text-destructive" />
+                        <span>Sign out</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </header>
+        {/* End of Header */}
+
+        {/* Content — pt-5 matches the demo; the fixed header offset is
+            handled by .kt-header-fixed .kt-wrapper { padding-top } */}
+        <main className="grow pt-5" id="content">
+          <div className="kt-container-fixed pb-16">
+            {role === "admin" && subscriptionAccess?.can_use_platform ? (
+              <SubscriptionExpiryBanner access={subscriptionAccess} />
+            ) : null}
+            {children}
+          </div>
+        </main>
+        {/* End of Content */}
+
+        {/* Footer */}
+        <footer className="shrink-0 border-t border-t-border bg-background">
+          <div className="kt-container-fixed">
+            <div className="flex flex-col md:flex-row justify-center md:justify-between items-center gap-3 py-5">
+              <div className="flex order-2 md:order-1 gap-2 font-normal text-sm">
+                <span className="text-secondary-foreground">
+                  {new Date().getFullYear()}©
+                </span>
+                <span className="text-secondary-foreground">{schoolName}</span>
+              </div>
+              <div className="flex order-1 md:order-2 gap-4 font-normal text-sm text-secondary-foreground">
+                <span className="text-muted-foreground">{portalLabel}</span>
+              </div>
+            </div>
+          </div>
+        </footer>
+        {/* End of Footer */}
+      </div>
+      {/* End of Wrapper */}
+
+      {/* ── Search modal ──────────────────────────────────────────────── */}
+      {searchOpen ? (
+        <div className="kt-modal open fixed inset-0 z-[60] flex items-start justify-center p-4" data-kt-modal="true">
+          <div
+            className="kt-modal-backdrop fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+            onClick={() => setSearchOpen(false)}
+            aria-hidden
+          />
+          <div className="kt-modal-content relative mx-auto w-full max-w-[600px] mt-[10vh] rounded-2xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-border bg-card">
+              <Ki name="magnifier" className="text-xl text-primary shrink-0" />
+              <input
+                autoFocus
+                className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none font-medium"
+                name="query"
+                placeholder="Search pages, modules, settings…"
+                value={navQuery}
+                onChange={(e) => setNavQuery(e.target.value)}
+              />
+              <button
+                type="button"
+                className="kt-btn kt-btn-sm kt-btn-icon kt-btn-dim shrink-0 rounded-lg hover:bg-accent"
+                onClick={() => setSearchOpen(false)}
+                aria-label="Close search"
+              >
+                <Ki name="cross" className="text-sm" />
+              </button>
+            </div>
+            <div className="max-h-[55vh] overflow-y-auto p-3">
+              {filteredNavItems.length === 0 ? (
+                <div className="py-16 text-center text-sm text-muted-foreground">
+                  No pages match your search.
+                </div>
+              ) : (
+                <div className="px-2 pt-1 pb-2">
+                  <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Navigation & Pages
+                  </div>
+                  {sidebarMenu}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-        {!hideSidebar ? <AiFloatingButton /> : null}
-      </main>
+      ) : null}
+
+      {!hideSidebar ? <AiFloatingButton /> : null}
     </div>
   );
 };

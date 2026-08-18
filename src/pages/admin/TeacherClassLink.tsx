@@ -1,3 +1,5 @@
+import { useState, useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
-import { useState, useEffect, useMemo } from "react";
 import { BookOpen, Link2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -366,7 +367,13 @@ const TeacherClassLink = () => {
             <CardHeader>
               <CardTitle>Current Assignments</CardTitle>
               <CardDescription>
-                Classes and subjects taught by {selectedTeacherName}
+                Classes and subjects taught by{" "}
+                <Link
+                  to={`/admin/teachers/${selectedTeacher}`}
+                  className="text-primary font-semibold hover:underline"
+                >
+                  {selectedTeacherName}
+                </Link>
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -388,7 +395,18 @@ const TeacherClassLink = () => {
                   <TableBody>
                     {assignments.map((assignment) => (
                       <TableRow key={assignment.id}>
-                        <TableCell className="font-medium">{assignment.classes?.name}</TableCell>
+                        <TableCell className="font-medium">
+                          {assignment.classes?.name ? (
+                            <Link
+                              to={`/admin/classes/${assignment.class_id || assignment.classes.name}`}
+                              className="text-foreground hover:text-primary hover:underline font-semibold"
+                            >
+                              {assignment.classes.name}
+                            </Link>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
                         <TableCell>{assignment.classes?.level}</TableCell>
                         <TableCell>{assignment.subjects?.name}</TableCell>
                         <TableCell>{assignment.subjects?.code}</TableCell>

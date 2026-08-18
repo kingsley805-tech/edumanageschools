@@ -179,18 +179,25 @@ export const NotificationCenter = () => {
           )}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
-        <div className="flex items-center justify-between px-4 py-2 border-b">
-          <h3 className="font-semibold">Notifications</h3>
+      <DropdownMenuContent
+        align="end"
+        className="w-80 rounded-xl border border-border bg-card shadow-xl p-0 overflow-hidden"
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
+          <h3 className="font-semibold text-sm text-foreground">Notifications</h3>
           {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" onClick={markAllAsRead}>
+            <button
+              type="button"
+              onClick={markAllAsRead}
+              className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
+            >
               Mark all read
-            </Button>
+            </button>
           )}
         </div>
-        <ScrollArea className="h-96">
+        <ScrollArea className="h-80">
           {notifications.length === 0 ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">
+            <div className="py-16 text-center text-sm text-muted-foreground">
               No notifications yet
             </div>
           ) : (
@@ -198,22 +205,22 @@ export const NotificationCenter = () => {
               <DropdownMenuItem
                 key={notification.id}
                 textValue={notification.title}
-                className={`px-4 py-3 cursor-pointer ${
-                  !notification.read ? "bg-accent/50" : ""
+                className={`px-4 py-3 cursor-pointer border-b border-border/40 last:border-b-0 hover:bg-accent/50 focus:bg-accent/50 ${
+                  !notification.read ? "bg-accent/30 font-medium" : ""
                 }`}
                 onClick={() => !notification.read && markAsRead(notification.id)}
               >
                 <div className="flex flex-col gap-1 w-full">
                   <div className="flex items-start justify-between gap-2">
-                    <span className="font-medium text-sm">{notification.title}</span>
+                    <span className="font-semibold text-sm text-foreground">{notification.title}</span>
                     {!notification.read && (
                       <div className="h-2 w-2 rounded-full bg-primary flex-shrink-0 mt-1" />
                     )}
                   </div>
-                  <p className="text-sm text-muted-foreground line-clamp-2">
+                  <p className="text-xs text-muted-foreground line-clamp-2">
                     {notification.body}
                   </p>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-[11px] text-muted-foreground/70">
                     {formatTimestamp(notification.created_at)}
                   </span>
                 </div>

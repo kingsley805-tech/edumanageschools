@@ -285,18 +285,19 @@ const Messages = () => {
 
   return (
     <DashboardLayout role={role as any}>
-      <div className="mingo-content space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Messages</h2>
-            <p className="text-[12.5px] text-muted-foreground mt-1">
-              {role === "teacher" ? "Communicate with parents" : "Communicate with teachers"}
-            </p>
+      {/* Page Header — Metronic toolbar */}
+      <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">
+        <div className="flex min-w-0 flex-col justify-center gap-2">
+          <h1 className="text-xl font-medium leading-none text-mono">Messages</h1>
+          <div className="flex items-center gap-2 text-sm font-normal text-secondary-foreground">
+            {role === "teacher" ? "Communicate with parents and students" : "Communicate with teachers and administration"}
           </div>
+        </div>
+        <div className="flex items-center gap-2.5">
           <Dialog open={newMessageOpen} onOpenChange={setNewMessageOpen}>
             <DialogTrigger asChild>
-              <Button>
-                <Send className="h-4 w-4 mr-2" />
+              <Button className="kt-btn kt-btn-primary gap-2">
+                <i className="ki-filled ki-plus text-base" />
                 New Message
               </Button>
             </DialogTrigger>
@@ -308,7 +309,7 @@ const Messages = () => {
                 <div className="space-y-2">
                   <Label>Recipient</Label>
                   <Select value={recipientId} onValueChange={setRecipientId}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-9">
                       <SelectValue placeholder="Select recipient" />
                     </SelectTrigger>
                     <SelectContent>
@@ -337,7 +338,7 @@ const Messages = () => {
                     rows={6}
                   />
                 </div>
-                <Button onClick={sendMessage} className="w-full">
+                <Button onClick={sendMessage} className="kt-btn kt-btn-primary w-full justify-center">
                   <Send className="h-4 w-4 mr-2" />
                   Send Message
                 </Button>
@@ -345,102 +346,100 @@ const Messages = () => {
             </DialogContent>
           </Dialog>
         </div>
+      </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle>Inbox</CardTitle>
-              <CardDescription>
-                {messages.filter(m => m.receiver_id === user?.id && !m.read).length} unread
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {messages.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>No messages yet</p>
-                </div>
-              ) : (
-                messages.map((message) => (
-                  <button
-                    key={message.id}
-                    onClick={() => {
-                      setSelectedMessage(message);
-                      if (message.receiver_id === user?.id && !message.read) {
-                        markAsRead(message.id);
-                      }
-                    }}
-                    className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                      selectedMessage?.id === message.id
-                        ? "bg-primary/10 border-primary"
-                        : "hover:bg-muted"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                        <Avatar className="h-8 w-8 flex-shrink-0">
-                          <AvatarFallback>
-                            {(message.sender_id === user?.id
-                              ? message.receiver?.full_name
-                              : message.sender?.full_name
-                            )?.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate text-sm">
-                            {message.sender_id === user?.id
-                              ? message.receiver?.full_name
-                              : message.sender?.full_name}
-                          </p>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {message.subject}
-                          </p>
-                        </div>
-                      </div>
-                      {message.receiver_id === user?.id && !message.read && (
-                        <Badge variant="default" className="flex-shrink-0">New</Badge>
-                      )}
-                    </div>
-                  </button>
-                ))
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="lg:col-span-2">
-            {selectedMessage ? (
-              <>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle>{selectedMessage.subject}</CardTitle>
-                      <CardDescription>
-                        From:{" "}
-                        {selectedMessage.sender_id === user?.id
-                          ? "You"
-                          : selectedMessage.sender?.full_name}
-                      </CardDescription>
-                    </div>
-                    <Badge variant="outline">
-                      {new Date(selectedMessage.created_at).toLocaleDateString()}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="prose max-w-none">
-                    <p className="whitespace-pre-wrap">{selectedMessage.body}</p>
-                  </div>
-                </CardContent>
-              </>
+      <div className="grid gap-5 lg:grid-cols-3">
+        <div className="kt-card lg:col-span-1">
+          <div className="kt-card-header flex justify-between items-center py-4 px-5">
+            <h3 className="kt-card-title">Inbox</h3>
+            <span className="kt-badge kt-badge-outline kt-badge-sm">
+              {messages.filter(m => m.receiver_id === user?.id && !m.read).length} unread
+            </span>
+          </div>
+          <div className="kt-card-content p-4 space-y-2 max-h-[600px] overflow-y-auto">
+            {messages.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>No messages yet</p>
+              </div>
             ) : (
-              <CardContent className="flex items-center justify-center h-96">
-                <div className="text-center text-muted-foreground">
-                  <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                  <p>Select a message to read</p>
-                </div>
-              </CardContent>
+              messages.map((message) => (
+                <button
+                  key={message.id}
+                  onClick={() => {
+                    setSelectedMessage(message);
+                    if (message.receiver_id === user?.id && !message.read) {
+                      markAsRead(message.id);
+                    }
+                  }}
+                  className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                    selectedMessage?.id === message.id
+                      ? "bg-primary/10 border-primary"
+                      : "hover:bg-muted border-border"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <Avatar className="h-8 w-8 flex-shrink-0">
+                        <AvatarFallback>
+                          {(message.sender_id === user?.id
+                            ? message.receiver?.full_name
+                            : message.sender?.full_name
+                          )?.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate text-sm">
+                          {message.sender_id === user?.id
+                            ? message.receiver?.full_name
+                            : message.sender?.full_name}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {message.subject}
+                        </p>
+                      </div>
+                    </div>
+                    {message.receiver_id === user?.id && !message.read && (
+                      <span className="kt-badge kt-badge-sm kt-badge-primary">New</span>
+                    )}
+                  </div>
+                </button>
+              ))
             )}
-          </Card>
+          </div>
+        </div>
+
+        <div className="kt-card lg:col-span-2">
+          {selectedMessage ? (
+            <>
+              <div className="kt-card-header flex justify-between items-center py-4 px-5">
+                <div>
+                  <h3 className="kt-card-title">{selectedMessage.subject}</h3>
+                  <p className="text-xs text-secondary-foreground">
+                    From:{" "}
+                    {selectedMessage.sender_id === user?.id
+                      ? "You"
+                      : selectedMessage.sender?.full_name}
+                  </p>
+                </div>
+                <span className="kt-badge kt-badge-outline kt-badge-sm">
+                  {new Date(selectedMessage.created_at).toLocaleDateString()}
+                </span>
+              </div>
+              <div className="kt-card-content p-5">
+                <div className="prose max-w-none text-sm text-foreground">
+                  <p className="whitespace-pre-wrap">{selectedMessage.body}</p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="kt-card-content flex items-center justify-center h-96 p-5">
+              <div className="text-center text-muted-foreground">
+                <i className="ki-filled ki-messages text-4xl mx-auto mb-3 block opacity-50" />
+                <p className="text-sm">Select a message to read</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </DashboardLayout>

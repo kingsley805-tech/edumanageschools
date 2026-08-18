@@ -150,7 +150,7 @@ export async function saveAchievement(
     recommendation_letter: payload.recommendation_letter ?? null,
     notes: payload.notes ?? null,
     status: payload.status ?? "pending",
-    is_published: payload.is_published ?? false,
+    is_published: payload.is_published ?? Boolean(payload.student_id),
     updated_at: new Date().toISOString(),
     updated_by: userId ?? null,
   };
@@ -185,12 +185,15 @@ export async function setAchievementStatus(
     row.approved_by = userId ?? null;
     row.approved_at = new Date().toISOString();
     row.rejection_reason = null;
+    row.is_published = true;
   }
   if (status === "rejected") {
     row.rejection_reason = rejectionReason ?? null;
+    row.is_published = false;
   }
   if (status === "archived") {
     row.is_archived = true;
+    row.is_published = false;
   }
   const { error } = await supabase.from("achievements").update(row).eq("id", id);
   if (error) throw error;
@@ -272,4 +275,40 @@ export async function fetchStudentOptions(schoolId: string): Promise<StudentOpti
     admission: s.admission_number ?? "",
     class_name: (s.classes as { name?: string } | null)?.name ?? "",
   }));
+}
+
+/** Published certificates/awards for student & parent portals. */
+export async function fetchPublishedAchievementsForStudents(
+  studentIds: string[],
+): Promise<Achievement[]> {
+  if (!studentIds.length) return [];
+  const { data, error } = await supabase
+    .from("achievements")
+    .select(
+      "*, students(full_name, admission_number, classes(name)), achievement_categories(name)",
+    )
+    .in("student_id", studentIds)
+    .eq("is_published", true)
+    .eq("is_archived", false)
+    .neq("status", "rejected")
+    .order("awarded_on", { ascending: false });
+  if (error) throw error;
+
+  return (data ?? []).map((row) => {
+    const student = row.students as {
+      full_name?: string;
+      admission_number?: string;
+      classes?: { name?: string } | null;
+    } | null;
+    const category = row.achievement_categories as { name?: string } | null;
+    return {
+      ...(row as Omit<Achievement, "student_name" | "admission_number" | "class_name" | "category_name">),
+      achievement_type: (row.achievement_type ?? "award") as AchievementType,
+      status: (row.status ?? "pending") as AchievementStatus,
+      student_name: student?.full_name ?? "Student",
+      admission_number: student?.admission_number ?? "",
+      class_name: student?.classes?.name ?? "",
+      category_name: category?.name ?? null,
+    };
+  });
 }

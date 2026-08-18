@@ -5,13 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
-import { FileText, Users, CheckCircle, XCircle, AlertTriangle, TrendingUp, Clock, Shield, Download, FileSpreadsheet } from "lucide-react";
+import { FileText, Users, CheckCircle, XCircle, AlertTriangle, TrendingUp, Clock, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { format } from "date-fns";
-import { exportToExcel, exportToPDF, ExamReportData } from "@/lib/exportUtils";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
+import type { ExportCell } from "@/modules/lib/exportTable";
 
 interface ExamSummaryProps {
   examId: string;
@@ -154,66 +153,23 @@ export const ExamSummaryReport = ({ examId, examTitle, open, onOpenChange }: Exa
     setLoading(false);
   };
 
-  const handleExport = async (format: "pdf" | "excel") => {
-    const reportData: ExamReportData = {
-      examTitle,
-      className: examDetails?.className || "Unknown",
-      subjectName: examDetails?.subjectName || "Unknown",
-      examDate: examDetails?.examDate || "Unknown",
-      totalMarks,
-      passingMarks,
-      stats: {
-        totalStudents: attempts.length,
-        attempted: attempts.filter(a => a.status === "submitted").length,
-        passed: attempts.filter(a => (a.total_marks_obtained || 0) >= passingMarks).length,
-        avgScore: attempts.length > 0
-          ? attempts.reduce((sum, a) => sum + (a.total_marks_obtained || 0), 0) / attempts.filter(a => a.status === "submitted").length || 0
-          : 0,
-        highestScore: Math.max(...attempts.map(a => a.total_marks_obtained || 0), 0),
-        lowestScore: attempts.filter(a => a.status === "submitted").length > 0
-          ? Math.min(...attempts.filter(a => a.status === "submitted").map(a => a.total_marks_obtained || 0))
-          : 0,
-        passRate: attempts.filter(a => a.status === "submitted").length > 0
-          ? (attempts.filter(a => (a.total_marks_obtained || 0) >= passingMarks).length /
-             attempts.filter(a => a.status === "submitted").length) * 100
-          : 0,
-      },
-      students: attempts.map(a => {
-        const timeTaken = a.submitted_at && a.started_at
-          ? Math.round((new Date(a.submitted_at).getTime() - new Date(a.started_at).getTime()) / 60000)
-          : 0;
-        const violations = proctoringLogs.filter(l => l.attempt_id === a.id).length;
-        return {
-          name: a.students?.profiles?.full_name || "Unknown",
-          email: a.students?.profiles?.email || "",
-          score: a.total_marks_obtained || 0,
-          percentage: ((a.total_marks_obtained || 0) / totalMarks) * 100,
-          status: (a.total_marks_obtained || 0) >= passingMarks ? "Passed" : "Failed",
-          violations,
-          timeTaken: timeTaken ? `${timeTaken} min` : "-",
-        };
-      }),
-      questionAnalytics: questionAnalytics.map(q => ({
-        question: q.question_text,
-        correct: q.correct,
-        wrong: q.wrong,
-        skipped: q.skipped,
-      })),
-    };
-
-    try {
-      if (format === "pdf") {
-        await exportToPDF(reportData);
-        toast.success("PDF report downloaded");
-      } else {
-        exportToExcel(reportData);
-        toast.success("Excel report downloaded");
-      }
-    } catch (error) {
-      console.error("Export error:", error);
-      toast.error("Failed to export report");
-    }
-  };
+  const exportHeaders = ["Student", "Email", "Score", "Percentage", "Status", "Violations", "Time Taken"];
+  const exportRows: ExportCell[][] = attempts.map((a) => {
+    const timeTaken =
+      a.submitted_at && a.started_at
+        ? Math.round((new Date(a.submitted_at).getTime() - new Date(a.started_at).getTime()) / 60000)
+        : 0;
+    const violations = proctoringLogs.filter((l) => l.attempt_id === a.id).length;
+    return [
+      a.students?.profiles?.full_name || "Unknown",
+      a.students?.profiles?.email || "",
+      a.total_marks_obtained || 0,
+      `${(((a.total_marks_obtained || 0) / totalMarks) * 100).toFixed(1)}%`,
+      (a.total_marks_obtained || 0) >= passingMarks ? "Passed" : "Failed",
+      violations,
+      timeTaken ? `${timeTaken} min` : "-",
+    ];
+  });
 
   const stats = {
     totalStudents: attempts.length,
@@ -276,21 +232,12 @@ export const ExamSummaryReport = ({ examId, examTitle, open, onOpenChange }: Exa
                   </Button>
                 ))}
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-2" /> Export
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => handleExport("pdf")}>
-                    <FileText className="h-4 w-4 mr-2" /> Export as PDF
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExport("excel")}>
-                    <FileSpreadsheet className="h-4 w-4 mr-2" /> Export as Excel
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <ExportMenu
+                filename={`exam-summary-${examTitle.toLowerCase().replace(/\s+/g, "-")}`}
+                title={`Exam Summary: ${examTitle}`}
+                headers={exportHeaders}
+                rows={exportRows}
+              />
             </div>
 
             {/* Overview Tab */}
@@ -304,7 +251,7 @@ export const ExamSummaryReport = ({ examId, examTitle, open, onOpenChange }: Exa
                         <Users className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm text-muted-foreground">Attempted</span>
                       </div>
-                      <p className="text-2xl font-bold">{stats.submitted}/{stats.totalStudents}</p>
+                      <p className="text-3xl font-semibold">{stats.submitted}/{stats.totalStudents}</p>
                     </CardContent>
                   </Card>
                   <Card>
@@ -313,7 +260,7 @@ export const ExamSummaryReport = ({ examId, examTitle, open, onOpenChange }: Exa
                         <CheckCircle className="h-4 w-4 text-green-500" />
                         <span className="text-sm text-muted-foreground">Pass Rate</span>
                       </div>
-                      <p className="text-2xl font-bold">{stats.passRate.toFixed(1)}%</p>
+                      <p className="text-3xl font-semibold">{stats.passRate.toFixed(1)}%</p>
                     </CardContent>
                   </Card>
                   <Card>
@@ -322,7 +269,7 @@ export const ExamSummaryReport = ({ examId, examTitle, open, onOpenChange }: Exa
                         <TrendingUp className="h-4 w-4 text-blue-500" />
                         <span className="text-sm text-muted-foreground">Avg Score</span>
                       </div>
-                      <p className="text-2xl font-bold">{stats.avgScore.toFixed(1)}/{totalMarks}</p>
+                      <p className="text-3xl font-semibold">{stats.avgScore.toFixed(1)}/{totalMarks}</p>
                     </CardContent>
                   </Card>
                   <Card>
@@ -331,7 +278,7 @@ export const ExamSummaryReport = ({ examId, examTitle, open, onOpenChange }: Exa
                         <Shield className="h-4 w-4 text-orange-500" />
                         <span className="text-sm text-muted-foreground">Violations</span>
                       </div>
-                      <p className="text-2xl font-bold">{proctoringLogs.length}</p>
+                      <p className="text-3xl font-semibold">{proctoringLogs.length}</p>
                     </CardContent>
                   </Card>
                 </div>

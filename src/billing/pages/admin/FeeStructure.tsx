@@ -44,10 +44,8 @@ type SchoolClassRow = { id: string; name: string; stream: string | null };
 
 /* ─────────────────────── animation styles ───────────────────── */
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
-
-  .fee-root * { font-family: 'Sora', sans-serif; box-sizing: border-box; }
-  .fee-root .mono { font-family: 'JetBrains Mono', monospace; }
+  .fee-root * { font-family: 'Inter', sans-serif; box-sizing: border-box; }
+  .fee-root .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 
   @keyframes slideUp {
     from { opacity: 0; transform: translateY(18px); }
@@ -107,7 +105,7 @@ const styles = `
     padding: 11px 20px; cursor: pointer;
     transition: transform .18s, box-shadow .18s, opacity .18s;
     box-shadow: 0 3px 14px hsl(var(--primary) / 0.28);
-    font-family: 'Sora', sans-serif;
+    font-family: 'Inter', sans-serif;
   }
   .fee-btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 7px 22px hsl(var(--primary) / 0.36); }
   .fee-btn-primary:active:not(:disabled) { transform: translateY(0); }
@@ -129,7 +127,7 @@ const styles = `
     font-weight: 700; font-size: 12.5px; padding: 7px 13px;
     cursor: pointer; transition: transform .18s, box-shadow .18s;
     box-shadow: 0 2px 10px hsl(var(--primary) / 0.24);
-    font-family: 'Sora', sans-serif; white-space: nowrap;
+    font-family: 'Inter', sans-serif; white-space: nowrap;
   }
   .fee-btn-sm:hover { transform: translateY(-1px); box-shadow: 0 5px 16px hsl(var(--primary) / 0.34); }
 
@@ -168,7 +166,8 @@ const styles = `
 
   /* ── amount chip ── */
   .amount-chip {
-    font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-weight: 500; font-size: 13px;
     background: linear-gradient(135deg, hsl(var(--primary) / 0.12), hsl(var(--accent) / 0.06));
     color: hsl(var(--primary)); border: 1px solid hsl(var(--primary) / 0.2);
     border-radius: 8px; padding: 3px 10px; white-space: nowrap;
@@ -186,7 +185,7 @@ const styles = `
   .fee-input {
     border-radius: 10px !important; border: 1.5px solid hsl(var(--input)) !important;
     background: hsl(var(--background) / 0.95) !important; color: hsl(var(--foreground)) !important; font-size: 13.5px !important;
-    font-family: 'Sora', sans-serif !important;
+    font-family: 'Inter', sans-serif !important;
     transition: border-color .2s, box-shadow .2s;
   }
   .fee-input:focus { border-color: hsl(var(--ring)) !important; box-shadow: 0 0 0 3px hsl(var(--ring) / 0.13) !important; }
@@ -205,14 +204,14 @@ const styles = `
     background: hsl(var(--popover) / 0.97) !important; backdrop-filter: blur(22px) !important;
     animation: scaleIn .28s cubic-bezier(.22,1,.36,1) !important;
   }
-  [data-radix-dialog-title] { font-family: 'Sora', sans-serif !important; font-weight: 800 !important; color: hsl(var(--foreground)) !important; }
+  [data-radix-dialog-title] { font-family: 'Inter', sans-serif !important; font-weight: 800 !important; color: hsl(var(--foreground)) !important; }
 
   /* ── toggle tabs ── */
   .fee-tabs { display: flex; gap: 4px; background: hsl(var(--muted)); border-radius: 11px; padding: 4px; }
   .fee-tab {
     flex: 1; text-align: center; padding: 8px 12px; border-radius: 8px;
     font-size: 13px; font-weight: 600; cursor: pointer; transition: all .22s;
-    color: hsl(var(--muted-foreground)); border: none; background: transparent; font-family: 'Sora', sans-serif;
+    color: hsl(var(--muted-foreground)); border: none; background: transparent; font-family: 'Inter', sans-serif;
   }
   .fee-tab.active { background: hsl(var(--card)); color: hsl(var(--primary)); box-shadow: 0 2px 10px hsl(var(--foreground) / 0.08); }
 

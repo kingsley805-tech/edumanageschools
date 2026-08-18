@@ -1,10 +1,9 @@
 import { useMemo } from "react";
-import { BarChart3, BedDouble, DollarSign, Download, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { BarChart3, BedDouble, DollarSign, Users } from "lucide-react";
 import { ChartCard } from "@/components/charts/ChartCard";
 import { AnimatedBarChart } from "@/components/charts/AnimatedBarChart";
 import { TrendComparisonChart } from "@/components/charts/TrendComparisonChart";
-import { downloadCsv } from "@/modules/lib/exportCsv";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { formatMoney } from "@/lib/currency";
 import type {
   HostelAllocation,
@@ -81,55 +80,28 @@ export function HostelReportsPanel({ stats, allocations, rooms, payments, curren
     [rooms],
   );
 
-  const exportOccupancy = () => {
-    downloadCsv(
-      "hostel-occupancy.csv",
-      ["Hostel", "Occupied", "Available"],
-      occupancyByHostel.map((r) => [r.label, r.occupied, r.available]),
-    );
-  };
-
-  const exportStudents = () => {
-    downloadCsv(
-      "hostel-students.csv",
-      ["Student", "Admission", "Class", "Hostel", "Room", "Status", "Payment"],
-      allocations
-        .filter((a) => a.allocation_status !== "checked_out")
-        .map((a) => [
-          a.student_name,
-          a.admission_number,
-          a.class_name,
-          a.hostel_name,
-          a.room_number,
-          a.allocation_status,
-          a.payment_status,
-        ]),
-    );
-  };
-
-  const exportPayments = () => {
-    downloadCsv(
-      "hostel-payments.csv",
-      ["Date", "Receipt", "Student", "Hostel", "Room", "Amount", "Method"],
-      payments.map((p) => [
-        p.payment_date,
-        p.receipt_number,
-        p.student_name,
-        p.hostel_name,
-        p.room_number,
-        p.amount,
-        p.payment_method,
-      ]),
-    );
-  };
-
-  const exportAvailableRooms = () => {
-    downloadCsv(
-      "hostel-available-rooms.csv",
-      ["Room", "Available Beds"],
-      availableRooms.map((r) => [r.label, r.available]),
-    );
-  };
+  const occupancyRows = occupancyByHostel.map((r) => [r.label, r.occupied, r.available]);
+  const studentRows = allocations
+    .filter((a) => a.allocation_status !== "checked_out")
+    .map((a) => [
+      a.student_name,
+      a.admission_number,
+      a.class_name,
+      a.hostel_name,
+      a.room_number,
+      a.allocation_status,
+      a.payment_status,
+    ]);
+  const paymentRows = payments.map((p) => [
+    p.payment_date,
+    p.receipt_number,
+    p.student_name,
+    p.hostel_name,
+    p.room_number,
+    p.amount,
+    p.payment_method,
+  ]);
+  const availableRoomRows = availableRooms.map((r) => [r.label, r.available]);
 
   return (
     <div className="space-y-6">
@@ -140,10 +112,12 @@ export function HostelReportsPanel({ stats, allocations, rooms, payments, curren
           icon={<BedDouble className="h-4 w-4" />}
           className="dark:bg-[#0b0f0d]"
           action={
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={exportOccupancy}>
-              <Download className="h-3.5 w-3.5" />
-              CSV
-            </Button>
+            <ExportMenu
+              filename="hostel-occupancy"
+              title="Hostel Occupancy"
+              headers={["Hostel", "Occupied", "Available"]}
+              rows={occupancyRows}
+            />
           }
         >
           <AnimatedBarChart
@@ -165,10 +139,12 @@ export function HostelReportsPanel({ stats, allocations, rooms, payments, curren
           icon={<DollarSign className="h-4 w-4" />}
           className="dark:bg-[#0b0f0d]"
           action={
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={exportPayments}>
-              <Download className="h-3.5 w-3.5" />
-              CSV
-            </Button>
+            <ExportMenu
+              filename="hostel-payments"
+              title="Hostel Payments"
+              headers={["Date", "Receipt", "Student", "Hostel", "Room", "Amount", "Method"]}
+              rows={paymentRows}
+            />
           }
         >
           <TrendComparisonChart
@@ -188,10 +164,12 @@ export function HostelReportsPanel({ stats, allocations, rooms, payments, curren
           icon={<Users className="h-4 w-4" />}
           className="dark:bg-[#0b0f0d]"
           action={
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={exportStudents}>
-              <Download className="h-3.5 w-3.5" />
-              CSV
-            </Button>
+            <ExportMenu
+              filename="hostel-students"
+              title="Hostel Students"
+              headers={["Student", "Admission", "Class", "Hostel", "Room", "Status", "Payment"]}
+              rows={studentRows}
+            />
           }
         >
           <AnimatedBarChart
@@ -226,10 +204,12 @@ export function HostelReportsPanel({ stats, allocations, rooms, payments, curren
         icon={<BedDouble className="h-4 w-4" />}
         className="dark:bg-[#0b0f0d]"
         action={
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={exportAvailableRooms}>
-            <Download className="h-3.5 w-3.5" />
-            CSV
-          </Button>
+          <ExportMenu
+            filename="hostel-available-rooms"
+            title="Available Rooms"
+            headers={["Room", "Available Beds"]}
+            rows={availableRoomRows}
+          />
         }
       >
         <AnimatedBarChart

@@ -219,43 +219,43 @@ export default function StudentBilling() {
         ) : (
           <>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Card>
+              <Card className="channel-stats-bg">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
                     <DollarSign className="h-4 w-4" /> Total billed
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="text-2xl font-bold">
+                <CardContent className="text-3xl font-semibold">
                   {formatMoney(totalBilled, currency, { maximumFractionDigits: 0 })}
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="channel-stats-bg">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
                     <TrendingUp className="h-4 w-4" /> Paid
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="text-2xl font-bold text-emerald-700">
+                <CardContent className="text-3xl font-semibold text-emerald-700">
                   {formatMoney(totalPaid, currency, { maximumFractionDigits: 0 })}
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="channel-stats-bg">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
                     <AlertCircle className="h-4 w-4" /> Outstanding
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="text-2xl font-bold text-amber-700">
+                <CardContent className="text-3xl font-semibold text-amber-700">
                   {formatMoney(outstanding, currency, { maximumFractionDigits: 0 })}
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="channel-stats-bg">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
                     <FileText className="h-4 w-4" /> Invoices
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="text-2xl font-bold">{invoices.length}</CardContent>
+                <CardContent className="text-3xl font-semibold">{invoices.length}</CardContent>
               </Card>
             </div>
 

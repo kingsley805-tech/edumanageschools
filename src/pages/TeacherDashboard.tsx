@@ -153,172 +153,210 @@ const TeacherDashboard = () => {
 
   return (
     <DashboardLayout role="teacher">
-      <div className="mingo-content">
-        <div className="mingo-page-head">
-          <div>
-            <h1>Teacher dashboard</h1>
-            <p>Your classes, assignments, registers, and reports in one place.</p>
+      {/* Page head — Metronic page title block */}
+      <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">
+        <div className="flex min-w-0 flex-col justify-center gap-2">
+          <h1 className="text-xl font-medium leading-none text-mono">Dashboard</h1>
+          <div className="flex items-center gap-2 text-sm font-normal text-secondary-foreground">
+            Your classes, assignments, registers, and reports in one place.
           </div>
-          <div className="mingo-head-actions">
-            <button
-              type="button"
-              className="mingo-btn mingo-btn-ghost"
-              onClick={() => navigate("/teacher/attendance")}
-            >
-              Mark attendance
-            </button>
-            <button
-              type="button"
-              className="mingo-btn mingo-btn-primary"
-              onClick={() => navigate("/teacher/assignments")}
-            >
-              + New assignment
-            </button>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            className="kt-btn kt-btn-outline"
+            onClick={() => navigate("/teacher/attendance")}
+          >
+            <i className="ki-filled ki-calendar-8 text-base" />
+            Mark attendance
+          </button>
+          <button
+            type="button"
+            className="kt-btn kt-btn-primary"
+            onClick={() => navigate("/teacher/assignments")}
+          >
+            <i className="ki-filled ki-plus text-base" />
+            New assignment
+          </button>
+        </div>
+      </div>
+
+      {/* KPI row */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-5 lg:gap-7.5 mb-5 lg:mb-7.5">
+        {[
+          { label: "My Classes", value: stats.classes, icon: "book-open" },
+          { label: "Total Students", value: stats.students, icon: "users" },
+          { label: "Assignments", value: stats.assignments, icon: "document" },
+          { label: "Today&apos;s Classes", value: stats.today, icon: "timer" },
+        ].map((kpi) => (
+          <div className="kt-card channel-stats-bg" key={kpi.label}>
+            <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-4">
+              <div className="flex items-center justify-between gap-2.5">
+                <span className="text-sm font-normal text-secondary-foreground">
+                  {kpi.label}
+                </span>
+                <span className="flex items-center justify-center size-10 shrink-0 rounded-lg bg-accent/60 border border-border">
+                  <i className={`ki-filled ki-${kpi.icon} text-lg text-muted-foreground`} />
+                </span>
+              </div>
+              <span className="text-3xl font-semibold text-mono">{kpi.value}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Charts row */}
+      <div className="grid lg:grid-cols-3 gap-5 lg:gap-7.5 items-stretch mb-5 lg:mb-7.5">
+        <div className="kt-card lg:col-span-2">
+          <div className="kt-card-header">
+            <h3 className="kt-card-title">Class attendance — last 7 days</h3>
+          </div>
+          <div className="kt-card-content p-5 lg:p-7.5">
+            {trendPoints.length ? (
+              <MingoLineChart
+                points={trendPoints}
+                primaryLabel="Present"
+                secondaryLabel="Absent"
+                yMaxLabel={String(
+                  Math.max(1, ...trendPoints.map((p) => Math.max(p.primary, p.secondary))),
+                )}
+                yMidLabel=""
+                yMinLabel="0"
+              />
+            ) : (
+              <p className="text-sm text-secondary-foreground">
+                No attendance recorded yet for this class.
+              </p>
+            )}
           </div>
         </div>
 
-        <div className="mingo-kpi-row">
-          <div className="mingo-kpi">
-            <div className="label">My Classes</div>
-            <div className="val mono">{stats.classes}</div>
+        <div className="kt-card">
+          <div className="kt-card-header">
+            <h3 className="kt-card-title">Term attendance breakdown</h3>
           </div>
-          <div className="mingo-kpi">
-            <div className="label">Total Students</div>
-            <div className="val mono">{stats.students}</div>
-          </div>
-          <div className="mingo-kpi">
-            <div className="label">Assignments</div>
-            <div className="val mono">{stats.assignments}</div>
-          </div>
-          <div className="mingo-kpi">
-            <div className="label">Today's Classes</div>
-            <div className="val mono">{stats.today}</div>
+          <div className="kt-card-content p-5 lg:p-7.5">
+            {categoryItems.length ? (
+              <MingoCategoryBars items={categoryItems} bordered={false} />
+            ) : (
+              <p className="text-sm text-secondary-foreground">No data yet.</p>
+            )}
           </div>
         </div>
+      </div>
 
-        <div className="mingo-charts-row">
-          <div className="mingo-panel mingo-charts-line">
-            <div className="mingo-panel-head">
-              <h2>Class attendance — last 7 days</h2>
-            </div>
-            <div className="mingo-panel-body" style={{ paddingTop: 14 }}>
-              {trendPoints.length ? (
-                <MingoLineChart
-                  points={trendPoints}
-                  primaryLabel="Present"
-                  secondaryLabel="Absent"
-                  yMaxLabel={String(Math.max(1, ...trendPoints.map((p) => Math.max(p.primary, p.secondary))))}
-                  yMidLabel=""
-                  yMinLabel="0"
-                />
-              ) : (
-                <p className="text-[12.5px] text-[hsl(var(--ink-faint))]">
-                  No attendance recorded yet for this class.
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="mingo-panel mingo-charts-cat">
-            <div className="mingo-panel-head">
-              <h2>Term attendance breakdown</h2>
-            </div>
-            <div className="mingo-panel-body">
-              {categoryItems.length ? (
-                <MingoCategoryBars items={categoryItems} bordered={false} />
-              ) : (
-                <p className="text-[12.5px] text-[hsl(var(--ink-faint))]">No data yet.</p>
-              )}
-            </div>
-          </div>
-        </div>
-
+      <div className="mb-5 lg:mb-7.5">
         <TeacherAssignmentsPanel teacherId={teacherId} />
+      </div>
 
-        <div className="mingo-grid-2b" style={{ marginTop: 18 }}>
-          <div className="mingo-panel">
-            <div className="mingo-panel-head">
-              <h2>Today's schedule</h2>
-            </div>
-            <div className="mingo-panel-body" style={{ paddingTop: 6, paddingBottom: 6 }}>
-              {upcomingClasses.length === 0 ? (
-                <p className="text-[12.5px] text-[hsl(var(--ink-faint))] py-4">No classes today.</p>
-              ) : (
-                upcomingClasses.map((cls, index) => (
-                  <div className="mingo-activity-row" key={index}>
-                    <span className="mingo-a-tag exm">CLS</span>
-                    <div className="a-desc">
-                      {cls.subject?.name} <span className="who">· {cls.class?.name}</span>
-                    </div>
-                    <span className="a-time">
-                      {cls.start_time} - {cls.end_time}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
+      {/* Schedule + assignments */}
+      <div className="grid lg:grid-cols-2 gap-5 lg:gap-7.5 items-stretch mb-5 lg:mb-7.5">
+        <div className="kt-card">
+          <div className="kt-card-header">
+            <h3 className="kt-card-title">Today&apos;s schedule</h3>
           </div>
-
-          <div className="mingo-panel">
-            <div className="mingo-panel-head">
-              <h2>Assignment status</h2>
-              <button type="button" className="meta" onClick={() => navigate("/teacher/assignments")}>
-                VIEW ALL →
-              </button>
-            </div>
-            <div className="mingo-panel-body" style={{ paddingTop: 6, paddingBottom: 6 }}>
-              {recentAssignments.length === 0 ? (
-                <p className="text-[12.5px] text-[hsl(var(--ink-faint))] py-4">No assignments yet.</p>
-              ) : (
-                recentAssignments.slice(0, 5).map((assignment, index) => (
-                  <div className="mingo-activity-row" key={index}>
-                    <span className="mingo-a-tag hr">DUE</span>
-                    <div className="a-desc">
-                      {assignment.title} <span className="who">· {assignment.class?.name}</span>
-                    </div>
-                    <span className="a-time">
-                      {new Date(assignment.due_date).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                      })}
+          <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-1">
+            {upcomingClasses.length === 0 ? (
+              <p className="text-sm text-secondary-foreground py-4">No classes today.</p>
+            ) : (
+              upcomingClasses.map((cls, index) => (
+                <div
+                  className="flex items-center justify-between gap-3 py-2.5 border-b border-b-border last:border-b-0"
+                  key={index}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="kt-badge kt-badge-sm kt-badge-info kt-badge-outline shrink-0">
+                      CLS
+                    </span>
+                    <span className="text-sm font-normal text-foreground truncate">
+                      {cls.subject?.name}{" "}
+                      <span className="text-secondary-foreground">· {cls.class?.name}</span>
                     </span>
                   </div>
-                ))
-              )}
-            </div>
+                  <span className="shrink-0 text-2sm font-normal text-muted-foreground">
+                    {cls.start_time} - {cls.end_time}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
-        <div className="mingo-panel-head mingo-table-cap" style={{ marginTop: 18 }}>
-          <h2>Quick actions</h2>
-        </div>
-        <div className="mingo-table-wrap" style={{ padding: 4 }}>
-          <div className="grid gap-3 p-3 sm:grid-cols-3">
+        <div className="kt-card">
+          <div className="kt-card-header">
+            <h3 className="kt-card-title">Assignment status</h3>
             <button
               type="button"
-              className={cn("mingo-btn mingo-btn-ghost")}
-              style={{ justifyContent: "flex-start" }}
-              onClick={() => navigate("/teacher/attendance")}
-            >
-              Mark attendance
-            </button>
-            <button
-              type="button"
-              className={cn("mingo-btn mingo-btn-ghost")}
-              style={{ justifyContent: "flex-start" }}
+              className="kt-btn kt-btn-ghost kt-btn-sm text-muted-foreground hover:text-primary"
               onClick={() => navigate("/teacher/assignments")}
             >
-              Create assignment
-            </button>
-            <button
-              type="button"
-              className={cn("mingo-btn mingo-btn-ghost")}
-              style={{ justifyContent: "flex-start" }}
-              onClick={() => navigate("/teacher/classes")}
-            >
-              View classes
+              View all
+              <i className="ki-filled ki-right text-xs" />
             </button>
           </div>
+          <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-1">
+            {recentAssignments.length === 0 ? (
+              <p className="text-sm text-secondary-foreground py-4">No assignments yet.</p>
+            ) : (
+              recentAssignments.slice(0, 5).map((assignment, index) => (
+                <div
+                  className="flex items-center justify-between gap-3 py-2.5 border-b border-b-border last:border-b-0"
+                  key={index}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="kt-badge kt-badge-sm kt-badge-warning kt-badge-outline shrink-0">
+                      DUE
+                    </span>
+                    <span className="text-sm font-normal text-foreground truncate">
+                      {assignment.title}{" "}
+                      <span className="text-secondary-foreground">
+                        · {assignment.class?.name}
+                      </span>
+                    </span>
+                  </div>
+                  <span className="shrink-0 text-2sm font-normal text-muted-foreground">
+                    {new Date(assignment.due_date).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Quick actions */}
+      <div className="kt-card">
+        <div className="kt-card-header">
+          <h3 className="kt-card-title">Quick actions</h3>
+        </div>
+        <div className="kt-card-content p-5 lg:p-7.5 grid gap-3 sm:grid-cols-3">
+          <button
+            type="button"
+            className="kt-btn kt-btn-outline justify-start"
+            onClick={() => navigate("/teacher/attendance")}
+          >
+            <i className="ki-filled ki-calendar-8 text-base" />
+            Mark attendance
+          </button>
+          <button
+            type="button"
+            className="kt-btn kt-btn-outline justify-start"
+            onClick={() => navigate("/teacher/assignments")}
+          >
+            <i className="ki-filled ki-document text-base" />
+            Create assignment
+          </button>
+          <button
+            type="button"
+            className="kt-btn kt-btn-outline justify-start"
+            onClick={() => navigate("/teacher/classes")}
+          >
+            <i className="ki-filled ki-book-open text-base" />
+            View classes
+          </button>
         </div>
       </div>
     </DashboardLayout>

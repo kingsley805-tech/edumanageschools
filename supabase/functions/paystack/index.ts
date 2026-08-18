@@ -231,6 +231,100 @@ const resolveMerchantEmailForSchool = async (
 const paystackVerifySignature = async (rawBody: string, headerSig: string | null, secret: string) =>
   verifyPaystackSignature(rawBody, headerSig, secret);
 
+const applyShopSuccessfulCharge = async (
+  adminSupabase: SupabaseAdmin,
+  input: {
+    reference: string;
+    amountSubunit: number;
+    currency: string;
+    channel: string;
+    metadata: Record<string, unknown>;
+    providerEventLabel: string;
+    webhookEventId?: string | null;
+    paystackTransactionId?: string | null;
+  },
+): Promise<{ duplicate: boolean }> => {
+  const { reference, amountSubunit, channel, metadata, providerEventLabel, webhookEventId, paystackTransactionId } = input;
+  const shopOrderId = String(metadata.shop_order_id || "");
+  const schoolId = String(metadata.school_id || "");
+
+  if (!shopOrderId || !schoolId || !reference) {
+    throw new Error("Missing shop order metadata or reference");
+  }
+
+  const { data: order } = await adminSupabase
+    .from("shop_orders")
+    .select("id, order_number, total, payment_status, paystack_reference, fulfillment_status")
+    .eq("id", shopOrderId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+
+  if (!order) {
+    throw new Error("Shop order not found for this payment");
+  }
+
+  if (order.payment_status === "paid" || order.paystack_reference === reference) {
+    return { duplicate: true };
+  }
+
+  const paymentAmount = Number(amountSubunit || 0) / 100;
+  if (paymentAmount <= 0) {
+    throw new Error("Invalid payment amount");
+  }
+
+  const paidAt = new Date().toISOString();
+  const { error: updErr } = await adminSupabase
+    .from("shop_orders")
+    .update({
+      payment_status: "paid",
+      paid_at: paidAt,
+      paystack_reference: reference,
+      paystack_transaction_id:
+        paystackTransactionId != null && String(paystackTransactionId).trim() !== ""
+          ? String(paystackTransactionId).trim()
+          : null,
+      fulfillment_status: order.fulfillment_status === "pending" ? "processing" : order.fulfillment_status,
+      updated_at: paidAt,
+    })
+    .eq("id", shopOrderId);
+
+  if (updErr) {
+    const msg = updErr.message ?? "Failed to update shop order";
+    if (/duplicate|unique/i.test(msg)) {
+      return { duplicate: true };
+    }
+    throw new Error(msg);
+  }
+
+  try {
+    await adminSupabase.from("audit_logs").insert({
+      school_id: schoolId,
+      user_id: typeof metadata.payer_user_id === "string" ? metadata.payer_user_id : null,
+      action: "shop_payment_received",
+      entity: "shop_orders",
+      entity_id: shopOrderId,
+      after_data: {
+        order_id: shopOrderId,
+        order_number: order.order_number,
+        amount: paymentAmount,
+        gateway: "paystack",
+        gateway_ref: reference,
+        paystack_transaction_id:
+          paystackTransactionId != null && String(paystackTransactionId).trim() !== ""
+            ? String(paystackTransactionId).trim()
+            : null,
+        provider_event: providerEventLabel,
+        provider_channel: channel || null,
+        webhook_event_id: webhookEventId ?? null,
+      },
+    });
+  } catch {
+    /* order already marked paid */
+  }
+
+  return { duplicate: false };
+};
+
 const applySuccessfulCharge = async (
   adminSupabase: SupabaseAdmin,
   input: {
@@ -245,6 +339,11 @@ const applySuccessfulCharge = async (
     paystackTransactionId?: string | null;
   },
 ): Promise<{ duplicate: boolean }> => {
+  const paymentContext = String(input.metadata.payment_context || "");
+  if (paymentContext === "shop_order" || input.metadata.shop_order_id) {
+    return applyShopSuccessfulCharge(adminSupabase, input);
+  }
+
   const { reference, amountSubunit, currency, channel, metadata, providerEventLabel, webhookEventId, paystackTransactionId } = input;
   const invoiceId = String(metadata.invoice_id || "");
   const schoolId = String(metadata.school_id || "");
@@ -695,6 +794,24 @@ const processWebhookEvent = async (adminSupabase: SupabaseAdmin, event: Record<s
       reference,
       amountSubunit: amount,
       metadata,
+      paystackTransactionId,
+    });
+    await adminSupabase
+      .from("paystack_webhook_events")
+      .update({ status: "processed", processed_at: new Date().toISOString(), last_error: null, next_retry_at: null })
+      .eq("id", eventId);
+    return;
+  }
+
+  if (metadata.payment_context === "shop_order" || metadata.shop_order_id) {
+    await applyShopSuccessfulCharge(adminSupabase, {
+      reference,
+      amountSubunit: amount,
+      currency: String(eventData.currency || "GHS"),
+      channel,
+      metadata,
+      providerEventLabel: eventType,
+      webhookEventId: eventId,
       paystackTransactionId,
     });
     await adminSupabase
@@ -1454,6 +1571,173 @@ serve(async (req) => {
       }
     }
 
+    if (route === "initialize-shop" && req.method === "POST") {
+      try {
+        const authHeader = req.headers.get("Authorization");
+        if (!authHeader?.startsWith("Bearer ")) {
+          return jsonResponse({ error: "Unauthorized" }, 401);
+        }
+
+        const supabase = createClient(supabaseUrl, supabaseKey, {
+          global: { headers: { Authorization: authHeader } },
+        });
+
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+        if (userError || !user) {
+          return jsonResponse({ error: "Unauthorized" }, 401);
+        }
+
+        const shop_order_id = typeof jsonBody.shop_order_id === "string" ? jsonBody.shop_order_id.trim() : "";
+        const callback_url = jsonBody.callback_url;
+
+        if (!shop_order_id) {
+          return jsonResponse({ error: "Missing required field: shop_order_id" }, 400);
+        }
+
+        const { data: order, error: orderErr } = await supabase
+          .from("shop_orders")
+          .select("id, order_number, total, payment_status, school_id, buyer_user_id, portal_role")
+          .eq("id", shop_order_id)
+          .single();
+
+        if (orderErr || !order) {
+          return jsonResponse({ error: "Shop order not found" }, 404);
+        }
+
+        if (order.payment_status === "paid") {
+          return jsonResponse({ error: "This order is already paid" }, 400);
+        }
+
+        const [{ data: rolesData }, { data: profileData }] = await Promise.all([
+          supabase.from("user_roles").select("role").eq("user_id", user.id).limit(1),
+          supabase.from("profiles").select("email, full_name, school_id").eq("id", user.id).maybeSingle(),
+        ]);
+
+        const payerRole = rolesData?.[0]?.role ?? order.portal_role ?? null;
+        const isBuyer = order.buyer_user_id === user.id;
+        const isStaff =
+          (rolesData ?? []).some((r) => ["admin", "super_admin", "accountant"].includes(String(r.role)));
+
+        if (!isBuyer && !isStaff) {
+          return jsonResponse({ error: "Not allowed to pay for this order" }, 403);
+        }
+
+        if (profileData?.school_id && profileData.school_id !== order.school_id && !isStaff) {
+          return jsonResponse({ error: "Access denied" }, 403);
+        }
+
+        const admin = createClient(supabaseUrl, serviceKey);
+        const creds = await getPaystackCredentialsForOrg(admin, order.school_id);
+        if (!creds?.secretKey) {
+          return jsonResponse({
+            error:
+              "Payment gateway not configured. In Admin → Payment gateways, enable Paystack and save your Public + Secret keys.",
+          }, 400);
+        }
+
+        const merchantEmail = await resolveMerchantEmailForSchool(admin, order.school_id, creds);
+        const emailFromBody = typeof jsonBody.email === "string" ? jsonBody.email.trim() : "";
+        const authEmail = typeof user.email === "string" ? user.email.trim() : "";
+        const profileEmail = typeof profileData?.email === "string" ? profileData.email.trim() : "";
+
+        let email = [emailFromBody, authEmail, profileEmail].find((e) => e && !isSyntheticPayerEmail(e)) ?? "";
+        if (!email && merchantEmail) email = merchantEmail;
+
+        if (!email) {
+          return jsonResponse({
+            error:
+              "Merchant email was not found for this school. In Admin → Payment gateways, enter Merchant email and save.",
+          }, 400);
+        }
+
+        const amountIn = jsonBody.amount;
+        let paymentAmount = amountIn != null && amountIn !== "" ? Number(amountIn) : Number(order.total);
+        if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
+          return jsonResponse({ error: "Amount must be greater than zero" }, 400);
+        }
+
+        const metadataFullName =
+          typeof user.user_metadata?.full_name === "string" ? String(user.user_metadata.full_name).trim() : "";
+        const profileName = typeof profileData?.full_name === "string" ? profileData.full_name.trim() : "";
+        const payerName = profileName || metadataFullName || String(email);
+
+        let effectiveCallback =
+          typeof callback_url === "string" && callback_url.trim()
+            ? callback_url.trim()
+            : creds.callbackUrl || `${req.headers.get("origin")}/student/shop`;
+
+        try {
+          effectiveCallback = validateCallbackUrl(effectiveCallback) || effectiveCallback;
+        } catch {
+          effectiveCallback = creds.callbackUrl || `${req.headers.get("origin")}/student/shop`;
+        }
+
+        const reference = `SHP-${String(shop_order_id).slice(0, 8)}-${Date.now()}`;
+
+        const { data: schoolRow } = await admin
+          .from("schools")
+          .select("currency")
+          .eq("id", order.school_id)
+          .maybeSingle();
+        const currency = String(schoolRow?.currency || "GHS");
+
+        const paystackRes = await fetch("https://api.paystack.co/transaction/initialize", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${creds.secretKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            amount: Math.round(paymentAmount * 100),
+            currency: currency === "GHS" ? "GHS" : currency === "NGN" ? "NGN" : "USD",
+            reference,
+            callback_url: effectiveCallback,
+            metadata: {
+              shop_order_id,
+              order_number: order.order_number,
+              school_id: order.school_id,
+              ...(creds.configId ? { gateway_config_id: creds.configId } : {}),
+              payer_user_id: user.id,
+              payer_role: payerRole,
+              payer_name: payerName,
+              payment_context: "shop_order",
+            },
+          }),
+        });
+
+        const paystackData = await paystackRes.json();
+
+        if (!paystackData.status) {
+          return jsonResponse({ error: paystackData.message || "Paystack initialization failed" }, 400);
+        }
+
+        const { error: sessErr } = await admin.from("payment_checkout_sessions").upsert({
+          reference: paystackData.data.reference,
+          school_id: order.school_id,
+          gateway_config_id: creds.configId,
+          shop_order_id: String(shop_order_id),
+          created_at: new Date().toISOString(),
+        }, { onConflict: "reference" });
+        if (sessErr) {
+          console.warn("payment_checkout_sessions upsert (shop):", sessErr.message);
+        }
+
+        return jsonResponse({
+          authorization_url: paystackData.data.authorization_url,
+          reference: paystackData.data.reference,
+          access_code: paystackData.data.access_code,
+        });
+      } catch (initErr: unknown) {
+        const msg = initErr instanceof Error ? initErr.message : "Shop payment initialization failed";
+        console.error("initialize-shop route:", initErr);
+        return jsonResponse({ error: msg }, 400);
+      }
+    }
+
     if (route === "retry-webhooks" && req.method === "POST") {
       const authHeader = req.headers.get("Authorization");
       if (!authHeader?.startsWith("Bearer ")) return jsonResponse({ error: "Unauthorized" }, 401);
@@ -1749,7 +2033,7 @@ serve(async (req) => {
 
       const { data: checkoutSession } = await adminSupabase
         .from("payment_checkout_sessions")
-        .select("invoice_id, school_id, gateway_config_id")
+        .select("invoice_id, shop_order_id, school_id, gateway_config_id")
         .eq("reference", reference)
         .maybeSingle();
 
@@ -1762,6 +2046,15 @@ serve(async (req) => {
           .eq("gateway_ref", reference)
           .maybeSingle();
         if (payRow?.school_id) schoolIdForKeys = String(payRow.school_id);
+      }
+
+      if (!schoolIdForKeys) {
+        const { data: shopRow } = await adminSupabase
+          .from("shop_orders")
+          .select("school_id")
+          .eq("paystack_reference", reference)
+          .maybeSingle();
+        if (shopRow?.school_id) schoolIdForKeys = String(shopRow.school_id);
       }
 
       let secretHolder: PaystackCreds | null = null;
@@ -1829,11 +2122,75 @@ serve(async (req) => {
       }
 
       let invoiceId = String(metadata.invoice_id || "");
+      let shopOrderId = String(metadata.shop_order_id || "");
       let metaOrgId = String(metadata.school_id || schoolIdForKeys || "");
 
       if (checkoutSession) {
-        if (!invoiceId) invoiceId = String(checkoutSession.invoice_id);
+        if (!invoiceId && checkoutSession.invoice_id) invoiceId = String(checkoutSession.invoice_id);
+        if (!shopOrderId && checkoutSession.shop_order_id) shopOrderId = String(checkoutSession.shop_order_id);
         if (!metaOrgId) metaOrgId = String(checkoutSession.school_id);
+      }
+
+      const paymentContext = String(metadata.payment_context || "");
+      const isShopPayment = paymentContext === "shop_order" || Boolean(shopOrderId);
+
+      if (isShopPayment) {
+        if (!shopOrderId || !metaOrgId) {
+          return jsonResponse({ error: "Invalid shop order metadata" }, 400);
+        }
+
+        metadata.shop_order_id = shopOrderId;
+        metadata.school_id = metaOrgId;
+        metadata.payment_context = "shop_order";
+
+        const { data: shopOrder } = await adminSupabase
+          .from("shop_orders")
+          .select("id, school_id, buyer_user_id, payment_status")
+          .eq("id", shopOrderId)
+          .maybeSingle();
+
+        if (!shopOrder) {
+          return jsonResponse({ error: "Shop order not found" }, 404);
+        }
+        if (shopOrder.school_id !== metaOrgId) {
+          return jsonResponse({ error: "Metadata mismatch" }, 400);
+        }
+
+        const isBuyer = shopOrder.buyer_user_id === confirmUser.id;
+        const { data: payerRoles } = await supabase.from("user_roles").select("role").eq("user_id", confirmUser.id);
+        const roles = (payerRoles ?? []).map((r) => r.role);
+        const isStaff =
+          roles.includes("admin") ||
+          roles.includes("super_admin") ||
+          roles.includes("accountant");
+
+        if (!isBuyer && !isStaff) {
+          return jsonResponse({ error: "Not allowed to confirm this payment" }, 403);
+        }
+
+        const channel = String(txn?.channel || "");
+        const amountSubunit = Number(txn?.amount || 0);
+        const currency = String(txn?.currency || "GHS");
+        const ref = String(txn?.reference || reference);
+        const paystackTransactionId = txn?.id != null && String(txn.id).trim() !== "" ? String(txn.id) : null;
+
+        try {
+          const result = await applyShopSuccessfulCharge(adminSupabase, {
+            reference: ref,
+            amountSubunit,
+            currency,
+            channel,
+            metadata,
+            providerEventLabel: "charge.success",
+            webhookEventId: null,
+            paystackTransactionId,
+          });
+          return jsonResponse({ ok: true, duplicate: result.duplicate });
+        } catch (chargeErr: unknown) {
+          const msg = chargeErr instanceof Error ? chargeErr.message : "Failed to record shop payment";
+          console.error("confirm shop applyShopSuccessfulCharge:", chargeErr);
+          return jsonResponse({ error: msg }, 400);
+        }
       }
 
       if (!invoiceId || !metaOrgId) {

@@ -11,7 +11,7 @@ export function printLessonNote(elementId = "lesson-note-print-root") {
     <!DOCTYPE html>
     <html><head><title>Lesson Note</title>
     <style>
-      body { font-family: system-ui, sans-serif; padding: 24px; color: #111; line-height: 1.5; }
+      body { font-family: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; padding: 24px; color: #111; line-height: 1.5; }
       h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
       h2 { font-size: 1rem; margin: 1.25rem 0 0.5rem; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
       .meta { color: #555; font-size: 0.9rem; margin-bottom: 1rem; }

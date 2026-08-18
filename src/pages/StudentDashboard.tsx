@@ -132,188 +132,260 @@ const StudentDashboard = () => {
 
   return (
     <DashboardLayout role="student">
-      <div className="mingo-content">
-        <div className="mingo-page-head">
-          <div>
-            <h1>Student portal</h1>
-            <p>View your timetable, assignments, grades, fees, and exams.</p>
+      {/* Page head — Metronic page title block */}
+      <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">
+        <div className="flex min-w-0 flex-col justify-center gap-2">
+          <h1 className="text-xl font-medium leading-none text-mono">Dashboard</h1>
+          <div className="flex items-center gap-2 text-sm font-normal text-secondary-foreground">
+            View your timetable, assignments, grades, fees, and exams.
           </div>
-          <div className="mingo-head-actions">
-            <button type="button" className="mingo-btn mingo-btn-ghost" onClick={() => navigate("/student/grades")}>
-              View grades
-            </button>
-            <button
-              type="button"
-              className="mingo-btn mingo-btn-primary"
-              onClick={() => navigate("/student/online-exams")}
-            >
-              + Take exam
-            </button>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            className="kt-btn kt-btn-outline"
+            onClick={() => navigate("/student/grades")}
+          >
+            <i className="ki-filled ki-medal-star text-base" />
+            View grades
+          </button>
+          <button
+            type="button"
+            className="kt-btn kt-btn-primary"
+            onClick={() => navigate("/student/online-exams")}
+          >
+            <i className="ki-filled ki-plus text-base" />
+            Take exam
+          </button>
+        </div>
+      </div>
+
+      {/* KPI row */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-5 lg:gap-7.5 mb-5 lg:mb-7.5">
+        {[
+          { label: "My Classes", value: stats.classes, icon: "book-open" },
+          { label: "Assignments", value: stats.assignments, icon: "document" },
+          { label: "Attendance", value: stats.attendance, icon: "calendar-8" },
+          { label: "Grade Average", value: stats.average, icon: "medal-star" },
+        ].map((kpi) => (
+          <div className="kt-card channel-stats-bg" key={kpi.label}>
+            <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-4">
+              <div className="flex items-center justify-between gap-2.5">
+                <span className="text-sm font-normal text-secondary-foreground">
+                  {kpi.label}
+                </span>
+                <span className="flex items-center justify-center size-10 shrink-0 rounded-lg bg-accent/60 border border-border">
+                  <i className={`ki-filled ki-${kpi.icon} text-lg text-muted-foreground`} />
+                </span>
+              </div>
+              <span className="text-3xl font-semibold text-mono">{kpi.value}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Charts row */}
+      <div className="grid lg:grid-cols-3 gap-5 lg:gap-7.5 items-stretch mb-5 lg:mb-7.5">
+        <div className="kt-card lg:col-span-2">
+          <div className="kt-card-header">
+            <h3 className="kt-card-title">Monthly attendance trend</h3>
+          </div>
+          <div className="kt-card-content p-5 lg:p-7.5">
+            {trendPoints.length ? (
+              <MingoLineChart
+                points={trendPoints}
+                primaryLabel="Present"
+                secondaryLabel="Absent"
+                yMaxLabel={String(
+                  Math.max(1, ...trendPoints.map((p) => Math.max(p.primary, p.secondary))),
+                )}
+                yMidLabel=""
+                yMinLabel="0"
+              />
+            ) : (
+              <p className="text-sm text-secondary-foreground">No attendance history yet.</p>
+            )}
           </div>
         </div>
 
-        <div className="mingo-kpi-row">
-          <div className="mingo-kpi">
-            <div className="label">My Classes</div>
-            <div className="val mono">{stats.classes}</div>
+        <div className="kt-card">
+          <div className="kt-card-header">
+            <h3 className="kt-card-title">Recent grades by subject</h3>
           </div>
-          <div className="mingo-kpi">
-            <div className="label">Assignments</div>
-            <div className="val mono">{stats.assignments}</div>
-          </div>
-          <div className="mingo-kpi">
-            <div className="label">Attendance</div>
-            <div className="val mono">{stats.attendance}</div>
-          </div>
-          <div className="mingo-kpi">
-            <div className="label">Grade Average</div>
-            <div className="val mono">{stats.average}</div>
+          <div className="kt-card-content p-5 lg:p-7.5">
+            {gradeItems.length ? (
+              <MingoCategoryBars items={gradeItems} bordered={false} />
+            ) : (
+              <p className="text-sm text-secondary-foreground">No grades yet.</p>
+            )}
           </div>
         </div>
+      </div>
 
-        <div className="mingo-charts-row">
-          <div className="mingo-panel mingo-charts-line">
-            <div className="mingo-panel-head">
-              <h2>Monthly attendance trend</h2>
-            </div>
-            <div className="mingo-panel-body" style={{ paddingTop: 14 }}>
-              {trendPoints.length ? (
-                <MingoLineChart
-                  points={trendPoints}
-                  primaryLabel="Present"
-                  secondaryLabel="Absent"
-                  yMaxLabel={String(Math.max(1, ...trendPoints.map((p) => Math.max(p.primary, p.secondary))))}
-                  yMidLabel=""
-                  yMinLabel="0"
-                />
-              ) : (
-                <p className="text-[12.5px] text-[hsl(var(--ink-faint))]">No attendance history yet.</p>
-              )}
-            </div>
-          </div>
-
-          <div className="mingo-panel mingo-charts-cat">
-            <div className="mingo-panel-head">
-              <h2>Recent grades by subject</h2>
-            </div>
-            <div className="mingo-panel-body">
-              {gradeItems.length ? (
-                <MingoCategoryBars items={gradeItems} bordered={false} />
-              ) : (
-                <p className="text-[12.5px] text-[hsl(var(--ink-faint))]">No grades yet.</p>
-              )}
-            </div>
-          </div>
-        </div>
-
+      <div className="mb-5 lg:mb-7.5">
         <StudentPortalSections />
+      </div>
 
+      <div className="mb-5 lg:mb-7.5">
         <ClassSubjectTeachersPanel
           classId={classId}
           title="My subjects & teachers"
           description="Teachers assigned to your class"
         />
+      </div>
 
-        <div style={{ marginTop: 18 }}>
-          <div className="mingo-panel-head mingo-table-cap">
-            <h2>Attendance analytics</h2>
+      <div className="kt-card mb-5 lg:mb-7.5">
+        <div className="kt-card-header">
+          <h3 className="kt-card-title">Attendance analytics</h3>
+        </div>
+        <div className="kt-card-content p-5 lg:p-7.5">
+          <AttendanceAnalyticsPanel
+            summary={attendanceSummary}
+            classSummary={classSummary}
+            monthlyTrend={monthlyTrend}
+            loading={loading || attendanceLoading}
+          />
+        </div>
+      </div>
+
+      {/* Schedule + assignments */}
+      <div className="grid lg:grid-cols-2 gap-5 lg:gap-7.5 items-stretch mb-5 lg:mb-7.5">
+        <div className="kt-card">
+          <div className="kt-card-header">
+            <h3 className="kt-card-title">Today&apos;s schedule</h3>
           </div>
-          <div className="mingo-table-wrap" style={{ padding: 18 }}>
-            <AttendanceAnalyticsPanel
-              summary={attendanceSummary}
-              classSummary={classSummary}
-              monthlyTrend={monthlyTrend}
-              loading={loading || attendanceLoading}
-            />
+          <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-1">
+            {todaySchedule.length === 0 ? (
+              <p className="text-sm text-secondary-foreground py-4">No classes today.</p>
+            ) : (
+              todaySchedule.map((cls, index) => (
+                <div
+                  className="flex items-center justify-between gap-3 py-2.5 border-b border-b-border last:border-b-0"
+                  key={index}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="kt-badge kt-badge-sm kt-badge-info kt-badge-outline shrink-0">
+                      CLS
+                    </span>
+                    <span className="text-sm font-normal text-foreground truncate">
+                      {cls.subject?.name}{" "}
+                      <span className="text-secondary-foreground">· Room {cls.room}</span>
+                    </span>
+                  </div>
+                  <span className="shrink-0 text-2sm font-normal text-muted-foreground">
+                    {cls.start_time} - {cls.end_time}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
-        <div className="mingo-grid-2b" style={{ marginTop: 18 }}>
-          <div className="mingo-panel">
-            <div className="mingo-panel-head">
-              <h2>Today's schedule</h2>
-            </div>
-            <div className="mingo-panel-body" style={{ paddingTop: 6, paddingBottom: 6 }}>
-              {todaySchedule.length === 0 ? (
-                <p className="text-[12.5px] text-[hsl(var(--ink-faint))] py-4">No classes today.</p>
-              ) : (
-                todaySchedule.map((cls, index) => (
-                  <div className="mingo-activity-row" key={index}>
-                    <span className="mingo-a-tag exm">CLS</span>
-                    <div className="a-desc">
-                      {cls.subject?.name} <span className="who">· Room {cls.room}</span>
-                    </div>
-                    <span className="a-time">
-                      {cls.start_time} - {cls.end_time}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
+        <div className="kt-card">
+          <div className="kt-card-header">
+            <h3 className="kt-card-title">Pending assignments</h3>
+            <button
+              type="button"
+              className="kt-btn kt-btn-ghost kt-btn-sm text-muted-foreground hover:text-primary"
+              onClick={() => navigate("/student/assignments")}
+            >
+              View all
+              <i className="ki-filled ki-right text-xs" />
+            </button>
           </div>
-
-          <div className="mingo-panel">
-            <div className="mingo-panel-head">
-              <h2>Pending assignments</h2>
-              <button type="button" className="meta" onClick={() => navigate("/student/assignments")}>
-                VIEW ALL →
-              </button>
-            </div>
-            <div className="mingo-panel-body" style={{ paddingTop: 6, paddingBottom: 6 }}>
-              {pendingAssignments.length === 0 ? (
-                <p className="text-[12.5px] text-[hsl(var(--ink-faint))] py-4">No pending assignments.</p>
-              ) : (
-                pendingAssignments.map((assignment, index) => (
-                  <div className="mingo-activity-row" key={index}>
-                    <span className="mingo-a-tag fee">DUE</span>
-                    <div className="a-desc">
-                      {assignment.title} <span className="who">· {assignment.subject?.name}</span>
-                    </div>
-                    <span className="a-time">
-                      {new Date(assignment.due_date).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                      })}
+          <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-1">
+            {pendingAssignments.length === 0 ? (
+              <p className="text-sm text-secondary-foreground py-4">No pending assignments.</p>
+            ) : (
+              pendingAssignments.map((assignment, index) => (
+                <div
+                  className="flex items-center justify-between gap-3 py-2.5 border-b border-b-border last:border-b-0"
+                  key={index}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="kt-badge kt-badge-sm kt-badge-warning kt-badge-outline shrink-0">
+                      DUE
+                    </span>
+                    <span className="text-sm font-normal text-foreground truncate">
+                      {assignment.title}{" "}
+                      <span className="text-secondary-foreground">
+                        · {assignment.subject?.name}
+                      </span>
                     </span>
                   </div>
-                ))
-              )}
-            </div>
+                  <span className="shrink-0 text-2sm font-normal text-muted-foreground">
+                    {new Date(assignment.due_date).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
+      </div>
 
-        <div className="mingo-panel-head mingo-table-cap" style={{ marginTop: 18 }}>
-          <h2>Recent grades</h2>
-          <button type="button" className="meta" onClick={() => navigate("/student/grades")}>
-            VIEW ALL →
+      {/* Recent grades */}
+      <div className="kt-card">
+        <div className="kt-card-header">
+          <h3 className="kt-card-title">Recent grades</h3>
+          <button
+            type="button"
+            className="kt-btn kt-btn-ghost kt-btn-sm text-muted-foreground hover:text-primary"
+            onClick={() => navigate("/student/grades")}
+          >
+            View all
+            <i className="ki-filled ki-right text-xs" />
           </button>
         </div>
-        <div className="mingo-table-wrap">
-          <table>
+        <div className="kt-card-content p-0 overflow-x-auto">
+          <table className="kt-table min-w-full">
             <thead>
               <tr>
                 <th>Subject</th>
-                <th className="num">Score</th>
+                <th className="text-end">Score</th>
                 <th>Grade</th>
               </tr>
             </thead>
             <tbody>
               {recentGrades.length === 0 ? (
                 <tr>
-                  <td colSpan={3} style={{ textAlign: "center" }}>
+                  <td colSpan={3} className="text-center text-sm text-secondary-foreground py-6">
                     No grades yet
                   </td>
                 </tr>
               ) : (
                 recentGrades.map((grade) => {
                   const score = Number(grade.score) || 0;
-                  const letter = score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C" : score >= 60 ? "D" : "F";
+                  const letter =
+                    score >= 90
+                      ? "A"
+                      : score >= 80
+                        ? "B"
+                        : score >= 70
+                          ? "C"
+                          : score >= 60
+                            ? "D"
+                            : "F";
                   return (
                     <tr key={grade.id}>
-                      <td>{grade.subject?.name}</td>
-                      <td className="num">{typeof grade.score === "number" ? `${grade.score}%` : grade.score}</td>
+                      <td className="text-sm font-medium text-mono">{grade.subject?.name}</td>
+                      <td className="text-end text-sm text-foreground">
+                        {typeof grade.score === "number" ? `${grade.score}%` : grade.score}
+                      </td>
                       <td>
-                        <span className={cnGradePill(score)}>{letter}</span>
+                        <span
+                          className={
+                            score >= 80
+                              ? "kt-badge kt-badge-sm kt-badge-success kt-badge-outline"
+                              : score >= 60
+                                ? "kt-badge kt-badge-sm kt-badge-warning kt-badge-outline"
+                                : "kt-badge kt-badge-sm kt-badge-danger kt-badge-outline"
+                          }
+                        >
+                          {letter}
+                        </span>
                       </td>
                     </tr>
                   );
@@ -326,12 +398,5 @@ const StudentDashboard = () => {
     </DashboardLayout>
   );
 };
-
-function cnGradePill(score: number) {
-  const pill = "mingo-status-pill";
-  if (score >= 80) return `${pill} paid`;
-  if (score >= 60) return `${pill} pending`;
-  return `${pill} overdue`;
-}
 
 export default StudentDashboard;

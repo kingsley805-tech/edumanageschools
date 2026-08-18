@@ -17,6 +17,7 @@ export function usePortalAccess() {
   const hasAdminNavAccess = hasFullAccess || isSchoolAdmin || role === "admin";
   const {
     enabledPortalKeys,
+    licensablePortalKeys,
     isModuleEnabledForPath,
     isWritable,
     enforced,
@@ -26,8 +27,8 @@ export function usePortalAccess() {
   } = useSchoolEntitlements();
 
   const can = useCallback(
-    (code: string) => hasFullAccess || hasPermission(code),
-    [hasFullAccess, hasPermission],
+    (code: string) => hasFullAccess || hasAdminNavAccess || hasPermission(code),
+    [hasFullAccess, hasAdminNavAccess, hasPermission],
   );
 
   const canModule = useCallback(
@@ -42,7 +43,9 @@ export function usePortalAccess() {
     if (hasAdminNavAccess || can(permissionCode("billing_payments", "view"))) {
       built = ensurePaymentGatewaysInNav(built);
     }
-    if (hasFullAccess || !enabledPortalKeys) return built;
+    // Super-admin / school-admin: show full catalog.
+    // Subscription packages only hide modules that are explicitly licensed in platform_modules.
+    if (hasFullAccess || hasAdminNavAccess || !enabledPortalKeys) return built;
     return built
       .map((entry) => {
         if (!("items" in entry)) return entry;
@@ -52,12 +55,20 @@ export function usePortalAccess() {
             const mod = moduleByPath(item.path);
             if (!mod) return true;
             if (mod.key === "organization_subscription") return true;
+            if (licensablePortalKeys && !licensablePortalKeys.has(mod.key)) return true;
             return enabledPortalKeys.has(mod.key);
           }),
         };
       })
       .filter((entry) => !("items" in entry) || entry.items.length > 0);
-  }, [can, hasAdminNavAccess, loading, hasFullAccess, enabledPortalKeys]);
+  }, [
+    can,
+    hasAdminNavAccess,
+    loading,
+    hasFullAccess,
+    enabledPortalKeys,
+    licensablePortalKeys,
+  ]);
 
   const canAccessCurrentRoute = useMemo(() => {
     if (hasFullAccess) return true;
