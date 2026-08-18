@@ -595,26 +595,26 @@ const Auth = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
+    <div className="flex min-h-screen bg-[#101216] text-[#e1e4ec] font-sans antialiased">
       <AuthHeroPanel />
 
       <main className="flex flex-1 flex-col items-center justify-start overflow-y-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 pb-12">
         <div className="w-full max-w-[580px] xl:max-w-[620px]">
           <div className="mb-6 lg:hidden flex justify-center">
-            <EduManageLogo to="/landing" imgClassName="h-9" />
+            <EduManageLogo to="/" imgClassName="h-9 brightness-0 invert" />
           </div>
 
-          <div className="w-full rounded-2xl border border-border/80 bg-card/95 p-6 sm:p-9 shadow-2xl backdrop-blur-xl">
+          <div className="w-full rounded-2xl border border-[#2d323e] bg-[#16181f] p-6 sm:p-9 shadow-2xl backdrop-blur-xl">
             <div className="flex flex-col gap-6">
               <header className="text-center space-y-1.5">
-                <h2 className="text-2xl font-bold tracking-tight text-foreground">
+                <h2 className="text-2xl font-bold tracking-tight text-white">
                   {activeTab === "forgot-password"
                     ? "Reset your password"
                     : activeTab === "signup"
                       ? "Create your account"
                       : "Sign in to your portal"}
                 </h2>
-                <p className="text-sm font-normal text-muted-foreground">
+                <p className="text-xs sm:text-sm font-normal text-[#949cae]">
                   {activeTab === "forgot-password"
                     ? "We'll help you get back into your account."
                     : activeTab === "signup"
@@ -644,7 +644,7 @@ const Auth = () => {
                   {deactivatedNotice && (
                     <div
                       role="alert"
-                      className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-100"
+                      className="rounded-xl border border-[#3e4453] bg-[#1b1e26] px-4 py-3 text-sm text-white"
                     >
                       {TEACHER_DEACTIVATED_MESSAGE}
                     </div>
@@ -677,7 +677,7 @@ const Auth = () => {
                     <div className="flex justify-end pt-1">
                       <button
                         type="button"
-                        className="text-xs font-semibold text-primary underline-offset-4 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="text-xs font-semibold text-[#cbd0dd] underline-offset-4 transition-colors hover:text-white hover:underline focus-visible:outline-none"
                         onClick={() => setActiveTab("forgot-password")}
                       >
                         Forgot password?
@@ -687,7 +687,7 @@ const Auth = () => {
 
                   <Button
                     type="submit"
-                    className="h-12 w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm shadow-md shadow-primary/25 hover:shadow-primary/40 active:scale-[0.99] transition-all"
+                    className="h-12 w-full rounded-xl bg-white hover:bg-neutral-200 text-black font-bold text-sm shadow-md active:scale-[0.99] transition-all"
                     disabled={isLoading}
                   >
                     {isLoading ? (
@@ -700,7 +700,7 @@ const Auth = () => {
                     )}
                   </Button>
 
-                  <p className="text-center text-xs leading-relaxed text-muted-foreground/80 px-2">
+                  <p className="text-center text-xs leading-relaxed text-[#8c93a4] px-2">
                     Having trouble? Your account may exist but be incomplete — try a password reset or
                     contact your school administrator.
                   </p>
@@ -722,7 +722,7 @@ const Auth = () => {
 
               {forgotPasswordMode === "student" ? (
                 <form onSubmit={handleStudentResetRequest} className="space-y-5">
-                  <p className="text-sm leading-relaxed text-muted-foreground">
+                  <p className="text-xs sm:text-sm leading-relaxed text-[#949cae]">
                     Enter your admission number. Your school administrator will verify it and send a
                     temporary password to your parent or guardian.
                   </p>
@@ -740,7 +740,7 @@ const Auth = () => {
                     required
                   />
 
-                  <Button type="submit" className="h-11 w-full" disabled={isLoading}>
+                  <Button type="submit" className="h-11 w-full rounded-xl bg-white hover:bg-neutral-200 text-black font-bold text-sm shadow-md active:scale-[0.99] transition-all" disabled={isLoading}>
                     {isLoading ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -754,7 +754,7 @@ const Auth = () => {
                   <Button
                     type="button"
                     variant="ghost"
-                    className="h-10 w-full"
+                    className="h-10 w-full rounded-xl border border-[#2e3340] bg-[#111317] hover:bg-[#1f232c] text-white transition-all"
                     onClick={() => {
                       resetReset();
                       setActiveTab("login");
@@ -765,7 +765,7 @@ const Auth = () => {
                 </form>
               ) : (
                 <form onSubmit={handleRequestOtp} className="space-y-5">
-                  <p className="text-sm leading-relaxed text-muted-foreground">
+                  <p className="text-xs sm:text-sm leading-relaxed text-[#949cae]">
                     Enter your registered email and we'll send an 8-digit verification code to your
                     email and phone.
                   </p>
@@ -782,7 +782,7 @@ const Auth = () => {
                     required
                   />
 
-                  <Button type="submit" className="h-11 w-full" disabled={isLoading}>
+                  <Button type="submit" className="h-11 w-full rounded-xl bg-white hover:bg-neutral-200 text-black font-bold text-sm shadow-md active:scale-[0.99] transition-all" disabled={isLoading}>
                     {isLoading ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -796,7 +796,7 @@ const Auth = () => {
                   <Button
                     type="button"
                     variant="ghost"
-                    className="h-10 w-full"
+                    className="h-10 w-full rounded-xl border border-[#2e3340] bg-[#111317] hover:bg-[#1f232c] text-white transition-all"
                     onClick={() => {
                       resetReset();
                       setActiveTab("login");
@@ -811,17 +811,17 @@ const Auth = () => {
 
           {activeTab === "forgot-password" && resetStep === "verify" && (
             <form onSubmit={handleVerifyAndReset} className="animate-fade-in space-y-5">
-              <div className="rounded-md border bg-muted/40 px-4 py-3">
-                <p className="text-sm text-muted-foreground">
+              <div className="rounded-xl border border-[#2e3340] bg-[#111317] px-4 py-3">
+                <p className="text-xs sm:text-sm text-[#949cae]">
                   We sent a code to{" "}
-                  <span className="font-medium text-foreground">
+                  <span className="font-medium text-white">
                     {resetMaskedEmail ?? "your email"}
                   </span>
                   {resetMaskedPhone ? (
                     <>
                       {" "}
                       and{" "}
-                      <span className="font-medium text-foreground">{resetMaskedPhone}</span>
+                      <span className="font-medium text-white">{resetMaskedPhone}</span>
                     </>
                   ) : null}
                   . It expires in 15 minutes.
@@ -867,10 +867,10 @@ const Auth = () => {
                 required
               />
 
-              <Button type="submit" className="h-11 w-full" disabled={isLoading}>
+              <Button type="submit" className="h-11 w-full rounded-xl bg-white hover:bg-neutral-200 text-black font-bold text-sm shadow-md active:scale-[0.99] transition-all" disabled={isLoading}>
                 {isLoading ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" aria-hidden="true" />
                     Verifying…
                   </>
                 ) : (
@@ -956,27 +956,27 @@ const Auth = () => {
               />
 
               {/* Account Type Selection */}
-              <div className="space-y-1.5">
-                <Label htmlFor="signup-role" className="text-sm font-medium">
+              <div className="space-y-1.5 text-left">
+                <Label htmlFor="signup-role" className="text-xs font-semibold text-white">
                   Account type
                 </Label>
                 <Select value={signupRole} onValueChange={setSignupRole} required>
-                  <SelectTrigger id="signup-role" className="h-11">
+                  <SelectTrigger id="signup-role" className="h-11 rounded-xl border-[#2e3340] bg-[#111317] text-white focus:border-white focus:ring-0">
                     <SelectValue placeholder="Select your role" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="border-[#2e3340] bg-[#16181f] text-white">
                     {Object.entries(roleConfig).map(([key, config]) => {
                       const IconComponent = config.icon;
                       return (
-                        <SelectItem key={key} value={key} className="py-2.5">
+                        <SelectItem key={key} value={key} className="py-2.5 hover:bg-[#20242c] focus:bg-[#20242c] text-white">
                           <div className="flex items-center gap-3">
                             <IconComponent
-                              className="h-4 w-4 text-muted-foreground"
+                              className="h-4 w-4 text-white"
                               aria-hidden="true"
                             />
                             <div className="flex flex-col text-left">
-                              <span className="text-sm font-medium">{config.label}</span>
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-sm font-medium text-white">{config.label}</span>
+                              <span className="text-xs text-[#8c93a4]">
                                 {config.description}
                               </span>
                             </div>
@@ -1187,7 +1187,7 @@ const Auth = () => {
 
               <Button
                 type="submit"
-                className="h-12 w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm shadow-md shadow-primary/25 hover:shadow-primary/40 active:scale-[0.99] transition-all"
+                className="h-12 w-full rounded-xl bg-white hover:bg-neutral-200 text-black font-bold text-sm shadow-md active:scale-[0.99] transition-all"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -1200,7 +1200,7 @@ const Auth = () => {
                 )}
               </Button>
 
-              <p className="text-center text-xs leading-relaxed text-muted-foreground">
+              <p className="text-center text-xs leading-relaxed text-[#8c93a4]">
                 By creating an account you agree to your school&apos;s acceptable use policy.
               </p>
             </form>
@@ -1208,18 +1208,18 @@ const Auth = () => {
 
           {/* Fallback when signup is visited while disabled */}
           {activeTab === "signup" && !isSignupEnabled && (
-            <div className="rounded-2xl border border-border bg-muted/30 p-6 text-center space-y-3">
-              <div className="size-10 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 mx-auto flex items-center justify-center">
+            <div className="rounded-2xl border border-[#2e3340] bg-[#111317] p-6 text-center space-y-3">
+              <div className="size-10 rounded-full bg-[#1e222a] border border-[#393f4e] text-white mx-auto flex items-center justify-center">
                 <Lock className="size-5" />
               </div>
-              <h3 className="font-bold text-foreground text-sm">Public Registration Disabled</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed max-w-sm mx-auto">
+              <h3 className="font-bold text-white text-sm">Public Registration Disabled</h3>
+              <p className="text-xs text-[#8c93a4] leading-relaxed max-w-sm mx-auto">
                 Self-service account registration is currently disabled by system administration. Please contact your school administrator to obtain an account.
               </p>
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-2"
+                className="mt-2 rounded-xl border border-[#2e3340] bg-[#16181f] text-white hover:bg-[#20242c]"
                 onClick={() => setActiveTab("login")}
               >
                 Return to Sign in
