@@ -247,6 +247,28 @@ export function useSchoolEntitlements(schoolId?: string | null) {
     };
   }, [sid]);
 
+  useEffect(() => {
+    if (!sid) return;
+    const channel = supabase
+      .channel(`admin-approval-${sid}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "profiles",
+          filter: `school_id=eq.${sid}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: [ORGANIZATION_SUBSCRIPTION_ACCESS_KEY, sid] });
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [sid, queryClient]);
+
   return {
     loading: entitlementsInitialLoading || subscriptionInitialLoading,
     isFetching,

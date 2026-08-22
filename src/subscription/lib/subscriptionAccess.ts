@@ -1,7 +1,12 @@
+export type AdminApprovalStatus = "pending_verification" | "approved" | "rejected";
+
 export type SubscriptionAccessState =
   | "legacy"
   | "pending_payment"
+  | "pending_verification"
+  /** @deprecated use pending_verification */
   | "pending_approval"
+  | "rejected"
   | "active"
   | "expiring_soon"
   | "expired_grace"
@@ -11,6 +16,7 @@ export type OrganizationSubscriptionAccess = {
   has_subscription_row: boolean;
   access_state: SubscriptionAccessState;
   can_use_platform: boolean;
+  admin_approval_status?: AdminApprovalStatus | null;
   status?: string;
   plan_id?: string | null;
   billing_cycle?: "monthly" | "annual" | null;
@@ -24,11 +30,35 @@ export type OrganizationSubscriptionAccess = {
 
 /** Paths allowed when subscription is not active (payment / support only). */
 export const SUBSCRIPTION_ALLOWED_PATHS = [
+  "/admin/pending-verification",
   "/admin/subscription",
   "/admin/subscription/history",
   "/admin/support",
   "/contact",
 ] as const;
+
+export const ADMIN_PENDING_VERIFICATION_PATH = "/admin/pending-verification";
+
+export function isPendingVerificationState(
+  access: OrganizationSubscriptionAccess | null | undefined,
+): boolean {
+  if (!access) return false;
+  // Verification page is only after successful payment / plan selection.
+  if (!access.plan_id) return false;
+  const state = access.access_state;
+  return (
+    state === "pending_verification" ||
+    state === "pending_approval" ||
+    access.admin_approval_status === "pending_verification"
+  );
+}
+
+export function isRejectedVerificationState(
+  access: OrganizationSubscriptionAccess | null | undefined,
+): boolean {
+  if (!access) return false;
+  return access.access_state === "rejected" || access.admin_approval_status === "rejected";
+}
 
 export function isSubscriptionAllowedPath(pathname: string): boolean {
   return SUBSCRIPTION_ALLOWED_PATHS.some(

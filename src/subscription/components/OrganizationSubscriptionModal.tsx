@@ -25,6 +25,8 @@ import { syncOrganizationSubscriptionModules } from "@/subscription/lib/syncOrga
 import type { OrganizationSubscriptionAccess } from "@/subscription/lib/subscriptionAccess";
 import { isPlanAvailableForCheckout } from "@/subscription/lib/subscriptionPlansPublic";
 import { sidebarItemsFromPlanModules } from "@/platform/lib/planSidebarLabels";
+import { setAdminPendingVerificationFlow } from "@/subscription/lib/adminOnboardingFlow";
+import OnboardingTransitionScreen from "@/subscription/components/OnboardingTransitionScreen";
 
 type BillingCycle = "monthly" | "annual";
 
@@ -185,15 +187,26 @@ export default function OrganizationSubscriptionModal({
       clearPaystackReturnParams();
       return;
     }
+    // Already paid and awaiting verification — do not re-confirm.
+    if (
+      access?.access_state === "pending_verification" ||
+      access?.access_state === "pending_approval"
+    ) {
+      clearPaystackReturnParams();
+      setAdminPendingVerificationFlow();
+      navigate("/admin/pending-verification", { replace: true });
+      return;
+    }
     const confirmKey = `org-sub-confirm:${ref}`;
-    if (sessionStorage.getItem(confirmKey) === "done") {
+    const prior = sessionStorage.getItem(confirmKey);
+    if (prior === "done" || prior === "failed") {
       clearPaystackReturnParams();
       return;
     }
     if (confirmAttemptRef.current === ref) return;
     confirmAttemptRef.current = ref;
     void confirmPayment(ref);
-  }, [visible, access?.access_state]);
+  }, [visible, access?.access_state, navigate]);
 
   const confirmPayment = async (reference: string) => {
     const confirmKey = `org-sub-confirm:${reference}`;
@@ -205,6 +218,7 @@ export default function OrganizationSubscriptionModal({
         error?: string;
         awaiting_approval?: boolean;
         status?: string;
+        admin_approval_status?: string;
       }>("paystack", {
         action: "platform-subscription-confirm",
         reference,
@@ -219,38 +233,73 @@ export default function OrganizationSubscriptionModal({
         }
         await invalidate();
         onActivated?.();
-        const awaitingApproval =
-          data.awaiting_approval === true ||
-          data.status === "pending";
-        if (awaitingApproval) {
-          toast.success(
-            "Payment received. Your account is under Super Admin review (about 20–30 minutes).",
-          );
-          // Stay on /admin — ProtectedRoute shows the pending-approval screen
-          navigate("/admin", { replace: true });
-        } else {
+
+        // Renewals of already-active orgs go to the dashboard.
+        // First-time (and any unpaid→paid) purchases always land on verification.
+        const wasAlreadyActive = Boolean(access?.can_use_platform);
+        const isRenewalActivation =
+          wasAlreadyActive &&
+          data.awaiting_approval === false &&
+          data.status === "active";
+
+        if (isRenewalActivation) {
           toast.success(
             data.duplicate
               ? "Subscription is already active."
               : "Subscription activated! Welcome to your dashboard.",
           );
+          setVerifying(false);
+          confirmAttemptRef.current = null;
           navigate("/admin", { replace: true });
+          return;
         }
+
+        setAdminPendingVerificationFlow();
+        toast.success(
+          "Payment received. Your account is awaiting verification by our system authorities.",
+        );
+        navigate("/admin/pending-verification", { replace: true });
+        // Keep verifying UI until route change; don't clear verifying in finally for this path.
+        confirmAttemptRef.current = null;
+        return;
       }
     } catch (e) {
-      sessionStorage.setItem(confirmKey, "failed");
-      clearPaystackReturnParams();
       const message = e instanceof Error ? e.message : "Payment verification failed";
       const abandoned =
         /not successful/i.test(message) ||
         /abandoned/i.test(message) ||
         /cancel/i.test(message);
+
+      sessionStorage.setItem(confirmKey, abandoned ? "failed" : "done");
+      clearPaystackReturnParams();
+
+      try {
+        await invalidate();
+      } catch {
+        /* ignore */
+      }
+
       if (abandoned) {
         toast.message("Payment was not completed. Select a plan and try again when ready.");
-      } else {
-        toast.error(message);
+        setVerifying(false);
+        confirmAttemptRef.current = null;
+        return;
       }
-    } finally {
+
+      const looksApplied =
+        /duplicate/i.test(message) ||
+        /already/i.test(message) ||
+        /pending/i.test(message);
+
+      if (looksApplied) {
+        setAdminPendingVerificationFlow();
+        toast.success("Payment received. Your account is awaiting verification.");
+        navigate("/admin/pending-verification", { replace: true });
+        confirmAttemptRef.current = null;
+        return;
+      }
+
+      toast.error(message);
       setVerifying(false);
       confirmAttemptRef.current = null;
     }
@@ -297,6 +346,10 @@ export default function OrganizationSubscriptionModal({
   };
 
   if (!visible) return null;
+
+  if (verifying) {
+    return <OnboardingTransitionScreen message="Confirming your payment…" />;
+  }
 
   const planGrid = (
     <>

@@ -1,28 +1,49 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import OrganizationSubscriptionModal from "@/subscription/components/OrganizationSubscriptionModal";
 import AdminPendingApprovalScreen from "@/subscription/components/AdminPendingApprovalScreen";
+import OnboardingTransitionScreen from "@/subscription/components/OnboardingTransitionScreen";
 import type { OrganizationSubscriptionAccess } from "@/subscription/lib/subscriptionAccess";
+import { isPendingVerificationState } from "@/subscription/lib/subscriptionAccess";
+import {
+  isAdminPostPaymentTransition,
+  setAdminPendingVerificationFlow,
+} from "@/subscription/lib/adminOnboardingFlow";
 
 type Props = {
   access: OrganizationSubscriptionAccess | null | undefined;
   onActivated?: () => void;
 };
 
-/** Full-screen lock: subscription modal / pending approval + logout only (no dashboard access). */
+/** Full-screen lock: subscription modal / pending approval (no dashboard flash). */
 export default function SubscriptionLockScreen({ access, onActivated }: Props) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
+  const pending = isPendingVerificationState(access);
+  const transitioning = isAdminPostPaymentTransition();
+
+  useEffect(() => {
+    if (!pending) return;
+    setAdminPendingVerificationFlow();
+    if (window.location.pathname !== "/admin/pending-verification") {
+      navigate("/admin/pending-verification", { replace: true });
+    }
+  }, [pending, navigate]);
 
   const handleLogout = async () => {
     await signOut();
     navigate("/auth", { replace: true });
   };
 
-  if (access?.access_state === "pending_approval") {
-    return <AdminPendingApprovalScreen />;
+  // Render verification UI in-place — no blank frame while route changes.
+  if (pending || transitioning) {
+    if (window.location.pathname === "/admin/pending-verification") {
+      return <AdminPendingApprovalScreen />;
+    }
+    return <OnboardingTransitionScreen message="Opening account verification…" />;
   }
 
   return (
@@ -37,4 +58,3 @@ export default function SubscriptionLockScreen({ access, onActivated }: Props) {
     </div>
   );
 }
-

@@ -7,11 +7,19 @@ import { PORTAL_ROLE_ROUTES } from "@/lib/permissions";
 import { requiredViewPermissionForPath } from "@/lib/rbac/routeGuards";
 import { useSchoolEntitlements } from "@/platform/hooks/useSchoolEntitlements";
 import {
+  ADMIN_PENDING_VERIFICATION_PATH,
+  isPendingVerificationState,
   isPortalStaffRole,
   isSubscriptionAllowedPath,
   isSubscriptionGatedPortalPath,
 } from "@/subscription/lib/subscriptionAccess";
+import {
+  clearAdminPendingVerificationFlow,
+  isAdminPendingVerificationFlag,
+  isAdminPostPaymentTransition,
+} from "@/subscription/lib/adminOnboardingFlow";
 import SubscriptionLockScreen from "@/subscription/components/SubscriptionLockScreen";
+import OnboardingTransitionScreen from "@/subscription/components/OnboardingTransitionScreen";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ShieldAlert } from "lucide-react";
 
@@ -52,6 +60,18 @@ export const ProtectedRoute = ({
   const location = useLocation();
 
   const isPlatformPath = PLATFORM_PREFIXES.some((p) => location.pathname.startsWith(p));
+  const portalStaff = isPortalStaffRole(roles);
+  const onSubscriptionAllowedPath = isSubscriptionAllowedPath(location.pathname);
+  const onPendingVerificationPath = location.pathname === ADMIN_PENDING_VERIFICATION_PATH;
+  const touchesGatedPortal =
+    isSubscriptionGatedPortalPath(location.pathname) ||
+    (location.pathname === "/settings" && portalStaff);
+  const orgSubscriptionLocked =
+    !subSuperBypass &&
+    !isSuperAdmin &&
+    portalStaff &&
+    subscriptionBlocked &&
+    touchesGatedPortal;
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -59,22 +79,45 @@ export const ProtectedRoute = ({
     }
   }, [user, authLoading, navigate]);
 
+  useEffect(() => {
+    if (authLoading || roleLoading || !user) return;
+    if (subSuperBypass || isSuperAdmin) return;
+    if (!portalStaff) return;
+
+    const postPayment = isAdminPostPaymentTransition() || isAdminPendingVerificationFlag();
+
+    // Unpaid admins on verification → subscription (skip during post-payment settle).
+    if (
+      onPendingVerificationPath &&
+      !entLoading &&
+      !postPayment &&
+      (subscriptionAccess?.access_state === "pending_payment" ||
+        (subscriptionAccess != null && !subscriptionAccess.plan_id))
+    ) {
+      clearAdminPendingVerificationFlow();
+      navigate("/admin/subscription", { replace: true });
+      return;
+    }
+
+    if (isPendingVerificationState(subscriptionAccess) && !onPendingVerificationPath) {
+      navigate(ADMIN_PENDING_VERIFICATION_PATH, { replace: true });
+    }
+  }, [
+    authLoading,
+    roleLoading,
+    user,
+    subSuperBypass,
+    isSuperAdmin,
+    portalStaff,
+    entLoading,
+    onPendingVerificationPath,
+    subscriptionAccess,
+    navigate,
+  ]);
+
   const usesPortalPathGuardEarly =
     !skipPathGuard &&
     PORTAL_RBAC_PREFIXES.some((p) => location.pathname.startsWith(p));
-
-  const portalStaff = isPortalStaffRole(roles);
-  const onSubscriptionAllowedPath = isSubscriptionAllowedPath(location.pathname);
-  const touchesGatedPortal =
-    isSubscriptionGatedPortalPath(location.pathname) ||
-    (location.pathname === "/settings" && portalStaff);
-
-  const orgSubscriptionLocked =
-    !subSuperBypass &&
-    !isSuperAdmin &&
-    portalStaff &&
-    subscriptionBlocked &&
-    touchesGatedPortal;
 
   useEffect(() => {
     if (roleLoading || !role) return;
@@ -95,11 +138,31 @@ export const ProtectedRoute = ({
     }
   }, [role, roles, roleLoading, allowedRoles, navigate, isStudent, location.pathname]);
 
-  /** Core auth/role first — render portal immediately without blocking on secondary network checks */
-  const loading = authLoading || roleLoading;
+  /** Wait for subscription access before opening gated portal routes (prevents flash of dashboard after signup). */
+  const mustResolveSubscription =
+    portalStaff &&
+    !subSuperBypass &&
+    !isSuperAdmin &&
+    touchesGatedPortal &&
+    !onSubscriptionAllowedPath;
+
+  const postPaymentTransition = isAdminPostPaymentTransition();
+  const loading =
+    authLoading ||
+    roleLoading ||
+    (mustResolveSubscription && entLoading) ||
+    (onPendingVerificationPath && entLoading && !postPaymentTransition);
 
   if (loading) {
-    return null;
+    return (
+      <OnboardingTransitionScreen
+        message={
+          postPaymentTransition
+            ? "Confirming your payment…"
+            : "Loading your account…"
+        }
+      />
+    );
   }
 
   if (!user) return null;
@@ -126,7 +189,22 @@ export const ProtectedRoute = ({
     !skipPathGuard &&
     PORTAL_RBAC_PREFIXES.some((p) => location.pathname.startsWith(p));
 
+  // Pending verification: keep children mounted (no blank redirect frame).
+  if (
+    onPendingVerificationPath &&
+    portalStaff &&
+    !subSuperBypass &&
+    (isPendingVerificationState(subscriptionAccess) ||
+      postPaymentTransition ||
+      isAdminPendingVerificationFlag())
+  ) {
+    return <>{children}</>;
+  }
+
   if (orgSubscriptionLocked && !onSubscriptionAllowedPath) {
+    if (isPendingVerificationState(subscriptionAccess) || postPaymentTransition) {
+      return <OnboardingTransitionScreen message="Opening account verification…" />;
+    }
     return (
       <SubscriptionLockScreen
         access={subscriptionAccess}

@@ -21,5 +21,21 @@ export function isTenantLockedOrPendingPayment(t: TenantOverview): boolean {
 
 /** Paid first-time orgs waiting for Super Admin to grant access. */
 export function isTenantAwaitingApproval(t: TenantOverview): boolean {
-  return t.subscription_status === "pending" && Boolean(t.plan_slug || t.plan_name);
+  return (
+    (t.subscription_status === "pending" && Boolean(t.plan_slug || t.plan_name)) ||
+    t.admin_approval_status === "pending_verification"
+  );
+}
+
+export function adminApprovalLabel(status: string | null | undefined): string {
+  switch (status) {
+    case "pending_verification":
+      return "Pending verification";
+    case "approved":
+      return "Approved";
+    case "rejected":
+      return "Rejected";
+    default:
+      return status ?? "—";
+  }
 }

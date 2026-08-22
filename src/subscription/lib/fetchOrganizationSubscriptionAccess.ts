@@ -111,10 +111,10 @@ function computeAccessFromRow(sub: {
   const status = sub.status ?? "trial";
   
   if (status === "pending") {
-    // If a plan was selected/paid, this account is awaiting management approval
+    // If a plan was selected/paid, this account is awaiting Super Admin verification
     return {
       has_subscription_row: true,
-      access_state: sub.plan_id ? "pending_approval" : "pending_payment",
+      access_state: sub.plan_id ? "pending_verification" : "pending_payment",
       can_use_platform: false,
       status,
       plan_id: sub.plan_id ?? null,

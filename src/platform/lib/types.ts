@@ -44,6 +44,8 @@ export type PlatformSchoolSmsOverview = {
   last_sms_at: string | null;
 };
 
+export type AdminApprovalStatus = "pending_verification" | "approved" | "rejected";
+
 export type TenantOverview = {
   school_id: string;
   school_name: string;
@@ -61,6 +63,11 @@ export type TenantOverview = {
   parent_count: number;
   user_count: number;
   created_at: string | null;
+  primary_admin_email?: string | null;
+  primary_admin_name?: string | null;
+  primary_admin_phone?: string | null;
+  admin_approval_status?: AdminApprovalStatus | null;
+  payment_completed?: boolean | null;
 };
 
 export type ModuleEntitlementRow = {

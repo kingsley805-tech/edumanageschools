@@ -25,6 +25,7 @@ import { usePlatformTenants } from "@/platform/hooks/usePlatformDashboard";
 import {
   isTenantAwaitingApproval,
   isTenantLockedOrPendingPayment,
+  adminApprovalLabel,
 } from "@/platform/lib/tenantSubscription";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -182,23 +183,24 @@ export default function TenantManagement() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Organization</TableHead>
+                  <TableHead>Administrator</TableHead>
                   <TableHead>Plan</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Payment</TableHead>
+                  <TableHead>Account status</TableHead>
                   <TableHead>Students</TableHead>
-                  <TableHead>Expiry</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-12 text-center">
+                    <TableCell colSpan={8} className="py-12 text-center">
                       <Loader2 className="mx-auto h-6 w-6 animate-spin" />
                     </TableCell>
                   </TableRow>
                 ) : filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="py-12 text-center text-muted-foreground">
                       {listFilter === "awaiting_approval"
                         ? "No organizations awaiting approval"
                         : "No organizations found"}
@@ -214,12 +216,23 @@ export default function TenantManagement() {
                           <div className="font-medium">{t.school_name}</div>
                           <div className="font-mono text-xs text-muted-foreground">{t.school_code}</div>
                         </TableCell>
-                        <TableCell>{t.plan_name ?? "—"}</TableCell>
-                        <TableCell>{statusBadge(t.subscription_status, awaiting)}</TableCell>
-                        <TableCell>{t.student_count}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {t.expires_at ? new Date(t.expires_at).toLocaleDateString() : "—"}
+                        <TableCell>
+                          <div className="text-sm">{t.primary_admin_name ?? "—"}</div>
+                          <div className="text-xs text-muted-foreground">{t.primary_admin_email ?? "—"}</div>
                         </TableCell>
+                        <TableCell>{t.plan_name ?? "—"}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={t.payment_completed ? "text-emerald-700" : ""}>
+                            {t.payment_completed ? "Successful" : "Pending"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {statusBadge(t.admin_approval_status ?? t.subscription_status, awaiting)}
+                          <div className="text-[11px] text-muted-foreground mt-0.5">
+                            {adminApprovalLabel(t.admin_approval_status)}
+                          </div>
+                        </TableCell>
+                        <TableCell>{t.student_count}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex flex-wrap justify-end gap-1">
                             {awaiting ? (

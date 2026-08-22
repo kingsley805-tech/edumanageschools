@@ -133,18 +133,39 @@ const Auth = () => {
   }, [resetCooldown]);
 
   useEffect(() => {
-    if (user && role && (location.pathname === "/auth" || location.pathname.startsWith("/auth/") || location.pathname.startsWith("/auth?"))) {
-      const roleRoutes: Record<string, string> = {
-        admin: "/admin",
-        super_admin: "/platform",
-        accountant: "/accountant",
-        auditor: "/auditor",
-        teacher: "/teacher",
-        parent: "/parent",
-        student: "/student",
-      };
-      navigate(roleRoutes[role] || "/admin");
+    if (
+      !user ||
+      !role ||
+      !(
+        location.pathname === "/auth" ||
+        location.pathname.startsWith("/auth/") ||
+        location.pathname.startsWith("/auth?")
+      )
+    ) {
+      return;
     }
+
+    // Fresh admin signup must land on plan selection, never the dashboard.
+    try {
+      if (role === "admin" && sessionStorage.getItem("admin_post_signup") === "1") {
+        sessionStorage.removeItem("admin_post_signup");
+        navigate("/admin/subscription", { replace: true });
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
+
+    const roleRoutes: Record<string, string> = {
+      admin: "/admin",
+      super_admin: "/platform",
+      accountant: "/accountant",
+      auditor: "/auditor",
+      teacher: "/teacher",
+      parent: "/parent",
+      student: "/student",
+    };
+    navigate(roleRoutes[role] || "/admin", { replace: true });
   }, [user, role, navigate, location.pathname]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -397,6 +418,11 @@ const Auth = () => {
         setActiveTab("login");
         setIsLoading(false);
         return;
+      }
+      try {
+        sessionStorage.setItem("admin_post_signup", "1");
+      } catch {
+        /* ignore */
       }
       toast.success("Account created! Choose a subscription plan to get started.");
       navigate("/admin/subscription", { replace: true });
@@ -907,6 +933,39 @@ const Auth = () => {
           {/* Signup Form */}
           {activeTab === "signup" && (
             <form onSubmit={handleSignup} className="animate-fade-in space-y-5">
+              {/* Account Type Selection — first so remaining fields can adapt */}
+              <div className="space-y-1.5 text-left">
+                <Label htmlFor="signup-role" className="text-xs font-semibold text-white">
+                  Account type
+                </Label>
+                <Select value={signupRole} onValueChange={setSignupRole} required>
+                  <SelectTrigger id="signup-role" className="h-11 rounded-xl border-[#2e3340] bg-[#111317] text-white focus:border-white focus:ring-0">
+                    <SelectValue placeholder="Select your role" />
+                  </SelectTrigger>
+                  <SelectContent className="border-[#2e3340] bg-[#16181f] text-white">
+                    {Object.entries(roleConfig).map(([key, config]) => {
+                      const IconComponent = config.icon;
+                      return (
+                        <SelectItem key={key} value={key} className="py-2.5 hover:bg-[#20242c] focus:bg-[#20242c] text-white">
+                          <div className="flex items-center gap-3">
+                            <IconComponent
+                              className="h-4 w-4 text-white"
+                              aria-hidden="true"
+                            />
+                            <div className="flex flex-col text-left">
+                              <span className="text-sm font-medium text-white">{config.label}</span>
+                              <span className="text-xs text-[#8c93a4]">
+                                {config.description}
+                              </span>
+                            </div>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <AuthField
                 id="signup-name"
                 label="Full name"
@@ -954,39 +1013,6 @@ const Auth = () => {
                 onChange={(e) => setSignupConfirmPassword(e.target.value)}
                 required
               />
-
-              {/* Account Type Selection */}
-              <div className="space-y-1.5 text-left">
-                <Label htmlFor="signup-role" className="text-xs font-semibold text-white">
-                  Account type
-                </Label>
-                <Select value={signupRole} onValueChange={setSignupRole} required>
-                  <SelectTrigger id="signup-role" className="h-11 rounded-xl border-[#2e3340] bg-[#111317] text-white focus:border-white focus:ring-0">
-                    <SelectValue placeholder="Select your role" />
-                  </SelectTrigger>
-                  <SelectContent className="border-[#2e3340] bg-[#16181f] text-white">
-                    {Object.entries(roleConfig).map(([key, config]) => {
-                      const IconComponent = config.icon;
-                      return (
-                        <SelectItem key={key} value={key} className="py-2.5 hover:bg-[#20242c] focus:bg-[#20242c] text-white">
-                          <div className="flex items-center gap-3">
-                            <IconComponent
-                              className="h-4 w-4 text-white"
-                              aria-hidden="true"
-                            />
-                            <div className="flex flex-col text-left">
-                              <span className="text-sm font-medium text-white">{config.label}</span>
-                              <span className="text-xs text-[#8c93a4]">
-                                {config.description}
-                              </span>
-                            </div>
-                          </div>
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
 
               {/* Admin - New School Creation */}
               {signupRole === "admin" && (

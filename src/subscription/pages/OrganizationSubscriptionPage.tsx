@@ -1,13 +1,19 @@
 // @ts-nocheck
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
 import OrganizationSubscriptionModal from "@/subscription/components/OrganizationSubscriptionModal";
 import SubscriptionLockScreen from "@/subscription/components/SubscriptionLockScreen";
+import OnboardingTransitionScreen from "@/subscription/components/OnboardingTransitionScreen";
 import { useOrganizationSubscription } from "@/subscription/hooks/useOrganizationSubscription";
 import { syncOrganizationSubscriptionModules } from "@/subscription/lib/syncOrganizationSubscriptionModules";
+import { isPendingVerificationState } from "@/subscription/lib/subscriptionAccess";
+import {
+  isAdminPostPaymentTransition,
+  setAdminPendingVerificationFlow,
+} from "@/subscription/lib/adminOnboardingFlow";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -15,9 +21,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Loader2, MessageSquare, RefreshCw } from "lucide-react";
 
 export default function OrganizationSubscriptionPage() {
-  const { access, blocked, invalidate } = useOrganizationSubscription();
+  const navigate = useNavigate();
+  const { access, blocked, invalidate, loading } = useOrganizationSubscription();
   const { currentSchool } = useSchoolInfo();
   const [syncingModules, setSyncingModules] = useState(false);
+  const pending = isPendingVerificationState(access);
+  const transitioning = isAdminPostPaymentTransition();
+
+  useEffect(() => {
+    if (!pending && !transitioning) return;
+    setAdminPendingVerificationFlow();
+    navigate("/admin/pending-verification", { replace: true });
+  }, [pending, transitioning, navigate]);
 
   const refreshModuleAccess = async () => {
     setSyncingModules(true);
@@ -53,6 +68,18 @@ export default function OrganizationSubscriptionPage() {
       return data;
     },
   });
+
+  if (loading || pending || transitioning) {
+    return (
+      <OnboardingTransitionScreen
+        message={
+          pending || transitioning
+            ? "Opening account verification…"
+            : "Loading subscription…"
+        }
+      />
+    );
+  }
 
   if (blocked || !access?.can_use_platform) {
     return <SubscriptionLockScreen access={access} onActivated={invalidate} />;

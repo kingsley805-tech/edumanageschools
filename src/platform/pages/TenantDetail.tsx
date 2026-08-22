@@ -217,25 +217,47 @@ export default function TenantDetail() {
       <div className="mx-auto max-w-5xl space-y-6">
         {awaiting ? (
           <Card className="border-amber-500/40 bg-amber-500/5">
-            <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
-              <div>
-                <p className="font-medium">Awaiting your approval</p>
-                <p className="text-sm text-muted-foreground">
-                  School admin is locked until you approve this paid account.
-                </p>
+            <CardContent className="space-y-4 py-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium">Awaiting administrator verification</p>
+                  <p className="text-sm text-muted-foreground">
+                    Payment was completed. Approve to grant portal access, or reject to keep the account blocked.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button disabled={saving} onClick={() => void handleApprovePending()}>
+                    Approve administrator
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="text-destructive"
+                    disabled={saving}
+                    onClick={() => void handleRejectPending()}
+                  >
+                    Reject
+                  </Button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Button disabled={saving} onClick={() => void handleApprovePending()}>
-                  Approve
-                </Button>
-                <Button
-                  variant="outline"
-                  className="text-destructive"
-                  disabled={saving}
-                  onClick={() => void handleRejectPending()}
-                >
-                  Reject
-                </Button>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground">Administrator</p>
+                  <p className="font-medium">{tenant?.primary_admin_name ?? "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Email</p>
+                  <p className="font-medium break-all">{tenant?.primary_admin_email ?? "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Payment status</p>
+                  <p className="font-medium">{tenant?.payment_completed ? "Successful" : "Pending"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Account status</p>
+                  <p className="font-medium capitalize">
+                    {(tenant?.admin_approval_status ?? "pending_verification").replace(/_/g, " ")}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>

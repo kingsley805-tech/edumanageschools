@@ -39,7 +39,7 @@ export function useOrganizationSubscription(schoolId?: string | null) {
       if (q.state.error) return false;
       const state = (q.state.data as OrganizationSubscriptionAccess | undefined)?.access_state;
       if (state === "legacy") return false;
-      if (state === "pending_approval") return 15_000;
+      if (state === "pending_verification" || state === "pending_approval") return 15_000;
       if (state === "pending_payment" || state === "expired_grace") return 30_000;
       return false;
     },

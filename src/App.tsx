@@ -113,6 +113,7 @@ import SuperAdminManagement from "./pages/admin/SuperAdminManagement";
 import OrganizationSubscriptionPage from "./subscription/pages/OrganizationSubscriptionPage";
 import OrganizationSubscriptionHistoryPage from "./subscription/pages/OrganizationSubscriptionHistoryPage";
 import OrganizationSupportPage from "./subscription/pages/OrganizationSupportPage";
+import AdminPendingVerificationPage from "./subscription/pages/AdminPendingVerificationPage";
 import PlatformOwnerLogin from "./platform/pages/PlatformOwnerLogin";
 import { PlatformOwnerRoute } from "./platform/components/PlatformOwnerRoute";
 import SchoolSettings from "./pages/admin/SchoolSettings";
@@ -187,6 +188,14 @@ function App() {
                     element={
                       <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
                         <AdminDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/pending-verification"
+                    element={
+                      <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                        <AdminPendingVerificationPage />
                       </ProtectedRoute>
                     }
                   />

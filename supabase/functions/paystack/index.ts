@@ -748,6 +748,19 @@ async function initOrganizationSubscriptionCheckout(
   };
 }
 
+const errMessage = (err: unknown, fallback = "Request failed"): string => {
+  if (err instanceof Error && err.message) return err.message;
+  if (err && typeof err === "object") {
+    const e = err as { message?: string; error?: string; details?: string; hint?: string };
+    const parts = [e.message, e.error, e.details, e.hint].filter(
+      (p): p is string => typeof p === "string" && p.trim().length > 0,
+    );
+    if (parts.length) return parts.join(" — ");
+  }
+  if (typeof err === "string" && err.trim()) return err;
+  return fallback;
+};
+
 const processPlatformSubscriptionCharge = async (
   adminSupabase: SupabaseAdmin,
   params: {
@@ -765,19 +778,23 @@ const processPlatformSubscriptionCharge = async (
     p_amount: amount,
     p_payment_status: "success",
   });
-  if (error) throw error;
+  if (error) throw new Error(errMessage(error, "Subscription activation failed"));
   const res = data as {
     ok?: boolean;
     error?: string;
     duplicate?: boolean;
     awaiting_approval?: boolean;
     status?: string;
+    admin_approval_status?: string;
   };
-  if (!res?.ok && !res?.duplicate) throw new Error(res?.error ?? "Subscription activation failed");
+  if (!res?.ok && !res?.duplicate) {
+    throw new Error(res?.error ?? "Subscription activation failed");
+  }
   return {
     duplicate: Boolean(res?.duplicate),
     awaiting_approval: Boolean(res?.awaiting_approval),
     status: res?.status,
+    admin_approval_status: res?.admin_approval_status,
   };
 };
 
@@ -2397,9 +2414,10 @@ serve(async (req) => {
           duplicate: result.duplicate,
           awaiting_approval: result.awaiting_approval,
           status: result.status,
+          admin_approval_status: result.admin_approval_status,
         });
       } catch (confirmErr: unknown) {
-        const msg = confirmErr instanceof Error ? confirmErr.message : "Confirmation failed";
+        const msg = errMessage(confirmErr, "Confirmation failed");
         console.error("platform-subscription-confirm:", confirmErr);
         return jsonResponse({ error: msg }, 400);
       }
