@@ -55,6 +55,9 @@ export default function PlatformDashboard() {
   const awaiting = (tenants ?? []).filter(isTenantAwaitingApproval);
   const locked = (tenants ?? []).filter(isTenantLockedOrPendingPayment);
   const expiringSoon = (tenants ?? []).filter((t) => {
+    // Never treat awaiting-approval / unpaid-pending orgs as "expiring"
+    if (isTenantAwaitingApproval(t)) return false;
+    if (t.subscription_status === "pending") return false;
     if (!t.expires_at) return false;
     const days = (new Date(t.expires_at).getTime() - Date.now()) / 86400000;
     return days > 0 && days <= 30;

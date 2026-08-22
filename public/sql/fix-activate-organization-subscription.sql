@@ -1,4 +1,14 @@
--- Fix: cast status to subscription_status enum (not text)
+-- No subscription expiry until Super Admin approves a newly paid organization.
+-- Period starts at approval time.
+
+-- Clear premature expiry on accounts still awaiting approval
+UPDATE public.school_subscriptions
+SET
+  expires_at = NULL,
+  started_at = NULL,
+  updated_at = now()
+WHERE status = 'pending'
+  AND plan_id IS NOT NULL;
 
 CREATE OR REPLACE FUNCTION public.activate_organization_subscription(
   p_reference text,
@@ -30,6 +40,8 @@ DECLARE
   v_new_status public.subscription_status := 'pending';
   v_storage_mb numeric := 5120;
   v_max_storage numeric;
+  v_sub_started timestamptz;
+  v_sub_expires timestamptz;
 BEGIN
   BEGIN
     IF p_reference IS NULL OR trim(p_reference) = '' THEN
@@ -100,6 +112,7 @@ BEGIN
     FROM public.subscription_plans WHERE id = v_plan_id;
     v_storage_mb := coalesce(v_max_storage, 5) * 1024;
 
+    -- Intended paid period (stored on payment row). Subscription clock starts on approval.
     v_period_end := CASE v_billing_cycle
       WHEN 'annual' THEN now() + interval '365 days'
       ELSE now() + interval '30 days'
@@ -134,6 +147,15 @@ BEGIN
       ELSE 'pending'::public.subscription_status
     END;
 
+    -- Renewals start immediately; first-time paid orgs have no expiry until approved.
+    IF v_is_renewal THEN
+      v_sub_started := now();
+      v_sub_expires := v_period_end;
+    ELSE
+      v_sub_started := NULL;
+      v_sub_expires := NULL;
+    END IF;
+
     BEGIN
       INSERT INTO public.organization_subscription_payments (
         school_id, plan_id, billing_cycle, amount, status, payment_reference,
@@ -148,7 +170,8 @@ BEGIN
           'enable_sms', v_enable_sms,
           'package_amount', coalesce(v_package_amount, coalesce(p_amount, v_amount) - coalesce(v_sms_amount, 0)),
           'sms_amount', coalesce(v_sms_amount, 0),
-          'awaiting_super_admin_approval', NOT v_is_renewal
+          'awaiting_super_admin_approval', NOT v_is_renewal,
+          'period_starts_on_approval', NOT v_is_renewal
         )
       );
     EXCEPTION WHEN unique_violation THEN
@@ -172,7 +195,7 @@ BEGIN
       paystack_transaction_id, storage_limit_mb, renewed_at, updated_at
     ) VALUES (
       v_school_id, v_plan_id, v_new_status, v_billing_cycle,
-      now(), v_period_end, NULL, 0, NULL, coalesce(p_amount, v_amount),
+      v_sub_started, v_sub_expires, NULL, 0, NULL, coalesce(p_amount, v_amount),
       p_reference, p_paystack_transaction_id, v_storage_mb,
       CASE WHEN v_is_renewal THEN now() ELSE NULL END,
       now()
@@ -239,7 +262,8 @@ BEGIN
           'billing_cycle', v_billing_cycle,
           'amount', coalesce(p_amount, v_amount),
           'status', v_new_status::text,
-          'awaiting_super_admin_approval', NOT v_is_renewal
+          'awaiting_super_admin_approval', NOT v_is_renewal,
+          'expires_at', v_sub_expires
         ),
         p_reference,
         v_created_by
@@ -251,7 +275,7 @@ BEGIN
     RETURN jsonb_build_object(
       'ok', true,
       'school_id', v_school_id,
-      'expires_at', v_period_end,
+      'expires_at', v_sub_expires,
       'sms_enabled', v_enable_sms,
       'status', v_new_status::text,
       'awaiting_approval', NOT v_is_renewal,
@@ -263,6 +287,82 @@ BEGIN
 END;
 $$;
 
+-- On approval: start the subscription clock (expiry begins now)
+CREATE OR REPLACE FUNCTION public.approve_organization_subscription(p_school_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_sub public.school_subscriptions%ROWTYPE;
+  v_period_end timestamptz;
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'super_admin') THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Only Super Admins can approve accounts');
+  END IF;
+
+  IF p_school_id IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Missing school');
+  END IF;
+
+  SELECT * INTO v_sub FROM public.school_subscriptions WHERE school_id = p_school_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Subscription not found');
+  END IF;
+
+  IF v_sub.plan_id IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Organization has not completed payment / plan selection');
+  END IF;
+
+  v_period_end := CASE coalesce(v_sub.billing_cycle, 'monthly')
+    WHEN 'annual' THEN now() + interval '365 days'
+    ELSE now() + interval '30 days'
+  END;
+
+  UPDATE public.school_subscriptions
+  SET
+    status = 'active',
+    started_at = coalesce(started_at, now()),
+    expires_at = coalesce(expires_at, v_period_end),
+    locked_at = NULL,
+    renewed_at = coalesce(renewed_at, now()),
+    updated_at = now()
+  WHERE school_id = p_school_id;
+
+  BEGIN
+    UPDATE public.profiles p
+    SET admin_approval_status = 'approved'::public.admin_approval_status
+    FROM public.user_roles ur
+    WHERE ur.user_id = p.id
+      AND ur.role = 'admin'::public.app_role
+      AND p.school_id = p_school_id;
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
+
+  PERFORM public.log_subscription_audit(
+    p_school_id,
+    'super_admin_approved',
+    jsonb_build_object(
+      'previous_status', v_sub.status,
+      'plan_id', v_sub.plan_id,
+      'expires_at', coalesce(v_sub.expires_at, v_period_end)
+    ),
+    v_sub.payment_reference,
+    auth.uid()
+  );
+
+  RETURN jsonb_build_object(
+    'ok', true,
+    'school_id', p_school_id,
+    'status', 'active',
+    'expires_at', coalesce(v_sub.expires_at, v_period_end)
+  );
+END;
+$$;
+
 GRANT EXECUTE ON FUNCTION public.activate_organization_subscription(text, text, numeric, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.approve_organization_subscription(uuid) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';

@@ -302,9 +302,11 @@ export default function TenantDetail() {
                 <div className="flex justify-between border-b border-border/50 py-2">
                   <span className="text-muted-foreground">Expiry</span>
                   <span className="font-medium">
-                    {tenant?.expires_at
+                    {tenant?.expires_at && !awaiting
                       ? new Date(tenant.expires_at).toLocaleDateString()
-                      : "—"}
+                      : awaiting
+                        ? "Starts after approval"
+                        : "—"}
                   </span>
                 </div>
                 <div className="flex justify-between border-b border-border/50 py-2">
