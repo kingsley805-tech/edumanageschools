@@ -32,6 +32,15 @@ export type PaymentTransactionRow = {
   paid_at: string | null;
   created_at: string;
   payment_context?: string;
+  receipt_number?: string | null;
+  receipt_url?: string | null;
+  whatsapp_status?: string | null;
+  whatsapp_delivery_id?: string | null;
+  sent_via_whatsapp_at?: string | null;
+  /** Resolved from payment metadata */
+  fee_type?: string | null;
+  term?: string | null;
+  academic_year?: string | null;
 };
 
 export const PAYMENT_STATUS_BADGE: Record<
@@ -46,7 +55,51 @@ export const PAYMENT_STATUS_BADGE: Record<
   disputed: { label: "Disputed", className: "bg-red-500/10 text-red-700 border-red-500/20" },
 };
 
+export function formatReceiptPaidTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+export type PaymentMetadataFields = {
+  fee_category?: string | null;
+  fee_type?: string | null;
+  academic_year?: string | null;
+  term?: string | null;
+  fee_item_id?: string | null;
+};
+
+export function extractPaymentMetadata(
+  metadata?: Record<string, unknown> | null,
+): PaymentMetadataFields {
+  const meta = metadata ?? {};
+  return {
+    fee_category: (meta.fee_category as string | null) ?? null,
+    fee_type: (meta.fee_type as string | null) ?? null,
+    academic_year: (meta.academic_year as string | null) ?? null,
+    term: (meta.term as string | null) ?? null,
+    fee_item_id: (meta.fee_item_id as string | null) ?? null,
+  };
+}
+
+export function paymentFeeType(row: PaymentTransactionRow): string | null {
+  if (row.fee_type?.trim()) return row.fee_type.trim();
+  const meta = extractPaymentMetadata(row.metadata);
+  return meta.fee_type?.trim() || meta.fee_category?.trim() || null;
+}
+
 export function formatPaymentMethod(method: string): string {
+  if (!method) return "—";
+  const m = method.toLowerCase();
+  if (m === "pos_terminal") return "POS Terminal";
+  if (m === "mobile_money") return "Mobile Money";
+  if (m === "bank_transfer") return "Bank Transfer";
   return method.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
@@ -71,15 +124,7 @@ export function formatPaidBy(row: PaymentTransactionRow): string {
 }
 
 export function paymentDisplayDate(row: PaymentTransactionRow): string {
-  const raw = row.paid_at || row.created_at;
-  if (!raw) return "—";
-  return new Date(raw).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatReceiptPaidTime(row.paid_at || row.created_at);
 }
 
 export function resolvePaystackTxnId(
@@ -129,9 +174,11 @@ export function filterPaymentTransactions(
     }
 
     if (!q) return true;
+    const feeType = paymentFeeType(row);
     return (
       String(row.amount).includes(q) ||
       (row.invoice_number ?? "").toLowerCase().includes(q) ||
+      (feeType ?? "").toLowerCase().includes(q) ||
       (row.gateway_ref ?? "").toLowerCase().includes(q) ||
       txnId(row).toLowerCase().includes(q) ||
       (row.student_name ?? "").toLowerCase().includes(q) ||

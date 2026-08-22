@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Save, Calculator } from "lucide-react";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 
 interface Student {
   id: string;
@@ -332,15 +333,28 @@ const Grades = () => {
 
             <TabsContent value="manual">
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-row items-center justify-between gap-2">
                   <div>
                     <CardTitle>Manual Grade Entry</CardTitle>
                     <CardDescription>Enter grades for paper-based assessments</CardDescription>
                   </div>
-                  <Button onClick={saveGrades} disabled={saving}>
-                    <Save className="mr-2 h-4 w-4" />
-                    {saving ? "Saving..." : "Save Grades"}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <ExportMenu
+                      filename="manual-grades"
+                      title="Manual Grades"
+                      headers={["Student Name", "Score (0-100)", "Letter Grade"]}
+                      rows={students.map((student) => [
+                        student.profiles?.full_name || "Unknown",
+                        manualGrades[student.id] ?? "",
+                        getLetterGrade(manualGrades[student.id] ?? 0),
+                      ])}
+                      disabled={students.length === 0}
+                    />
+                    <Button onClick={saveGrades} disabled={saving}>
+                      <Save className="mr-2 h-4 w-4" />
+                      {saving ? "Saving..." : "Save Grades"}
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <Table>
@@ -398,14 +412,57 @@ const Grades = () => {
 
             <TabsContent value="overview">
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calculator className="h-5 w-5" />
-                    Grade Overview
-                  </CardTitle>
-                  <CardDescription>
-                    Combined grades from manual entry, paper exams, and online exams
-                  </CardDescription>
+                <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Calculator className="h-5 w-5" />
+                      Grade Overview
+                    </CardTitle>
+                    <CardDescription>
+                      Combined grades from manual entry, paper exams, and online exams
+                    </CardDescription>
+                  </div>
+                  <ExportMenu
+                    filename="grade-overview"
+                    title="Grade Overview"
+                    headers={["Student Name", "Manual Grade", "Paper Exams", "Online Exams", "Final Grade", "Letter"]}
+                    rows={students.map((student) => {
+                      const manual = manualGrades[student.id] ?? 0;
+                      const studentExamResults = examResults.filter((r) => r.student_id === student.id);
+                      const examAvg =
+                        studentExamResults.length > 0
+                          ? Math.round(
+                              studentExamResults.reduce((sum, r) => {
+                                return sum + ((r.marks_obtained || 0) / r.exam.total_marks) * 100;
+                              }, 0) / studentExamResults.length,
+                            )
+                          : null;
+                      const studentOnlineResults = onlineExamResults.filter(
+                        (r) => r.student_id === student.id,
+                      );
+                      const onlineAvg =
+                        studentOnlineResults.length > 0
+                          ? Math.round(
+                              studentOnlineResults.reduce((sum, r) => {
+                                return (
+                                  sum +
+                                  ((r.total_marks_obtained || 0) / r.online_exam.total_marks) * 100
+                                );
+                              }, 0) / studentOnlineResults.length,
+                            )
+                          : null;
+                      const finalGrade = calculateFinalGrade(student.id);
+                      return [
+                        student.profiles?.full_name || "Unknown",
+                        `${manual}%`,
+                        examAvg !== null ? `${examAvg}%` : "-",
+                        onlineAvg !== null ? `${onlineAvg}%` : "-",
+                        `${finalGrade}%`,
+                        getLetterGrade(finalGrade),
+                      ];
+                    })}
+                    disabled={students.length === 0}
+                  />
                 </CardHeader>
                 <CardContent>
                   <Table>

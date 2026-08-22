@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
 import { BookOpen, Link2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 
 type TeacherOption = {
   id: string;
@@ -364,17 +365,31 @@ const TeacherClassLink = () => {
 
         {selectedTeacher && (
           <Card>
-            <CardHeader>
-              <CardTitle>Current Assignments</CardTitle>
-              <CardDescription>
-                Classes and subjects taught by{" "}
-                <Link
-                  to={`/admin/teachers/${selectedTeacher}`}
-                  className="text-primary font-semibold hover:underline"
-                >
-                  {selectedTeacherName}
-                </Link>
-              </CardDescription>
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle>Current Assignments</CardTitle>
+                <CardDescription>
+                  Classes and subjects taught by{" "}
+                  <Link
+                    to={`/admin/teachers/${selectedTeacher}`}
+                    className="text-primary font-semibold hover:underline"
+                  >
+                    {selectedTeacherName}
+                  </Link>
+                </CardDescription>
+              </div>
+              <ExportMenu
+                filename="teacher-class-assignments"
+                title="Teacher Class Assignments"
+                headers={["Class", "Level", "Subject", "Code"]}
+                rows={assignments.map((assignment) => [
+                  assignment.classes?.name ?? "—",
+                  assignment.classes?.level ?? "",
+                  assignment.subjects?.name ?? "",
+                  assignment.subjects?.code ?? "",
+                ])}
+                disabled={assignments.length === 0}
+              />
             </CardHeader>
             <CardContent>
               {assignments.length === 0 ? (

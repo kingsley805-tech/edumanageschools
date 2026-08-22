@@ -16,10 +16,12 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/report/hooks/use-auth";
 import { useSchool, useCurrentTerm } from "@/report/hooks/use-school-data";
-import { PageHeader } from "@/report/portal/page-header";
 import { ActiveTermBanner } from "@/report/portal/active-term-banner";
-import { ChartCard } from "@/report/portal/chart-card";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  DashboardChartCard,
+  DashboardStatCard,
+  DashboardStatGrid,
+} from "@/components/metronic/DashboardStatCard";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,11 +32,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { StatCard } from "@/report/portal/stat-card";
 import { trendFor, sortTermsChronologically } from "@/report/lib/trend";
 import { isPendingAdminAction, statusBadgeVariant, statusLabel } from "@/report/lib/report-card-status";
 import { totalFromSubjects, fmtScore, formatRankLabel, type SubjectRow } from "@/report/lib/shepherd-grading";
@@ -49,6 +51,12 @@ import {
   Download,
   Printer,
   FilterX,
+  Search,
+  ChevronRight,
+  MoreHorizontal,
+  ExternalLink,
+  GraduationCap,
+  Sparkles,
 } from "lucide-react";
 import { useClientPagination } from "@/report/hooks/use-client-pagination";
 import { TablePagination } from "@/report/portal/table-pagination";
@@ -59,6 +67,9 @@ import { toast } from "sonner";
 import { exportGenericTableToExcel, exportGenericTableToPDF } from "@/lib/exportUtils";
 import { exportTable } from "@/modules/lib/exportTable";
 import { getDesktopAPI, isElectronDesktop, unwrapIpc } from "@/desktop/electronBridge";
+import { EntityCellIdentity, EntityCardItem, getEntityStatusBadge } from "@/components/entities/EntityRow";
+import { withReportLayout } from "@/report/withReportLayout";
+
 const STATUS_CHART_COLORS: Record<string, string> = {
   "Pending Review": "hsl(var(--warning))",
   Reviewed: "hsl(var(--primary))",
@@ -225,7 +236,6 @@ function AdminReportReview() {
   const rejected = reports?.filter((r) => r.status === "rejected").length ?? 0;
   const totalSubmitted = reports?.length ?? 0;
 
-  // --- Term-over-term trend (this term's submissions vs the term before it) ---
   const sortedTerms = useMemo(() => sortTermsChronologically(terms ?? []), [terms]);
 
   const previousTerm = useMemo(() => {
@@ -261,7 +271,6 @@ function AdminReportReview() {
   );
   const totalTrend = trendFor(currentTermReports.length, previousTermReports.length, hasPreviousTerm);
 
-  // --- Chart data (derived from the currently filtered set — no extra queries) ---
   const statusChartData = useMemo(() => {
     const counts = new Map<string, number>();
     for (const r of filtered) {
@@ -283,9 +292,6 @@ function AdminReportReview() {
       .slice(0, 8);
   }, [filtered]);
 
-  // --- Export (PDF / Excel / Print) — same Electron-aware pattern as the
-  // admin Reports & Analytics dashboard, so silent/preview printing and PDF
-  // export behave identically across the app. ---
   const activeExport = useMemo(() => {
     const summary = [
       { label: "Pending review", value: String(pending) },
@@ -425,364 +431,515 @@ function AdminReportReview() {
   };
 
   return (
-    <>
-      <PageHeader
-        title="Report card review"
-        description="Review, edit, approve, deliver to parents, and browse archived reports."
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="default" size="sm" className="gap-1.5">
-                  <Download className="h-3.5 w-3.5" />
-                  Export
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleExportPDF} disabled={exporting === "pdf"}>
-                  PDF
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExportWord} disabled={exporting === "word"}>
-                  Word doc
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExportExcel} disabled={exporting === "excel"}>
-                  Excel
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExportCsv} disabled={exporting === "csv"}>
-                  CSV
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handlePrint} disabled={exporting === "print"}>
-                  <Printer className="mr-2 h-4 w-4" /> Print
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button asChild variant="outline" size="sm">
-              <Link to="/admin/report-cards/archive">
-                <Archive className="mr-1 h-4 w-4" />
-                Archive
-              </Link>
-            </Button>
+    <div className="space-y-5 font-sans lg:space-y-7.5">
+      {/* ── Standard Metronic Page Toolbar ────────────────────────────── */}
+      <div className="flex flex-wrap items-center lg:items-end justify-between gap-4 pb-2 border-b border-border/40">
+        <div className="flex min-w-0 flex-col justify-center gap-1.5">
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <Link to="/admin" className="hover:text-primary transition-colors">
+              Dashboard
+            </Link>
+            <ChevronRight className="size-3 text-muted-foreground/60" />
+            <span>Academics</span>
+            <ChevronRight className="size-3 text-muted-foreground/60" />
+            <span className="text-foreground font-semibold">Report Cards</span>
           </div>
-        }
-      />
-      <div className="space-y-6 p-6 md:p-8 print:space-y-4">
-        <ActiveTermBanner />
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            index={0}
-            label="Pending review"
-            value={pending}
-            icon={Clock}
-            tone="text-[hsl(var(--warning))]"
-            trend={pendingTrend.label}
-            trendDirection={pendingTrend.direction}
-            invert
-          />
-          <StatCard
-            index={1}
-            label="Approved"
-            value={approved}
-            icon={CheckCircle}
-            tone="text-[hsl(var(--success))]"
-            trend={approvedTrend.label}
-            trendDirection={approvedTrend.direction}
-          />
-          <StatCard
-            index={2}
-            label="Returned"
-            value={rejected}
-            icon={XCircle}
-            tone="text-[hsl(var(--critical))]"
-            trend={rejectedTrend.label}
-            trendDirection={rejectedTrend.direction}
-            invert
-          />
-          <StatCard
-            index={3}
-            label="Total submitted"
-            value={totalSubmitted}
-            icon={FileText}
-            trend={totalTrend.label}
-            trendDirection={totalTrend.direction}
-          />
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+              Report Card Review
+            </h1>
+            {pending > 0 && (
+              <span className="kt-badge kt-badge-outline kt-badge-warning gap-1 py-1 px-2.5 text-xs font-semibold">
+                <Clock className="size-3.5" />
+                {pending} Pending
+              </span>
+            )}
+          </div>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Review, edit, approve, deliver to parents, and browse archived student reports.
+          </p>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2 print:hidden">
-          <ChartCard title="Status distribution" subtitle="Current filter selection">
-            {statusChartData.length ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <PieChart>
-                  <Pie
-                    data={statusChartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={85}
-                    paddingAngle={2}
-                    dataKey="value"
-                    label={({ name, value }) => `${name}: ${value}`}
-                    isAnimationActive
-                  >
-                    {statusChartData.map((entry) => (
-                      <Cell key={entry.name} fill={STATUS_CHART_COLORS[entry.name] ?? "hsl(var(--muted-foreground))"} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="py-16 text-center text-sm text-muted-foreground">No data for the current filters.</p>
-            )}
-          </ChartCard>
+        {/* Toolbar Actions */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs font-medium border-border">
+                <Download className="size-3.5 text-muted-foreground" />
+                Export Data
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={handleExportPDF} disabled={exporting === "pdf"}>
+                Export as PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportWord} disabled={exporting === "word"}>
+                Export as Word
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportExcel} disabled={exporting === "excel"}>
+                Export as Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportCsv} disabled={exporting === "csv"}>
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handlePrint} disabled={exporting === "print"}>
+                <Printer className="mr-2 size-3.5" /> Print View
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          <ChartCard title="Submissions by class" subtitle="Top classes in the current filter selection">
-            {classChartData.length ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={classChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" fontSize={11} stroke="hsl(var(--muted-foreground))" />
-                  <YAxis fontSize={11} allowDecimals={false} stroke="hsl(var(--muted-foreground))" />
-                  <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", fontSize: 12 }} />
-                  <Bar dataKey="value" name="Reports" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} isAnimationActive />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="py-16 text-center text-sm text-muted-foreground">No data for the current filters.</p>
-            )}
-          </ChartCard>
+          <Button asChild variant="outline" size="sm" className="h-9 gap-1.5 text-xs font-medium border-border">
+            <Link to="/admin/report-cards/archive">
+              <Archive className="size-3.5 text-muted-foreground" />
+              Report Archive
+            </Link>
+          </Button>
         </div>
+      </div>
 
-        <Card className="print:hidden">
-          <CardHeader>
-            <CardTitle className="font-display text-base">Bulk send to parents</CardTitle>
-            <CardDescription>
-              Deliver all approved reports for a class. Already-sent reports are skipped.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1">
-              <Label>Class</Label>
-              <Select value={bulkClassId} onValueChange={setBulkClassId}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Select class" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(classRows ?? []).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Term (optional)</Label>
-              <Select value={bulkTermId || "__current__"} onValueChange={(v) => setBulkTermId(v === "__current__" ? "" : v)}>
-                <SelectTrigger className="w-52">
-                  <SelectValue placeholder="Active term" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__current__">
-                    {currentTerm ? formatTermLabel(currentTerm) : "Active term"}
-                  </SelectItem>
-                  {(terms ?? []).map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {formatTermLabel(t)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button disabled={!bulkClassId || bulkSend.isPending} onClick={() => bulkSend.mutate()}>
-              {bulkSend.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
-              Send class reports
-            </Button>
-          </CardContent>
-        </Card>
+      {/* Active Term Notification */}
+      <ActiveTermBanner />
 
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="flex flex-wrap items-center gap-3 print:hidden"
+      {/* ── Standard Stat Cards ───────────────────────────────────────── */}
+      <DashboardStatGrid>
+        <DashboardStatCard
+          label="Pending Review"
+          value={pending}
+          description={pendingTrend.label || "Awaiting admin signoff"}
+          icon={Clock}
+          tone="amber"
+        />
+        <DashboardStatCard
+          label="Approved / Ready"
+          value={approved}
+          description={approvedTrend.label || "Ready for distribution"}
+          icon={CheckCircle}
+          tone="emerald"
+        />
+        <DashboardStatCard
+          label="Returned / Rejected"
+          value={rejected}
+          description={rejectedTrend.label || "Requires teacher update"}
+          icon={XCircle}
+          tone="rose"
+        />
+        <DashboardStatCard
+          label="Total Submissions"
+          value={totalSubmitted}
+          description={totalTrend.label || "Across all registered classes"}
+          icon={FileText}
+          tone="primary"
+        />
+      </DashboardStatGrid>
+
+      {/* ── Analytics Visualizations ──────────────────────────────────── */}
+      <div className="grid gap-5 lg:grid-cols-2 lg:gap-7.5 print:hidden">
+        <DashboardChartCard
+          title="Status Distribution"
+          description="Proportion of review states in filtered set"
         >
+          {statusChartData.length ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={statusChartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={45}
+                  outerRadius={75}
+                  paddingAngle={3}
+                  dataKey="value"
+                  label={({ name, value }) => `${name}: ${value}`}
+                  isAnimationActive
+                >
+                  {statusChartData.map((entry) => (
+                    <Cell key={entry.name} fill={STATUS_CHART_COLORS[entry.name] ?? "hsl(var(--muted-foreground))"} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="py-14 text-center text-sm text-secondary-foreground">No data for the current filters.</div>
+          )}
+        </DashboardChartCard>
+
+        <DashboardChartCard
+          title="Submissions by Class"
+          description="Top classes by volume of submitted report cards"
+        >
+          {classChartData.length ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={classChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" fontSize={11} stroke="hsl(var(--muted-foreground))" />
+                <YAxis fontSize={11} allowDecimals={false} stroke="hsl(var(--muted-foreground))" />
+                <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+                <Bar dataKey="value" name="Reports" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} isAnimationActive />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="py-14 text-center text-sm text-secondary-foreground">No data for the current filters.</div>
+          )}
+        </DashboardChartCard>
+      </div>
+
+      {/* ── Bulk Delivery Action Card ─────────────────────────────────── */}
+      <div className="kt-card rounded-xl border border-border bg-card shadow-xs p-5 space-y-4 print:hidden">
+        <div className="flex items-center gap-2.5">
+          <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
+            <Send className="size-4" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Bulk Deliver Reports to Parents</h3>
+            <p className="text-xs text-muted-foreground">
+              Deliver all approved reports for an entire class. Already-sent reports will be skipped.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-end gap-3 pt-1">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">Class</Label>
+            <Select value={bulkClassId} onValueChange={setBulkClassId}>
+              <SelectTrigger className="w-48 h-9 text-xs">
+                <SelectValue placeholder="Select class" />
+              </SelectTrigger>
+              <SelectContent>
+                {(classRows ?? []).map((c) => (
+                  <SelectItem key={c.id} value={c.id} className="text-xs">
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">Term (optional)</Label>
+            <Select value={bulkTermId || "__current__"} onValueChange={(v) => setBulkTermId(v === "__current__" ? "" : v)}>
+              <SelectTrigger className="w-52 h-9 text-xs">
+                <SelectValue placeholder="Active term" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__current__" className="text-xs">
+                  {currentTerm ? formatTermLabel(currentTerm) : "Active term"}
+                </SelectItem>
+                {(terms ?? []).map((t) => (
+                  <SelectItem key={t.id} value={t.id} className="text-xs">
+                    {formatTermLabel(t)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button
+            size="sm"
+            className="h-9 gap-1.5 text-xs font-medium"
+            disabled={!bulkClassId || bulkSend.isPending}
+            onClick={() => bulkSend.mutate()}
+          >
+            {bulkSend.isPending ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Send className="size-3.5" />
+            )}
+            Send Class Reports
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Filter Toolbar ────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2.5 print:hidden">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Search student, admission #, class…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="max-w-xs"
+            className="pl-9 h-9 text-xs"
           />
-          <Select value={yearFilter} onValueChange={setYearFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Year" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All years</SelectItem>
-              {years.map((y) => (
-                <SelectItem key={y} value={y}>
-                  {y}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={termFilter} onValueChange={setTermFilter}>
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder="Term" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All terms</SelectItem>
-              {(terms ?? []).map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {formatTermLabel(t)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="pending_review">Pending Review</SelectItem>
-              <SelectItem value="reviewed">Reviewed</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="published">Published</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={teacherFilter} onValueChange={setTeacherFilter}>
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder="Teacher" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All teachers</SelectItem>
-              {teachers.map(([id, name]) => (
-                <SelectItem key={id} value={id}>
-                  {name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={classFilter} onValueChange={setClassFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Class" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All classes</SelectItem>
-              {classes.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {activeFilterCount > 0 && (
-            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={clearFilters}>
-              <FilterX className="h-3.5 w-3.5" />
-              Clear filters ({activeFilterCount})
-            </Button>
-          )}
-          <span className="ml-auto text-xs text-muted-foreground" aria-live="polite">
-            Showing {pag.total} of {reports?.length ?? 0} reports
-          </span>
-        </motion.div>
+        </div>
 
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-          <Card>
-            <CardContent className="p-0">
-              <div className="table-scroll">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Student</TableHead>
-                      <TableHead>Admission #</TableHead>
-                      <TableHead>Class</TableHead>
-                      <TableHead>Year</TableHead>
-                      <TableHead>Term</TableHead>
-                      <TableHead>Teacher</TableHead>
-                      <TableHead numeric>Total</TableHead>
-                      <TableHead numeric>Position</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Submitted</TableHead>
-                      <TableHead actions>Open</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody className="[&>tr:nth-child(even)]:bg-muted/20">
-                    {pag.slice.map((r) => (
-                      <TableRow key={r.id}>
-                        <TableCell className="font-medium">{r.student_name}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {r.admission_number ?? "—"}
-                        </TableCell>
-                        <TableCell>{r.class_name}</TableCell>
-                        <TableCell className="text-sm">{r.academic_year ?? "—"}</TableCell>
-                        <TableCell>{r.term_label || "—"}</TableCell>
-                        <TableCell>{r.teacher_name ?? "—"}</TableCell>
-                        <TableCell numeric className="tabular-nums">{fmtScore(r.displayTotal)}</TableCell>
-                        <TableCell numeric className="tabular-nums">{formatRankLabel(r.class_position)}</TableCell>
-                        <TableCell>
-                          <Badge variant={statusBadgeVariant(r.status)}>
-                            {statusLabel(r.status)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {r.submitted_at
-                            ? format(new Date(r.submitted_at), "MMM d, yyyy")
-                            : r.saved_at
-                              ? format(new Date(r.saved_at), "MMM d, yyyy")
-                              : "—"}
-                        </TableCell>
-                        <TableCell actions>
-                          <div className="inline-flex items-center gap-1">
-                            <Button asChild size="sm" variant="outline">
-                              <Link to={`/admin/report-cards/view?id=${encodeURIComponent(r.id)}`}>Review</Link>
-                            </Button>
-                            <Button asChild size="sm" variant="ghost">
-                              <Link to={`/admin/report-cards/versions?id=${encodeURIComponent(r.id)}`}>History</Link>
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {!pag.total && (
-                      <TableRow>
-                        <TableCell colSpan={11} className="py-10 text-center text-muted-foreground">
-                          {activeFilterCount > 0 ? (
-                            <div className="space-y-2">
-                              <p>No reports match your current filters.</p>
-                              <Button variant="outline" size="sm" onClick={clearFilters}>
-                                Clear filters
-                              </Button>
-                            </div>
-                          ) : (
-                            "No submitted reports yet."
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              <TablePagination
-                page={pag.page}
-                totalPages={pag.totalPages}
-                total={pag.total}
-                from={pag.from}
-                to={pag.to}
-                pageSize={pag.pageSize}
-                pageSizes={pag.pageSizes}
-                onPageChange={pag.setPage}
-                onPageSizeChange={pag.setPageSize}
-              />
-            </CardContent>
-          </Card>
-        </motion.div>
+        <Select value={yearFilter} onValueChange={setYearFilter}>
+          <SelectTrigger className="w-36 h-9 text-xs">
+            <SelectValue placeholder="Year" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">All years</SelectItem>
+            {years.map((y) => (
+              <SelectItem key={y} value={y} className="text-xs">
+                {y}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={termFilter} onValueChange={setTermFilter}>
+          <SelectTrigger className="w-40 h-9 text-xs">
+            <SelectValue placeholder="Term" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">All terms</SelectItem>
+            {(terms ?? []).map((t) => (
+              <SelectItem key={t.id} value={t.id} className="text-xs">
+                {formatTermLabel(t)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-36 h-9 text-xs">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">All statuses</SelectItem>
+            <SelectItem value="pending_review" className="text-xs">Pending Review</SelectItem>
+            <SelectItem value="reviewed" className="text-xs">Reviewed</SelectItem>
+            <SelectItem value="approved" className="text-xs">Approved</SelectItem>
+            <SelectItem value="published" className="text-xs">Published</SelectItem>
+            <SelectItem value="rejected" className="text-xs">Rejected</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={classFilter} onValueChange={setClassFilter}>
+          <SelectTrigger className="w-36 h-9 text-xs">
+            <SelectValue placeholder="Class" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">All classes</SelectItem>
+            {classes.map((c) => (
+              <SelectItem key={c} value={c} className="text-xs">
+                {c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={teacherFilter} onValueChange={setTeacherFilter}>
+          <SelectTrigger className="w-40 h-9 text-xs">
+            <SelectValue placeholder="Teacher" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">All teachers</SelectItem>
+            {teachers.map(([id, name]) => (
+              <SelectItem key={id} value={id} className="text-xs">
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {activeFilterCount > 0 && (
+          <Button variant="ghost" size="sm" className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground" onClick={clearFilters}>
+            <FilterX className="size-3.5" />
+            Clear ({activeFilterCount})
+          </Button>
+        )}
+
+        <span className="ml-auto text-xs text-muted-foreground font-mono">
+          {pag.total} {pag.total === 1 ? "report" : "reports"} found
+        </span>
       </div>
-    </>
+
+      {/* ── Entity Table / View ────────────────────────────────────────── */}
+      <div className="kt-card rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+        {/* Desktop / Tablet Table View */}
+        <div className="hidden md:block overflow-x-auto">
+          <Table className="kt-table min-w-full">
+            <TableHeader>
+              <TableRow className="border-b border-border/80 bg-muted/20">
+                <TableHead className="min-w-[220px]">Student Entity</TableHead>
+                <TableHead className="min-w-[120px]">Class</TableHead>
+                <TableHead className="min-w-[130px]">Academic Term</TableHead>
+                <TableHead className="min-w-[140px]">Teacher</TableHead>
+                <TableHead className="text-right">Score</TableHead>
+                <TableHead className="text-right">Position</TableHead>
+                <TableHead className="min-w-[110px]">Status</TableHead>
+                <TableHead className="min-w-[110px]">Submitted</TableHead>
+                <TableHead className="text-right min-w-[130px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pag.slice.map((r) => {
+                const statusBadge = getEntityStatusBadge(r.status);
+                return (
+                  <TableRow key={r.id} className="hover:bg-muted/30 transition-colors">
+                    {/* Entity Identity (Name + Monogram + Admission No) */}
+                    <TableCell>
+                      <EntityCellIdentity
+                        name={r.student_name}
+                        code={r.admission_number ? `#${r.admission_number}` : undefined}
+                        to={`/admin/report-cards/view?id=${encodeURIComponent(r.id)}`}
+                        statusVariant={r.status}
+                      />
+                    </TableCell>
+
+                    {/* Class */}
+                    <TableCell>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-muted/60 text-foreground border border-border/60">
+                        {r.class_name || "—"}
+                      </span>
+                    </TableCell>
+
+                    {/* Academic Term */}
+                    <TableCell className="text-xs">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-foreground">{r.term_label || "—"}</span>
+                        <span className="text-[11px] text-muted-foreground">{r.academic_year || "—"}</span>
+                      </div>
+                    </TableCell>
+
+                    {/* Teacher */}
+                    <TableCell className="text-xs text-muted-foreground">
+                      {r.teacher_name || "—"}
+                    </TableCell>
+
+                    {/* Score */}
+                    <TableCell className="text-right font-semibold text-xs tabular-nums text-foreground">
+                      {fmtScore(r.displayTotal)}
+                    </TableCell>
+
+                    {/* Position */}
+                    <TableCell className="text-right font-semibold text-xs tabular-nums text-primary">
+                      {formatRankLabel(r.class_position)}
+                    </TableCell>
+
+                    {/* Status Badge */}
+                    <TableCell>
+                      <Badge variant={statusBadge.variant} className={statusBadge.className}>
+                        <span className={`mr-1.5 size-1.5 rounded-full ${statusBadge.dotColor}`} />
+                        {statusLabel(r.status)}
+                      </Badge>
+                    </TableCell>
+
+                    {/* Submitted Date */}
+                    <TableCell className="text-xs text-muted-foreground">
+                      {r.submitted_at
+                        ? format(new Date(r.submitted_at), "MMM d, yyyy")
+                        : r.saved_at
+                          ? format(new Date(r.saved_at), "MMM d, yyyy")
+                          : "—"}
+                    </TableCell>
+
+                    {/* Actions */}
+                    <TableCell className="text-right">
+                      <div className="inline-flex items-center justify-end gap-1.5">
+                        <Button asChild size="sm" variant="outline" className="h-8 px-2.5 text-xs">
+                          <Link to={`/admin/report-cards/view?id=${encodeURIComponent(r.id)}`}>
+                            Review
+                          </Link>
+                        </Button>
+
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="size-8 p-0">
+                              <MoreHorizontal className="size-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44 text-xs">
+                            <DropdownMenuItem asChild>
+                              <Link to={`/admin/report-cards/versions?id=${encodeURIComponent(r.id)}`}>
+                                <Clock className="mr-2 size-3.5" /> Version History
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link to={`/admin/report-cards/view?id=${encodeURIComponent(r.id)}`}>
+                                <ExternalLink className="mr-2 size-3.5" /> Full Sheet
+                              </Link>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+
+              {!pag.total && (
+                <TableRow>
+                  <TableCell colSpan={9} className="py-12 text-center text-muted-foreground text-xs">
+                    {activeFilterCount > 0 ? (
+                      <div className="space-y-2">
+                        <p>No report cards match your current search and filters.</p>
+                        <Button variant="outline" size="sm" onClick={clearFilters} className="text-xs">
+                          Clear Filters
+                        </Button>
+                      </div>
+                    ) : (
+                      "No submitted report cards yet."
+                    )}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Mobile Entity Cards Layout (< md breakpoint) */}
+        <div className="md:hidden p-3.5 space-y-3">
+          {pag.slice.map((r) => (
+            <EntityCardItem
+              key={r.id}
+              id={r.id}
+              name={r.student_name}
+              code={r.admission_number ? `#${r.admission_number}` : undefined}
+              to={`/admin/report-cards/view?id=${encodeURIComponent(r.id)}`}
+              statusVariant={r.status}
+              metaTags={[
+                { label: r.class_name || "Unassigned" },
+                { label: `${r.term_label || "Term"} · ${r.academic_year || ""}` },
+                { label: r.teacher_name ? `Teacher: ${r.teacher_name}` : "Teacher: —" },
+              ]}
+              metrics={[
+                { label: "Total Score", value: fmtScore(r.displayTotal) },
+                { label: "Class Position", value: formatRankLabel(r.class_position), highlight: true },
+              ]}
+              primaryAction={{
+                label: "Review",
+                to: `/admin/report-cards/view?id=${encodeURIComponent(r.id)}`,
+              }}
+              secondaryAction={{
+                label: "History",
+                to: `/admin/report-cards/versions?id=${encodeURIComponent(r.id)}`,
+              }}
+            />
+          ))}
+
+          {!pag.total && (
+            <div className="py-10 text-center text-xs text-muted-foreground">
+              {activeFilterCount > 0 ? (
+                <div className="space-y-2">
+                  <p>No report cards match your current filters.</p>
+                  <Button variant="outline" size="sm" onClick={clearFilters} className="text-xs">
+                    Clear Filters
+                  </Button>
+                </div>
+              ) : (
+                "No submitted reports yet."
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Pagination Toolbar */}
+        <TablePagination
+          page={pag.page}
+          totalPages={pag.totalPages}
+          total={pag.total}
+          from={pag.from}
+          to={pag.to}
+          pageSize={pag.pageSize}
+          pageSizes={pag.pageSizes}
+          onPageChange={pag.setPage}
+          onPageSizeChange={pag.setPageSize}
+        />
+      </div>
+    </div>
   );
 }
 
-import { withReportLayout } from "@/report/withReportLayout";
 export default withReportLayout("admin", AdminReportReview);

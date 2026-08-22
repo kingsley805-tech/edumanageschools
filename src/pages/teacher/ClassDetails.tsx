@@ -11,6 +11,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,6 +21,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { teacherCanAccessClass } from "@/lib/portalAccess";
 
 interface ClassDetails {
   id: string;
@@ -120,6 +122,21 @@ const ClassDetails = () => {
         .single();
 
       if (!classData) return;
+
+      if (currentTeacherId) {
+        const allowed = await teacherCanAccessClass(currentTeacherId, classId!);
+        if (!allowed) {
+          toast.error("You are not assigned to this class.");
+          navigate("/teacher/classes");
+          setLoading(false);
+          return;
+        }
+      } else {
+        toast.error("Teacher profile not found.");
+        navigate("/teacher");
+        setLoading(false);
+        return;
+      }
 
       const { data: classSubjects } = await supabase
         .from("class_subjects")
@@ -522,12 +539,25 @@ const ClassDetails = () => {
 
             <div className="grid gap-6 lg:grid-cols-2">
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    Student Roster
-                  </CardTitle>
-                  <CardDescription>Students enrolled in this class</CardDescription>
+                <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      Student Roster
+                    </CardTitle>
+                    <CardDescription>Students enrolled in this class</CardDescription>
+                  </div>
+                  <ExportMenu
+                    filename="class-student-roster"
+                    title="Student Roster"
+                    headers={["Admission No.", "Name", "Email"]}
+                    rows={students.map((student) => [
+                      student.admission_no || "N/A",
+                      student.user.full_name,
+                      student.user.email,
+                    ])}
+                    disabled={students.length === 0}
+                  />
                 </CardHeader>
                 <CardContent>
                   {students.length === 0 ? (
@@ -647,12 +677,26 @@ const ClassDetails = () => {
             <TabsContent value="roster" className="space-y-6">
               <div className="grid gap-6 lg:grid-cols-3">
                 <Card className="lg:col-span-2">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Users className="h-5 w-5 text-primary" />
-                      Homeroom Student Roster
-                    </CardTitle>
-                    <CardDescription>Monitored students in this class and their current term attendance rate.</CardDescription>
+                  <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Users className="h-5 w-5 text-primary" />
+                        Homeroom Student Roster
+                      </CardTitle>
+                      <CardDescription>Monitored students in this class and their current term attendance rate.</CardDescription>
+                    </div>
+                    <ExportMenu
+                      filename="homeroom-student-roster"
+                      title="Homeroom Student Roster"
+                      headers={["Admission No.", "Name", "Email", "Attendance Rate"]}
+                      rows={students.map((student) => [
+                        student.admission_no || "N/A",
+                        student.user.full_name,
+                        student.user.email,
+                        `${getAttendanceRate(student.id)}%`,
+                      ])}
+                      disabled={students.length === 0}
+                    />
                   </CardHeader>
                   <CardContent>
                     {students.length === 0 ? (
@@ -750,14 +794,31 @@ const ClassDetails = () => {
               </div>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-row items-center justify-between gap-2">
                   <div>
                     <CardTitle>Attendance Record Summary</CardTitle>
                     <CardDescription>Track overall attendance rates and identify students with attendance issues (&lt; 80%).</CardDescription>
                   </div>
-                  <Button onClick={() => navigate("/teacher/attendance")} className="gap-2">
-                    <Calendar className="h-4 w-4" /> Take Attendance
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <ExportMenu
+                      filename="class-attendance-summary"
+                      title="Attendance Record Summary"
+                      headers={["Admission No.", "Student Name", "Attendance Rate", "Status / Warning"]}
+                      rows={students.map((student) => {
+                        const attRate = getAttendanceRate(student.id);
+                        return [
+                          student.admission_no || "—",
+                          student.user.full_name,
+                          `${attRate}%`,
+                          attRate < 80 ? "Under 80% (Action Required)" : "Good Standing",
+                        ];
+                      })}
+                      disabled={students.length === 0}
+                    />
+                    <Button onClick={() => navigate("/teacher/attendance")} className="gap-2">
+                      <Calendar className="h-4 w-4" /> Take Attendance
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {students.length === 0 ? (
@@ -823,10 +884,27 @@ const ClassDetails = () => {
                       <CardTitle>Class Report Cards & Rankings</CardTitle>
                       <CardDescription>Review all class report card drafting status, total scores, and positions.</CardDescription>
                     </div>
-                    <Button onClick={handleRecalculateRankings} disabled={recalculating} className="gap-2">
-                      <Calculator className="h-4 w-4" />
-                      {recalculating ? "Recalculating..." : "Recalculate Class Rankings"}
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <ExportMenu
+                        filename="class-report-cards"
+                        title="Class Report Cards"
+                        headers={["Student Name", "Draft Status", "Total Aggregate Score", "Class Position"]}
+                        rows={students.map((student) => {
+                          const report = reportCards.find((r) => r.student_id === student.id);
+                          return [
+                            student.user.full_name,
+                            report ? report.status.toUpperCase() : "No Report Card Draft",
+                            report?.total_score != null ? `${report.total_score}` : "—",
+                            report?.class_position || "—",
+                          ];
+                        })}
+                        disabled={students.length === 0}
+                      />
+                      <Button onClick={handleRecalculateRankings} disabled={recalculating} className="gap-2">
+                        <Calculator className="h-4 w-4" />
+                        {recalculating ? "Recalculating..." : "Recalculate Class Rankings"}
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -1095,9 +1173,29 @@ const ClassDetails = () => {
             {/* TAB: Communications Log */}
             <TabsContent value="communications" className="space-y-6">
               <Card>
-                <CardHeader>
-                  <CardTitle>Sent Academic Recommendations</CardTitle>
-                  <CardDescription>Log of suggestions and academic intervention study plans sent to parents this term.</CardDescription>
+                <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle>Sent Academic Recommendations</CardTitle>
+                    <CardDescription>Log of suggestions and academic intervention study plans sent to parents this term.</CardDescription>
+                  </div>
+                  <ExportMenu
+                    filename="class-recommendations"
+                    title="Academic Recommendations"
+                    headers={["Date", "Student Name", "Type", "Suggestions", "Strengths", "Weaknesses", "Alert Status"]}
+                    rows={recommendations.map((rec) => {
+                      const student = students.find((s) => s.id === rec.student_id);
+                      return [
+                        new Date(rec.created_at).toLocaleDateString(),
+                        student?.user.full_name || "Unknown Student",
+                        rec.recommendation_type.replace("_", " ").toUpperCase(),
+                        rec.suggestions,
+                        rec.strengths ?? "—",
+                        rec.weaknesses ?? "—",
+                        rec.threshold_alert ? "URGENT ALERT" : "NORMAL",
+                      ];
+                    })}
+                    disabled={recommendations.length === 0}
+                  />
                 </CardHeader>
                 <CardContent>
                   {loadingExtra ? (

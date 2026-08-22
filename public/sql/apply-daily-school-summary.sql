@@ -1,0 +1,38 @@
+-- Apply in Supabase SQL Editor if migrations are not auto-applied.
+-- Mirrors supabase/migrations/20260820170000_daily_school_summary.sql
+
+ALTER TABLE public.school_settings
+  ADD COLUMN IF NOT EXISTS timezone text NOT NULL DEFAULT 'Africa/Accra',
+  ADD COLUMN IF NOT EXISTS daily_summary_enabled boolean NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS daily_summary_time time NOT NULL DEFAULT '10:00';
+
+CREATE TABLE IF NOT EXISTS public.daily_school_summaries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id uuid NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+  summary_date date NOT NULL,
+  payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+  delivered_at timestamptz,
+  delivery_status text NOT NULL DEFAULT 'pending',
+  delivery_error text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (school_id, summary_date)
+);
+
+CREATE INDEX IF NOT EXISTS daily_school_summaries_school_date_idx
+  ON public.daily_school_summaries (school_id, summary_date DESC);
+
+ALTER TABLE public.daily_school_summaries ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins can view school daily summaries" ON public.daily_school_summaries;
+CREATE POLICY "Admins can view school daily summaries"
+  ON public.daily_school_summaries
+  FOR SELECT
+  TO authenticated
+  USING (
+    public.has_role(auth.uid(), 'admin')
+    OR public.has_role(auth.uid(), 'super_admin')
+    OR EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.school_id = daily_school_summaries.school_id
+    )
+  );

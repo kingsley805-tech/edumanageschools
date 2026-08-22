@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { Activity } from "lucide-react";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 
 type Log = {
   id: string;
@@ -74,8 +75,21 @@ const ClassTeacherActivity = () => {
             <CardDescription>Last 500 events.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="mb-3">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
               <Input placeholder="Filter by action, person, or details…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+              <ExportMenu
+                filename="class-teacher-activity"
+                title="Class Teacher Activity"
+                headers={["When", "Action", "Performed by", "Target", "Details"]}
+                rows={filtered.map((l) => [
+                  new Date(l.created_at).toLocaleString(),
+                  l.action_type,
+                  l.performer_name ?? "—",
+                  `${l.entity_type ?? ""} ${l.entity_id?.slice(0, 8) ?? ""}`.trim(),
+                  JSON.stringify(l.details ?? {}),
+                ])}
+                disabled={filtered.length === 0}
+              />
             </div>
             {loading ? <p className="text-sm text-muted-foreground">Loading…</p> : (
               <Table>

@@ -11,7 +11,6 @@ import { formatMoney } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Search, Upload, RefreshCcw, RotateCw, Eye } from "lucide-react";
-import RecordPaymentDialog from "@/billing/components/payments/RecordPaymentDialog";
 import PaySalaryDialog from "@/billing/components/payments/PaySalaryDialog";
 import { PaymentDetailsDialog, type PaymentDetailsPayload } from "@/billing/components/payments/PaymentDetailsDialog";
 import { TruncatedMonoText } from "@/billing/components/payments/TruncatedMonoText";
@@ -71,11 +70,13 @@ const ALLOWED_PAYMENT_METHODS = new Set([
   "mobile_money",
   "card",
   "ussd",
+  "pos_terminal",
 ]);
 
 function normalizeCsvMethod(raw: string): string | null {
   const m = raw.trim().toLowerCase().replace(/\s+/g, "_");
   if (m === "momo") return "mobile_money";
+  if (m === "pos" || m === "pos_terminal" || m === "card_terminal") return "pos_terminal";
   if (ALLOWED_PAYMENT_METHODS.has(m)) return m;
   return null;
 }
@@ -225,7 +226,7 @@ export default function BillingPayments() {
         rowNum: number;
         invoiceId: string;
         amount: number;
-        method: "cash" | "bank_transfer" | "mobile_money" | "card" | "ussd";
+        method: "cash" | "bank_transfer" | "mobile_money" | "card" | "ussd" | "pos_terminal";
         gatewayRef: string | null;
         notes: string | null;
         paidAt: string | null;
@@ -270,7 +271,7 @@ export default function BillingPayments() {
         if (!normalized) {
           errors.push({
             row: rowNum,
-            message: `method "${methodRaw}" is invalid. Use: cash, bank_transfer, mobile_money, momo, card, ussd.`,
+            message: `method "${methodRaw}" is invalid. Use: cash, bank_transfer, mobile_money, momo, card, ussd, pos_terminal.`,
           });
           continue;
         }
@@ -488,6 +489,7 @@ export default function BillingPayments() {
   };
 
   const filtered = payments.filter((payment) => {
+    if (payment.gateway === "manual") return false;
     const q = search.toLowerCase();
     const matchesSearch =
       !q ||
@@ -606,9 +608,12 @@ export default function BillingPayments() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Payment transactions</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Online payments</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            All school fee payments — online gateways and manual · real-time
+            Paystack and other gateway transactions ·{" "}
+            <Link to="/admin/billing/manual-payments" className="font-medium text-primary hover:underline">
+              Record manual payments
+            </Link>
           </p>
         </div>
         <div className="flex gap-2">
@@ -620,7 +625,6 @@ export default function BillingPayments() {
               rows={allRows}
             />
           ) : null}
-          {canCreatePayments ? <RecordPaymentDialog onSuccess={fetchPayments} /> : null}
           {canCreatePayments ? <PaySalaryDialog /> : null}
         </div>
       </div>
@@ -645,7 +649,7 @@ export default function BillingPayments() {
         <div className="channel-stats-bg rounded-xl border border-border bg-card p-4 shadow-sm">
           <p className="text-xs font-medium uppercase text-muted-foreground">Gateways</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Paystack, manual, and others appear as recorded
+            Paystack and other gateways appear as recorded
           </p>
         </div>
       </div>
@@ -690,6 +694,7 @@ export default function BillingPayments() {
             <SelectItem value="cash">Cash</SelectItem>
             <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
             <SelectItem value="mobile_money">Mobile Money</SelectItem>
+            <SelectItem value="pos_terminal">POS Terminal</SelectItem>
             <SelectItem value="card">Card</SelectItem>
             <SelectItem value="ussd">USSD</SelectItem>
           </SelectContent>
@@ -699,7 +704,6 @@ export default function BillingPayments() {
           <SelectContent>
             <SelectItem value="all">All gateways</SelectItem>
             <SelectItem value="paystack">Paystack</SelectItem>
-            <SelectItem value="manual">Manual</SelectItem>
             <SelectItem value="stripe">Stripe</SelectItem>
             <SelectItem value="flutterwave">Flutterwave</SelectItem>
           </SelectContent>

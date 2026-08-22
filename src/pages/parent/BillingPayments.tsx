@@ -27,6 +27,7 @@ import {
   canPayPortalInvoice,
   getPortalInvoiceStatusBadge,
 } from "@/billing/lib/portalInvoiceStatus";
+import { fetchFamilyInvoicesForParentPortal } from "@/billing/lib/familyBilling";
 import { formatMoney } from "@/lib/currency";
 
 type ChildInvoice = {
@@ -47,9 +48,22 @@ type ChildRow = {
   invoices: ChildInvoice[];
 };
 
+type FamilyInvoiceRow = {
+  id: string;
+  invoice_number: string;
+  total_amount: number;
+  amount_paid: number;
+  balance_due: number;
+  status: string;
+  due_date: string;
+  currency: string;
+  child_names: string[];
+};
+
 export default function ParentBillingPayments() {
   const { user } = useAuth();
   const [children, setChildren] = useState<ChildRow[]>([]);
+  const [familyInvoices, setFamilyInvoices] = useState<FamilyInvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [payingId, setPayingId] = useState<string | null>(null);
   const [confirmingPayment, setConfirmingPayment] = useState(false);
@@ -71,9 +85,13 @@ export default function ParentBillingPayments() {
         .maybeSingle();
       if (!parent) {
         setChildren([]);
+        setFamilyInvoices([]);
         return;
       }
       setSchoolId(parent.school_id);
+
+      const familyRows = await fetchFamilyInvoicesForParentPortal(parent.school_id, parent.id);
+      setFamilyInvoices(familyRows);
 
       const linked = await fetchStudentsForParent<{
         id: string;
@@ -229,14 +247,75 @@ export default function ParentBillingPayments() {
           <div className="flex justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : children.length === 0 ? (
+        ) : children.length === 0 && familyInvoices.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
               No linked students or invoices found. Contact the school if this is incorrect.
             </CardContent>
           </Card>
         ) : (
-          children.map((child) => (
+          <>
+          {familyInvoices.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Family invoices</CardTitle>
+                <CardDescription>Combined invoices for all your children</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {familyInvoices.map((inv) => {
+                  const due = balance(inv);
+                  const canPay = canPayPortalInvoice(inv.status, due);
+                  const statusBadge = getPortalInvoiceStatusBadge(inv.status);
+                  return (
+                    <div
+                      key={inv.id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4"
+                    >
+                      <div>
+                        <p className="font-mono text-sm font-semibold">{inv.invoice_number}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {inv.child_names.length ? inv.child_names.join(", ") : "All children"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Due {new Date(inv.due_date).toLocaleDateString()} ·{" "}
+                          {formatMoney(Number(inv.total_amount), inv.currency)}
+                        </p>
+                        <p className="text-sm font-medium mt-1">
+                          Balance: {formatMoney(due, inv.currency)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className={statusBadge.className}>{statusBadge.label}</Badge>
+                        {inv.status === "paid" && (
+                          <Button size="sm" variant="outline" onClick={() => void downloadReceipt(inv)}>
+                            <Download className="h-4 w-4 mr-1" />
+                            Receipt
+                          </Button>
+                        )}
+                        {canPay && (
+                          <Button
+                            size="sm"
+                            onClick={() => void payInvoice(inv)}
+                            disabled={payingId === inv.id}
+                          >
+                            {payingId === inv.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <CreditCard className="h-4 w-4 mr-1" />
+                                Pay now
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+          {children.map((child) => (
             <Card key={child.id}>
               <CardHeader>
                 <CardTitle>{child.full_name}</CardTitle>
@@ -298,7 +377,8 @@ export default function ParentBillingPayments() {
                 )}
               </CardContent>
             </Card>
-          ))
+          ))}
+          </>
         )}
       </div>
     </DashboardLayout>

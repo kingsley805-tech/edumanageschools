@@ -4,6 +4,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -263,9 +264,30 @@ const TeacherMyClass = () => {
 
           <TabsContent value="overview" className="mt-4">
             <Card>
-              <CardHeader>
-                <CardTitle>{currentClass?.name}</CardTitle>
-                <CardDescription>Per-student performance & attendance. Click "Recommend" to send a suggestion to parents.</CardDescription>
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle>{currentClass?.name}</CardTitle>
+                  <CardDescription>Per-student performance & attendance. Click "Recommend" to send a suggestion to parents.</CardDescription>
+                </div>
+                <ExportMenu
+                  filename="my-class-overview"
+                  title="My Class Overview"
+                  headers={["Student", "Admission #", "Attendance", "Avg score", "Failing", "Alerts"]}
+                  rows={overview.map((r) => [
+                    r.full_name,
+                    r.admission_no ?? "—",
+                    `${r.attendance_percent}% (${r.present_days}/${r.total_days})`,
+                    r.average_score,
+                    r.failing_subjects,
+                    [
+                      r.alert_low_attendance ? "Low attendance" : null,
+                      r.alert_low_performance ? "Poor performance" : null,
+                    ]
+                      .filter(Boolean)
+                      .join(", ") || "On track",
+                  ])}
+                  disabled={overview.length === 0}
+                />
               </CardHeader>
               <CardContent>
                 {loading ? <p className="text-sm text-muted-foreground">Loading…</p> : (
@@ -326,9 +348,22 @@ const TeacherMyClass = () => {
 
           <TabsContent value="reports" className="mt-4">
             <Card>
-              <CardHeader>
-                <CardTitle>Report cards</CardTitle>
-                <CardDescription>Review and submit student report cards for administrator approval.</CardDescription>
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle>Report cards</CardTitle>
+                  <CardDescription>Review and submit student report cards for administrator approval.</CardDescription>
+                </div>
+                <ExportMenu
+                  filename="my-class-report-cards"
+                  title="Report Cards"
+                  headers={["Student", "Term", "Status"]}
+                  rows={cards.map((c) => [
+                    c.student_name ?? "—",
+                    `${c.term_label ?? "—"} ${c.academic_year ?? ""}`.trim(),
+                    c.status,
+                  ])}
+                  disabled={cards.length === 0}
+                />
               </CardHeader>
               <CardContent>
                 <Table>
@@ -365,9 +400,27 @@ const TeacherMyClass = () => {
 
           <TabsContent value="recommendations" className="mt-4">
             <Card>
-              <CardHeader>
-                <CardTitle>Recommendations sent</CardTitle>
-                <CardDescription>History of academic suggestions sent to parents and students.</CardDescription>
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle>Recommendations sent</CardTitle>
+                  <CardDescription>History of academic suggestions sent to parents and students.</CardDescription>
+                </div>
+                <ExportMenu
+                  filename="my-class-recommendations"
+                  title="Recommendations"
+                  headers={["Date", "Student", "Type", "Message", "Alert"]}
+                  rows={recs.map((r) => {
+                    const s = overview.find((o) => o.student_id === r.student_id);
+                    return [
+                      new Date(r.created_at).toLocaleDateString(),
+                      s?.full_name ?? r.student_id.slice(0, 8),
+                      r.recommendation_type,
+                      r.suggestions,
+                      r.threshold_alert ? "Yes" : "No",
+                    ];
+                  })}
+                  disabled={recs.length === 0}
+                />
               </CardHeader>
               <CardContent>
                 <Table>

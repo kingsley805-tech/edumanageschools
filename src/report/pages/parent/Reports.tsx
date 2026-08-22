@@ -54,7 +54,18 @@ function ParentReports() {
     },
   });
 
-  const activeStudentId = studentId || children?.[0]?.id;
+  const activeStudentId = useMemo(() => {
+    if (!children?.length) return undefined;
+    if (studentId && children.some((c) => c.id === studentId)) return studentId;
+    return children[0]?.id;
+  }, [children, studentId]);
+
+  useEffect(() => {
+    if (!children?.length || !studentId) return;
+    if (!children.some((c) => c.id === studentId)) {
+      setStudentId(children[0].id);
+    }
+  }, [children, studentId]);
 
   const { data: publishedList } = useQuery({
     queryKey: ["parent-published-reports", activeStudentId],

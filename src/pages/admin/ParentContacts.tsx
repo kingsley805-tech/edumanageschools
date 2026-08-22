@@ -9,14 +9,19 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Phone, Mail, Users, Search, Pencil, Save, X } from "lucide-react";
+import { Phone, Mail, Users, Search, Pencil, Save, X, FileSpreadsheet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { PeopleImportWizard } from "@/components/people-import/PeopleImportWizard";
+import { usePermissions } from "@/hooks/usePermissions";
+import { PERMISSIONS } from "@/lib/permissions";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 
 interface ParentContact {
   id: string;
   user_id: string;
   phone: string | null;
+  whatsapp_number: string | null;
   address: string | null;
   emergency_contact: string | null;
   profiles: {
@@ -38,12 +43,16 @@ const ParentContacts = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [editingParent, setEditingParent] = useState<ParentContact | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [schoolId, setSchoolId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     phone: "",
+    whatsapp_number: "",
     address: "",
     emergency_contact: "",
   });
-
+  const { hasPermission } = usePermissions();
+  const canImport = hasPermission(PERMISSIONS.parents.manage);
   useEffect(() => {
     fetchParents();
   }, []);
@@ -59,6 +68,7 @@ const ParentContacts = () => {
       .single();
 
     if (!profileData?.school_id) return;
+    setSchoolId(profileData.school_id);
 
     // Fetch parents with their linked children
     const { data: parentsData, error } = await supabase
@@ -67,6 +77,7 @@ const ParentContacts = () => {
         id,
         user_id,
         phone,
+        whatsapp_number,
         address,
         emergency_contact,
         profiles(full_name, email, phone)
@@ -74,6 +85,37 @@ const ParentContacts = () => {
       .eq("school_id", profileData.school_id);
 
     if (error) {
+      // Fallback if whatsapp_number column not yet migrated
+      if (/whatsapp_number|column|schema cache/i.test(error.message)) {
+        const { data: fallback } = await supabase
+          .from("parents")
+          .select(`
+            id,
+            user_id,
+            phone,
+            address,
+            emergency_contact,
+            profiles(full_name, email, phone)
+          `)
+          .eq("school_id", profileData.school_id);
+        const parentsWithChildren = await Promise.all(
+          (fallback || []).map(async (parent) => {
+            const { data: children } = await supabase
+              .from("students")
+              .select(`
+                id,
+                admission_no,
+                profiles(full_name),
+                classes(name)
+              `)
+              .eq("guardian_id", parent.id);
+            return { ...parent, whatsapp_number: null, children: children || [] };
+          }),
+        );
+        setParents(parentsWithChildren as ParentContact[]);
+        setLoading(false);
+        return;
+      }
       console.error("Error fetching parents:", error);
       return;
     }
@@ -106,6 +148,7 @@ const ParentContacts = () => {
     setEditingParent(parent);
     setEditForm({
       phone: parent.phone || parent.profiles?.phone || "",
+      whatsapp_number: parent.whatsapp_number || "",
       address: parent.address || "",
       emergency_contact: parent.emergency_contact || "",
     });
@@ -119,14 +162,30 @@ const ParentContacts = () => {
       .from("parents")
       .update({
         phone: editForm.phone || null,
+        whatsapp_number: editForm.whatsapp_number || null,
         address: editForm.address || null,
         emergency_contact: editForm.emergency_contact || null,
       })
       .eq("id", editingParent.id);
 
     if (error) {
-      toast.error("Failed to update parent contact");
-      return;
+      if (/whatsapp_number/i.test(error.message)) {
+        const retry = await supabase
+          .from("parents")
+          .update({
+            phone: editForm.phone || null,
+            address: editForm.address || null,
+            emergency_contact: editForm.emergency_contact || null,
+          })
+          .eq("id", editingParent.id);
+        if (retry.error) {
+          toast.error("Failed to update parent contact");
+          return;
+        }
+      } else {
+        toast.error("Failed to update parent contact");
+        return;
+      }
     }
 
     toast.success("Parent contact updated");
@@ -167,9 +226,50 @@ const ParentContacts = () => {
   return (
     <DashboardLayout role="admin">
       <div className="mingo-content space-y-6">
-        <div>
-          <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Parent Contacts</h2>
-          <p className="text-[12.5px] text-muted-foreground mt-1">Manage parent contact details organized by student</p>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="font-display text-[21px] font-semibold tracking-tight text-foreground">Parent Contacts</h2>
+            <p className="text-[12.5px] text-muted-foreground mt-1">Manage parent contact details organized by student</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <ExportMenu
+              filename="parent-contacts"
+              title="Parent Contacts"
+              headers={[
+                "Parent Name",
+                "Email",
+                "Phone",
+                "Address",
+                "Emergency Contact",
+                "Child Name",
+                "Child Admission No",
+              ]}
+              rows={filteredParents.flatMap((parent) => {
+                const parentRow = [
+                  parent.profiles?.full_name || "N/A",
+                  parent.profiles?.email || "N/A",
+                  parent.phone || parent.profiles?.phone || "Not set",
+                  parent.address || "Not set",
+                  parent.emergency_contact || "Not set",
+                ];
+                if (parent.children.length === 0) {
+                  return [[...parentRow, "", ""]];
+                }
+                return parent.children.map((child) => [
+                  ...parentRow,
+                  child.profiles?.full_name || "Unknown Student",
+                  child.admission_no || "No ID",
+                ]);
+              })}
+              disabled={filteredParents.length === 0}
+            />
+            {canImport && schoolId && (
+              <Button type="button" variant="outline" className="gap-2" onClick={() => setImportOpen(true)}>
+                <FileSpreadsheet className="h-4 w-4" />
+                Import Parents
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="flex gap-4">
@@ -305,6 +405,17 @@ const ParentContacts = () => {
                 />
               </div>
               <div>
+                <Label>WhatsApp Number</Label>
+                <Input
+                  value={editForm.whatsapp_number}
+                  onChange={(e) => setEditForm({ ...editForm, whatsapp_number: e.target.value })}
+                  placeholder="Preferred WhatsApp (optional — falls back to phone)"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Used for report cards, fee receipts, and weekly attention messages.
+                </p>
+              </div>
+              <div>
                 <Label>Address</Label>
                 <Input
                   value={editForm.address}
@@ -333,6 +444,15 @@ const ParentContacts = () => {
             </div>
           </DialogContent>
         </Dialog>
+        {schoolId && (
+          <PeopleImportWizard
+            open={importOpen}
+            onOpenChange={setImportOpen}
+            entity="parent"
+            schoolId={schoolId}
+            onComplete={() => fetchParents()}
+          />
+        )}
       </div>
     </DashboardLayout>
   );

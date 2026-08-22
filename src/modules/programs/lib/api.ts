@@ -212,3 +212,160 @@ export async function deleteProgram(id: string) {
   const { error } = await supabase.from("academic_programs").delete().eq("id", id);
   if (error) throw error;
 }
+
+export type ProgramEnrollmentRow = {
+  id: string;
+  program_id: string;
+  student_id: string;
+  enrolled_on: string;
+  status: string;
+  notes: string | null;
+  students?: {
+    id: string;
+    admission_no?: string | null;
+    profiles?: { full_name?: string | null; email?: string | null } | null;
+  } | null;
+};
+
+export type ProgramClassAssignmentRow = {
+  id: string;
+  program_id: string;
+  class_id: string;
+  teacher_id: string | null;
+  assigned_on: string;
+  status: string;
+  notes: string | null;
+  classes?: { id: string; name?: string | null; level?: string | null } | null;
+  teachers?: {
+    id: string;
+    employee_no?: string | null;
+    profiles?: { full_name?: string | null } | null;
+  } | null;
+};
+
+function isMissingRelation(error: { code?: string; message?: string } | null) {
+  if (!error) return false;
+  const msg = (error.message ?? "").toLowerCase();
+  return (
+    error.code === "PGRST205" ||
+    error.code === "42P01" ||
+    msg.includes("does not exist") ||
+    msg.includes("could not find the table") ||
+    msg.includes("schema cache")
+  );
+}
+
+export async function fetchProgramEnrollments(programId: string): Promise<ProgramEnrollmentRow[]> {
+  const { data, error } = await supabase
+    .from("academic_program_enrollments")
+    .select(`
+      id, program_id, student_id, enrolled_on, status, notes,
+      students(id, admission_no, profiles(full_name, email))
+    `)
+    .eq("program_id", programId)
+    .eq("status", "active")
+    .order("enrolled_on", { ascending: false });
+  if (error) {
+    if (isMissingRelation(error)) return [];
+    throw error;
+  }
+  return (data ?? []) as ProgramEnrollmentRow[];
+}
+
+export async function enrollStudentInProgram(params: {
+  schoolId: string;
+  programId: string;
+  studentId: string;
+  userId?: string | null;
+  notes?: string;
+}) {
+  const { error } = await supabase.from("academic_program_enrollments").upsert(
+    {
+      school_id: params.schoolId,
+      program_id: params.programId,
+      student_id: params.studentId,
+      enrolled_on: new Date().toISOString().slice(0, 10),
+      status: "active",
+      notes: params.notes ?? null,
+      created_by: params.userId ?? null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "program_id,student_id" },
+  );
+  if (error) {
+    if (isMissingRelation(error)) {
+      throw new Error(
+        "Program enrollments table is missing. Run public/sql/apply-program-enrollments.sql in Supabase.",
+      );
+    }
+    throw error;
+  }
+}
+
+export async function removeProgramEnrollment(enrollmentId: string) {
+  const { error } = await supabase
+    .from("academic_program_enrollments")
+    .update({ status: "withdrawn", updated_at: new Date().toISOString() })
+    .eq("id", enrollmentId);
+  if (error) throw error;
+}
+
+export async function fetchProgramClassAssignments(
+  programId: string,
+): Promise<ProgramClassAssignmentRow[]> {
+  const { data, error } = await supabase
+    .from("academic_program_class_assignments")
+    .select(`
+      id, program_id, class_id, teacher_id, assigned_on, status, notes,
+      classes(id, name, level),
+      teachers(id, employee_no, profiles(full_name))
+    `)
+    .eq("program_id", programId)
+    .eq("status", "active")
+    .order("assigned_on", { ascending: false });
+  if (error) {
+    if (isMissingRelation(error)) return [];
+    throw error;
+  }
+  return (data ?? []) as ProgramClassAssignmentRow[];
+}
+
+export async function assignClassTeacherToProgram(params: {
+  schoolId: string;
+  programId: string;
+  classId: string;
+  teacherId: string;
+  userId?: string | null;
+  notes?: string;
+}) {
+  const { error } = await supabase.from("academic_program_class_assignments").upsert(
+    {
+      school_id: params.schoolId,
+      program_id: params.programId,
+      class_id: params.classId,
+      teacher_id: params.teacherId,
+      assigned_on: new Date().toISOString().slice(0, 10),
+      status: "active",
+      notes: params.notes ?? null,
+      created_by: params.userId ?? null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "program_id,class_id" },
+  );
+  if (error) {
+    if (isMissingRelation(error)) {
+      throw new Error(
+        "Program class assignments table is missing. Run public/sql/apply-program-enrollments.sql in Supabase.",
+      );
+    }
+    throw error;
+  }
+}
+
+export async function removeProgramClassAssignment(assignmentId: string) {
+  const { error } = await supabase
+    .from("academic_program_class_assignments")
+    .update({ status: "inactive", updated_at: new Date().toISOString() })
+    .eq("id", assignmentId);
+  if (error) throw error;
+}

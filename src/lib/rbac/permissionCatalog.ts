@@ -85,6 +85,12 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
         path: "/admin/student-performance",
         actions: ["view", "export", "manage"],
       },
+      {
+        key: "weekly_attention",
+        label: "Weekly Attention",
+        path: "/admin/weekly-attention",
+        actions: ["view", "create", "edit", "manage"],
+      },
     ],
   },
   {
@@ -125,6 +131,18 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
       { key: "billing_fees", label: "Fees", path: "/admin/billing/fees", actions: ["view", "create", "edit", "delete", "manage"] },
       { key: "billing_invoices", label: "Invoices", path: "/admin/billing/invoices", actions: ["view", "create", "edit", "delete", "approve", "export", "manage"] },
       { key: "billing_payments", label: "Payments", path: "/admin/billing/payments", actions: ["view", "create", "edit", "approve", "export", "manage"] },
+      {
+        key: "billing_manual_payments",
+        label: "Manual Payments",
+        path: "/admin/billing/manual-payments",
+        actions: ["view", "create", "edit", "approve", "export", "manage"],
+      },
+      {
+        key: "billing_pos_terminal",
+        label: "POS Terminal",
+        path: "/admin/billing/pos-terminal",
+        actions: ["view", "create", "manage"],
+      },
       {
         key: "billing_payment_gateways",
         label: "Payment gateways",
@@ -303,6 +321,12 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
         path: "/admin/ai-receptionist",
         actions: OPS_MODULE_ACTIONS,
       },
+      {
+        key: "whatsapp",
+        label: "WhatsApp",
+        path: "/admin/settings?tab=whatsapp",
+        actions: ["view", "create", "manage"],
+      },
     ],
   },
   {
@@ -327,12 +351,30 @@ export const PORTAL_CATEGORIES: PortalCategoryDef[] = [
         path: "/admin/academic-calendar",
         actions: OPS_MODULE_ACTIONS,
       },
+      {
+        key: "administration_settings",
+        label: "Settings",
+        path: "/admin/settings",
+        actions: ["view", "edit", "manage"],
+      },
       { key: "school_settings", label: "School Settings", path: "/admin/school-settings", actions: ["view", "edit", "manage"] },
       { key: "staff_access", label: "Permission Management", path: "/admin/roles", actions: ["view", "manage"] },
       { key: "approvals", label: "Approvals", path: "/admin/approvals", actions: ["view", "approve", "manage"] },
       { key: "audit_logs", label: "Audit Logs", path: "/admin/audit-logs", actions: ["view", "export"] },
       { key: "organization_subscription", label: "Subscription", path: "/admin/subscription", actions: ["view", "manage"] },
       { key: "account_settings", label: "Account Settings", path: "/settings", actions: ["view", "edit"] },
+    ],
+  },
+  {
+    key: "system_backup",
+    label: "System Backup",
+    modules: [
+      {
+        key: "system_backup",
+        label: "System Backup",
+        path: "/admin/system-backup",
+        actions: ["view", "manage", "export"],
+      },
     ],
   },
 ];
@@ -416,6 +458,7 @@ export function defaultCodesForRole(slug: string): string[] {
         "billing_fees",
         "billing_invoices",
         "billing_payments",
+        "billing_manual_payments",
         "billing_payment_gateways",
         "billing_paid",
         "billing_outstanding",

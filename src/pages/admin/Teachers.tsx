@@ -18,6 +18,7 @@ import {
   Hash,
   UserX,
   UserCheck,
+  FileSpreadsheet,
 } from "lucide-react";
 import {
   Select,
@@ -46,6 +47,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { EntityProfileModal } from "@/components/entities/EntityProfileModal";
+import { PeopleImportWizard } from "@/components/people-import/PeopleImportWizard";
+import { fetchTeacherEntityStats, type TeacherEntityStats } from "@/lib/entityProfileStats";
+import { usePermissions } from "@/hooks/usePermissions";
+import { PERMISSIONS } from "@/lib/permissions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,6 +73,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { setTeacherAccountStatus } from "@/lib/teacherAccountStatus";
 import { assignTeacherClassSubjects } from "@/lib/teacherClassSubjects";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 
 const teacherSchema = z.object({
   employee_no: z.string().min(1, "Employee number is required"),
@@ -134,9 +140,11 @@ function formatTeacherSubjects(teacher: TeacherRow): string {
 
 const Teachers = () => {
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
+  const [teacherModalStats, setTeacherModalStats] = useState<TeacherEntityStats | null>(null);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [schoolId, setSchoolId] = useState<string | null>(null);
@@ -154,7 +162,8 @@ const Teachers = () => {
   const [employeePlaceholder, setEmployeePlaceholder] =
     useState("MINGO-Tea-2026-001");
   const { toast } = useToast();
-
+  const { hasPermission } = usePermissions();
+  const canImport = hasPermission(PERMISSIONS.teachers.manage);
   const {
     register,
     handleSubmit,
@@ -181,6 +190,38 @@ const Teachers = () => {
     fetchTeachers();
     void resolveSchoolId();
   }, []);
+
+  useEffect(() => {
+    if (!viewDialogOpen || !selectedTeacher?.id) {
+      setTeacherModalStats(null);
+      return;
+    }
+    const classIds = new Set<string>();
+    const subjectNames = new Set<string>();
+    for (const cs of selectedTeacher.class_subjects || []) {
+      if (cs.classes?.id) classIds.add(cs.classes.id);
+      if (cs.subjects?.name) subjectNames.add(cs.subjects.name);
+    }
+    for (const tc of selectedTeacher.teacher_classes || []) {
+      if (tc.classes?.id) classIds.add(tc.classes.id);
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const stats = await fetchTeacherEntityStats(
+          selectedTeacher.id,
+          classIds.size,
+          subjectNames.size,
+        );
+        if (!cancelled) setTeacherModalStats(stats);
+      } catch {
+        if (!cancelled) setTeacherModalStats(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [viewDialogOpen, selectedTeacher]);
 
   const resolveSchoolId = async (): Promise<string | null> => {
     if (schoolId) return schoolId;
@@ -631,6 +672,17 @@ const Teachers = () => {
           </div>
         </div>
         <div className="flex items-center gap-2.5">
+          {canImport && schoolId && (
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={() => setImportOpen(true)}
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Import Teachers
+            </Button>
+          )}
           <Dialog open={open} onOpenChange={handleAddDialogChange}>
             <DialogTrigger asChild>
               <Button className="kt-btn kt-btn-primary gap-2">
@@ -902,6 +954,20 @@ const Teachers = () => {
                 className="pl-9 w-full sm:w-64 h-9"
               />
             </div>
+            <ExportMenu
+              filename="teachers"
+              title="Teachers"
+              headers={["Employee No.", "Name", "Assigned Class", "Subject", "Email", "Status"]}
+              rows={teachers.map((t) => [
+                t.employee_no || "Not assigned",
+                t.profiles?.full_name ?? "",
+                formatTeacherClasses(t),
+                formatTeacherSubjects(t),
+                t.profiles?.email ?? "",
+                isTeacherActive(t) ? "Active" : "Inactive",
+              ])}
+              disabled={teachers.length === 0}
+            />
           </div>
         </div>
         <div className="kt-card-content p-0 overflow-x-auto">
@@ -1236,27 +1302,50 @@ const Teachers = () => {
             stats={[
               {
                 label: "Classes",
-                value: selectedTeacher.teacher_classes?.length ?? 1,
+                value: teacherModalStats?.classCount ?? 0,
               },
               {
                 label: "Subjects",
-                value: selectedTeacher.teacher_subjects?.length ?? 1,
+                value: teacherModalStats?.subjectCount ?? 0,
               },
               {
                 label: "Status",
                 value: isTeacherActive(selectedTeacher) ? "Active" : "Inactive",
               },
               {
-                label: "Attendance",
-                value: "Marked",
+                label: "Registers (month)",
+                value: teacherModalStats?.registersLabel ?? "…",
               },
             ]}
+            onRefreshStats={() => {
+              if (!selectedTeacher?.id) return;
+              const classIds = new Set<string>();
+              const subjectNames = new Set<string>();
+              for (const cs of selectedTeacher.class_subjects || []) {
+                if (cs.classes?.id) classIds.add(cs.classes.id);
+                if (cs.subjects?.name) subjectNames.add(cs.subjects.name);
+              }
+              void fetchTeacherEntityStats(
+                selectedTeacher.id,
+                classIds.size,
+                subjectNames.size,
+              ).then(setTeacherModalStats);
+            }}
             onEdit={() => {
               setViewDialogOpen(false);
               openEditDialog(selectedTeacher);
             }}
           />
         )}
+      {schoolId && (
+        <PeopleImportWizard
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          entity="teacher"
+          schoolId={schoolId}
+          onComplete={() => fetchTeachers()}
+        />
+      )}
       </DashboardLayout>
     );
   };

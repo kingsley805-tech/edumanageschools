@@ -1,6 +1,7 @@
 export type SubscriptionAccessState =
   | "legacy"
   | "pending_payment"
+  | "pending_approval"
   | "active"
   | "expiring_soon"
   | "expired_grace"

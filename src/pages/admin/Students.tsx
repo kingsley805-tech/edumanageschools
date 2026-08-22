@@ -3,7 +3,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Filter, Pencil, Trash2, RefreshCw, Hash, Phone, Mail, UserRound, Bus } from "lucide-react";
+import { Plus, Search, Filter, Pencil, Trash2, RefreshCw, Hash, Phone, Mail, UserRound, Bus, FileSpreadsheet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { StudentTransportSection } from "@/modules/transport/components/StudentTransportSection";
 import { generateRegistrationNumber } from "@/lib/registration-numbers";
@@ -23,6 +23,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
+import { PeopleImportWizard } from "@/components/people-import/PeopleImportWizard";
+import { usePermissions } from "@/hooks/usePermissions";
+import { PERMISSIONS } from "@/lib/permissions";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
+import { fetchStudentEntityStats, type StudentEntityStats } from "@/lib/entityProfileStats";
 
 const studentSchema = z.object({
   admission_no: z.string().min(1, "Admission number is required"),
@@ -151,12 +156,14 @@ function getLinkedParents(student: StudentRecord): ParentRecord[] {
 
 const Students = () => {
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [students, setStudents] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [schoolId, setSchoolId] = useState<string | null>(null);
+  const [modalStats, setModalStats] = useState<StudentEntityStats | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [unusedAdmissionNumbers, setUnusedAdmissionNumbers] = useState<string[]>([]);
   const [loadingAdmissionNo, setLoadingAdmissionNo] = useState(false);
@@ -165,7 +172,8 @@ const Students = () => {
   const [submitting, setSubmitting] = useState(false);
   const [admissionPlaceholder, setAdmissionPlaceholder] = useState("MINGO-Stu-2026-001");
   const { toast } = useToast();
-  
+  const { hasPermission } = usePermissions();
+  const canImport = hasPermission(PERMISSIONS.students.import) || hasPermission(PERMISSIONS.students.create); 
   const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<StudentFormData>({
     resolver: zodResolver(studentSchema),
   });
@@ -186,6 +194,28 @@ const Students = () => {
     fetchStudents();
     fetchClasses();
   }, []);
+
+  useEffect(() => {
+    if (!viewDialogOpen || !selectedStudent?.id) {
+      setModalStats(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const stats = await fetchStudentEntityStats(
+          selectedStudent.id,
+          selectedStudent.school_id || schoolId,
+        );
+        if (!cancelled) setModalStats(stats);
+      } catch {
+        if (!cancelled) setModalStats(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [viewDialogOpen, selectedStudent?.id, selectedStudent?.school_id, schoolId]);
 
   const fetchClasses = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -531,6 +561,17 @@ const Students = () => {
           </div>
         </div>
         <div className="flex items-center gap-2.5">
+          {canImport && schoolId && (
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={() => setImportOpen(true)}
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Import Students
+            </Button>
+          )}
           <Dialog open={open} onOpenChange={handleAddDialogChange}>
             <DialogTrigger asChild>
               <Button className="kt-btn kt-btn-primary gap-2">
@@ -702,6 +743,19 @@ const Students = () => {
               <i className="ki-filled ki-filter text-sm" />
               Filter
             </Button>
+            <ExportMenu
+              filename="students"
+              title="Students"
+              headers={["Admission No.", "Name", "Class", "Gender", "Status"]}
+              rows={students.map((s) => [
+                getStudentAdmissionNo(s),
+                getStudentName(s),
+                getStudentClassLabel(s),
+                s.gender || "N/A",
+                "Active",
+              ])}
+              disabled={students.length === 0}
+            />
           </div>
         </div>
         <div className="kt-card-content p-0 overflow-x-auto">
@@ -893,7 +947,7 @@ const Students = () => {
             entityType="Student"
             entityCode={getStudentAdmissionNo(selectedStudent) ? `#${getStudentAdmissionNo(selectedStudent)}` : undefined}
             name={getStudentName(selectedStudent)}
-            statusText="Active"
+            statusText="Enrolled"
             statusVariant="success"
             metaItems={[
               {
@@ -920,8 +974,8 @@ const Students = () => {
               },
             ]}
             rightMetric={{
-              label: "Status",
-              value: "Enrolled",
+              label: "Class",
+              value: selectedStudent.classes?.name || "Unassigned",
             }}
             generalInfo={[
               {
@@ -964,11 +1018,18 @@ const Students = () => {
               },
             ]}
             stats={[
-              { label: "Attendance", value: "98%" },
-              { label: "Fees Paid", value: "GH₵1,200" },
-              { label: "Balance", value: "GH₵0.00" },
-              { label: "Status", value: "Active" },
+              { label: "Attendance", value: modalStats?.attendanceLabel ?? "…" },
+              { label: "Fees Paid", value: modalStats?.feesPaidLabel ?? "…" },
+              { label: "Balance", value: modalStats?.balanceLabel ?? "…" },
+              { label: "Term Fees", value: modalStats?.termFeesLabel ?? "…" },
             ]}
+            onRefreshStats={() => {
+              if (!selectedStudent?.id) return;
+              void fetchStudentEntityStats(
+                selectedStudent.id,
+                selectedStudent.school_id || schoolId,
+              ).then(setModalStats);
+            }}
             onEdit={() => {
               setViewDialogOpen(false);
               openEditDialog(selectedStudent);
@@ -1060,8 +1121,17 @@ const Students = () => {
             ]}
           />
         )}
+      {schoolId && (
+        <PeopleImportWizard
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          entity="student"
+          schoolId={schoolId}
+          onComplete={() => fetchStudents()}
+        />
+      )}
       </DashboardLayout>
-    );
-  };
+  );
+};
 
   export default Students;

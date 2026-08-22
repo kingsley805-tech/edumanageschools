@@ -41,6 +41,7 @@ import { AiAssistantRoutes } from "@/ai-assistant/routes";
 import { OperationsModuleRoutes } from "@/modules/routes";
 import Reports from "@/report/pages/admin/AnalyticsReports";
 import AdminStats from "@/pages/admin/Stats";
+import DailySummary from "@/pages/admin/DailySummary";
 import AdminReportCardsIndex from "@/report/pages/admin/ReportCardsIndex";
 import AdminReportCardsView from "@/report/pages/admin/ReportCardsView";
 import AdminReportCardsArchive from "@/report/pages/admin/ReportCardsArchive";
@@ -54,7 +55,6 @@ import TeacherScores from "@/report/pages/teacher/Scores";
 import ParentReports from "@/report/pages/parent/Reports";
 import StudentReportCard from "@/report/pages/student/ReportCard";
 import StudentPerformance from "@/report/pages/student/Performance";
-import SuperAdminReports from "@/report/pages/super-admin/Reports";
 import AdminAnnouncements from "./pages/admin/Announcements";
 import ParentBillingPayments from "./pages/parent/BillingPayments";
 import Children from "./pages/parent/Children";
@@ -102,19 +102,24 @@ import ParentProgramsPage from "@/modules/programs/pages/ParentPrograms";
 import TeacherProgramsPage from "@/modules/programs/pages/TeacherPrograms";
 import ParentPaymentHistory from "./pages/parent/PaymentHistory";
 import ParentTimetable from "./pages/parent/Timetable";
-import SuperAdminManagement from "./pages/admin/SuperAdminManagement";
 import PlatformDashboard from "./platform/pages/PlatformDashboard";
 import TenantManagement from "./platform/pages/TenantManagement";
 import TenantDetail from "./platform/pages/TenantDetail";
 import SubscriptionPlansPage from "./platform/pages/SubscriptionPlans";
 import PlatformPaymentGateway from "./platform/pages/PlatformPaymentGateway";
 import PlatformSmsManagement from "./platform/pages/PlatformSmsManagement";
+import PlatformReports from "./platform/pages/PlatformReports";
+import SuperAdminManagement from "./pages/admin/SuperAdminManagement";
 import OrganizationSubscriptionPage from "./subscription/pages/OrganizationSubscriptionPage";
 import OrganizationSubscriptionHistoryPage from "./subscription/pages/OrganizationSubscriptionHistoryPage";
 import OrganizationSupportPage from "./subscription/pages/OrganizationSupportPage";
 import PlatformOwnerLogin from "./platform/pages/PlatformOwnerLogin";
 import { PlatformOwnerRoute } from "./platform/components/PlatformOwnerRoute";
 import SchoolSettings from "./pages/admin/SchoolSettings";
+import SystemBackup from "./pages/admin/SystemBackup";
+import AdministrationSettings from "./pages/admin/AdministrationSettings";
+import WeeklyAttention from "./pages/admin/WeeklyAttention";
+import TeacherWeeklyAttention from "./pages/teacher/WeeklyAttention";
 import PendingUsers from "./pages/admin/PendingUsers";
 import NumberGenerator from "./pages/admin/NumberGenerator";
 import ParentContacts from "./pages/admin/ParentContacts";
@@ -137,6 +142,8 @@ import {
   BillingReportsPage,
   BillingInvoicesPage,
   BillingPaymentsPage,
+  BillingManualPaymentsPage,
+  BillingPosTerminalPage,
   BillingFeesPage,
   BillingPaidStudentsPage,
   BillingOutstandingStudentsPage,
@@ -413,6 +420,31 @@ function App() {
                     }
                   />
                   <Route
+                    path="/admin/billing/manual-payments"
+                    element={
+                      <ProtectedRoute
+                        allowedRoles={[
+                          "admin",
+                          "super_admin",
+                          "accountant",
+                          "auditor",
+                        ]}
+                      >
+                        <BillingManualPaymentsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/billing/pos-terminal"
+                    element={
+                      <ProtectedRoute
+                        allowedRoles={["admin", "super_admin", "accountant"]}
+                      >
+                        <BillingPosTerminalPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
                     path="/admin/billing/fees"
                     element={
                       <ProtectedRoute
@@ -616,6 +648,14 @@ function App() {
                     }
                   />
                   <Route
+                    path="/admin/daily-summary"
+                    element={
+                      <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                        <DailySummary />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
                     path="/admin/stats"
                     element={
                       <ProtectedRoute
@@ -683,11 +723,7 @@ function App() {
                   />
                   <Route
                     path="/super-admin/reports"
-                    element={
-                      <ProtectedRoute allowedRoles={["super_admin"]}>
-                        <SuperAdminReports />
-                      </ProtectedRoute>
-                    }
+                    element={<Navigate to="/platform/reports" replace />}
                   />
                   <Route
                     path="/admin/parent-student-link"
@@ -743,11 +779,7 @@ function App() {
                   />
                   <Route
                     path="/admin/super-admin-management"
-                    element={
-                      <ProtectedRoute allowedRoles={["super_admin"]}>
-                        <SuperAdminManagement />
-                      </ProtectedRoute>
-                    }
+                    element={<Navigate to="/platform/team" replace />}
                   />
                   <Route
                     path="/platform"
@@ -798,10 +830,50 @@ function App() {
                     }
                   />
                   <Route
+                    path="/platform/team"
+                    element={
+                      <PlatformOwnerRoute>
+                        <SuperAdminManagement />
+                      </PlatformOwnerRoute>
+                    }
+                  />
+                  <Route
+                    path="/platform/reports"
+                    element={
+                      <PlatformOwnerRoute>
+                        <PlatformReports />
+                      </PlatformOwnerRoute>
+                    }
+                  />
+                  <Route
                     path="/admin/school-settings"
                     element={
                       <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
                         <SchoolSettings />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/settings"
+                    element={
+                      <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                        <AdministrationSettings />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/weekly-attention"
+                    element={
+                      <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                        <WeeklyAttention role="admin" />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/system-backup"
+                    element={
+                      <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                        <SystemBackup />
                       </ProtectedRoute>
                     }
                   />
@@ -914,6 +986,14 @@ function App() {
                     element={
                       <ProtectedRoute allowedRoles={["teacher"]}>
                         <TeacherReportCardsIndex />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/teacher/weekly-attention"
+                    element={
+                      <ProtectedRoute allowedRoles={["teacher"]}>
+                        <TeacherWeeklyAttention />
                       </ProtectedRoute>
                     }
                   />

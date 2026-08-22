@@ -16,6 +16,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 
 const assignmentSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -167,6 +168,19 @@ const Assignments = () => {
 
       if (error) throw error;
 
+      try {
+        const { notifyClassStudentsAndParents } = await import("@/lib/notifyPeople");
+        await notifyClassStudentsAndParents({
+          classId: data.class_id,
+          title: "New assignment",
+          body: `${data.title} is due ${new Date(data.due_date).toLocaleDateString()}.`,
+          data: { type: "assignment", class_id: data.class_id },
+          includeParents: true,
+        });
+      } catch (notifyErr) {
+        console.error("assignment notify failed", notifyErr);
+      }
+
       toast({
         title: "Success",
         description: "Assignment created successfully",
@@ -207,6 +221,33 @@ const Assignments = () => {
         .eq("id", gradingSubmission.id);
 
       if (error) throw error;
+
+      try {
+        const studentUserId =
+          gradingSubmission.student_id ||
+          gradingSubmission.student?.user_id ||
+          null;
+        let notifyUserId = studentUserId;
+        if (!notifyUserId && gradingSubmission.student_id) {
+          const { data: st } = await supabase
+            .from("students")
+            .select("user_id")
+            .eq("id", gradingSubmission.student_id)
+            .maybeSingle();
+          notifyUserId = st?.user_id;
+        }
+        if (notifyUserId) {
+          const { notifyUserIds } = await import("@/lib/notifyPeople");
+          await notifyUserIds(
+            [notifyUserId],
+            "Assignment graded",
+            `Your submission was graded: ${gradeValue}`,
+            { type: "grade", submission_id: gradingSubmission.id },
+          );
+        }
+      } catch (notifyErr) {
+        console.error("grade notify failed", notifyErr);
+      }
 
       toast({
         title: "Success",
@@ -348,9 +389,23 @@ const Assignments = () => {
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle>My Assignments</CardTitle>
-            <CardDescription>View and manage all your assignments</CardDescription>
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>My Assignments</CardTitle>
+              <CardDescription>View and manage all your assignments</CardDescription>
+            </div>
+            <ExportMenu
+              filename="assignments"
+              title="Assignments"
+              headers={["Title", "Class", "Subject", "Due Date"]}
+              rows={assignments.map((assignment) => [
+                assignment.title,
+                assignment.classes?.name ?? "",
+                assignment.subjects?.name ?? "",
+                new Date(assignment.due_date).toLocaleDateString(),
+              ])}
+              disabled={assignments.length === 0}
+            />
           </CardHeader>
           <CardContent>
             {assignments.length === 0 ? (
@@ -398,9 +453,23 @@ const Assignments = () => {
 
         {selectedAssignment && (
           <Card>
-            <CardHeader>
-              <CardTitle>Submissions</CardTitle>
-              <CardDescription>Student submissions for this assignment</CardDescription>
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle>Submissions</CardTitle>
+                <CardDescription>Student submissions for this assignment</CardDescription>
+              </div>
+              <ExportMenu
+                filename="assignment-submissions"
+                title="Assignment Submissions"
+                headers={["Student", "Admission No", "Submitted At", "Grade"]}
+                rows={submissions.map((sub) => [
+                  sub.students?.profiles?.full_name ?? "",
+                  sub.students?.admission_no ?? "",
+                  new Date(sub.submitted_at).toLocaleString(),
+                  sub.grade ?? "Not graded",
+                ])}
+                disabled={submissions.length === 0}
+              />
             </CardHeader>
             <CardContent>
               {submissions.length === 0 ? (

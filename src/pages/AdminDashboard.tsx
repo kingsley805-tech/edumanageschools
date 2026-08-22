@@ -4,8 +4,8 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchSchoolAttendanceStats } from "@/lib/attendance-queries";
 import { useSchoolCurrency } from "@/hooks/useSchoolCurrency";
+import { MetronicStatCard } from "@/components/metronic/MetronicStatCard";
 import { cn } from "@/lib/utils";
-import { MingoLineChart } from "@/components/charts/MingoLineChart";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -443,7 +443,7 @@ const AdminDashboard = () => {
           <button
             type="button"
             className="kt-btn kt-btn-outline gap-2"
-            onClick={() => navigate("/admin/reports")}
+            onClick={() => navigate("/admin/daily-summary")}
           >
             <i className="ki-filled ki-chart-simple text-base text-muted-foreground" />
             Daily Summary
@@ -469,50 +469,31 @@ const AdminDashboard = () => {
 
       {/* KPI row — School Management Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 lg:gap-7.5 mb-6">
-        {/* Card 1: Fees Collected */}
-        <div className="kt-card channel-stats-bg p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-foreground">
-              <i className="ki-filled ki-shop text-xl" />
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/30">
-              ↑ +18.4%
-            </span>
-          </div>
-          <div>
-            <div className="text-[1.375rem] font-medium tracking-tight text-foreground leading-none">
-              {stats.fees}
-            </div>
-            <div className="text-sm font-semibold text-foreground mt-1.5">Fees Collected</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Term collections to date</div>
-          </div>
-        </div>
-
-        {/* Card 2: Attendance Rate */}
-        <div className="kt-card channel-stats-bg p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-4">
+        <MetronicStatCard
+          keenIcon="ki-shop"
+          badge="↑ +18.4%"
+          value={stats.fees}
+          label="Fees Collected"
+          description="Term collections to date"
+        />
+        <MetronicStatCard
+          icon={
             <span className="text-primary">
               <i className="ki-filled ki-chart-line text-xl" />
             </span>
-            <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/30">
-              {stats.attendance}
-            </span>
-          </div>
-          <div>
-            <div className="text-[1.375rem] font-medium tracking-tight text-foreground leading-none">
-              {stats.attendance}
-            </div>
-            <div className="text-sm font-semibold text-foreground mt-1.5">Attendance Rate</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Term student presence</div>
-          </div>
-        </div>
-
-        {/* Card 3: Receivables (A/R) */}
-        <div className="kt-card channel-stats-bg p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-4">
+          }
+          badge={stats.attendance}
+          value={stats.attendance}
+          label="Attendance Rate"
+          description="Term student presence"
+        />
+        <MetronicStatCard
+          icon={
             <span className="flex items-center justify-center size-8 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400">
               <i className="ki-filled ki-document text-base" />
             </span>
+          }
+          badge={
             <span
               className={cn(
                 "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold border",
@@ -529,34 +510,18 @@ const AdminDashboard = () => {
                 "Clean"
               )}
             </span>
-          </div>
-          <div>
-            <div className="text-[1.375rem] font-medium tracking-tight text-foreground leading-none">
-              {feeAlerts.length > 0 ? feeAlerts[0].val : format(0)}
-            </div>
-            <div className="text-sm font-semibold text-foreground mt-1.5">Receivables (A/R)</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Outstanding student invoices</div>
-          </div>
-        </div>
-
-        {/* Card 4: Enrolled Students */}
-        <div className="kt-card channel-stats-bg p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-foreground">
-              <i className="ki-filled ki-user-square text-xl" />
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/30">
-              Active
-            </span>
-          </div>
-          <div>
-            <div className="text-[1.375rem] font-medium tracking-tight text-foreground leading-none">
-              {stats.students}
-            </div>
-            <div className="text-sm font-semibold text-foreground mt-1.5">Enrolled Students</div>
-            <div className="text-xs text-muted-foreground mt-0.5">{stats.teachers} Teachers assigned</div>
-          </div>
-        </div>
+          }
+          value={feeAlerts.length > 0 ? feeAlerts[0].val : format(0)}
+          label="Receivables (A/R)"
+          description="Outstanding student invoices"
+        />
+        <MetronicStatCard
+          keenIcon="ki-user-square"
+          badge="Active"
+          value={stats.students}
+          label="Enrolled Students"
+          description={`${stats.teachers} Teachers assigned`}
+        />
       </div>
 
       {/* Middle Section: Performance Chart (Left) + School Hub Card (Right) */}

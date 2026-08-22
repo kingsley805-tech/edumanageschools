@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Archive, BookMarked, Eye, EyeOff, ImagePlus, Pencil, Plus, Power, RotateCcw, Trash2, Video, X } from "lucide-react";
+import { Archive, BookMarked, Eye, EyeOff, ImagePlus, Pencil, Plus, Power, RotateCcw, Trash2, UserPlus, Video, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,8 +19,10 @@ import { Badge } from "@/components/ui/badge";
 import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { archiveProgram, deleteProgram, saveProgram, setProgramEnabled } from "@/modules/programs/lib/api";
 import { uploadProgramMedia, isVideoUrl } from "@/modules/programs/lib/uploadProgramMedia";
+import { ProgramEnrollmentPanel } from "@/modules/programs/components/ProgramEnrollmentPanel";
 import type { AcademicProgram, ProgramStatus } from "@/modules/programs/lib/types";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 type Access = {
   canCreate: boolean;
@@ -255,12 +257,13 @@ export function ProgramsListPanel({ programs, access, schoolId, userId, onRefres
 
   return (
     <div className="space-y-4">
-      <Card>
+      <Card className="kt-card border border-border/60 shadow-sm dark:border-white/10">
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>Academic programs</CardTitle>
             <CardDescription>
-              Click a program to view details. {filtered.length} shown.
+              Click a program to view details, enroll students, or enroll a class for a teacher.{" "}
+              {filtered.length} shown.
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -318,7 +321,11 @@ export function ProgramsListPanel({ programs, access, schoolId, userId, onRefres
                   key={row.id}
                   role="button"
                   tabIndex={0}
-                  className="group cursor-pointer overflow-hidden border-border/70 shadow-none transition hover:border-primary/40 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className={cn(
+                    "group cursor-pointer overflow-hidden transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    "kt-card channel-stats-bg border border-border/60 dark:border-white/10",
+                    "shadow-sm hover:shadow-md hover:border-primary/40",
+                  )}
                   onClick={() => setViewing(row)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
@@ -691,9 +698,25 @@ export function ProgramsListPanel({ programs, access, schoolId, userId, onRefres
                     </p>
                   </div>
                 ) : null}
+
+                {schoolId ? (
+                  <ProgramEnrollmentPanel
+                    schoolId={schoolId}
+                    programId={viewing.id}
+                    programName={viewing.name}
+                    userId={userId}
+                    canEdit={access.canEdit || access.canCreate}
+                  />
+                ) : null}
               </div>
 
               <SheetFooter className="mt-auto gap-2 border-t pt-4 sm:flex-col">
+                {access.canEdit || access.canCreate ? (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5 mb-1">
+                    <UserPlus className="h-3.5 w-3.5" />
+                    Use Enroll student / Enroll class for teacher above to manage assignments.
+                  </p>
+                ) : null}
                 {access.canEdit && !viewing.is_archived ? (
                   <Button
                     variant="outline"

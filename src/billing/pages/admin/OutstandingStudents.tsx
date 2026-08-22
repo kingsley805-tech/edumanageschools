@@ -2,11 +2,16 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useBillingAuth } from "@/billing/hooks/useBillingAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatStudentDisplayName } from "@/billing/lib/studentDisplayName";
 import { formatMoney } from "@/lib/currency";
+import { sendFeeNotificationWhatsApp } from "@/lib/whatsapp";
+import { toast } from "sonner";
+import { Loader2, MessageCircle } from "lucide-react";
 
 type OutstandingRow = {
   student_id_pk: string;
@@ -19,12 +24,14 @@ type OutstandingRow = {
 };
 
 export default function BillingOutstandingStudents() {
+  const { user } = useAuth();
   const { schoolId } = useBillingAuth();
   const [rows, setRows] = useState<OutstandingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [classFilter, setClassFilter] = useState("all");
   const [sortBy, setSortBy] = useState<"name" | "class" | "balance">("balance");
+  const [sendingId, setSendingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!schoolId) return;
@@ -136,6 +143,31 @@ export default function BillingOutstandingStudents() {
     });
   }, [rows, search, classFilter, sortBy]);
 
+  const handleNotifyWhatsApp = async (row: OutstandingRow) => {
+    if (!schoolId || !user) return;
+    setSendingId(row.student_id_pk);
+    try {
+      const result = await sendFeeNotificationWhatsApp({
+        schoolId,
+        studentId: row.student_id_pk,
+        studentName: row.student_name,
+        balance: row.outstanding_balance.toLocaleString(),
+        currency: row.currency,
+        createdBy: user.id,
+        force: true,
+      });
+      if (result.errors.length && result.queued === 0) {
+        toast.error(result.errors[0]);
+      } else {
+        toast.success(`Fee reminder sent to ${result.queued} parent contact(s)`);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send WhatsApp");
+    } finally {
+      setSendingId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -175,13 +207,14 @@ export default function BillingOutstandingStudents() {
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Open Invoices</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Outstanding</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Notify</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {loading ? (
-                <tr><td className="px-4 py-8 text-sm text-muted-foreground" colSpan={6}>Loading...</td></tr>
+                <tr><td className="px-4 py-8 text-sm text-muted-foreground" colSpan={7}>Loading...</td></tr>
               ) : visibleRows.length === 0 ? (
-                <tr><td className="px-4 py-8 text-sm text-muted-foreground" colSpan={6}>No outstanding students found.</td></tr>
+                <tr><td className="px-4 py-8 text-sm text-muted-foreground" colSpan={7}>No outstanding students found.</td></tr>
               ) : visibleRows.map((row) => (
                 <tr key={row.student_id_pk} className="hover:bg-muted/30">
                   <td className="px-4 py-3.5 text-sm font-medium">{row.student_name}</td>
@@ -191,6 +224,23 @@ export default function BillingOutstandingStudents() {
                   <td className="px-4 py-3.5 text-sm font-medium">{formatMoney(row.outstanding_balance, row.currency)}</td>
                   <td className="px-4 py-3.5">
                     <Badge variant="warning">Outstanding</Badge>
+                  </td>
+                  <td className="px-4 py-3.5 text-right">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={sendingId === row.student_id_pk}
+                      onClick={() => void handleNotifyWhatsApp(row)}
+                    >
+                      {sendingId === row.student_id_pk ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <>
+                          <MessageCircle className="h-3.5 w-3.5 mr-1" />
+                          WhatsApp
+                        </>
+                      )}
+                    </Button>
                   </td>
                 </tr>
               ))}

@@ -48,6 +48,7 @@ import {
   ShoppingBag,
   Trophy,
   BookMarked,
+  ClipboardCheck,
 } from "lucide-react";
 import { NotificationCenter } from "./NotificationCenter";
 import { SyncStatusIndicator } from "./SyncStatusIndicator";
@@ -72,12 +73,12 @@ import {
 import {
   ensurePaymentGatewaysInNav,
   ensureClassTeacherActivityInNav,
+  ensureSystemBackupInNav,
 } from "@/lib/rbac/adminNavConfig";
 import { usePortalAccess } from "@/hooks/usePortalAccess";
 import { ADMIN_SHELL_ROLES } from "@/lib/rbac/routeGuards";
 import { toast } from "sonner";
 import { ParentAdmissionNav } from "@/components/parent/ParentAdmissionNav";
-import { PortalLiveFeedTicker } from "@/components/PortalLiveFeedTicker";
 import SubscriptionExpiryBanner from "@/subscription/components/SubscriptionExpiryBanner";
 import { useOrganizationSubscription } from "@/subscription/hooks/useOrganizationSubscription";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -343,6 +344,7 @@ const DashboardLayout = ({
               path: "/admin/report-cards/archive",
             },
             { icon: BarChart3, label: "Reports", path: "/admin/reports" },
+            { icon: BarChart3, label: "Daily Summary", path: "/admin/daily-summary" },
             { icon: Activity, label: "Statistics", path: "/admin/stats" },
             {
               icon: Settings,
@@ -483,8 +485,8 @@ const DashboardLayout = ({
           items: [
             {
               icon: Building,
-              label: "School Settings",
-              path: "/admin/school-settings",
+              label: "Settings",
+              path: "/admin/settings",
             },
             {
               icon: Shield,
@@ -515,16 +517,6 @@ const DashboardLayout = ({
                     icon: Building,
                     label: "Platform Control",
                     path: "/platform",
-                  },
-                  {
-                    icon: Shield,
-                    label: "Super Admin",
-                    path: "/admin/super-admin-management",
-                  },
-                  {
-                    icon: BarChart3,
-                    label: "Report Monitor",
-                    path: "/super-admin/reports",
                   },
                 ]
               : []),
@@ -739,6 +731,11 @@ const DashboardLayout = ({
               icon: FileText,
               label: "Report Cards",
               path: "/teacher/report-cards",
+            },
+            {
+              icon: ClipboardCheck,
+              label: "Weekly Attention",
+              path: "/teacher/weekly-attention",
             },
             { icon: PenLine, label: "Signatures", path: "/teacher/signatures" },
           ],
@@ -966,8 +963,10 @@ const DashboardLayout = ({
   /** All roles share one nav shape (standalone links + grouped links) */
   const portalNavItems = useMemo(() => {
     if (usesDynamicAdminNav) {
-      return ensureClassTeacherActivityInNav(
-        ensurePaymentGatewaysInNav(dynamicNavItems),
+      return ensureSystemBackupInNav(
+        ensureClassTeacherActivityInNav(
+          ensurePaymentGatewaysInNav(dynamicNavItems),
+        ),
       );
     }
     const staticItems = config?.menuItems
@@ -1004,7 +1003,7 @@ const DashboardLayout = ({
       try {
         const { data: prof } = await supabase
           .from("profiles")
-          .select("id, full_name, role, email")
+          .select("id, full_name, email")
           .eq("id", user.id)
           .maybeSingle();
 
@@ -1012,7 +1011,7 @@ const DashboardLayout = ({
           setUserFullName(prof.full_name);
         }
 
-        const effectiveRole = prof?.role || role;
+        const effectiveRole = role;
 
         if (effectiveRole === "student") {
           const { data: stu } = await supabase
@@ -1335,14 +1334,8 @@ const DashboardLayout = ({
               </button>
             </div>
 
-            {/* Live Feed ticker in between Search and Topbar right */}
-            {!hideSidebar ? (
-              <div className="hidden md:flex items-center grow min-w-0 mx-2 lg:mx-4 overflow-hidden">
-                <PortalLiveFeedTicker />
-              </div>
-            ) : (
-              <div className="grow" />
-            )}
+            {/* Spacer between search and topbar right */}
+            <div className="grow min-w-0" />
 
             {/* Topbar right */}
             <div className="flex items-center gap-1.5 lg:gap-2.5 shrink-0">

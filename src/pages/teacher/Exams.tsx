@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { useForm } from "react-hook-form";
 import { ClipboardList, Plus, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -334,9 +335,26 @@ const Exams = () => {
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Scheduled Exams</CardTitle>
-            <CardDescription>All upcoming and past exams</CardDescription>
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>Scheduled Exams</CardTitle>
+              <CardDescription>All upcoming and past exams</CardDescription>
+            </div>
+            <ExportMenu
+              filename="exams"
+              title="Scheduled Exams"
+              headers={["Title", "Subject", "Class", "Exam Type", "Date", "Marks", "Term"]}
+              rows={exams.map((exam) => [
+                exam.title,
+                exam.subject?.name ?? "",
+                exam.class?.name ?? "",
+                exam.exam_type?.name || "-",
+                new Date(exam.exam_date).toLocaleDateString(),
+                exam.total_marks,
+                exam.term,
+              ])}
+              disabled={exams.length === 0}
+            />
           </CardHeader>
           <CardContent>
             {exams.length === 0 ? (

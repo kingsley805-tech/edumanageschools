@@ -18,6 +18,7 @@ import { Plus, Pencil, Trash2, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import {
   getGradeScale,
   gradingFormatLabel,
@@ -302,6 +303,18 @@ const GradeScales = () => {
               </CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
+              <ExportMenu
+                filename="grade-scales"
+                title="School Grade Scales"
+                headers={["Remark", "Score range", "Grade", "Grade point"]}
+                rows={gradeScales.map((scale) => [
+                  scale.name,
+                  `${scale.min_score}% – ${scale.max_score}%`,
+                  scale.grade,
+                  scale.grade_point ?? "—",
+                ])}
+                disabled={gradeScales.length === 0}
+              />
               <Button
                 variant="outline"
                 size="sm"

@@ -14,7 +14,7 @@ import { fetchStudentsForParent } from "@/lib/parent-students";
 import PaymentTransactionsTable from "@/billing/components/payments/PaymentTransactionsTable";
 import { PaymentDetailsDialog, type PaymentDetailsPayload } from "@/billing/components/payments/PaymentDetailsDialog";
 import { usePaymentTransactions } from "@/billing/hooks/usePaymentTransactions";
-import { filterPaymentTransactions, paymentRevenueStats } from "@/billing/lib/paymentTransactions";
+import { filterPaymentTransactions, paymentFeeType, paymentRevenueStats } from "@/billing/lib/paymentTransactions";
 import { downloadPaymentReceipt } from "@/billing/lib/paymentReceipt";
 import TablePagination from "@/billing/components/TablePagination";
 import { usePagination } from "@/billing/hooks/usePagination";
@@ -106,6 +106,9 @@ export default function ParentPaymentHistory() {
       payer_role: row.payer_role,
       payment_context: row.payment_context ?? "fees",
       notes: row.notes,
+      fee_type: paymentFeeType(row),
+      term: row.term ?? null,
+      academic_year: row.academic_year ?? null,
     });
     setDetailOpen(true);
   }, []);

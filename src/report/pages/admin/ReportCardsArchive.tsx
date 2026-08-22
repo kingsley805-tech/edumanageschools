@@ -1,11 +1,9 @@
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/report/hooks/use-auth";
-import { PageHeader } from "@/report/portal/page-header";
 import { ActiveTermBanner } from "@/report/portal/active-term-banner";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -17,7 +15,18 @@ import { fetchSchoolTerms, formatTermLabel } from "@/report/lib/terms";
 import { TERM_REPORT_ARCHIVE_LIST_SELECT } from "@/report/lib/term-report";
 import { useClientPagination } from "@/report/hooks/use-client-pagination";
 import { TablePagination } from "@/report/portal/table-pagination";
-import { Archive, ArrowLeft } from "lucide-react";
+import {
+  Archive,
+  ArrowLeft,
+  Search,
+  FilterX,
+  ChevronRight,
+  Clock,
+  ExternalLink,
+  ShieldCheck,
+} from "lucide-react";
+import { EntityCellIdentity, EntityCardItem, getEntityStatusBadge } from "@/components/entities/EntityRow";
+import { withReportLayout } from "@/report/withReportLayout";
 
 function ReportArchive() {
   const { profile } = useAuth();
@@ -86,172 +95,327 @@ function ReportArchive() {
     });
   }, [reports, search, yearFilter, termFilter, classFilter, statusFilter]);
 
+  const activeFilterCount = [
+    search.trim() ? 1 : 0,
+    yearFilter !== "all",
+    termFilter !== "all",
+    classFilter !== "all",
+    statusFilter !== "all",
+  ].filter(Boolean).length;
+
+  const clearFilters = () => {
+    setSearch("");
+    setYearFilter("all");
+    setTermFilter("all");
+    setClassFilter("all");
+    setStatusFilter("all");
+  };
+
   const pag = useClientPagination(filtered, {
     resetKey: `${search}-${yearFilter}-${termFilter}-${classFilter}-${statusFilter}`,
   });
 
   return (
-    <>
-      <PageHeader
-        title="Report archive"
-        description="Permanent history of all student reports by year, term, class, and student. Records are never overwritten."
-        actions={
-          <Button asChild variant="outline" size="sm">
-            <Link to="/admin/report-cards">
-              <ArrowLeft className="mr-1 h-4 w-4" />
-              Review queue
+    <div className="space-y-6 font-sans">
+      {/* ── Standard Metronic Page Toolbar ────────────────────────────── */}
+      <div className="flex flex-wrap items-center lg:items-end justify-between gap-4 pb-2 border-b border-border/40">
+        <div className="flex min-w-0 flex-col justify-center gap-1.5">
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <Link to="/admin" className="hover:text-primary transition-colors">
+              Dashboard
             </Link>
-          </Button>
-        }
-      />
-      <div className="space-y-6 p-6 md:p-8">
-        <ActiveTermBanner />
-        <div className="flex flex-wrap gap-3">
-          <Input
-            placeholder="Search name, admission #, class…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="max-w-sm"
-          />
-          <Select value={yearFilter} onValueChange={setYearFilter}>
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder="Academic year" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All years</SelectItem>
-              {years.map((y) => (
-                <SelectItem key={y} value={y}>
-                  {y}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={termFilter} onValueChange={setTermFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Term" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All terms</SelectItem>
-              {(terms ?? []).map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {formatTermLabel(t)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={classFilter} onValueChange={setClassFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Class" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All classes</SelectItem>
-              {classes.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="published">Published</SelectItem>
-              <SelectItem value="pending_review">Pending</SelectItem>
-              <SelectItem value="rejected">Returned</SelectItem>
-            </SelectContent>
-          </Select>
+            <ChevronRight className="size-3 text-muted-foreground/60" />
+            <Link to="/admin/report-cards" className="hover:text-primary transition-colors">
+              Report Cards
+            </Link>
+            <ChevronRight className="size-3 text-muted-foreground/60" />
+            <span className="text-foreground font-semibold">Archive</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+              Report Card Archive
+            </h1>
+            <span className="kt-badge kt-badge-outline kt-badge-info gap-1 py-1 px-2.5 text-xs font-semibold">
+              <Archive className="size-3.5" />
+              Permanent Storage
+            </span>
+          </div>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Permanent, tamper-proof repository of all generated and published student report cards across all academic terms.
+          </p>
         </div>
 
-        <Card>
-          <CardContent className="p-0">
-            <div className="table-scroll">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student</TableHead>
-                    <TableHead>Admission #</TableHead>
-                    <TableHead>Class</TableHead>
-                    <TableHead>Year</TableHead>
-                    <TableHead>Term</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Updated</TableHead>
-                    <TableHead>Sent</TableHead>
-                    <TableHead actions>Open</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
-                        Loading archive…
-                      </TableCell>
-                    </TableRow>
-                  ) : pag.slice.length ? (
-                    pag.slice.map((r) => (
-                      <TableRow key={r.id}>
-                        <TableCell className="font-medium">{r.student_name}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {r.admission_number ?? "—"}
-                        </TableCell>
-                        <TableCell>{r.class_name}</TableCell>
-                        <TableCell>{r.academic_year ?? "—"}</TableCell>
-                        <TableCell>{r.term_label ?? "—"}</TableCell>
-                        <TableCell>
-                          <Badge variant={statusBadgeVariant(r.status)}>{statusLabel(r.status)}</Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {format(new Date(r.updated_at), "MMM d, yyyy")}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {r.status === "published" ? "Sent" : "—"}
-                        </TableCell>
-                        <TableCell actions>
-                          <div className="inline-flex items-center gap-1">
-                            <Button asChild size="sm" variant="outline">
-                              <Link to={`/admin/report-cards/view?id=${encodeURIComponent(r.id)}`}>
-                                View
-                              </Link>
-                            </Button>
-                            <Button asChild size="sm" variant="ghost">
-                              <Link to={`/admin/report-cards/versions?id=${encodeURIComponent(r.id)}`}>
-                                <Archive className="h-3.5 w-3.5" />
-                              </Link>
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
-                        No archived reports match your filters.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-            <TablePagination
-              page={pag.page}
-              totalPages={pag.totalPages}
-              total={pag.total}
-              from={pag.from}
-              to={pag.to}
-              pageSize={pag.pageSize}
-              pageSizes={pag.pageSizes}
-              onPageChange={pag.setPage}
-              onPageSizeChange={pag.setPageSize}
-            />
-          </CardContent>
-        </Card>
+        {/* Action Button */}
+        <div className="flex items-center gap-2.5">
+          <Button asChild variant="outline" size="sm" className="h-9 gap-1.5 text-xs font-medium border-border">
+            <Link to="/admin/report-cards">
+              <ArrowLeft className="size-3.5 text-muted-foreground" />
+              Review Queue
+            </Link>
+          </Button>
+        </div>
       </div>
-    </>
+
+      {/* Active Term Notification */}
+      <ActiveTermBanner />
+
+      {/* ── Filter Toolbar ────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            placeholder="Search student, admission #, class…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 h-9 text-xs"
+          />
+        </div>
+
+        <Select value={yearFilter} onValueChange={setYearFilter}>
+          <SelectTrigger className="w-36 h-9 text-xs">
+            <SelectValue placeholder="Academic Year" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">All years</SelectItem>
+            {years.map((y) => (
+              <SelectItem key={y} value={y} className="text-xs">
+                {y}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={termFilter} onValueChange={setTermFilter}>
+          <SelectTrigger className="w-40 h-9 text-xs">
+            <SelectValue placeholder="Term" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">All terms</SelectItem>
+            {(terms ?? []).map((t) => (
+              <SelectItem key={t.id} value={t.id} className="text-xs">
+                {formatTermLabel(t)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={classFilter} onValueChange={setClassFilter}>
+          <SelectTrigger className="w-36 h-9 text-xs">
+            <SelectValue placeholder="Class" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">All classes</SelectItem>
+            {classes.map((c) => (
+              <SelectItem key={c} value={c} className="text-xs">
+                {c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-36 h-9 text-xs">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">All statuses</SelectItem>
+            <SelectItem value="approved" className="text-xs">Approved</SelectItem>
+            <SelectItem value="published" className="text-xs">Published</SelectItem>
+            <SelectItem value="pending_review" className="text-xs">Pending</SelectItem>
+            <SelectItem value="rejected" className="text-xs">Returned</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {activeFilterCount > 0 && (
+          <Button variant="ghost" size="sm" className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground" onClick={clearFilters}>
+            <FilterX className="size-3.5" />
+            Clear ({activeFilterCount})
+          </Button>
+        )}
+
+        <span className="ml-auto text-xs text-muted-foreground font-mono">
+          {pag.total} {pag.total === 1 ? "record" : "records"} archived
+        </span>
+      </div>
+
+      {/* ── Entity Table / View ────────────────────────────────────────── */}
+      <div className="kt-card rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+        {/* Desktop / Tablet Table View */}
+        <div className="hidden md:block overflow-x-auto">
+          <Table className="kt-table min-w-full">
+            <TableHeader>
+              <TableRow className="border-b border-border/80 bg-muted/20">
+                <TableHead className="min-w-[220px]">Student Entity</TableHead>
+                <TableHead className="min-w-[120px]">Class</TableHead>
+                <TableHead className="min-w-[120px]">Academic Year</TableHead>
+                <TableHead className="min-w-[130px]">Term</TableHead>
+                <TableHead className="min-w-[110px]">Status</TableHead>
+                <TableHead className="min-w-[110px]">Last Updated</TableHead>
+                <TableHead className="min-w-[100px]">Parent Sent</TableHead>
+                <TableHead className="text-right min-w-[120px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="py-12 text-center text-muted-foreground text-xs">
+                    Loading archived reports…
+                  </TableCell>
+                </TableRow>
+              ) : pag.slice.length ? (
+                pag.slice.map((r) => {
+                  const statusBadge = getEntityStatusBadge(r.status);
+                  return (
+                    <TableRow key={r.id} className="hover:bg-muted/30 transition-colors">
+                      {/* Entity Identity */}
+                      <TableCell>
+                        <EntityCellIdentity
+                          name={r.student_name}
+                          code={r.admission_number ? `#${r.admission_number}` : undefined}
+                          to={`/admin/report-cards/view?id=${encodeURIComponent(r.id)}`}
+                          statusVariant={r.status}
+                        />
+                      </TableCell>
+
+                      {/* Class */}
+                      <TableCell>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-muted/60 text-foreground border border-border/60">
+                          {r.class_name || "—"}
+                        </span>
+                      </TableCell>
+
+                      {/* Year */}
+                      <TableCell className="text-xs font-mono text-muted-foreground">
+                        {r.academic_year || "—"}
+                      </TableCell>
+
+                      {/* Term */}
+                      <TableCell className="text-xs font-medium text-foreground">
+                        {r.term_label || "—"}
+                      </TableCell>
+
+                      {/* Status */}
+                      <TableCell>
+                        <Badge variant={statusBadge.variant} className={statusBadge.className}>
+                          <span className={`mr-1.5 size-1.5 rounded-full ${statusBadge.dotColor}`} />
+                          {statusLabel(r.status)}
+                        </Badge>
+                      </TableCell>
+
+                      {/* Updated At */}
+                      <TableCell className="text-xs text-muted-foreground">
+                        {r.updated_at ? format(new Date(r.updated_at), "MMM d, yyyy") : "—"}
+                      </TableCell>
+
+                      {/* Parent Sent Status */}
+                      <TableCell>
+                        {r.status === "published" ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                            <ShieldCheck className="size-3.5" /> Sent
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+
+                      {/* Actions */}
+                      <TableCell className="text-right">
+                        <div className="inline-flex items-center justify-end gap-1.5">
+                          <Button asChild size="sm" variant="outline" className="h-8 px-2.5 text-xs">
+                            <Link to={`/admin/report-cards/view?id=${encodeURIComponent(r.id)}`}>
+                              View
+                            </Link>
+                          </Button>
+                          <Button asChild size="sm" variant="ghost" className="size-8 p-0" title="Version History">
+                            <Link to={`/admin/report-cards/versions?id=${encodeURIComponent(r.id)}`}>
+                              <Clock className="size-3.5" />
+                            </Link>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={8} className="py-12 text-center text-muted-foreground text-xs">
+                    {activeFilterCount > 0 ? (
+                      <div className="space-y-2">
+                        <p>No archived reports match your current filters.</p>
+                        <Button variant="outline" size="sm" onClick={clearFilters} className="text-xs">
+                          Clear Filters
+                        </Button>
+                      </div>
+                    ) : (
+                      "No archived reports found."
+                    )}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Mobile Entity Cards Layout (< md breakpoint) */}
+        <div className="md:hidden p-3.5 space-y-3">
+          {pag.slice.map((r) => (
+            <EntityCardItem
+              key={r.id}
+              id={r.id}
+              name={r.student_name}
+              code={r.admission_number ? `#${r.admission_number}` : undefined}
+              to={`/admin/report-cards/view?id=${encodeURIComponent(r.id)}`}
+              statusVariant={r.status}
+              metaTags={[
+                { label: r.class_name || "Unassigned" },
+                { label: `${r.term_label || "Term"} · ${r.academic_year || ""}` },
+              ]}
+              metrics={[
+                { label: "Archived Status", value: r.status === "published" ? "Sent to Parent" : "Stored" },
+                { label: "Date Saved", value: r.updated_at ? format(new Date(r.updated_at), "MMM d, yyyy") : "—" },
+              ]}
+              primaryAction={{
+                label: "View Report",
+                to: `/admin/report-cards/view?id=${encodeURIComponent(r.id)}`,
+              }}
+              secondaryAction={{
+                label: "History",
+                to: `/admin/report-cards/versions?id=${encodeURIComponent(r.id)}`,
+              }}
+            />
+          ))}
+
+          {!pag.total && !isLoading && (
+            <div className="py-10 text-center text-xs text-muted-foreground">
+              {activeFilterCount > 0 ? (
+                <div className="space-y-2">
+                  <p>No archived reports match your current filters.</p>
+                  <Button variant="outline" size="sm" onClick={clearFilters} className="text-xs">
+                    Clear Filters
+                  </Button>
+                </div>
+              ) : (
+                "No archived reports found."
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Pagination Toolbar */}
+        <TablePagination
+          page={pag.page}
+          totalPages={pag.totalPages}
+          total={pag.total}
+          from={pag.from}
+          to={pag.to}
+          pageSize={pag.pageSize}
+          pageSizes={pag.pageSizes}
+          onPageChange={pag.setPage}
+          onPageSizeChange={pag.setPageSize}
+        />
+      </div>
+    </div>
   );
 }
 
-import { withReportLayout } from "@/report/withReportLayout";
 export default withReportLayout("admin", ReportArchive);

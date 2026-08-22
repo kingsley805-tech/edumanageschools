@@ -3,6 +3,10 @@ import App from "./App.tsx";
 import "./index.css";
 import { applyBrandTheme, BRAND_DEFAULTS } from "./lib/themeColors";
 import { RootErrorBoundary } from "./components/RootErrorBoundary";
+import { installSafeEventListeners } from "./lib/safeEventListeners";
+
+// Must run before React / Capacitor bridges attach listeners.
+installSafeEventListeners();
 
 const THEME_IDS = ["default", "dark", "blue", "purple", "green", "custom"] as const;
 type BootTheme = (typeof THEME_IDS)[number];

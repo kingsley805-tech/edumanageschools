@@ -1,8 +1,7 @@
 // @ts-nocheck
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import DashboardLayout from "@/components/DashboardLayout";
+import PlatformLayout from "@/platform/components/PlatformLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Loader2, MessageSquare, Search } from "lucide-react";
+import { Loader2, MessageSquare, Search } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatformSchoolSmsOverview } from "@/platform/hooks/usePlatformDashboard";
@@ -89,23 +88,11 @@ export default function PlatformSmsManagement() {
   };
 
   return (
-    <DashboardLayout role="super_admin">
-      <div className="space-y-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <Button variant="ghost" size="sm" className="mb-2 -ml-2" asChild>
-              <Link to="/platform">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Platform
-              </Link>
-            </Button>
-            <h1 className="text-3xl font-bold tracking-tight">SMS Management</h1>
-            <p className="text-muted-foreground">
-              View schools with SMS enabled, override settings, and monitor usage
-            </p>
-          </div>
-        </div>
-
+    <PlatformLayout
+      title="SMS"
+      description="Arkesel setup, school SMS enablement, and usage"
+    >
+      <div className="mx-auto max-w-6xl space-y-6">
         <PlatformArkeselSetupCard />
 
         <div className="grid gap-4 sm:grid-cols-3">
@@ -206,6 +193,6 @@ export default function PlatformSmsManagement() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </PlatformLayout>
   );
 }

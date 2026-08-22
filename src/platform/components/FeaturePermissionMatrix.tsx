@@ -15,9 +15,16 @@ type Props = {
   rows: ModuleEntitlementRow[];
   onChange: (rows: ModuleEntitlementRow[]) => void;
   readOnly?: boolean;
+  /** On/off modules only — hides CRUD columns (default for platform UX). */
+  simple?: boolean;
 };
 
-export default function FeaturePermissionMatrix({ rows, onChange, readOnly }: Props) {
+export default function FeaturePermissionMatrix({
+  rows,
+  onChange,
+  readOnly,
+  simple = false,
+}: Props) {
   const byCategory = rows.reduce<Record<string, ModuleEntitlementRow[]>>((acc, row) => {
     (acc[row.category] ??= []).push(row);
     return acc;
@@ -30,6 +37,12 @@ export default function FeaturePermissionMatrix({ rows, onChange, readOnly }: Pr
         const next = { ...r, ...patch };
         if (patch.enabled === true) {
           next.can_read = true;
+          if (simple) {
+            next.can_create = true;
+            next.can_edit = true;
+            next.can_delete = true;
+            next.can_export = true;
+          }
         }
         if (patch.enabled === false) {
           next.can_read = false;
@@ -44,7 +57,7 @@ export default function FeaturePermissionMatrix({ rows, onChange, readOnly }: Pr
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {Object.entries(byCategory).map(([cat, catRows]) => (
         <div key={cat}>
           <h3 className="mb-3 text-sm font-semibold text-foreground">{categoryLabel(cat)}</h3>
@@ -53,12 +66,16 @@ export default function FeaturePermissionMatrix({ rows, onChange, readOnly }: Pr
               <TableHeader>
                 <TableRow>
                   <TableHead className="min-w-[200px]">Module</TableHead>
-                  <TableHead>Enabled</TableHead>
-                  <TableHead>Read</TableHead>
-                  <TableHead>Create</TableHead>
-                  <TableHead>Edit</TableHead>
-                  <TableHead>Delete</TableHead>
-                  <TableHead>Export</TableHead>
+                  <TableHead className="w-[100px]">Enabled</TableHead>
+                  {!simple ? (
+                    <>
+                      <TableHead>Read</TableHead>
+                      <TableHead>Create</TableHead>
+                      <TableHead>Edit</TableHead>
+                      <TableHead>Delete</TableHead>
+                      <TableHead>Export</TableHead>
+                    </>
+                  ) : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -72,17 +89,27 @@ export default function FeaturePermissionMatrix({ rows, onChange, readOnly }: Pr
                         onCheckedChange={(v) => updateRow(row.module_key, { enabled: v })}
                       />
                     </TableCell>
-                    {(["can_read", "can_create", "can_edit", "can_delete", "can_export"] as const).map(
-                      (field) => (
-                        <TableCell key={field}>
-                          <Checkbox
-                            checked={row[field]}
-                            disabled={readOnly || !row.enabled}
-                            onCheckedChange={(v) => updateRow(row.module_key, { [field]: Boolean(v) })}
-                          />
-                        </TableCell>
-                      ),
-                    )}
+                    {!simple
+                      ? (
+                          [
+                            "can_read",
+                            "can_create",
+                            "can_edit",
+                            "can_delete",
+                            "can_export",
+                          ] as const
+                        ).map((field) => (
+                          <TableCell key={field}>
+                            <Checkbox
+                              checked={row[field]}
+                              disabled={readOnly || !row.enabled}
+                              onCheckedChange={(v) =>
+                                updateRow(row.module_key, { [field]: Boolean(v) })
+                              }
+                            />
+                          </TableCell>
+                        ))
+                      : null}
                   </TableRow>
                 ))}
               </TableBody>

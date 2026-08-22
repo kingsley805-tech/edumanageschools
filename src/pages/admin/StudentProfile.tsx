@@ -36,6 +36,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { UserRound, Mail, Phone, Bus, BookOpen, Calendar, DollarSign, Award } from "lucide-react";
+import { fetchStudentEntityStats, type StudentEntityStats } from "@/lib/entityProfileStats";
 
 const editStudentSchema = z.object({
   admission_no: z.string().min(1, "Admission number is required"),
@@ -58,6 +59,7 @@ export default function StudentProfile() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [entityStats, setEntityStats] = useState<StudentEntityStats | null>(null);
 
   const {
     register,
@@ -177,6 +179,9 @@ export default function StudentProfile() {
         setValue("date_of_birth", studentRecord.date_of_birth || "");
         setValue("gender", studentRecord.gender || "male");
         setValue("class_id", studentRecord.class_id || "");
+        void loadEntityStats(studentRecord.id, studentRecord.school_id);
+      } else {
+        setEntityStats(null);
       }
     } catch (err: any) {
       console.error("fetchStudent error:", err);
@@ -187,6 +192,16 @@ export default function StudentProfile() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadEntityStats = async (studentId: string, schoolId?: string | null) => {
+    try {
+      const stats = await fetchStudentEntityStats(studentId, schoolId);
+      setEntityStats(stats);
+    } catch (err) {
+      console.error("loadEntityStats error:", err);
+      setEntityStats(null);
     }
   };
 
@@ -329,7 +344,7 @@ export default function StudentProfile() {
         entityType="Student"
         entityCode={admissionNo !== "Not assigned" ? `#${admissionNo}` : undefined}
         name={fullName}
-        statusText="Active"
+        statusText="Enrolled"
         statusVariant="success"
         metaItems={[
           {
@@ -350,8 +365,8 @@ export default function StudentProfile() {
           },
         ]}
         rightMetric={{
-          label: "Enrollment Status",
-          value: "Active",
+          label: "Class",
+          value: student.classes?.name || "Unassigned",
         }}
         generalInfo={[
           {
@@ -392,12 +407,14 @@ export default function StudentProfile() {
           },
         ]}
         stats={[
-          { label: "Attendance", value: "98%" },
-          { label: "Term Fees", value: "GH₵1,200" },
-          { label: "Fees Paid", value: "GH₵1,200" },
-          { label: "Balance", value: "GH₵0.00" },
+          { label: "Attendance", value: entityStats?.attendanceLabel ?? "…" },
+          { label: "Term Fees", value: entityStats?.termFeesLabel ?? "…" },
+          { label: "Fees Paid", value: entityStats?.feesPaidLabel ?? "…" },
+          { label: "Balance", value: entityStats?.balanceLabel ?? "…" },
         ]}
-        onRefreshStats={() => fetchStudent(student.id)}
+        onRefreshStats={() => {
+          void fetchStudent(student.id);
+        }}
         onEdit={() => setEditOpen(true)}
         onDelete={() => setDeleteConfirmOpen(true)}
         customTabs={[
@@ -446,12 +463,18 @@ export default function StudentProfile() {
                   </h3>
                   <div className="divide-y divide-border/40 text-xs sm:text-sm pt-2">
                     <div className="py-2.5 flex justify-between">
-                      <span className="text-muted-foreground">Academic Status:</span>
-                      <span className="font-medium text-emerald-600">Good Standing</span>
+                      <span className="text-muted-foreground">Fee Balance:</span>
+                      <span className="font-medium">
+                        {entityStats?.balanceLabel ?? "—"}
+                      </span>
                     </div>
                     <div className="py-2.5 flex justify-between">
                       <span className="text-muted-foreground">Current Term:</span>
-                      <span className="font-medium">Term 1 (2025/2026)</span>
+                      <span className="font-medium">{entityStats?.termLabel ?? "—"}</span>
+                    </div>
+                    <div className="py-2.5 flex justify-between">
+                      <span className="text-muted-foreground">Attendance:</span>
+                      <span className="font-medium">{entityStats?.attendanceLabel ?? "—"}</span>
                     </div>
                     <div className="py-2.5 flex justify-between">
                       <span className="text-muted-foreground">Term Reports:</span>

@@ -7,6 +7,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 export type BillingPageKey =
   | "invoices"
   | "payments"
+  | "manual_payments"
   | "fees"
   | "reports"
   | "paid_students"
@@ -34,6 +35,13 @@ const PAGE_PERM_MAP: Record<
     manage: PERMISSIONS.invoices.approve,
   },
   payments: {
+    view: PERMISSIONS.payments.view,
+    create: PERMISSIONS.payments.process,
+    edit: PERMISSIONS.payments.allocate,
+    delete: PERMISSIONS.payments.reverse,
+    manage: PERMISSIONS.payments.approveRefund,
+  },
+  manual_payments: {
     view: PERMISSIONS.payments.view,
     create: PERMISSIONS.payments.process,
     edit: PERMISSIONS.payments.allocate,

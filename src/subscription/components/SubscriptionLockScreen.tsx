@@ -3,6 +3,7 @@ import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import OrganizationSubscriptionModal from "@/subscription/components/OrganizationSubscriptionModal";
+import AdminPendingApprovalScreen from "@/subscription/components/AdminPendingApprovalScreen";
 import type { OrganizationSubscriptionAccess } from "@/subscription/lib/subscriptionAccess";
 
 type Props = {
@@ -10,7 +11,7 @@ type Props = {
   onActivated?: () => void;
 };
 
-/** Full-screen lock: subscription modal + logout only (no dashboard access). */
+/** Full-screen lock: subscription modal / pending approval + logout only (no dashboard access). */
 export default function SubscriptionLockScreen({ access, onActivated }: Props) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
@@ -19,6 +20,10 @@ export default function SubscriptionLockScreen({ access, onActivated }: Props) {
     await signOut();
     navigate("/auth", { replace: true });
   };
+
+  if (access?.access_state === "pending_approval") {
+    return <AdminPendingApprovalScreen />;
+  }
 
   return (
     <div className="relative min-h-screen bg-background">
@@ -32,3 +37,4 @@ export default function SubscriptionLockScreen({ access, onActivated }: Props) {
     </div>
   );
 }
+

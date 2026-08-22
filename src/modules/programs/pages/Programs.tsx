@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookMarked, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import { useModuleAccess } from "@/modules/lib/useModuleAccess";
@@ -9,7 +8,7 @@ import { ModuleAccessDenied } from "@/modules/lib/ModuleAccessDenied";
 import { isMissingTableError, operationsSchemaSetupMessage } from "@/modules/lib/missingSchema";
 import { OperationsSchemaSetupCard } from "@/modules/lib/OperationsSchemaSetupCard";
 import { ProgramsListPanel } from "@/modules/programs/components/ProgramsListPanel";
-import { StatCounter } from "@/components/charts/StatCounter";
+import { MetronicStatCard } from "@/components/metronic/MetronicStatCard";
 import { fetchPrograms, fetchProgramsDashboardStats } from "@/modules/programs/lib/api";
 import {
   checkProgramsSchema,
@@ -86,8 +85,8 @@ export default function ProgramsPage() {
             <BookMarked className="h-5 w-5" />
             <span className="text-xs font-semibold uppercase tracking-wider">Academics</span>
           </div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight">Programs</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h1 className="text-xl font-medium leading-none text-mono">Programs</h1>
+          <p className="mt-1 text-sm text-secondary-foreground">
             Academic program tracks, departments, credits, and coordinators.
           </p>
         </div>
@@ -110,21 +109,42 @@ export default function ProgramsPage() {
               quickScript="apply-program-media.sql"
             />
           ) : null}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {[
-              ["Total programs", stats.total],
-              ["Active", stats.active],
-              ["Inactive", stats.inactive],
-              ["Archived", stats.archived],
-              ["Departments", stats.departments],
-            ].map(([label, value]) => (
-              <Card key={label as string}>
-                <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground">{label}</p>
-                  <StatCounter value={value as number} className="text-2xl font-bold tabular-nums" />
-                </CardContent>
-              </Card>
-            ))}
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
+            <MetronicStatCard
+              keenIcon="ki-book"
+              badge="All"
+              value={stats.total}
+              label="Total programs"
+              description="Non-archived programs"
+            />
+            <MetronicStatCard
+              keenIcon="ki-check-circle"
+              badge="Live"
+              value={stats.active}
+              label="Active"
+              description="Enabled on portals"
+            />
+            <MetronicStatCard
+              keenIcon="ki-cross-circle"
+              badge="Hidden"
+              value={stats.inactive}
+              label="Inactive"
+              description="Disabled on portals"
+            />
+            <MetronicStatCard
+              keenIcon="ki-archive"
+              badge="Stored"
+              value={stats.archived}
+              label="Archived"
+              description="Archived programs"
+            />
+            <MetronicStatCard
+              keenIcon="ki-office-bag"
+              badge="Depts"
+              value={stats.departments}
+              label="Departments"
+              description="Unique departments"
+            />
           </div>
           <ProgramsListPanel
             programs={programs}

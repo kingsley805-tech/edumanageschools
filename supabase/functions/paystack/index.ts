@@ -766,9 +766,19 @@ const processPlatformSubscriptionCharge = async (
     p_payment_status: "success",
   });
   if (error) throw error;
-  const res = data as { ok?: boolean; error?: string; duplicate?: boolean };
+  const res = data as {
+    ok?: boolean;
+    error?: string;
+    duplicate?: boolean;
+    awaiting_approval?: boolean;
+    status?: string;
+  };
   if (!res?.ok && !res?.duplicate) throw new Error(res?.error ?? "Subscription activation failed");
-  return { duplicate: Boolean(res?.duplicate) };
+  return {
+    duplicate: Boolean(res?.duplicate),
+    awaiting_approval: Boolean(res?.awaiting_approval),
+    status: res?.status,
+  };
 };
 
 const processWebhookEvent = async (adminSupabase: SupabaseAdmin, event: Record<string, unknown>, eventId: string) => {
@@ -2333,7 +2343,15 @@ serve(async (req) => {
             .eq("school_id", existingCheckout.school_id)
             .maybeSingle();
           if (existingSub?.status === "active") {
-            return jsonResponse({ ok: true, duplicate: true });
+            return jsonResponse({ ok: true, duplicate: true, awaiting_approval: false, status: "active" });
+          }
+          if (existingSub?.status === "pending") {
+            return jsonResponse({
+              ok: true,
+              duplicate: true,
+              awaiting_approval: true,
+              status: "pending",
+            });
           }
         }
 
@@ -2374,7 +2392,12 @@ serve(async (req) => {
           paystackTransactionId: txn.id != null ? String(txn.id) : null,
         });
 
-        return jsonResponse({ ok: true, duplicate: result.duplicate });
+        return jsonResponse({
+          ok: true,
+          duplicate: result.duplicate,
+          awaiting_approval: result.awaiting_approval,
+          status: result.status,
+        });
       } catch (confirmErr: unknown) {
         const msg = confirmErr instanceof Error ? confirmErr.message : "Confirmation failed";
         console.error("platform-subscription-confirm:", confirmErr);

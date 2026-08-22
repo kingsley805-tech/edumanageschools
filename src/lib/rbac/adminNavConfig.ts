@@ -47,6 +47,9 @@ import {
   ShoppingBag,
   FlaskConical,
   PhoneCall,
+  HardDrive,
+  MessageCircle,
+  Banknote,
 } from "lucide-react";
 import { PORTAL_CATEGORIES, permissionCode, type PermissionAction } from "@/lib/rbac/permissionCatalog";
 
@@ -97,6 +100,8 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
   billing_fees: Wallet,
   billing_invoices: DollarSign,
   billing_payments: FileText,
+  billing_manual_payments: Banknote,
+  billing_pos_terminal: Banknote,
   billing_payment_gateways: CreditCard,
   billing_paid: Users,
   billing_outstanding: Users,
@@ -118,6 +123,10 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
   ai_assistant: BrainCircuit,
   ai_receptionist: PhoneCall,
   school_settings: Building,
+  administration_settings: Settings,
+  system_backup: HardDrive,
+  weekly_attention: ClipboardCheck,
+  whatsapp: MessageCircle,
   staff_access: Shield,
   approvals: FileText,
   audit_logs: FileText,
@@ -143,6 +152,7 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   registration: LinkIcon,
   communication: Megaphone,
   administration: Shield,
+  system_backup: HardDrive,
 };
 
 export const PAYMENT_GATEWAYS_NAV_PATH = "/admin/billing/settings/payments";
@@ -216,6 +226,36 @@ export function ensureClassTeacherActivityInNav(
     next.push({ label: "Administration", icon: Shield, items: [CLASS_TEACHER_ACTIVITY_ITEM] });
   }
   return next;
+}
+
+const SYSTEM_BACKUP_PATH = "/admin/system-backup";
+const SYSTEM_BACKUP_ITEM: AdminNavItem = {
+  label: "System Backup",
+  path: SYSTEM_BACKUP_PATH,
+  icon: HardDrive,
+  viewPermission: permissionCode("system_backup", "view"),
+};
+
+/** Ensures System Backup appears as its own sidebar module (not nested under Administration). */
+export function ensureSystemBackupInNav(
+  nav: (AdminNavItem | AdminNavGroup)[],
+): (AdminNavItem | AdminNavGroup)[] {
+  const alreadyStandalone = nav.some(
+    (entry) => !("items" in entry) && entry.path === SYSTEM_BACKUP_PATH,
+  );
+  if (alreadyStandalone) return nav;
+
+  const withoutNested = nav
+    .map((entry) => {
+      if (!("items" in entry)) return entry;
+      const items = entry.items.filter((i) => i.path !== SYSTEM_BACKUP_PATH);
+      if (items.length === entry.items.length) return entry;
+      if (items.length === 0) return null;
+      return { ...entry, items };
+    })
+    .filter((entry): entry is AdminNavItem | AdminNavGroup => entry != null);
+
+  return [...withoutNested, SYSTEM_BACKUP_ITEM];
 }
 
 export function buildAdminNav(hasPermission: (code: string) => boolean): (AdminNavItem | AdminNavGroup)[] {

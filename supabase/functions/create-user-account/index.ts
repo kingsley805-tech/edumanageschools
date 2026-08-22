@@ -43,16 +43,36 @@ serve(async (req) => {
       );
     }
 
-    // Check if caller has admin role
-    const { data: roleData, error: roleError } = await supabaseAdmin
+    // Check if caller has admin / super_admin role or create permission
+    const { data: roleRows } = await supabaseAdmin
       .from('user_roles')
       .select('role')
       .eq('user_id', callerData.user.id)
-      .eq('role', 'admin')
-      .single();
+      .in('role', ['admin', 'super_admin']);
 
-    if (roleError || !roleData) {
-      console.log('Unauthorized: User is not an admin:', callerData.user.id);
+    let authorized = Boolean(roleRows && roleRows.length > 0);
+
+    if (!authorized) {
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('school_id')
+        .eq('id', callerData.user.id)
+        .maybeSingle();
+      const { data: hasPerm } = await supabaseAdmin.rpc('has_permission', {
+        _user_id: callerData.user.id,
+        _permission: 'students.create',
+        _school_id: profile?.school_id ?? null,
+      });
+      const { data: hasTeacherPerm } = await supabaseAdmin.rpc('has_permission', {
+        _user_id: callerData.user.id,
+        _permission: 'teachers.manage',
+        _school_id: profile?.school_id ?? null,
+      });
+      authorized = Boolean(hasPerm || hasTeacherPerm);
+    }
+
+    if (!authorized) {
+      console.log('Unauthorized: User cannot create accounts:', callerData.user.id);
       return new Response(
         JSON.stringify({ error: 'Unauthorized: Only admins can create accounts' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

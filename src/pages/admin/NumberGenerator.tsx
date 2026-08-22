@@ -19,6 +19,7 @@ import {
 } from "@/lib/admission-numbers";
 import { format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 
 interface RegistrationNumber {
   id: string;
@@ -502,6 +503,23 @@ const NumberGenerator = () => {
               <Button variant="outline" onClick={fetchNumbers}>
                 <RefreshCw className="h-4 w-4" />
               </Button>
+              <ExportMenu
+                filename="registration-numbers"
+                title="Registration Numbers"
+                headers={["Registration Number", "Role Type", "Status", "Assigned To", "Used On"]}
+                rows={filteredNumbers.map((num) => [
+                  num.registration_number,
+                  num.number_type === "student" ? "Student" : "Employee",
+                  num.status === "unused" ? "Unused" : "Used",
+                  num.assigned_user
+                    ? `${num.assigned_user.full_name} (${num.assigned_user.email})`
+                    : "—",
+                  num.used_at
+                    ? format(new Date(num.used_at), "MMM d, yyyy h:mm a")
+                    : "—",
+                ])}
+                disabled={filteredNumbers.length === 0}
+              />
             </div>
 
             {loading ? (

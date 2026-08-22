@@ -440,6 +440,22 @@ export default function PaymentGatewaySettings() {
         <PaystackEdgeFunctionAlert detail={edgeFunctionWarning} />
       ) : null}
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">School office — POS Terminal</CardTitle>
+          <CardDescription>
+            Card / POS terminal collections at the school office are recorded as{" "}
+            <strong>POS Terminal</strong> payments (separate from Paystack online checkout). Configure labels and
+            reference rules in Administration Settings.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" asChild>
+            <Link to="/admin/settings?tab=payments">POS Terminal settings</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
       {gatewaysLoadError instanceof Error && !gatewayQuery ? (
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">
           <p className="font-medium text-destructive">Could not load payment gateway settings</p>

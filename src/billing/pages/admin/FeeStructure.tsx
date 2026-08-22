@@ -42,183 +42,105 @@ type AcademicYearRow = { id: string; name: string };
 type TermRow = { id: string; name: string; start_date: string; end_date: string; fees_due_date: string; academic_years: { name: string } | null };
 type SchoolClassRow = { id: string; name: string; stream: string | null };
 
-/* ─────────────────────── animation styles ───────────────────── */
+/* ─────────────────────── page styles ──────────────────────────── */
 const styles = `
-  .fee-root * { font-family: 'Inter', sans-serif; box-sizing: border-box; }
-  .fee-root .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  .fee-root * { box-sizing: border-box; }
 
-  @keyframes slideUp {
-    from { opacity: 0; transform: translateY(18px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes fadeIn {
-    from { opacity: 0; } to { opacity: 1; }
-  }
-  @keyframes scaleIn {
-    from { opacity: 0; transform: scale(0.95); }
-    to   { opacity: 1; transform: scale(1); }
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .fee-root .animate-slide-up { animation: slideUp .45s cubic-bezier(.22,1,.36,1) both; }
-  .fee-root .stagger-1 { animation-delay: .05s; }
-  .fee-root .stagger-2 { animation-delay: .10s; }
-  .fee-root .stagger-3 { animation-delay: .15s; }
-  .fee-root .stagger-4 { animation-delay: .20s; }
-
-  /* ── glass card ── */
   .fee-card {
-    background: hsl(var(--card) / 0.88);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid hsl(var(--border) / 0.8);
-    border-radius: 20px;
-    box-shadow: 0 4px 28px hsl(var(--foreground) / 0.05), 0 1px 4px hsl(var(--foreground) / 0.04);
-    transition: box-shadow .3s, border-color .3s;
-  }
-  .fee-card:hover {
-    box-shadow: 0 10px 40px hsl(var(--foreground) / 0.08), 0 2px 8px hsl(var(--foreground) / 0.05);
-    border-color: hsl(var(--primary) / 0.28);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: 12px;
+    box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04);
   }
 
-  /* ── row item ── */
   .fee-row {
     display: flex; align-items: center; justify-content: space-between;
-    border-radius: 12px; padding: 13px 16px;
-    background: hsl(var(--muted) / 0.55);
-    border: 1px solid hsl(var(--border) / 0.9);
-    transition: background .2s, border-color .2s, transform .2s, box-shadow .2s;
-    animation: slideUp .4s cubic-bezier(.22,1,.36,1) both;
+    border-radius: 8px; padding: 13px 16px;
+    background: hsl(var(--muted) / 0.45);
+    border: 1px solid hsl(var(--border));
   }
-  .fee-row:hover {
-    background: hsl(var(--muted) / 0.9);
-    border-color: hsl(var(--primary) / 0.28);
-    transform: translateX(4px);
-    box-shadow: 0 3px 12px hsl(var(--foreground) / 0.08);
-  }
+  .fee-row:hover { background: hsl(var(--muted) / 0.75); }
 
-  /* ── primary button ── */
   .fee-btn-primary {
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
-    color: hsl(var(--primary-foreground)); border: none; border-radius: 11px;
-    font-weight: 700; font-size: 13.5px; letter-spacing: .02em;
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground)); border: none; border-radius: 8px;
+    font-weight: 600; font-size: 13.5px;
     padding: 11px 20px; cursor: pointer;
-    transition: transform .18s, box-shadow .18s, opacity .18s;
-    box-shadow: 0 3px 14px hsl(var(--primary) / 0.28);
-    font-family: 'Inter', sans-serif;
   }
-  .fee-btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 7px 22px hsl(var(--primary) / 0.36); }
-  .fee-btn-primary:active:not(:disabled) { transform: translateY(0); }
   .fee-btn-primary:disabled { opacity: .5; cursor: not-allowed; }
 
-  /* ── ghost delete ── */
   .fee-btn-del {
     background: transparent; border: none; border-radius: 8px;
     padding: 7px; cursor: pointer; color: hsl(var(--destructive)); line-height: 0;
-    transition: background .18s, transform .2s;
   }
-  .fee-btn-del:hover { background: hsl(var(--destructive) / 0.12); transform: scale(1.2); }
+  .fee-btn-del:hover { background: hsl(var(--destructive) / 0.12); }
 
-  /* ── small add button ── */
   .fee-btn-sm {
     display: inline-flex; align-items: center; gap: 6px;
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
-    color: hsl(var(--primary-foreground)); border: none; border-radius: 10px;
-    font-weight: 700; font-size: 12.5px; padding: 7px 13px;
-    cursor: pointer; transition: transform .18s, box-shadow .18s;
-    box-shadow: 0 2px 10px hsl(var(--primary) / 0.24);
-    font-family: 'Inter', sans-serif; white-space: nowrap;
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground)); border: none; border-radius: 8px;
+    font-weight: 600; font-size: 12.5px; padding: 7px 13px;
+    cursor: pointer; white-space: nowrap;
   }
-  .fee-btn-sm:hover { transform: translateY(-1px); box-shadow: 0 5px 16px hsl(var(--primary) / 0.34); }
 
-  /* ── section title row ── */
   .section-title {
-    font-size: 15px; font-weight: 700; letter-spacing: -.02em; color: hsl(var(--foreground));
+    font-size: 15px; font-weight: 600; color: hsl(var(--foreground));
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
     padding-bottom: 16px;
-    border-bottom: 1.5px solid hsl(var(--border));
+    border-bottom: 1px solid hsl(var(--border));
     margin-bottom: 18px;
   }
   .section-icon {
-    width: 34px; height: 34px; border-radius: 10px;
-    background: linear-gradient(135deg, hsl(var(--primary) / 0.16), hsl(var(--accent) / 0.08));
+    width: 34px; height: 34px; border-radius: 8px;
+    background: hsl(var(--muted));
     display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
 
-  /* ── empty state ── */
   .fee-empty {
     text-align: center; padding: 30px 20px; color: hsl(var(--muted-foreground)); font-size: 13px;
-    background: repeating-linear-gradient(45deg, hsl(var(--primary) / 0.03) 0, hsl(var(--primary) / 0.03) 2px, transparent 2px, transparent 10px);
-    border-radius: 12px; border: 1.5px dashed hsl(var(--border)); line-height: 1.6;
+    background: hsl(var(--muted) / 0.35);
+    border-radius: 8px; border: 1px dashed hsl(var(--border)); line-height: 1.6;
   }
 
-  /* ── badges ── */
   .fee-badge-mandatory {
     background: hsl(var(--success) / 0.12); color: hsl(var(--success));
     border: 1px solid hsl(var(--success) / 0.22);
-    font-size: 10.5px; font-weight: 700; border-radius: 6px; padding: 2px 8px; white-space: nowrap;
+    font-size: 10.5px; font-weight: 600; border-radius: 6px; padding: 2px 8px; white-space: nowrap;
   }
   .fee-badge-optional {
     background: hsl(var(--warning) / 0.12); color: hsl(var(--warning));
     border: 1px solid hsl(var(--warning) / 0.22);
-    font-size: 10.5px; font-weight: 700; border-radius: 6px; padding: 2px 8px; white-space: nowrap;
+    font-size: 10.5px; font-weight: 600; border-radius: 6px; padding: 2px 8px; white-space: nowrap;
   }
 
-  /* ── amount chip ── */
   .amount-chip {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     font-weight: 500; font-size: 13px;
-    background: linear-gradient(135deg, hsl(var(--primary) / 0.12), hsl(var(--accent) / 0.06));
-    color: hsl(var(--primary)); border: 1px solid hsl(var(--primary) / 0.2);
-    border-radius: 8px; padding: 3px 10px; white-space: nowrap;
+    background: hsl(var(--muted));
+    color: hsl(var(--foreground)); border: 1px solid hsl(var(--border));
+    border-radius: 6px; padding: 3px 10px; white-space: nowrap;
   }
 
-  /* ── page bg ── */
-  .fee-bg {
-    background:
-      radial-gradient(ellipse 80% 55% at 5% -5%, hsl(var(--primary) / 0.08) 0%, transparent 60%),
-      radial-gradient(ellipse 55% 50% at 95% 105%, hsl(var(--accent) / 0.07) 0%, transparent 55%),
-      hsl(var(--background));
-  }
+  .fee-bg { background: hsl(var(--background)); }
 
-  /* ── input / select overrides ── */
   .fee-input {
-    border-radius: 10px !important; border: 1.5px solid hsl(var(--input)) !important;
-    background: hsl(var(--background) / 0.95) !important; color: hsl(var(--foreground)) !important; font-size: 13.5px !important;
-    font-family: 'Inter', sans-serif !important;
-    transition: border-color .2s, box-shadow .2s;
+    border-radius: 8px !important; border: 1px solid hsl(var(--input)) !important;
+    background: hsl(var(--background)) !important; color: hsl(var(--foreground)) !important; font-size: 13.5px !important;
   }
-  .fee-input:focus { border-color: hsl(var(--ring)) !important; box-shadow: 0 0 0 3px hsl(var(--ring) / 0.13) !important; }
+  .fee-input:focus { border-color: hsl(var(--ring)) !important; box-shadow: 0 0 0 2px hsl(var(--ring) / 0.15) !important; }
 
-  /* ── spinner ── */
-  .fee-spinner {
-    width: 36px; height: 36px; border-radius: 50%;
-    border: 3px solid hsl(var(--border)); border-top-color: hsl(var(--primary));
-    animation: spin 0.75s linear infinite;
-  }
-
-  /* ── dialog ── */
-  [data-radix-dialog-content] {
-    border-radius: 20px !important; border: 1.5px solid hsl(var(--border)) !important;
-    box-shadow: 0 24px 64px hsl(var(--foreground) / 0.12), 0 4px 16px hsl(var(--foreground) / 0.07) !important;
-    background: hsl(var(--popover) / 0.97) !important; backdrop-filter: blur(22px) !important;
-    animation: scaleIn .28s cubic-bezier(.22,1,.36,1) !important;
-  }
-  [data-radix-dialog-title] { font-family: 'Inter', sans-serif !important; font-weight: 800 !important; color: hsl(var(--foreground)) !important; }
-
-  /* ── toggle tabs ── */
-  .fee-tabs { display: flex; gap: 4px; background: hsl(var(--muted)); border-radius: 11px; padding: 4px; }
+  .fee-tabs { display: flex; gap: 4px; background: hsl(var(--muted)); border-radius: 8px; padding: 4px; }
   .fee-tab {
-    flex: 1; text-align: center; padding: 8px 12px; border-radius: 8px;
-    font-size: 13px; font-weight: 600; cursor: pointer; transition: all .22s;
-    color: hsl(var(--muted-foreground)); border: none; background: transparent; font-family: 'Inter', sans-serif;
+    flex: 1; text-align: center; padding: 8px 12px; border-radius: 6px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    color: hsl(var(--muted-foreground)); border: none; background: transparent;
   }
-  .fee-tab.active { background: hsl(var(--card)); color: hsl(var(--primary)); box-shadow: 0 2px 10px hsl(var(--foreground) / 0.08); }
+  .fee-tab.active { background: hsl(var(--card)); color: hsl(var(--foreground)); border: 1px solid hsl(var(--border)); }
 
-  .fee-label { font-size: 11.5px; font-weight: 700; color: hsl(var(--muted-foreground)); margin-bottom: 6px; display: block; letter-spacing: .06em; text-transform: uppercase; }
+  .fee-label { font-size: 11.5px; font-weight: 600; color: hsl(var(--muted-foreground)); margin-bottom: 6px; display: block; letter-spacing: .04em; text-transform: uppercase; }
   .fee-subtext { font-size: 11.5px; color: hsl(var(--muted-foreground)); margin-top: 1px; }
+  .fee-loading { padding: 24px 0; text-align: center; font-size: 13px; color: hsl(var(--muted-foreground)); }
 
-  /* ── responsive ── */
   @media (max-width: 900px) {
     .fee-grid-2 { grid-template-columns: 1fr !important; }
   }
@@ -262,7 +184,7 @@ function CategoriesManager({ schoolId, permission }: { schoolId: string; permiss
   });
 
   return (
-    <div className="fee-card p-6 animate-slide-up stagger-1">
+    <div className="fee-card p-6">
       <div className="section-title">
           <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span className="section-icon"><Tag size={15} color="hsl(var(--primary))" /></span>
@@ -297,13 +219,13 @@ function CategoriesManager({ schoolId, permission }: { schoolId: string; permiss
       </div>
 
       {isLoading ? (
-        <div style={{ display: "flex", justifyContent: "center", padding: "30px 0" }}><div className="fee-spinner" /></div>
+        <p className="fee-loading">Loading categories…</p>
       ) : categories.length === 0 ? (
         <div className="fee-empty">No fee categories yet.<br /><span style={{ fontSize: 12 }}>Click "Add Category" to get started.</span></div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {categories.map((cat, i) => (
-            <div key={cat.id} className="fee-row" style={{ animationDelay: `${i * 0.05}s` }}>
+            <div key={cat.id} className="fee-row">
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 13.5, fontWeight: 600, color: "hsl(var(--card-foreground))" }}>{cat.name}</span>
                 <span className={cat.is_optional ? "fee-badge-optional" : "fee-badge-mandatory"}>
@@ -375,7 +297,7 @@ function FeeCreationSection({ schoolId, permission }: { schoolId: string; permis
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* create form */}
-      <div className="fee-card p-6 animate-slide-up stagger-3">
+      <div className="fee-card p-6">
         <div className="section-title">
           <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span className="section-icon"><DollarSign size={15} color="hsl(var(--primary))" /></span>
@@ -410,9 +332,9 @@ function FeeCreationSection({ schoolId, permission }: { schoolId: string; permis
       </div>
 
       {/* list */}
-      <div className="fee-card p-6 animate-slide-up stagger-4">
+      <div className="fee-card p-6">
         <div style={{ marginBottom: 18 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "hsl(var(--foreground))", marginBottom: 14, paddingBottom: 14, borderBottom: "1.5px solid hsl(var(--border))" }}>Created Fees</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "hsl(var(--foreground))", marginBottom: 14, paddingBottom: 14, borderBottom: "1px solid hsl(var(--border))" }}>Created Fees</div>
           <div style={{ maxWidth: 240 }}>
             <label className="fee-label">Filter by Term</label>
             <Select value={filterTermId} onValueChange={setFilterTermId}>
@@ -425,13 +347,13 @@ function FeeCreationSection({ schoolId, permission }: { schoolId: string; permis
           </div>
         </div>
         {isLoading ? (
-          <div style={{ display: "flex", justifyContent: "center", padding: "30px 0" }}><div className="fee-spinner" /></div>
+          <p className="fee-loading">Loading fees…</p>
         ) : visibleFees.length === 0 ? (
           <div className="fee-empty">No fees match the current filter.</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {visibleFees.map((fee, i) => (
-              <div key={fee.id} className="fee-row" style={{ animationDelay: `${i * 0.04}s` }}>
+              <div key={fee.id} className="fee-row">
                 <div>
                   <div style={{ fontSize: 13.5, fontWeight: 600, color: "hsl(var(--card-foreground))" }}>{fee.fee_categories?.name ?? "Fee"}</div>
                   <div className="fee-subtext">{fee.terms?.name ?? "Term"}{fee.terms?.fees_due_date ? ` · Due ${fee.terms.fees_due_date}` : ""}</div>
@@ -534,7 +456,7 @@ function FeeAssignmentSection({ schoolId, permission }: { schoolId: string; perm
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* assign form */}
-      <div className="fee-card p-6 animate-slide-up stagger-3">
+      <div className="fee-card p-6">
         <div className="section-title">
           <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span className="section-icon"><Link2 size={15} color="hsl(var(--primary))" /></span>
@@ -600,10 +522,10 @@ function FeeAssignmentSection({ schoolId, permission }: { schoolId: string; perm
       </div>
 
       {/* assigned list */}
-      <div className="fee-card p-6 animate-slide-up stagger-4">
-        <div style={{ fontSize: 15, fontWeight: 700, color: "hsl(var(--foreground))", marginBottom: 14, paddingBottom: 14, borderBottom: "1.5px solid hsl(var(--border))" }}>Assigned Fees</div>
+      <div className="fee-card p-6">
+        <div style={{ fontSize: 15, fontWeight: 600, color: "hsl(var(--foreground))", marginBottom: 14, paddingBottom: 14, borderBottom: "1px solid hsl(var(--border))" }}>Assigned Fees</div>
         {isLoading ? (
-          <div style={{ display: "flex", justifyContent: "center", padding: "30px 0" }}><div className="fee-spinner" /></div>
+          <p className="fee-loading">Loading assignments…</p>
         ) : isError ? (
           <div className="fee-empty" style={{ color: "hsl(var(--destructive))" }}>
             Could not load assigned fees.
@@ -615,7 +537,7 @@ function FeeAssignmentSection({ schoolId, permission }: { schoolId: string; perm
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {assignments.map((a, i) => (
-              <div key={a.id} className="fee-row" style={{ animationDelay: `${i * 0.04}s` }}>
+              <div key={a.id} className="fee-row">
                 <div>
                   <div style={{ fontSize: 13.5, fontWeight: 600, color: "hsl(var(--card-foreground))", display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
                     {a.fee_items?.fee_categories?.name ?? "Fee"}
@@ -676,29 +598,19 @@ export default function BillingFeeStructure() {
     <div className="fee-root fee-bg" style={{ padding: "32px 28px", minHeight: "100vh" }}>
       <style>{styles}</style>
 
-      {orgLoading ? (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 320 }}>
-          <div className="fee-spinner" style={{ width: 48, height: 48, borderWidth: 4 }} />
-        </div>
+      {orgLoading || billingReady === null ? (
+        <p className="fee-loading" style={{ paddingTop: 48 }}>Loading…</p>
       ) : !schoolId ? (
         <div style={{ textAlign: "center", paddingTop: 80, color: "hsl(var(--muted-foreground))", fontSize: 14 }}>
           Please set up your organization first in Settings.
         </div>
       ) : billingReady === false ? (
         <BillingSchemaAlert onRecheck={() => void checkBilling()} />
-      ) : billingReady === null ? (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 320 }}>
-          <div className="fee-spinner" style={{ width: 48, height: 48, borderWidth: 4 }} />
-        </div>
       ) : (
         <>
-          {/* page header */}
-          <div className="animate-slide-up" style={{ marginBottom: 32 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
-              <div style={{ width: 4, height: 30, background: "linear-gradient(180deg, hsl(var(--primary)), hsl(var(--accent)))", borderRadius: 4 }} />
-              <h1 style={{ fontSize: 28, fontWeight: 800, color: "hsl(var(--foreground))", letterSpacing: "-.04em", margin: 0 }}>Fees</h1>
-            </div>
-            <p style={{ fontSize: 13.5, color: "hsl(var(--muted-foreground))", marginLeft: 16, marginTop: 2 }}>
+          <div style={{ marginBottom: 32 }}>
+            <h1 style={{ fontSize: 24, fontWeight: 600, color: "hsl(var(--foreground))", margin: "0 0 6px" }}>Fees</h1>
+            <p style={{ fontSize: 13.5, color: "hsl(var(--muted-foreground))", margin: 0 }}>
               Set up academic years and the current term, then create fees and assign them to classes or students.
             </p>
           </div>

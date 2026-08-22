@@ -13,6 +13,7 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { BulkQuestionUpload } from "@/components/BulkQuestionUpload";
 
 interface Question {
@@ -322,9 +323,24 @@ const QuestionBank = () => {
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Questions ({questions.length})</CardTitle>
-            <CardDescription>Manage your question bank</CardDescription>
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>Questions ({questions.length})</CardTitle>
+              <CardDescription>Manage your question bank</CardDescription>
+            </div>
+            <ExportMenu
+              filename="question-bank"
+              title="Question Bank"
+              headers={["Question", "Subject", "Type", "Difficulty", "Marks"]}
+              rows={questions.map((q) => [
+                q.question_text,
+                q.subjects?.name || "-",
+                q.question_type.replace("_", " "),
+                q.difficulty,
+                q.marks,
+              ])}
+              disabled={questions.length === 0}
+            />
           </CardHeader>
           <CardContent>
             <Table>

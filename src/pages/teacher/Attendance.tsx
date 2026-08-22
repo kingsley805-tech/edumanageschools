@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { saveTeacherClassAttendance } from "@/lib/attendance-queries";
 import { fetchClassStudents, studentDisplayName } from "@/register/lib/api";
 import { sendTeacherAttendanceSmsNotifications, describeAttendanceSmsResult } from "@/register/lib/sms";
@@ -239,11 +240,30 @@ const Attendance = () => {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Mark Attendance</CardTitle>
-              <CardDescription>
-                {selectedClass ? `Marking for ${date.toLocaleDateString()}` : "Select a class to begin"}
-              </CardDescription>
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle>Mark Attendance</CardTitle>
+                <CardDescription>
+                  {selectedClass ? `Marking for ${date.toLocaleDateString()}` : "Select a class to begin"}
+                </CardDescription>
+              </div>
+              <ExportMenu
+                filename="teacher-attendance"
+                title="Attendance"
+                headers={["Admission No", "Student Name", "Status"]}
+                rows={students.map((student) => [
+                  student.admission_no ?? student.admission_number ?? "—",
+                  studentDisplayName(student),
+                  attendanceRecords[student.id] === "present"
+                    ? "Present"
+                    : attendanceRecords[student.id] === "absent"
+                      ? "Absent"
+                      : attendanceRecords[student.id] === "late"
+                        ? "Late"
+                        : "",
+                ])}
+                disabled={students.length === 0}
+              />
             </CardHeader>
             <CardContent>
               {!selectedClass ? (

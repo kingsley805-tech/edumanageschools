@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Users, GraduationCap, Calendar, BookOpen } from "lucide-react";
+import { fetchClassEntityStats, type ClassEntityStats } from "@/lib/entityProfileStats";
 
 export default function ClassProfile() {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +23,7 @@ export default function ClassProfile() {
   const [classData, setClassData] = useState<any | null>(null);
   const [enrolledStudents, setEnrolledStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [entityStats, setEntityStats] = useState<ClassEntityStats | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -29,6 +31,23 @@ export default function ClassProfile() {
       fetchEnrolledStudents(id);
     }
   }, [id]);
+
+  useEffect(() => {
+    if (!classData?.id) return;
+    void (async () => {
+      try {
+        const stats = await fetchClassEntityStats(
+          classData.id,
+          enrolledStudents.length,
+          classData.capacity,
+        );
+        setEntityStats(stats);
+      } catch (err) {
+        console.error("class entity stats:", err);
+        setEntityStats(null);
+      }
+    })();
+  }, [classData?.id, classData?.capacity, enrolledStudents.length]);
 
   const fetchClass = async (classId: string) => {
     try {
@@ -167,7 +186,7 @@ export default function ClassProfile() {
       entityType="Class"
       entityCode={level !== "—" ? level : undefined}
       name={className}
-      statusText="Active Class"
+      statusText={`${enrolledStudents.length} enrolled`}
       statusVariant="success"
       metaItems={[
         {
@@ -211,11 +230,11 @@ export default function ClassProfile() {
         },
         {
           label: "Capacity",
-          value: classData.capacity ? `${classData.capacity} seats` : "Standard (45)",
+          value: entityStats?.capacityLabel ?? (classData.capacity ? `${classData.capacity} seats` : "—"),
         },
         {
-          label: "Status",
-          value: "Active",
+          label: "Subjects",
+          value: entityStats?.subjectsLabel ?? "…",
         },
       ]}
       stats={[
@@ -225,15 +244,15 @@ export default function ClassProfile() {
         },
         {
           label: "Attendance Rate",
-          value: "96%",
+          value: entityStats?.attendanceLabel ?? "…",
         },
         {
           label: "Subjects",
-          value: "8 Core",
+          value: entityStats?.subjectsLabel ?? "…",
         },
         {
-          label: "Status",
-          value: "Active",
+          label: "Capacity",
+          value: entityStats?.capacityLabel ?? "—",
         },
       ]}
       onRefreshStats={() => {

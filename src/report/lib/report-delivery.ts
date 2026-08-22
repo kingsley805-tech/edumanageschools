@@ -40,6 +40,7 @@ export async function deliverReportToParents(opts: {
   termLabel?: string | null;
   senderId: string;
   senderRole: "teacher" | "admin";
+  schoolId?: string | null;
 }): Promise<number> {
   const now = new Date().toISOString();
   const fullPayload = {
@@ -61,7 +62,7 @@ export async function deliverReportToParents(opts: {
   }
   if (upErr) throw upErr;
 
-  return notifyParentsReportReady({
+  const notified = await notifyParentsReportReady({
     studentId: opts.studentId,
     studentName: opts.studentName,
     className: opts.className,
@@ -69,6 +70,36 @@ export async function deliverReportToParents(opts: {
     reportId: opts.reportId,
     senderRole: opts.senderRole,
   });
+
+  // Queue WhatsApp to linked parent contacts (non-blocking for portal publish)
+  let schoolId = opts.schoolId ?? null;
+  if (!schoolId) {
+    const { data: report } = await supabase
+      .from("term_report_cards")
+      .select("school_id")
+      .eq("id", opts.reportId)
+      .maybeSingle();
+    schoolId = (report as { school_id?: string } | null)?.school_id ?? null;
+  }
+  if (schoolId) {
+    void import("@/lib/whatsapp")
+      .then(({ sendReportCardWhatsApp }) =>
+        sendReportCardWhatsApp({
+          schoolId,
+          studentId: opts.studentId,
+          studentName: opts.studentName,
+          className: opts.className,
+          termLabel: opts.termLabel,
+          reportId: opts.reportId,
+          createdBy: opts.senderId,
+        }),
+      )
+      .catch(() => {
+        /* WhatsApp must not block report publish */
+      });
+  }
+
+  return notified;
 }
 
 /** Bulk deliver all approved/published reports for a class (optional term filter). */

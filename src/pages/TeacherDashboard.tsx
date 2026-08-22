@@ -24,6 +24,9 @@ type AssignmentRow = {
   class?: { name?: string } | null;
 };
 
+type NoticeRow = { id: string; title: string; created_at?: string };
+type ExamRow = { id: string; title: string; exam_date?: string | null; start_at?: string | null };
+
 const TeacherDashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState({
@@ -34,6 +37,9 @@ const TeacherDashboard = () => {
   });
   const [upcomingClasses, setUpcomingClasses] = useState<ScheduleRow[]>([]);
   const [recentAssignments, setRecentAssignments] = useState<AssignmentRow[]>([]);
+  const [pendingRegisters, setPendingRegisters] = useState<number>(0);
+  const [upcomingExams, setUpcomingExams] = useState<ExamRow[]>([]);
+  const [announcements, setAnnouncements] = useState<NoticeRow[]>([]);
   const [primaryClassId, setPrimaryClassId] = useState<string | null>(null);
   const [teacherId, setTeacherId] = useState<string | null>(null);
   const [trendPoints, setTrendPoints] = useState<MingoLinePoint[]>([]);
@@ -131,6 +137,34 @@ const TeacherDashboard = () => {
       .limit(5);
 
     setRecentAssignments(assignmentsData || []);
+
+    const todayIso = new Date().toISOString().slice(0, 10);
+    if (classIds.length > 0) {
+      const { count: submittedCount } = await supabase
+        .from("class_registers")
+        .select("id", { count: "exact", head: true })
+        .in("class_id", classIds)
+        .eq("register_date", todayIso)
+        .not("submitted_at", "is", null);
+      setPendingRegisters(Math.max(0, classIds.length - (submittedCount ?? 0)));
+    } else {
+      setPendingRegisters(0);
+    }
+
+    const { data: examsData } = await supabase
+      .from("exams")
+      .select("id, title, exam_date")
+      .gte("exam_date", todayIso)
+      .order("exam_date", { ascending: true })
+      .limit(5);
+    setUpcomingExams((examsData as ExamRow[]) || []);
+
+    const { data: noticeData } = await supabase
+      .from("announcements")
+      .select("id, title, created_at")
+      .order("created_at", { ascending: false })
+      .limit(5);
+    setAnnouncements((noticeData as NoticeRow[]) || []);
   };
 
   const categoryItems: MingoCategoryItem[] = classSummary && classSummary.total_days > 0
@@ -320,6 +354,71 @@ const TeacherDashboard = () => {
                       day: "numeric",
                     })}
                   </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Pending + exams + announcements */}
+      <div className="grid lg:grid-cols-3 gap-5 lg:gap-7.5 items-stretch mb-5 lg:mb-7.5">
+        <div className="kt-card">
+          <div className="kt-card-header">
+            <h3 className="kt-card-title">Pending attendance</h3>
+            <button
+              type="button"
+              className="kt-btn kt-btn-ghost kt-btn-sm text-muted-foreground hover:text-primary"
+              onClick={() => navigate("/teacher/register")}
+            >
+              Open registers
+            </button>
+          </div>
+          <div className="kt-card-content p-5 lg:p-7.5">
+            <p className="text-3xl font-semibold text-mono">{pendingRegisters}</p>
+            <p className="text-sm text-secondary-foreground mt-1">
+              Class register{pendingRegisters === 1 ? "" : "s"} not submitted today
+            </p>
+          </div>
+        </div>
+        <div className="kt-card">
+          <div className="kt-card-header">
+            <h3 className="kt-card-title">Upcoming examinations</h3>
+          </div>
+          <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-1">
+            {upcomingExams.length === 0 ? (
+              <p className="text-sm text-secondary-foreground py-2">No upcoming exams.</p>
+            ) : (
+              upcomingExams.map((exam) => (
+                <div
+                  key={exam.id}
+                  className="flex items-center justify-between gap-3 py-2 border-b border-b-border last:border-b-0"
+                >
+                  <span className="text-sm truncate">{exam.title}</span>
+                  <span className="text-2sm text-muted-foreground shrink-0">
+                    {exam.exam_date
+                      ? new Date(exam.exam_date).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                        })
+                      : "—"}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        <div className="kt-card">
+          <div className="kt-card-header">
+            <h3 className="kt-card-title">Announcements</h3>
+          </div>
+          <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-1">
+            {announcements.length === 0 ? (
+              <p className="text-sm text-secondary-foreground py-2">No announcements.</p>
+            ) : (
+              announcements.map((a) => (
+                <div key={a.id} className="py-2 border-b border-b-border last:border-b-0">
+                  <p className="text-sm font-medium truncate">{a.title}</p>
                 </div>
               ))
             )}

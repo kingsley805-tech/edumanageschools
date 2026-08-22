@@ -18,7 +18,7 @@ const config = {
   dbEncryptionKey: process.env.ELECTRON_DB_ENCRYPTION_KEY || "",
   updateFeedUrl: process.env.ELECTRON_UPDATE_FEED_URL || "",
   isDev: process.env.ELECTRON_DEV === "1" || process.env.NODE_ENV === "development",
-  viteDevUrl: process.env.VITE_DEV_SERVER_URL || "http://localhost:8080",
+  viteDevUrl: process.env.VITE_DEV_SERVER_URL || "http://localhost:5173",
 };
 
 module.exports = {

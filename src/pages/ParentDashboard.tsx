@@ -23,6 +23,14 @@ import { AttendanceAnalyticsPanel } from "@/register/components/AttendanceAnalyt
 import { ClassSubjectTeachersPanel } from "@/components/class-subjects/ClassSubjectTeachersPanel";
 import { MingoLineChart } from "@/components/charts/MingoLineChart";
 import { MingoCategoryBars } from "@/components/charts/MingoCategoryBars";
+import { useSelectedChild } from "@/hooks/useSelectedChild";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const ParentDashboard = () => {
   const navigate = useNavigate();
@@ -31,20 +39,52 @@ const ParentDashboard = () => {
   const [children, setChildren] = useState([]);
   const [recentGrades, setRecentGrades] = useState([]);
   const [signupAdmissionNumbers, setSignupAdmissionNumbers] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
 
-  const primaryChild = children[0];
+  const { selectedChild, selectedChildId, setSelectedChildId } = useSelectedChild(
+    user?.id,
+    children,
+  );
+
   const { data: attendanceSummary, isLoading: attendanceLoading } = useAttendanceSummary(
-    primaryChild?.id,
+    selectedChild?.id,
     term?.id,
   );
-  const { data: classSummary } = useClassAttendanceSummary(primaryChild?.class_id, term?.id);
-  const { data: monthlyTrend } = useMonthlyAttendanceTrend(primaryChild?.id, term?.id);
+  const { data: classSummary } = useClassAttendanceSummary(selectedChild?.class_id, term?.id);
+  const { data: monthlyTrend } = useMonthlyAttendanceTrend(selectedChild?.id, term?.id);
 
   useEffect(() => {
     if (user) {
       fetchChildrenData();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!selectedChild?.id) {
+      setRecentGrades([]);
+      return;
+    }
+    void (async () => {
+      const { data: gradesData } = await supabase
+        .from("grades")
+        .select("*, subject:subjects(name)")
+        .eq("student_id", selectedChild.id)
+        .order("created_at", { ascending: false })
+        .limit(6);
+      setRecentGrades(gradesData || []);
+    })();
+  }, [selectedChild?.id]);
+
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase
+        .from("announcements")
+        .select("id, title, created_at")
+        .order("created_at", { ascending: false })
+        .limit(5);
+      setAnnouncements(data || []);
+    })();
+  }, []);
 
   const fetchChildrenData = async () => {
     if (!user) return;
@@ -99,17 +139,6 @@ const ParentDashboard = () => {
       );
 
       setChildren(childrenWithStats);
-
-      if (studentsData[0]) {
-        const { data: gradesData } = await supabase
-          .from("grades")
-          .select("*, subject:subjects(name)")
-          .eq("student_id", studentsData[0].id)
-          .order("created_at", { ascending: false })
-          .limit(6);
-
-        setRecentGrades(gradesData || []);
-      }
     }
   };
 
@@ -144,13 +173,19 @@ const ParentDashboard = () => {
     }));
   })();
 
-  const avgAttendance = children.length
-    ? Math.round(children.reduce((s, c) => s + c.attendance, 0) / children.length)
-    : 0;
-  const avgScoreAll = children.length
-    ? Math.round(children.reduce((s, c) => s + (c.avgScore || 0), 0) / children.length)
-    : 0;
-  const nextFeeChild = children.find((c) => c.nextFee && c.nextFee !== "N/A");
+  const avgAttendance = selectedChild
+    ? Math.round(Number(selectedChild.attendance) || 0)
+    : children.length
+      ? Math.round(children.reduce((s, c) => s + c.attendance, 0) / children.length)
+      : 0;
+  const avgScoreAll = selectedChild
+    ? Math.round(Number(selectedChild.avgScore) || 0)
+    : children.length
+      ? Math.round(children.reduce((s, c) => s + (c.avgScore || 0), 0) / children.length)
+      : 0;
+  const nextFeeChild = selectedChild?.nextFee && selectedChild.nextFee !== "N/A"
+    ? selectedChild
+    : children.find((c) => c.nextFee && c.nextFee !== "N/A");
 
   return (
     <DashboardLayout role="parent">
@@ -162,7 +197,25 @@ const ParentDashboard = () => {
             Track your children&apos;s attendance, grades, fees, and school updates.
           </div>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {children.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-secondary-foreground whitespace-nowrap">Viewing</span>
+              <Select value={selectedChildId} onValueChange={setSelectedChildId}>
+                <SelectTrigger className="w-[200px] h-9">
+                  <SelectValue placeholder="Select child" />
+                </SelectTrigger>
+                <SelectContent>
+                  {children.map((child) => (
+                    <SelectItem key={child.id} value={child.id}>
+                      {studentDisplayNameForParent(child)}
+                      {child.class?.name ? ` · ${child.class.name}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <button
             type="button"
             className="kt-btn kt-btn-outline"
@@ -186,8 +239,8 @@ const ParentDashboard = () => {
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-5 lg:gap-7.5 mb-5 lg:mb-7.5">
         {[
           { label: "Children Linked", value: String(children.length), icon: "users" },
-          { label: "Avg Attendance", value: `${avgAttendance}%`, icon: "calendar-8" },
-          { label: "Avg Grade Score", value: String(avgScoreAll || "-"), icon: "medal-star" },
+          { label: "Attendance", value: `${avgAttendance}%`, icon: "calendar-8" },
+          { label: "Grade Score", value: String(avgScoreAll || "-"), icon: "medal-star" },
           { label: "Next Fee Due", value: nextFeeChild?.nextFee ?? "N/A", icon: "wallet" },
         ].map((kpi) => (
           <div className="kt-card channel-stats-bg" key={kpi.label}>
@@ -235,7 +288,7 @@ const ParentDashboard = () => {
           <div className="kt-card lg:col-span-2">
             <div className="kt-card-header">
               <h3 className="kt-card-title">
-                Monthly attendance — {studentDisplayNameForParent(primaryChild)}
+                Monthly attendance — {selectedChild ? studentDisplayNameForParent(selectedChild) : "Child"}
               </h3>
             </div>
             <div className="kt-card-content p-5 lg:p-7.5">
@@ -320,11 +373,11 @@ const ParentDashboard = () => {
         </div>
       ) : null}
 
-      {primaryChild ? (
+      {selectedChild ? (
         <div className="kt-card mb-5 lg:mb-7.5">
           <div className="kt-card-header">
             <h3 className="kt-card-title">
-              Attendance analytics — {studentDisplayNameForParent(primaryChild)}
+              Attendance analytics — {studentDisplayNameForParent(selectedChild)}
             </h3>
           </div>
           <div className="kt-card-content p-5 lg:p-7.5">
@@ -339,22 +392,38 @@ const ParentDashboard = () => {
         </div>
       ) : null}
 
-      {children.map((child) =>
-        child.class_id ? (
-          <div className="mb-5 lg:mb-7.5" key={child.id}>
-            <ClassSubjectTeachersPanel
-              classId={child.class_id}
-              title={`Subjects & teachers — ${studentDisplayNameForParent(child)}`}
-              description="Teachers assigned to your child's class"
-            />
+      {selectedChild?.class_id ? (
+        <div className="mb-5 lg:mb-7.5">
+          <ClassSubjectTeachersPanel
+            classId={selectedChild.class_id}
+            title={`Subjects & teachers — ${studentDisplayNameForParent(selectedChild)}`}
+            description="Teachers assigned to the selected child's class"
+          />
+        </div>
+      ) : null}
+
+      {announcements.length > 0 && (
+        <div className="kt-card mb-5 lg:mb-7.5">
+          <div className="kt-card-header">
+            <h3 className="kt-card-title">School announcements</h3>
           </div>
-        ) : null,
+          <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-1">
+            {announcements.map((a) => (
+              <div key={a.id} className="py-2 border-b border-b-border last:border-b-0">
+                <p className="text-sm font-medium">{a.title}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       <div className="grid lg:grid-cols-2 gap-5 lg:gap-7.5 items-stretch mb-5 lg:mb-7.5">
         <div className="kt-card">
           <div className="kt-card-header">
-            <h3 className="kt-card-title">Academic performance</h3>
+            <h3 className="kt-card-title">
+              Academic performance
+              {selectedChild ? ` — ${studentDisplayNameForParent(selectedChild)}` : ""}
+            </h3>
             <button
               type="button"
               className="kt-btn kt-btn-ghost kt-btn-sm text-muted-foreground hover:text-primary"

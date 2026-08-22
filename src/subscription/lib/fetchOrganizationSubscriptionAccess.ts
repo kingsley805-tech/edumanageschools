@@ -109,8 +109,26 @@ function computeAccessFromRow(sub: {
     expiresAt != null ? Math.max(0, Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24))) : null;
 
   const status = sub.status ?? "trial";
-  const pending =
-    status === "pending" || ((status === "trial" || status === "pending") && !sub.plan_id);
+  
+  if (status === "pending") {
+    // If a plan was selected/paid, this account is awaiting management approval
+    return {
+      has_subscription_row: true,
+      access_state: sub.plan_id ? "pending_approval" : "pending_payment",
+      can_use_platform: false,
+      status,
+      plan_id: sub.plan_id ?? null,
+      billing_cycle: (sub.billing_cycle as "monthly" | "annual") ?? null,
+      started_at: sub.started_at ?? null,
+      expires_at: sub.expires_at ?? null,
+      grace_period_ends_at: sub.grace_period_ends_at ?? null,
+      reminder_day: sub.reminder_day ?? 0,
+      days_remaining: daysRemaining,
+      locked_at: sub.locked_at ?? null,
+    };
+  }
+
+  const pending = ((status === "trial" || status === "pending") && !sub.plan_id);
 
   if (pending) {
     return {

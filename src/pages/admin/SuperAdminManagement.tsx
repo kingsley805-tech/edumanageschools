@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import DashboardLayout from "@/components/DashboardLayout";
-import { PortalPageHeader } from "@/components/PortalPageHeader";
+import PlatformLayout from "@/platform/components/PlatformLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +10,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Shield, School, UserPlus, Trash2, Search, UserCheck, Lock, Unlock, Mail, Phone, MessageSquare, ExternalLink, CheckCheck, RefreshCw, Eye } from "lucide-react";
+import { Shield, School, Trash2, Search, UserCheck, Lock, Unlock, Mail, Phone, MessageSquare, ExternalLink, CheckCheck, RefreshCw, Eye } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { usePublicSignup } from "@/hooks/usePublicSignup";
 import {
@@ -36,6 +35,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 
 interface SuperAdmin {
   id: string;
@@ -217,43 +218,58 @@ const SuperAdminManagement = () => {
     return null;
   }
 
-  const layoutRole = role === "super_admin" ? "admin" : (role as "admin" | "teacher" | "parent" | "student");
+  const unreadInquiries = inquiries.filter((i) => i.status === "unread").length;
 
   return (
-    <DashboardLayout role={layoutRole}>
-      <div className="mingo-content space-y-6">
-      <PortalPageHeader
-        title="Super Admin Management"
-        description="Manage super administrators and their school assignments"
-      />
+    <PlatformLayout
+      title="Team and settings"
+      description="Super admins, public signup, and contact inquiries"
+    >
+      <div className="mx-auto max-w-6xl space-y-6">
+        <div className="grid gap-3 sm:grid-cols-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Super admins</CardDescription>
+              <CardTitle className="text-2xl">{superAdmins.length}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Schools</CardDescription>
+              <CardTitle className="text-2xl">{allSchools.length}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Assignments</CardDescription>
+              <CardTitle className="text-2xl">
+                {superAdmins.reduce((acc, admin) => acc + admin.assigned_schools.length, 0)}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Inquiries</CardDescription>
+              <CardTitle className="text-2xl flex items-center gap-2">
+                {inquiries.length}
+                {unreadInquiries > 0 ? (
+                  <Badge variant="secondary" className="text-xs">{unreadInquiries} new</Badge>
+                ) : null}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+        </div>
 
-      <div className="mingo-kpi-row">
-        <div className="mingo-kpi">
-          <div className="label">Total Super Admins</div>
-          <div className="val mono">{superAdmins.length}</div>
-        </div>
-        <div className="mingo-kpi">
-          <div className="label">Total Schools</div>
-          <div className="val mono">{allSchools.length}</div>
-        </div>
-        <div className="mingo-kpi">
-          <div className="label">Total Assignments</div>
-          <div className="val mono">
-            {superAdmins.reduce((acc, admin) => acc + admin.assigned_schools.length, 0)}
-          </div>
-        </div>
-        <div className="mingo-kpi">
-          <div className="label">Contact Inquiries</div>
-          <div className="val mono text-primary flex items-center justify-between">
-            <span>{inquiries.length}</span>
-            {inquiries.filter((i) => i.status === "unread").length > 0 && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                {inquiries.filter((i) => i.status === "unread").length} New
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
+        <Tabs defaultValue="team" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="team">Team</TabsTrigger>
+            <TabsTrigger value="signup">Public signup</TabsTrigger>
+            <TabsTrigger value="inquiries">
+              Inquiries{unreadInquiries > 0 ? ` (${unreadInquiries})` : ""}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="signup" className="space-y-4">
 
       {/* Global Public Sign-Up Enable / Disable Card */}
       <Card className="border-border/80 bg-card/90 shadow-md backdrop-blur-md">
@@ -314,13 +330,32 @@ const SuperAdminManagement = () => {
           </div>
         </CardHeader>
       </Card>
+          </TabsContent>
 
+          <TabsContent value="team" className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Super Administrators</CardTitle>
-          <CardDescription>
-            View and manage super admin users and their school access
-          </CardDescription>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle>Super Administrators</CardTitle>
+              <CardDescription>
+                View and manage super admin users and their school access
+              </CardDescription>
+            </div>
+            <ExportMenu
+              filename="super-admins"
+              title="Super Administrators"
+              headers={["Name", "Email", "Assigned Schools"]}
+              rows={filteredAdmins.map((admin) => [
+                admin.full_name,
+                admin.email,
+                admin.assigned_schools.length === 0
+                  ? "No schools assigned"
+                  : admin.assigned_schools.map((s) => s.school_name).join(", "),
+              ])}
+              disabled={filteredAdmins.length === 0}
+            />
+          </div>
           <div className="relative mt-4">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
@@ -424,8 +459,9 @@ const SuperAdminManagement = () => {
           )}
         </CardContent>
       </Card>
+          </TabsContent>
 
-      {/* Public Contact & Support Inquiries Panel */}
+          <TabsContent value="inquiries" className="space-y-4">
       <Card className="border-border/80 bg-card/90 shadow-md">
         <CardHeader className="pb-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -669,8 +705,10 @@ const SuperAdminManagement = () => {
           )}
         </DialogContent>
       </Dialog>
+          </TabsContent>
+        </Tabs>
       </div>
-    </DashboardLayout>
+    </PlatformLayout>
   );
 };
 

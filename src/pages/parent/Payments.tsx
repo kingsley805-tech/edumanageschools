@@ -10,6 +10,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { fetchParentRecordByUserId, fetchStudentsForParent } from "@/lib/parent-students";
 import { getPortalInvoiceStatusBadge } from "@/billing/lib/portalInvoiceStatus";
 import { useToast } from "@/hooks/use-toast";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
+
 interface Invoice {
   id: string;
   invoice_no: string;
@@ -87,9 +89,24 @@ const Payments = () => {
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Payment History</CardTitle>
-            <CardDescription>Track all fee payments and pending invoices</CardDescription>
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>Payment History</CardTitle>
+              <CardDescription>Track all fee payments and pending invoices</CardDescription>
+            </div>
+            <ExportMenu
+              filename="parent-payments"
+              title="Payment History"
+              headers={["Invoice No", "Fee Type", "Amount", "Due Date", "Status"]}
+              rows={invoices.map((invoice) => [
+                invoice.invoice_no,
+                invoice.fee_structures?.name ?? "",
+                `$${invoice.amount.toLocaleString()}`,
+                new Date(invoice.due_date).toLocaleDateString(),
+                getPortalInvoiceStatusBadge(invoice.status).label,
+              ])}
+              disabled={invoices.length === 0}
+            />
           </CardHeader>
           <CardContent>
             {invoices.length === 0 ? (

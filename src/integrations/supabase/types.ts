@@ -6608,6 +6608,7 @@ export type Database = {
         | "bank_transfer"
         | "ussd"
         | "cash"
+        | "pos_terminal"
       billing_payment_status:
         | "pending"
         | "processing"
@@ -6803,6 +6804,7 @@ export const Constants = {
         "bank_transfer",
         "ussd",
         "cash",
+        "pos_terminal",
       ],
       billing_payment_status: [
         "pending",

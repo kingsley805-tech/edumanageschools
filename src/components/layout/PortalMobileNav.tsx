@@ -63,7 +63,9 @@ export function PortalMobileNav({
       >
         <SheetHeader className="sr-only">
           <SheetTitle>{schoolName ?? "Portal"} navigation</SheetTitle>
-          <SheetDescription>Browse modules and pages in your {portalLabel.toLowerCase()} portal.</SheetDescription>
+          <SheetDescription>
+            Browse modules and pages in your {(portalLabel || "portal").toLowerCase()} portal.
+          </SheetDescription>
         </SheetHeader>
 
         <div className="flex items-center gap-2.5 border-b border-sidebar-border px-5 py-[18px]">

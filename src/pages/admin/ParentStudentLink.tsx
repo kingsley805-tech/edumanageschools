@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { Link2, UserPlus } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 
 const ParentStudentLink = () => {
   const [parents, setParents] = useState<any[]>([]);
@@ -245,11 +246,25 @@ const ParentStudentLink = () => {
 
         {selectedParent && (
           <Card>
-            <CardHeader>
-              <CardTitle>Linked Students</CardTitle>
-              <CardDescription>
-                Students linked to {parents.find(p => p.id === selectedParent)?.profiles?.full_name}
-              </CardDescription>
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle>Linked Students</CardTitle>
+                <CardDescription>
+                  Students linked to {parents.find(p => p.id === selectedParent)?.profiles?.full_name}
+                </CardDescription>
+              </div>
+              <ExportMenu
+                filename="parent-student-links"
+                title="Linked Students"
+                headers={["Admission No.", "Name", "Email", "Class"]}
+                rows={linkedStudents.map((student) => [
+                  student.admission_no ?? "",
+                  student.profiles?.full_name ?? "",
+                  student.profiles?.email ?? "",
+                  student.classes?.name || "Not assigned",
+                ])}
+                disabled={linkedStudents.length === 0}
+              />
             </CardHeader>
             <CardContent>
               {linkedStudents.length === 0 ? (

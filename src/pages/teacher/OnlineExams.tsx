@@ -14,6 +14,7 @@ import { Plus, Trash2, ListChecks, BarChart3, Shield, Camera, Clock, Eye, EyeOff
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { format } from "date-fns";
 import { ExamSummaryReport } from "@/components/ExamSummaryReport";
 import { ProctoringSnapshotsViewer } from "@/components/ProctoringSnapshotsViewer";
@@ -438,9 +439,27 @@ const OnlineExams = () => {
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle>All Online Exams</CardTitle>
-            <CardDescription>Manage your online examinations</CardDescription>
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>All Online Exams</CardTitle>
+              <CardDescription>Manage your online examinations</CardDescription>
+            </div>
+            <ExportMenu
+              filename="online-exams"
+              title="Online Exams"
+              headers={["Title", "Class", "Subject", "Start Time", "Duration", "Marks", "Status", "Published"]}
+              rows={exams.map((exam) => [
+                exam.title,
+                exam.classes?.name ?? "",
+                exam.subjects?.name ?? "",
+                format(new Date(exam.start_time), "PPp"),
+                `${exam.duration_minutes} min`,
+                exam.total_marks,
+                getExamStatus(exam).label,
+                exam.is_published ? "Published" : "Unpublished",
+              ])}
+              disabled={exams.length === 0}
+            />
           </CardHeader>
           <CardContent>
             <Table>

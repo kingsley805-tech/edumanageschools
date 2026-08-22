@@ -9,7 +9,7 @@ export const SUBSCRIPTION_MODULE_DENIED =
   "Access Denied. This module is not included in your organization's subscription package.";
 
 /** Portal routes that are always allowed (not tied to platform_modules package rows). */
-const PACKAGE_EXEMPT_PORTAL_KEYS = new Set(["organization_subscription"]);
+const PACKAGE_EXEMPT_PORTAL_KEYS = new Set(["organization_subscription", "system_backup"]);
 
 /** Modules a school admin may assign to staff (from Super Admin package). */
 export function filterPortalModulesByEntitlement(

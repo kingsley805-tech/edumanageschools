@@ -55,6 +55,8 @@ const StudentDashboard = () => {
   const [todaySchedule, setTodaySchedule] = useState<ScheduleRow[]>([]);
   const [pendingAssignments, setPendingAssignments] = useState<AssignmentRow[]>([]);
   const [recentGrades, setRecentGrades] = useState<GradeRow[]>([]);
+  const [upcomingExams, setUpcomingExams] = useState<{ id: string; title: string; exam_date: string }[]>([]);
+  const [announcements, setAnnouncements] = useState<{ id: string; title: string }[]>([]);
 
   useEffect(() => {
     if (studentId && classId) {
@@ -108,6 +110,24 @@ const StudentDashboard = () => {
     setTodaySchedule(schedulesRes.data || []);
     setPendingAssignments(assignmentsRes.data || []);
     setRecentGrades(gradesRes.data || []);
+
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const [{ data: examsData }, { data: noticeData }] = await Promise.all([
+      supabase
+        .from("exams")
+        .select("id, title, exam_date")
+        .eq("class_id", classId)
+        .gte("exam_date", todayIso)
+        .order("exam_date", { ascending: true })
+        .limit(5),
+      supabase
+        .from("announcements")
+        .select("id, title")
+        .order("created_at", { ascending: false })
+        .limit(5),
+    ]);
+    setUpcomingExams(examsData || []);
+    setAnnouncements(noticeData || []);
   };
 
   const trendPoints: MingoLinePoint[] = (monthlyTrend ?? []).map((row) => ({
@@ -224,6 +244,50 @@ const StudentDashboard = () => {
 
       <div className="mb-5 lg:mb-7.5">
         <StudentPortalSections />
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-5 lg:gap-7.5 items-stretch mb-5 lg:mb-7.5">
+        <div className="kt-card">
+          <div className="kt-card-header">
+            <h3 className="kt-card-title">Upcoming examinations</h3>
+          </div>
+          <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-1">
+            {upcomingExams.length === 0 ? (
+              <p className="text-sm text-secondary-foreground py-2">No upcoming exams.</p>
+            ) : (
+              upcomingExams.map((exam) => (
+                <div
+                  key={exam.id}
+                  className="flex items-center justify-between gap-3 py-2 border-b border-b-border last:border-b-0"
+                >
+                  <span className="text-sm truncate">{exam.title}</span>
+                  <span className="text-2sm text-muted-foreground shrink-0">
+                    {new Date(exam.exam_date).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        <div className="kt-card">
+          <div className="kt-card-header">
+            <h3 className="kt-card-title">School notices</h3>
+          </div>
+          <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-1">
+            {announcements.length === 0 ? (
+              <p className="text-sm text-secondary-foreground py-2">No announcements.</p>
+            ) : (
+              announcements.map((a) => (
+                <div key={a.id} className="py-2 border-b border-b-border last:border-b-0">
+                  <p className="text-sm font-medium truncate">{a.title}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="mb-5 lg:mb-7.5">

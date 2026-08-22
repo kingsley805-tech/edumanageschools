@@ -41,6 +41,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { format } from "date-fns";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 
 const StudentPasswordRecovery = () => {
   const { schoolId } = usePermissions();
@@ -349,13 +350,45 @@ const StudentPasswordRecovery = () => {
             <CardDescription>Filter by name, admission number, or parent contact.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                className="pl-9"
-                placeholder="Search…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative max-w-md flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="pl-9"
+                  placeholder="Search…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <ExportMenu
+                filename="student-password-recovery"
+                title="Student Password Recovery"
+                headers={[
+                  "Student",
+                  "Admission No.",
+                  "Parent / Guardian",
+                  "Parent Phone",
+                  "Parent Dashboard",
+                  "Reset Status",
+                  "Delivery",
+                ]}
+                rows={filtered.map((row) => [
+                  `${row.student_name}${row.class_name ? ` (${row.class_name})` : ""}`,
+                  row.admission_number,
+                  row.parent_name,
+                  row.parent_phone,
+                  row.parent_has_dashboard ? "Active" : "Not linked",
+                  resetStatusLabel(row.reset_status),
+                  row.reset_status === "completed"
+                    ? [
+                        row.parent_notification_sent ? "Dashboard" : null,
+                        row.sms_sent ? "SMS" : null,
+                      ]
+                        .filter(Boolean)
+                        .join(", ") || "—"
+                    : "—",
+                ])}
+                disabled={filtered.length === 0}
               />
             </div>
           </CardContent>

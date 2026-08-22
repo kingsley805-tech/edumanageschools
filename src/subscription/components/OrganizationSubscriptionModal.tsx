@@ -199,7 +199,13 @@ export default function OrganizationSubscriptionModal({
     const confirmKey = `org-sub-confirm:${reference}`;
     setVerifying(true);
     try {
-      const data = await invokeEdgeFunction<{ ok?: boolean; duplicate?: boolean; error?: string }>("paystack", {
+      const data = await invokeEdgeFunction<{
+        ok?: boolean;
+        duplicate?: boolean;
+        error?: string;
+        awaiting_approval?: boolean;
+        status?: string;
+      }>("paystack", {
         action: "platform-subscription-confirm",
         reference,
       });
@@ -211,12 +217,25 @@ export default function OrganizationSubscriptionModal({
         } catch (syncErr) {
           console.warn("Module sync after payment:", syncErr);
         }
-        toast.success(
-          data.duplicate ? "Subscription is already active." : "Subscription activated! Welcome to your dashboard.",
-        );
         await invalidate();
         onActivated?.();
-        navigate("/admin", { replace: true });
+        const awaitingApproval =
+          data.awaiting_approval === true ||
+          data.status === "pending";
+        if (awaitingApproval) {
+          toast.success(
+            "Payment received. Your account is under Super Admin review (about 20–30 minutes).",
+          );
+          // Stay on /admin — ProtectedRoute shows the pending-approval screen
+          navigate("/admin", { replace: true });
+        } else {
+          toast.success(
+            data.duplicate
+              ? "Subscription is already active."
+              : "Subscription activated! Welcome to your dashboard.",
+          );
+          navigate("/admin", { replace: true });
+        }
       }
     } catch (e) {
       sessionStorage.setItem(confirmKey, "failed");

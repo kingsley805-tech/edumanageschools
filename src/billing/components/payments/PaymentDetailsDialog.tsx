@@ -8,6 +8,7 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/currency";
+import { formatReceiptPaidTime } from "@/billing/lib/paymentTransactions";
 
 export type PaymentDetailsPayload = {
   id: string;
@@ -26,6 +27,9 @@ export type PaymentDetailsPayload = {
   payer_role: string | null;
   payment_context: string;
   notes: string | null;
+  fee_type?: string | null;
+  term?: string | null;
+  academic_year?: string | null;
 };
 
 const statusMap: Record<string, { label: string; className: string }> = {
@@ -83,6 +87,9 @@ export function PaymentDetailsDialog({
             </span>
           </div>
           <Row label="Invoice" value={payment.invoice_number || payment.invoice_id} />
+          <Row label="Fee type" value={payment.fee_type || "—"} />
+          {payment.term ? <Row label="Term" value={payment.term} /> : null}
+          {payment.academic_year ? <Row label="Academic year" value={payment.academic_year} /> : null}
           <Row label="Method" value={payment.method.replace(/_/g, " ")} />
           <Row label="Gateway" value={payment.gateway} />
           <Row label="Context" value={payment.payment_context?.replace(/_/g, " ") || "—"} />
@@ -97,7 +104,7 @@ export function PaymentDetailsDialog({
           />
           <Row
             label="Paid at"
-            value={payment.paid_at ? new Date(payment.paid_at).toLocaleString() : "—"}
+            value={formatReceiptPaidTime(payment.paid_at)}
           />
           <Row label="Recorded" value={new Date(payment.created_at).toLocaleString()} />
           <Row label="Internal ID" value={payment.id} />

@@ -85,6 +85,7 @@ const KEENICON_BY_LUCIDE: Partial<Record<string, string>> = {
   FileText: "document",
   FlaskConical: "flask",
   GraduationCap: "teacher",
+  HardDrive: "cloud-download",
   Hash: "calculator",
   HeartPulse: "pulse",
   IdCard: "key-square",

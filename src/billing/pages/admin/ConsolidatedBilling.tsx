@@ -1,17 +1,15 @@
 // @ts-nocheck
-import { useCallback, useEffect, useState } from "react";
-import { useBillingSchoolId } from "@/billing/hooks/useBillingSchoolId";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useBillingAuth } from "@/billing/hooks/useBillingAuth";
+import { BillingFeePageShell, BillingFeeLoadingState } from "@/billing/components/BillingFeePageShell";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -20,784 +18,602 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { Loader2, Users, FileText, Play, RefreshCw, Plus } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2, MessageCircle, Printer, RefreshCw, Users } from "lucide-react";
+import { formatMoney } from "@/lib/currency";
 import {
-  backfillBillingAccounts,
-  createBillingJob,
-  fetchAccountInvoices,
-  fetchBillingAccounts,
-  fetchFeeTemplates,
-  fetchInvoiceItems,
-  recordAccountPayment,
-  runBillingJobToCompletion,
-  seedBillingDefaults,
-  upsertFeeTemplate,
-  type AccountInvoiceSummary,
-  type InvoiceItemRow,
-} from "@/billing/lib/consolidated/api";
-import { supabase } from "@/integrations/supabase/client";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  createFamilyInvoiceFromFees,
+  fetchClassFeesForClassIds,
+  fetchFamilyClasses,
+  fetchParentsForStudentIds,
+  fetchStudentsForClassIds,
+  notifyFamilyInvoiceWhatsApp,
+  previewFamilyInvoiceLines,
+  type FamilyClassFee,
+  type FamilyClassOption,
+  type FamilyInvoiceLinePreview,
+  type FamilyParentCandidate,
+  type FamilyStudentRow,
+} from "@/billing/lib/familyBilling";
+import { printFamilyInvoice } from "@/billing/lib/familyInvoicePrint";
 
-function formatLoadError(e: unknown): string {
-  if (e && typeof e === "object" && "message" in e && typeof (e as { message: string }).message === "string") {
-    const msg = (e as { message: string }).message;
-    if (msg.includes("account_invoices") || msg.includes("billing_accounts") || msg.includes("schema cache")) {
-      return `${msg} — Run supabase/migrations/20260528000000_multi_child_consolidated_billing.sql in the Supabase SQL Editor.`;
-    }
-    return msg;
-  }
-  return "Failed to load consolidated billing";
+function defaultDueDate() {
+  const d = new Date();
+  d.setDate(d.getDate() + 14);
+  return d.toISOString().slice(0, 10);
 }
 
 export default function ConsolidatedBilling() {
-  const { schoolId, loading: schoolLoading } = useBillingSchoolId();
-  const [loading, setLoading] = useState(true);
-  const [invoices, setInvoices] = useState<AccountInvoiceSummary[]>([]);
-  const [accounts, setAccounts] = useState<any[]>([]);
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [terms, setTerms] = useState<{ id: string; name: string; session: string }[]>([]);
-  const [categories, setCategories] = useState<{ id: string; name: string; code: string }[]>([]);
-  const [selectedInvoice, setSelectedInvoice] = useState<AccountInvoiceSummary | null>(null);
-  const [lineItems, setLineItems] = useState<InvoiceItemRow[]>([]);
-  const [academicTerm, setAcademicTerm] = useState("2026-T1");
+  const { user } = useAuth();
+  const { schoolId, loading: authLoading } = useBillingAuth();
+
+  const [classes, setClasses] = useState<FamilyClassOption[]>([]);
+  const [selectedClassIds, setSelectedClassIds] = useState<Set<string>>(new Set());
+  const [students, setStudents] = useState<FamilyStudentRow[]>([]);
+  const [classFees, setClassFees] = useState<FamilyClassFee[]>([]);
+  const [parents, setParents] = useState<FamilyParentCandidate[]>([]);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
+  const [selectedFeeIds, setSelectedFeeIds] = useState<Set<string>>(new Set());
+  const [selectedParentId, setSelectedParentId] = useState("");
+  const [manualParentName, setManualParentName] = useState("");
+  const [manualParentPhone, setManualParentPhone] = useState("");
+  const [dueDate, setDueDate] = useState(defaultDueDate);
+  const [previewLines, setPreviewLines] = useState<FamilyInvoiceLinePreview[]>([]);
+  const [loadingClasses, setLoadingClasses] = useState(true);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const classIds = useMemo(() => [...selectedClassIds], [selectedClassIds]);
+
+  const selectedStudents = useMemo(
+    () => students.filter((s) => selectedStudentIds.has(s.id)),
+    [students, selectedStudentIds],
+  );
+
+  const selectedParent = useMemo(
+    () => parents.find((p) => p.id === selectedParentId) ?? null,
+    [parents, selectedParentId],
+  );
+
+  const parentOptions = useMemo(
+    () =>
+      parents.map((p) => ({
+        value: p.id,
+        label: p.name,
+        description: `${p.linkedStudentIds.length} linked ${p.linkedStudentIds.length === 1 ? "child" : "children"}${p.phone ? ` · ${p.phone}` : ""}`,
+      })),
+    [parents],
+  );
+
+  const terms = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const fee of classFees) {
+      if (!map.has(fee.termId)) map.set(fee.termId, fee.termName);
+    }
+    return [...map.entries()].map(([id, name]) => ({ id, name }));
+  }, [classFees]);
+
   const [selectedTermId, setSelectedTermId] = useState("");
-  const [jobProgress, setJobProgress] = useState<{ processed: number; total: number } | null>(null);
-  const [runningJob, setRunningJob] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState("");
-  const [recording, setRecording] = useState(false);
-  const [manualAllocate, setManualAllocate] = useState(false);
-  const [allocByItem, setAllocByItem] = useState<Record<string, string>>({});
-  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
-  const [students, setStudents] = useState<{ id: string; label: string }[]>([]);
-  const [templateOpen, setTemplateOpen] = useState(false);
-  const [savingTemplate, setSavingTemplate] = useState(false);
-  const [newTemplate, setNewTemplate] = useState({
-    name: "",
-    fee_category_id: "",
-    amount: "",
-    scope: "global" as "global" | "grade" | "student",
-    class_id: "",
-    student_id: "",
-    academic_term: "2026-T1",
-  });
 
-  const load = useCallback(async () => {
+  const visibleFees = useMemo(
+    () => classFees.filter((f) => !selectedTermId || f.termId === selectedTermId),
+    [classFees, selectedTermId],
+  );
+
+  const previewTotal = useMemo(
+    () => previewLines.reduce((sum, line) => sum + line.amount, 0),
+    [previewLines],
+  );
+
+  const currency = previewLines[0]?.currency ?? classFees[0]?.currency ?? "GHS";
+
+  const loadClasses = useCallback(async () => {
     if (!schoolId) return;
-    setLoading(true);
+    setLoadingClasses(true);
     try {
-      const [inv, acc, tmpl, termsRes, catsRes, classesRes, studentsRes] = await Promise.all([
-        fetchAccountInvoices(schoolId),
-        fetchBillingAccounts(schoolId),
-        fetchFeeTemplates(schoolId),
-        supabase.from("terms").select("id, name, session").eq("school_id", schoolId).order("name"),
-        (supabase as any)
-          .from("fee_categories")
-          .select("id, name, code, default_priority")
-          .eq("school_id", schoolId)
-          .order("default_priority"),
-        supabase.from("classes").select("id, name").eq("school_id", schoolId).order("name"),
-        supabase
-          .from("students")
-          .select("id, admission_no, user_id")
-          .eq("school_id", schoolId)
-          .order("admission_no"),
-      ]);
-
-      if (termsRes.error) throw termsRes.error;
-      if (catsRes.error) throw catsRes.error;
-      if (classesRes.error) throw classesRes.error;
-      if (studentsRes.error) throw studentsRes.error;
-
-      setInvoices(inv);
-      setAccounts(acc);
-      setTemplates(tmpl);
-      setTerms(termsRes.data ?? []);
-      setCategories(catsRes.data ?? []);
-      setClasses(classesRes.data ?? []);
-      const studRows = studentsRes.data ?? [];
-      const studUserIds = studRows.map((s) => s.user_id).filter(Boolean) as string[];
-      const studNameMap = new Map<string, string>();
-      if (studUserIds.length) {
-        const { data: profs } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", studUserIds);
-        for (const p of profs ?? []) studNameMap.set(p.id, p.full_name ?? "");
-      }
-      setStudents(
-        studRows.map((s) => ({
-          id: s.id,
-          label: `${studNameMap.get(s.user_id ?? "") || "Student"} (${s.admission_no ?? s.id.slice(0, 8)})`,
-        })),
-      );
+      setClasses(await fetchFamilyClasses(schoolId));
     } catch (e) {
-      toast.error(formatLoadError(e));
+      toast.error(e instanceof Error ? e.message : "Failed to load classes");
     } finally {
-      setLoading(false);
+      setLoadingClasses(false);
     }
   }, [schoolId]);
 
-  useEffect(() => {
-    if (schoolLoading || !schoolId) return;
-    void load();
-  }, [load, schoolLoading, schoolId]);
-
-  const openInvoice = async (inv: AccountInvoiceSummary) => {
-    setSelectedInvoice(inv);
-    setManualAllocate(false);
-    setAllocByItem({});
-    setPaymentAmount("");
-    try {
-      const items = await fetchInvoiceItems(inv.id);
-      setLineItems(items);
-    } catch {
-      toast.error("Could not load line items");
+  const loadStudentsAndFees = useCallback(async () => {
+    if (!schoolId || !classIds.length) {
+      setStudents([]);
+      setClassFees([]);
+      setSelectedStudentIds(new Set());
+      setSelectedFeeIds(new Set());
+      setParents([]);
+      setSelectedParentId("");
+      return;
     }
-  };
-
-  const handleSetup = async () => {
-    if (!schoolId) return;
+    setLoadingStudents(true);
     try {
-      await seedBillingDefaults(schoolId);
-      const result = await backfillBillingAccounts(schoolId);
-      toast.success(
-        `Setup complete: ${result.accounts_created} accounts created, ${result.links_ensured} student links`,
-      );
-      await load();
+      const [studentRows, fees] = await Promise.all([
+        fetchStudentsForClassIds(schoolId, classIds),
+        fetchClassFeesForClassIds(schoolId, classIds),
+      ]);
+      setStudents(studentRows);
+      setClassFees(fees);
+      setSelectedStudentIds(new Set(studentRows.map((s) => s.id)));
+      const termIds = [...new Set(fees.map((f) => f.termId))];
+      setSelectedTermId(termIds[0] ?? "");
+      const termFees = fees.filter((f) => f.termId === (termIds[0] ?? ""));
+      setSelectedFeeIds(new Set(termFees.map((f) => f.id)));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Setup failed");
+      toast.error(e instanceof Error ? e.message : "Failed to load students or fees");
+    } finally {
+      setLoadingStudents(false);
     }
+  }, [schoolId, classIds]);
+
+  const loadParents = useCallback(async () => {
+    if (!schoolId || !selectedStudentIds.size) {
+      setParents([]);
+      setSelectedParentId("");
+      return;
+    }
+    try {
+      const rows = await fetchParentsForStudentIds(schoolId, [...selectedStudentIds]);
+      setParents(rows);
+      const shared = rows.filter((p) =>
+        selectedStudents.every((s) => p.linkedStudentIds.includes(s.id)),
+      );
+      if (shared.length === 1) {
+        setSelectedParentId(shared[0].id);
+        setManualParentName(shared[0].name);
+        setManualParentPhone(shared[0].phone ?? "");
+      } else if (shared.length > 1 && !selectedParentId) {
+        setSelectedParentId(shared[0].id);
+        setManualParentName(shared[0].name);
+        setManualParentPhone(shared[0].phone ?? "");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to load parents");
+    }
+  }, [schoolId, selectedStudentIds, selectedStudents, selectedParentId]);
+
+  const loadPreview = useCallback(async () => {
+    if (!schoolId || !selectedStudents.length || !selectedFeeIds.size) {
+      setPreviewLines([]);
+      return;
+    }
+    setLoadingPreview(true);
+    try {
+      const lines = await previewFamilyInvoiceLines(schoolId, selectedStudents, [...selectedFeeIds]);
+      setPreviewLines(lines);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to preview invoice");
+      setPreviewLines([]);
+    } finally {
+      setLoadingPreview(false);
+    }
+  }, [schoolId, selectedStudents, selectedFeeIds]);
+
+  useEffect(() => {
+    void loadClasses();
+  }, [loadClasses]);
+
+  useEffect(() => {
+    void loadStudentsAndFees();
+  }, [loadStudentsAndFees]);
+
+  useEffect(() => {
+    void loadParents();
+  }, [loadParents]);
+
+  useEffect(() => {
+    void loadPreview();
+  }, [loadPreview]);
+
+  useEffect(() => {
+    if (!selectedParent) return;
+    setManualParentName(selectedParent.name);
+    setManualParentPhone(selectedParent.phone ?? "");
+  }, [selectedParent]);
+
+  useEffect(() => {
+    if (!selectedTermId) return;
+    const ids = visibleFees.map((f) => f.id);
+    setSelectedFeeIds(new Set(ids));
+  }, [selectedTermId, visibleFees]);
+
+  const toggleClass = (id: string, checked: boolean) => {
+    setSelectedClassIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
   };
 
-  const handleGenerate = async () => {
-    if (!schoolId) return;
-    setRunningJob(true);
-    setJobProgress({ processed: 0, total: 0 });
+  const toggleStudent = (id: string, checked: boolean) => {
+    setSelectedStudentIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const toggleFee = (id: string, checked: boolean) => {
+    setSelectedFeeIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const validateBeforeCreate = () => {
+    if (!schoolId || !user) return null;
+    if (!classIds.length) {
+      toast.error("Select at least one class.");
+      return null;
+    }
+    if (!selectedStudents.length) {
+      toast.error("Select at least one student.");
+      return null;
+    }
+    if (!selectedFeeIds.size) {
+      toast.error("Select at least one class fee.");
+      return null;
+    }
+    if (!previewLines.length) {
+      toast.error("No billable lines for this selection.");
+      return null;
+    }
+    if (!manualParentName.trim() && !selectedParent) {
+      toast.error("Enter or assign a parent name.");
+      return null;
+    }
+    return {
+      parentId: selectedParentId || null,
+      parentName: manualParentName.trim() || selectedParent?.name || "Parent",
+      parentPhone: manualParentPhone.trim() || selectedParent?.phone || null,
+    };
+  };
+
+  const runCreate = async (action: "create" | "send" | "print") => {
+    const validated = validateBeforeCreate();
+    if (!validated || !schoolId || !user) return;
+
+    if (action === "send" && !validated.parentPhone && !selectedParentId) {
+      toast.error("Enter a phone number or select a linked parent to send via WhatsApp.");
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      const jobId = await createBillingJob({
+      const result = await createFamilyInvoiceFromFees({
         schoolId,
-        academicTerm,
+        parentId: validated.parentId,
+        parentName: validated.parentName,
+        students: selectedStudents,
+        feeItemIds: [...selectedFeeIds],
+        dueDate,
+        issuedBy: user.id,
         termId: selectedTermId || null,
       });
 
-      const { data: session } = await supabase.auth.getSession();
-      const token = session.session?.access_token;
-      if (token) {
-        const res = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/billing-process-job`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ jobId, maxChunks: 100, chunkSize: 200 }),
-          },
-        );
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error ?? "Job failed");
-        setJobProgress(json.progress);
+      const childNames = [...new Set(result.lineItems.map((l) => l.studentName))];
+
+      if (action === "send") {
+        const wa = await notifyFamilyInvoiceWhatsApp({
+          schoolId,
+          parentId: result.parentId,
+          studentId: selectedStudents[0].id,
+          invoiceId: result.invoiceId,
+          invoiceNumber: result.invoiceNumber,
+          childNames,
+          total: result.total,
+          currency: result.currency,
+          dueDate,
+          createdBy: user.id,
+          force: true,
+          manualPhone: validated.parentPhone,
+        });
+        if (wa.errors.length) toast.error(wa.errors[0]);
+        else toast.success(`Invoice ${result.invoiceNumber} sent via WhatsApp`);
+      } else if (action === "print") {
+        await printFamilyInvoice({
+          schoolId,
+          invoiceNumber: result.invoiceNumber,
+          parentName: validated.parentName,
+          parentPhone: validated.parentPhone,
+          dueDate,
+          currency: result.currency,
+          total: result.total,
+          lineItems: result.lineItems,
+          childNames,
+        });
+        toast.success(`Invoice ${result.invoiceNumber} ready to print`);
       } else {
-        await runBillingJobToCompletion(jobId, setJobProgress);
+        toast.success(`Family invoice ${result.invoiceNumber} created`);
       }
-
-      toast.success("Consolidated invoices generated");
-      await load();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Generation failed");
+      toast.error(e instanceof Error ? e.message : "Failed to create family invoice");
     } finally {
-      setRunningJob(false);
+      setSubmitting(false);
     }
   };
 
-  const handleRecordPayment = async () => {
-    if (!schoolId || !selectedInvoice) return;
-    const amount = parseFloat(paymentAmount);
-    if (!amount || amount <= 0) {
-      toast.error("Enter a valid amount");
-      return;
-    }
-    let manualAllocations: { invoice_item_id: string; amount: number }[] | undefined;
-    if (manualAllocate) {
-      manualAllocations = lineItems
-        .map((li) => ({
-          invoice_item_id: li.id,
-          amount: parseFloat(allocByItem[li.id] ?? "0") || 0,
-        }))
-        .filter((a) => a.amount > 0);
-      const sum = manualAllocations.reduce((s, a) => s + a.amount, 0);
-      if (Math.abs(sum - amount) > 0.02) {
-        toast.error(`Manual splits must equal payment (${sum.toFixed(2)} ≠ ${amount.toFixed(2)})`);
-        return;
-      }
-      if (!manualAllocations.length) {
-        toast.error("Enter amounts for at least one line item");
-        return;
-      }
-    }
-    setRecording(true);
-    try {
-      await recordAccountPayment({
-        schoolId,
-        billingAccountId: selectedInvoice.billing_account_id,
-        invoiceId: selectedInvoice.id,
-        amount,
-        manualAllocations,
-      });
-      toast.success(manualAllocate ? "Payment recorded (manual allocation)" : "Payment recorded and allocated");
-      setPaymentAmount("");
-      await openInvoice(selectedInvoice);
-      await load();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Payment failed");
-    } finally {
-      setRecording(false);
-    }
-  };
-
-  const handleSaveTemplate = async () => {
-    if (!schoolId) return;
-    const amount = parseFloat(newTemplate.amount);
-    if (!newTemplate.name || !newTemplate.fee_category_id || !amount || amount <= 0) {
-      toast.error("Name, category, and amount are required");
-      return;
-    }
-    if (newTemplate.scope === "grade" && !newTemplate.class_id) {
-      toast.error("Select a class for grade-scoped fees");
-      return;
-    }
-    if (newTemplate.scope === "student" && !newTemplate.student_id) {
-      toast.error("Select a student for individual fees");
-      return;
-    }
-    setSavingTemplate(true);
-    try {
-      await upsertFeeTemplate({
-        school_id: schoolId,
-        fee_category_id: newTemplate.fee_category_id,
-        name: newTemplate.name,
-        amount,
-        scope: newTemplate.scope,
-        academic_term: newTemplate.academic_term,
-        term_id: selectedTermId || null,
-        class_id: newTemplate.scope === "grade" ? newTemplate.class_id : null,
-        student_id: newTemplate.scope === "student" ? newTemplate.student_id : null,
-      });
-      toast.success("Fee template added");
-      setTemplateOpen(false);
-      setNewTemplate({
-        name: "",
-        fee_category_id: "",
-        amount: "",
-        scope: "global",
-        class_id: "",
-        student_id: "",
-        academic_term: academicTerm,
-      });
-      await load();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not save template");
-    } finally {
-      setSavingTemplate(false);
-    }
-  };
-
-  if (schoolLoading || loading) {
+  if (authLoading || loadingClasses) {
     return (
-      <div className="flex justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
-  if (!schoolId) {
-    return (
-      <Card>
-        <CardContent className="py-10 text-center text-muted-foreground">
-          No school selected. Choose a school from the header switcher, then open Family Billing again.
-        </CardContent>
-      </Card>
+      <BillingFeePageShell
+        title="Family billing"
+        description="Select classes and students, assign class fees to a parent, then send or print."
+      >
+        <BillingFeeLoadingState />
+      </BillingFeePageShell>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Family Billing</h2>
-          <p className="text-muted-foreground text-sm">
-            Multi-child consolidated invoices — one ledger per parent, payment waterfall allocation.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => void load()}>
-            <RefreshCw className="h-4 w-4 mr-1" />
-            Refresh
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => void handleSetup()}>
-            Initial setup
-          </Button>
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Play className="h-5 w-5" />
-            Generate term invoices (batch)
-          </CardTitle>
-          <CardDescription>
-            Queues a background job: groups fees by parent account, one consolidated invoice per family.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-end gap-4">
-          <div className="space-y-2">
-            <Label>Academic term</Label>
-            <Input
-              value={academicTerm}
-              onChange={(e) => setAcademicTerm(e.target.value)}
-              placeholder="2026-T1"
-              className="w-40"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Term (optional)</Label>
-            <Select value={selectedTermId} onValueChange={setSelectedTermId}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Select term" />
-              </SelectTrigger>
-              <SelectContent>
-                {terms.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.session} — {t.name}
-                  </SelectItem>
+    <BillingFeePageShell
+      title="Family billing"
+      description="Pick class(es) and students, use fees assigned to those classes, assign a parent, then send or print one combined invoice."
+      actions={
+        <Button variant="outline" size="sm" onClick={() => void loadClasses()}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Refresh
+        </Button>
+      }
+    >
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">1. Select class(es)</CardTitle>
+            <CardDescription>Fees are loaded from assignments on each class.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {classes.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No classes found. Add classes and assign fees first.</p>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {classes.map((cls) => (
+                  <label
+                    key={cls.id}
+                    className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/40"
+                  >
+                    <Checkbox
+                      checked={selectedClassIds.has(cls.id)}
+                      onCheckedChange={(v) => toggleClass(cls.id, Boolean(v))}
+                    />
+                    <span className="text-sm font-medium">{cls.label}</span>
+                  </label>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button onClick={() => void handleGenerate()} disabled={runningJob}>
-            {runningJob ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            Generate consolidated invoices
-          </Button>
-          {jobProgress && jobProgress.total > 0 && (
-            <div className="w-full max-w-md space-y-1">
-              <Progress value={(jobProgress.processed / jobProgress.total) * 100} />
-              <p className="text-xs text-muted-foreground">
-                {jobProgress.processed} / {jobProgress.total} students
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Tabs defaultValue="invoices">
-        <TabsList>
-          <TabsTrigger value="invoices">
-            <FileText className="h-4 w-4 mr-1" />
-            Family invoices
-          </TabsTrigger>
-          <TabsTrigger value="accounts">
-            <Users className="h-4 w-4 mr-1" />
-            Ledgers ({accounts.length})
-          </TabsTrigger>
-          <TabsTrigger value="templates">Fee templates ({templates.length})</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="invoices" className="space-y-4">
-          <Card>
-            <CardContent className="pt-6">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Invoice</TableHead>
-                    <TableHead>Family</TableHead>
-                    <TableHead>Term</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Paid</TableHead>
-                    <TableHead>Balance</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {invoices.map((inv) => (
-                    <TableRow key={inv.id}>
-                      <TableCell className="font-mono text-sm">{inv.invoice_no}</TableCell>
-                      <TableCell>
-                        <div>{inv.display_name ?? "Family"}</div>
-                        <div className="text-xs text-muted-foreground">{inv.account_no}</div>
-                      </TableCell>
-                      <TableCell>{inv.academic_term}</TableCell>
-                      <TableCell>{inv.total_amount.toFixed(2)}</TableCell>
-                      <TableCell>{inv.total_paid.toFixed(2)}</TableCell>
-                      <TableCell>{inv.balance.toFixed(2)}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{inv.status}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button size="sm" variant="outline" onClick={() => void openInvoice(inv)}>
-                              View
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                            <DialogHeader>
-                              <DialogTitle>
-                                {inv.invoice_no} — {inv.display_name}
-                              </DialogTitle>
-                            </DialogHeader>
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Student</TableHead>
-                                  <TableHead>Category</TableHead>
-                                  <TableHead>Amount</TableHead>
-                                  <TableHead>Paid</TableHead>
-                                  <TableHead>Balance</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {lineItems.map((li) => (
-                                  <TableRow key={li.id}>
-                                    <TableCell>
-                                      {li.student_name}
-                                      {li.admission_no && (
-                                        <span className="text-xs text-muted-foreground block">
-                                          {li.admission_no}
-                                        </span>
-                                      )}
-                                    </TableCell>
-                                    <TableCell>
-                                      {li.category_name}
-                                      <span className="text-xs text-muted-foreground block">
-                                        P{li.category_priority}
-                                      </span>
-                                    </TableCell>
-                                    <TableCell>{li.amount.toFixed(2)}</TableCell>
-                                    <TableCell>{li.amount_paid.toFixed(2)}</TableCell>
-                                    <TableCell>
-                                      {li.balance.toFixed(2)}
-                                      {li.is_overdue && (
-                                        <Badge variant="destructive" className="ml-1 text-xs">
-                                          Overdue
-                                        </Badge>
-                                      )}
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                            <div className="space-y-3 pt-4 border-t">
-                              <div className="flex items-center gap-2">
-                                <Checkbox
-                                  id="manual-alloc"
-                                  checked={manualAllocate}
-                                  onCheckedChange={(v) => setManualAllocate(v === true)}
-                                />
-                                <Label htmlFor="manual-alloc" className="font-normal cursor-pointer">
-                                  Manual allocation (split to specific line items)
-                                </Label>
-                              </div>
-                              {manualAllocate && (
-                                <Table>
-                                  <TableHeader>
-                                    <TableRow>
-                                      <TableHead>Line item</TableHead>
-                                      <TableHead>Balance</TableHead>
-                                      <TableHead>Allocate</TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    {lineItems.map((li) => (
-                                      <TableRow key={li.id}>
-                                        <TableCell className="text-sm">
-                                          {li.student_name} — {li.category_name}
-                                        </TableCell>
-                                        <TableCell>{li.balance.toFixed(2)}</TableCell>
-                                        <TableCell>
-                                          <Input
-                                            type="number"
-                                            className="w-28 h-8"
-                                            placeholder="0"
-                                            value={allocByItem[li.id] ?? ""}
-                                            onChange={(e) =>
-                                              setAllocByItem((prev) => ({
-                                                ...prev,
-                                                [li.id]: e.target.value,
-                                              }))
-                                            }
-                                          />
-                                        </TableCell>
-                                      </TableRow>
-                                    ))}
-                                  </TableBody>
-                                </Table>
-                              )}
-                              <div className="flex flex-wrap items-end gap-2">
-                                <div className="space-y-1">
-                                  <Label>
-                                    {manualAllocate ? "Total payment" : "Record payment (auto waterfall)"}
-                                  </Label>
-                                  <Input
-                                    type="number"
-                                    placeholder="Amount"
-                                    value={paymentAmount}
-                                    onChange={(e) => setPaymentAmount(e.target.value)}
-                                    className="w-32"
-                                  />
-                                </div>
-                                <Button
-                                  onClick={() => void handleRecordPayment()}
-                                  disabled={recording}
-                                >
-                                  {recording ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    "Apply payment"
-                                  )}
-                                </Button>
-                              </div>
-                              {!manualAllocate && (
-                                <p className="text-xs text-muted-foreground">
-                                  Auto order: overdue balances → fee category priority → proportional split.
-                                </p>
-                              )}
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {invoices.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                        No family invoices yet. Run setup, add fee templates, then generate.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="accounts">
-          <Card>
-            <CardContent className="pt-6">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Account</TableHead>
-                    <TableHead>Children</TableHead>
-                    <TableHead>Balance due</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {accounts.map((a: any) => (
-                    <TableRow key={a.id}>
-                      <TableCell>
-                        <div className="font-medium">{a.display_name ?? a.account_no}</div>
-                        <div className="text-xs text-muted-foreground">{a.account_no}</div>
-                      </TableCell>
-                      <TableCell>
-                        {(a.billing_account_students ?? [])
-                          .map((l: any) => l.student_label ?? "?")
-                          .join(", ")}
-                      </TableCell>
-                      <TableCell>{Number(a.balance_due).toFixed(2)}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{a.status}</Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="templates">
-          <Card>
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div>
-                <CardTitle className="text-base">Fee templates</CardTitle>
-                <CardDescription>
-                  Global, grade, or student-scoped fees used when generating consolidated invoices.
-                </CardDescription>
               </div>
-              <Dialog open={templateOpen} onOpenChange={setTemplateOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add template
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>New fee template</DialogTitle>
-                  </DialogHeader>
-                  <div className="grid gap-3 py-2">
-                    <div className="space-y-1">
-                      <Label>Name</Label>
-                      <Input
-                        value={newTemplate.name}
-                        onChange={(e) => setNewTemplate((t) => ({ ...t, name: e.target.value }))}
-                        placeholder="Term 1 Tuition"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Category</Label>
-                      <Select
-                        value={newTemplate.fee_category_id}
-                        onValueChange={(v) => setNewTemplate((t) => ({ ...t, fee_category_id: v }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label>Amount</Label>
-                        <Input
-                          type="number"
-                          value={newTemplate.amount}
-                          onChange={(e) => setNewTemplate((t) => ({ ...t, amount: e.target.value }))}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label>Academic term</Label>
-                        <Input
-                          value={newTemplate.academic_term}
-                          onChange={(e) =>
-                            setNewTemplate((t) => ({ ...t, academic_term: e.target.value }))
-                          }
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Scope</Label>
-                      <Select
-                        value={newTemplate.scope}
-                        onValueChange={(v) =>
-                          setNewTemplate((t) => ({
-                            ...t,
-                            scope: v as "global" | "grade" | "student",
-                          }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="global">All students</SelectItem>
-                          <SelectItem value="grade">Grade / class</SelectItem>
-                          <SelectItem value="student">Individual student</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {newTemplate.scope === "grade" && (
-                      <div className="space-y-1">
-                        <Label>Class</Label>
-                        <Select
-                          value={newTemplate.class_id}
-                          onValueChange={(v) => setNewTemplate((t) => ({ ...t, class_id: v }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select class" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {classes.map((c) => (
-                              <SelectItem key={c.id} value={c.id}>
-                                {c.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                    {newTemplate.scope === "student" && (
-                      <div className="space-y-1">
-                        <Label>Student</Label>
-                        <Select
-                          value={newTemplate.student_id}
-                          onValueChange={(v) => setNewTemplate((t) => ({ ...t, student_id: v }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select student" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {students.map((s) => (
-                              <SelectItem key={s.id} value={s.id}>
-                                {s.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                    <Button onClick={() => void handleSaveTemplate()} disabled={savingTemplate}>
-                      {savingTemplate ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save template"}
-                    </Button>
+            )}
+          </CardContent>
+        </Card>
+
+        {classIds.length > 0 && (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">2. Select students</CardTitle>
+                <CardDescription>Students in the selected class(es).</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingStudents ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Scope</TableHead>
-                    <TableHead>Term</TableHead>
-                    <TableHead>Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {templates.map((t: any) => (
-                    <TableRow key={t.id}>
-                      <TableCell>{t.name}</TableCell>
-                      <TableCell>{t.fee_categories?.name}</TableCell>
-                      <TableCell>{t.scope}</TableCell>
-                      <TableCell>{t.academic_term}</TableCell>
-                      <TableCell>
-                        {Number(t.amount).toFixed(2)} {t.currency ?? "GHS"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {categories.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-4">
-                  Categories (payment priority):{" "}
-                  {categories.map((c) => `${c.name} (${c.default_priority})`).join(" → ")}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+                ) : students.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">No students in selected classes.</p>
+                ) : (
+                  <div className="rounded-lg border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-10">
+                            <Checkbox
+                              checked={students.length > 0 && selectedStudentIds.size === students.length}
+                              onCheckedChange={(v) =>
+                                setSelectedStudentIds(v ? new Set(students.map((s) => s.id)) : new Set())
+                              }
+                            />
+                          </TableHead>
+                          <TableHead>Student</TableHead>
+                          <TableHead>Class</TableHead>
+                          <TableHead>ID</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {students.map((student) => (
+                          <TableRow key={student.id}>
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedStudentIds.has(student.id)}
+                                onCheckedChange={(v) => toggleStudent(student.id, Boolean(v))}
+                              />
+                            </TableCell>
+                            <TableCell className="font-medium">{student.name}</TableCell>
+                            <TableCell>{student.className}</TableCell>
+                            <TableCell className="font-mono text-xs">{student.admission}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">3. Class fees</CardTitle>
+                <CardDescription>Fees assigned to the selected class(es).</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {loadingStudents ? (
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mx-auto" />
+                ) : classFees.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No fees assigned to these classes. Assign fees on Fee Structure first.
+                  </p>
+                ) : (
+                  <>
+                    {terms.length > 1 && (
+                      <div className="space-y-2 max-w-xs">
+                        <Label>Term</Label>
+                        <SearchableSelect
+                          options={terms.map((t) => ({ value: t.id, label: t.name }))}
+                          value={selectedTermId}
+                          onChange={setSelectedTermId}
+                          placeholder="Select term…"
+                        />
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      {visibleFees.map((fee) => (
+                        <label
+                          key={fee.id}
+                          className="flex items-center justify-between gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/40"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Checkbox
+                              checked={selectedFeeIds.has(fee.id)}
+                              onCheckedChange={(v) => toggleFee(fee.id, Boolean(v))}
+                            />
+                            <div>
+                              <p className="font-medium text-sm">{fee.feeName}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {fee.classLabels.join(", ")} · {fee.termName}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge variant="secondary">{formatMoney(fee.amount, fee.currency)}</Badge>
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Users className="h-4 w-4" />
+                  4. Assign parent
+                </CardTitle>
+                <CardDescription>Pick a linked parent or enter contact details.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Linked parent</Label>
+                  <SearchableSelect
+                    options={parentOptions}
+                    value={selectedParentId}
+                    onChange={setSelectedParentId}
+                    placeholder={parents.length ? "Choose parent…" : "No linked parents for selected students"}
+                    emptyText="Link parents on Parent-Student Link page."
+                    allowClear
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="parent-name">Parent name</Label>
+                  <Input
+                    id="parent-name"
+                    value={manualParentName}
+                    onChange={(e) => setManualParentName(e.target.value)}
+                    placeholder="Parent / guardian name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="parent-phone">Phone / WhatsApp</Label>
+                  <Input
+                    id="parent-phone"
+                    value={manualParentPhone}
+                    onChange={(e) => setManualParentPhone(e.target.value)}
+                    placeholder="e.g. 233XXXXXXXXX"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="due-date">Due date</Label>
+                  <Input
+                    id="due-date"
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Invoice preview</CardTitle>
+                <CardDescription>
+                  {loadingPreview
+                    ? "Calculating…"
+                    : previewLines.length
+                      ? `${previewLines.length} line(s) · ${formatMoney(previewTotal, currency)}`
+                      : "Select students and fees to preview."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {previewLines.length > 0 && (
+                  <div className="rounded-lg border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Student</TableHead>
+                          <TableHead>Fee</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {previewLines.map((line, idx) => (
+                          <TableRow key={`${line.studentId}-${line.feeName}-${idx}`}>
+                            <TableCell>
+                              <div className="font-medium">{line.studentName}</div>
+                              <div className="text-xs text-muted-foreground">{line.className}</div>
+                            </TableCell>
+                            <TableCell>{line.feeName}</TableCell>
+                            <TableCell className="text-right">{formatMoney(line.amount, line.currency)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2 pt-2 border-t">
+                  <Button
+                    onClick={() => void runCreate("create")}
+                    disabled={submitting || !previewLines.length}
+                    variant="outline"
+                  >
+                    {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Create invoice
+                  </Button>
+                  <Button
+                    onClick={() => void runCreate("send")}
+                    disabled={submitting || !previewLines.length}
+                  >
+                    {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-2 h-4 w-4" />}
+                    Create &amp; send
+                  </Button>
+                  <Button
+                    onClick={() => void runCreate("print")}
+                    disabled={submitting || !previewLines.length}
+                    variant="secondary"
+                  >
+                    {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
+                    Create &amp; print
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
+      </div>
+    </BillingFeePageShell>
   );
 }

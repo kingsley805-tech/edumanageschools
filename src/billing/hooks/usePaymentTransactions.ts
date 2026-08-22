@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { PaymentTransactionRow } from "@/billing/lib/paymentTransactions";
+import { extractPaymentMetadata } from "@/billing/lib/paymentTransactions";
 
 type Scope =
   | { mode: "school"; schoolId: string }
@@ -59,6 +60,19 @@ function mapPaymentRow(
     paid_at: (row.paid_at as string) ?? null,
     created_at: String(row.created_at),
     payment_context: (row.payment_context as string) ?? "fees",
+    receipt_number: (row.receipt_number as string) ?? null,
+    receipt_url: (row.receipt_url as string) ?? null,
+    whatsapp_status: (row.whatsapp_status as string) ?? null,
+    whatsapp_delivery_id: (row.whatsapp_delivery_id as string) ?? null,
+    sent_via_whatsapp_at: (row.sent_via_whatsapp_at as string) ?? null,
+    metadata: (row.metadata as Record<string, unknown>) ?? null,
+    fee_type:
+      extractPaymentMetadata((row.metadata as Record<string, unknown>) ?? null).fee_type
+      ?? extractPaymentMetadata((row.metadata as Record<string, unknown>) ?? null).fee_category
+      ?? null,
+    term: extractPaymentMetadata((row.metadata as Record<string, unknown>) ?? null).term ?? null,
+    academic_year:
+      extractPaymentMetadata((row.metadata as Record<string, unknown>) ?? null).academic_year ?? null,
     ...extras,
   };
 }

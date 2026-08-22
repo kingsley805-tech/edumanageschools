@@ -77,11 +77,7 @@ export function AcademicCalendarPanel({ schoolId, permission }: Props) {
   }
 
   if (schemaOk === null) {
-    return (
-      <div className="mb-6 flex justify-center py-8">
-        <div className="fee-spinner" />
-      </div>
-    );
+    return <p className="fee-loading mb-6">Loading calendar…</p>;
   }
 
   const invalidate = async () => {
@@ -179,7 +175,7 @@ function AcademicYearsCard({
   const valid = !!name.trim() && !!startDate && !!endDate;
 
   return (
-    <div className="fee-card p-6 animate-slide-up stagger-1">
+    <div className="fee-card p-6">
       <div className="section-title">
         <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span className="section-icon">
@@ -258,9 +254,7 @@ function AcademicYearsCard({
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-8">
-          <div className="fee-spinner" />
-        </div>
+        <p className="fee-loading">Loading academic years…</p>
       ) : years.length === 0 ? (
         <div className="fee-empty">
           No academic years yet.
@@ -270,7 +264,7 @@ function AcademicYearsCard({
       ) : (
         <div className="flex flex-col gap-2">
           {years.map((y, i) => (
-            <div key={y.id} className="fee-row" style={{ animationDelay: `${i * 0.05}s` }}>
+            <div key={y.id} className="fee-row">
               <div>
                 <div
                   style={{
@@ -398,7 +392,7 @@ function FinanceTermsCard({
   const valid = !!yearId && !!name.trim() && !!startDate && !!endDate && !!dueDate;
 
   return (
-    <div className="fee-card p-6 animate-slide-up stagger-2">
+    <div className="fee-card p-6">
       <div className="section-title">
         <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span className="section-icon">
@@ -508,9 +502,7 @@ function FinanceTermsCard({
           <span style={{ fontSize: 12 }}>Then add Term 1, Term 2, etc. for billing.</span>
         </div>
       ) : loading ? (
-        <div className="flex justify-center py-8">
-          <div className="fee-spinner" />
-        </div>
+        <p className="fee-loading">Loading terms…</p>
       ) : terms.length === 0 ? (
         <div className="fee-empty">
           No terms yet.
@@ -520,7 +512,7 @@ function FinanceTermsCard({
       ) : (
         <div className="flex flex-col gap-2">
           {terms.map((term, i) => (
-            <div key={term.id} className="fee-row" style={{ animationDelay: `${i * 0.05}s` }}>
+            <div key={term.id} className="fee-row">
               <div>
                 <div
                   style={{

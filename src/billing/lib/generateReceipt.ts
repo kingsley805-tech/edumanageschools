@@ -2,6 +2,7 @@
 ﻿import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatMoney } from "@/lib/currency";
+import { formatReceiptPaidTime } from "@/billing/lib/paymentTransactions";
 
 export type ReceiptLetterhead = {
   schoolName: string;
@@ -34,6 +35,20 @@ export interface ReceiptData {
   paystackReference?: string | null;
   /** Paystack transaction id (numeric id from Paystack) */
   paystackTransactionId?: string | null;
+  /** Outstanding balance after this payment */
+  balanceDue?: number | null;
+  /** Explicit POS terminal label when method is POS */
+  posTerminalLabel?: string | null;
+  cashierName?: string | null;
+  academicYear?: string | null;
+  term?: string | null;
+  /** Fee type / category label (e.g. Tuition, PTA) */
+  feeCategory?: string | null;
+  /** Alias displayed as "Fee type" on receipts */
+  feeType?: string | null;
+  transactionNumber?: string | null;
+  notes?: string | null;
+  previousBalance?: number | null;
 }
 
 async function tryFetchImageDataUrl(
@@ -58,8 +73,8 @@ async function tryFetchImageDataUrl(
   }
 }
 
-/** Generates a branded PDF receipt / invoice with optional Paystack identifiers. */
-export async function generateReceipt(data: ReceiptData) {
+/** Builds the receipt PDF document (shared by download + blob export). */
+export async function buildReceiptDoc(data: ReceiptData): Promise<jsPDF> {
   const doc = new jsPDF({ unit: "mm", format: "a5" });
   const w = doc.internal.pageSize.getWidth();
   const primary = [29, 148, 120];
@@ -112,13 +127,9 @@ export async function generateReceipt(data: ReceiptData) {
   doc.text(data.receiptNumber, 42, y);
 
   doc.setFont("helvetica", "bold");
-  doc.text("Date:", w / 2 + 2, y);
+  doc.text("Paid at:", w / 2 + 2, y);
   doc.setFont("helvetica", "normal");
-  doc.text(
-    new Date(data.paidAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
-    w / 2 + 18,
-    y,
-  );
+  doc.text(formatReceiptPaidTime(data.paidAt), w / 2 + 18, y, { maxWidth: w / 2 - margin - 20 });
 
   y += 10;
   doc.setDrawColor(220, 220, 220);
@@ -140,7 +151,25 @@ export async function generateReceipt(data: ReceiptData) {
   if (data.gateway?.trim()) {
     infoRows.push(["Gateway", data.gateway.trim()]);
   }
+  if (data.feeCategory?.trim() || data.feeType?.trim()) {
+    infoRows.push(["Fee type", (data.feeType || data.feeCategory)!.trim()]);
+  }
+  if (data.academicYear?.trim()) {
+    infoRows.push(["Academic year", data.academicYear.trim()]);
+  }
+  if (data.term?.trim()) {
+    infoRows.push(["Term", data.term.trim()]);
+  }
+  if (data.transactionNumber?.trim()) {
+    infoRows.push(["Transaction #", data.transactionNumber.trim()]);
+  }
+  if (data.cashierName?.trim()) {
+    infoRows.push(["Cashier", data.cashierName.trim()]);
+  }
   infoRows.push(["Payment method", data.method.replace(/_/g, " ")]);
+  if (data.posTerminalLabel?.trim()) {
+    infoRows.push(["POS Terminal", data.posTerminalLabel.trim()]);
+  }
   if (data.paymentStatus?.trim()) {
     infoRows.push(["Status", data.paymentStatus.trim()]);
   }
@@ -149,6 +178,15 @@ export async function generateReceipt(data: ReceiptData) {
   }
   if (data.paystackTransactionId) {
     infoRows.push(["Transaction ID", data.paystackTransactionId]);
+  }
+  if (data.balanceDue != null && Number.isFinite(data.balanceDue)) {
+    infoRows.push(["Remaining balance", formatMoney(Number(data.balanceDue), data.currency)]);
+  }
+  if (data.previousBalance != null && Number.isFinite(data.previousBalance)) {
+    infoRows.push(["Previous balance", formatMoney(Number(data.previousBalance), data.currency)]);
+  }
+  if (data.notes?.trim()) {
+    infoRows.push(["Notes", data.notes.trim()]);
   }
 
   for (const [label, value] of infoRows) {
@@ -192,8 +230,22 @@ export async function generateReceipt(data: ReceiptData) {
   y += 8;
   doc.setFontSize(7);
   doc.setTextColor(150, 150, 150);
+  doc.text("Thank you for your payment.", w / 2, y, { align: "center" });
+  y += 5;
   doc.text("This is a computer-generated receipt and does not require a signature.", w / 2, y, { align: "center" });
   doc.text(`Generated on ${new Date().toLocaleString()}`, w / 2, y + 5, { align: "center" });
 
+  return doc;
+}
+
+/** Generates a branded PDF receipt and triggers browser download. */
+export async function generateReceipt(data: ReceiptData) {
+  const doc = await buildReceiptDoc(data);
   doc.save(`Receipt-${data.receiptNumber}.pdf`);
+}
+
+/** Returns receipt PDF as Blob (WhatsApp upload, storage). */
+export async function generateReceiptPdfBlob(data: ReceiptData): Promise<Blob> {
+  const doc = await buildReceiptDoc(data);
+  return doc.output("blob");
 }

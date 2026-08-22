@@ -18,3 +18,8 @@ export function isTenantLockedOrPendingPayment(t: TenantOverview): boolean {
 
   return false;
 }
+
+/** Paid first-time orgs waiting for Super Admin to grant access. */
+export function isTenantAwaitingApproval(t: TenantOverview): boolean {
+  return t.subscription_status === "pending" && Boolean(t.plan_slug || t.plan_name);
+}

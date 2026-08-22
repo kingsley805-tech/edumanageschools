@@ -25,6 +25,10 @@ import { usePlatformStats, useSchoolsList } from "@/report/hooks/use-platform-da
 import { logAudit } from "@/report/lib/audit";
 
 function SuperAdminReports() {
+  return <SuperAdminReportsContent />;
+}
+
+export function SuperAdminReportsContent({ embedded = false }: { embedded?: boolean }) {
   const qc = useQueryClient();
   const [schoolFilter, setSchoolFilter] = useState("all");
   const schoolId = schoolFilter === "all" ? null : schoolFilter;
@@ -95,12 +99,18 @@ function SuperAdminReports() {
 
   return (
     <>
-      <PageHeader
-        title="Report monitoring"
-        description="Review, approve, or return report cards submitted across all schools."
-        actions={<PlatformSchoolFilter value={schoolFilter} onChange={setSchoolFilter} />}
-      />
-      <div className="space-y-6 p-6 md:p-8">
+      {!embedded ? (
+        <PageHeader
+          title="Report monitoring"
+          description="Review, approve, or return report cards submitted across all schools."
+          actions={<PlatformSchoolFilter value={schoolFilter} onChange={setSchoolFilter} />}
+        />
+      ) : (
+        <div className="mb-4 flex justify-end">
+          <PlatformSchoolFilter value={schoolFilter} onChange={setSchoolFilter} />
+        </div>
+      )}
+      <div className={embedded ? "space-y-6" : "space-y-6 p-6 md:p-8"}>
         <div className="grid gap-4 md:grid-cols-4">
           <StatCard label="Total reports" value={stats?.reports ?? 0} icon={FileText} />
           <StatCard label="Pending" value={stats?.pendingReports ?? 0} icon={Clock} tone="text-amber-600" />

@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchSchoolAttendanceList } from "@/lib/attendance-queries";
 import { useToast } from "@/hooks/use-toast";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
+import { MetronicStatCard } from "@/components/metronic/MetronicStatCard";
 
 const Attendance = () => {
   const [attendanceData, setAttendanceData] = useState<Awaited<ReturnType<typeof fetchSchoolAttendanceList>>>([]);
@@ -121,54 +123,70 @@ const Attendance = () => {
               ))}
             </SelectContent>
           </Select>
+          <ExportMenu
+            filename="attendance"
+            title="Attendance Reports"
+            headers={["Date", "Student", "Admission No", "Class", "Subject", "Status"]}
+            rows={attendanceData.map((record) => [
+              new Date(record.date).toLocaleDateString(),
+              record.studentName,
+              record.admissionNo || "—",
+              record.className,
+              record.subjectName ?? (record.source === "legacy" ? "Daily roll call" : "—"),
+              record.status === "present"
+                ? "Present"
+                : record.status === "absent"
+                  ? "Absent"
+                  : record.status === "late"
+                    ? "Late"
+                    : record.status,
+            ])}
+            disabled={attendanceData.length === 0}
+          />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-5 lg:gap-7.5 mb-7.5">
-        <div className="kt-card channel-stats-bg">
-          <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-2.5">
-              <span className="text-sm font-normal text-secondary-foreground">Total Records</span>
-              <span className="flex items-center justify-center size-10 shrink-0 rounded-lg bg-accent/60 border border-border">
-                <i className="ki-filled ki-people text-lg text-muted-foreground" />
-              </span>
-            </div>
-            <span className="text-3xl font-semibold text-mono">{stats.total}</span>
-          </div>
-        </div>
-        <div className="kt-card channel-stats-bg">
-          <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-2.5">
-              <span className="text-sm font-normal text-secondary-foreground">Present</span>
-              <span className="flex items-center justify-center size-10 shrink-0 rounded-lg bg-success/10 border border-success/20">
-                <i className="ki-filled ki-check-circle text-lg text-success" />
-              </span>
-            </div>
-            <span className="text-3xl font-semibold text-mono text-success">{stats.present}</span>
-          </div>
-        </div>
-        <div className="kt-card channel-stats-bg">
-          <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-2.5">
-              <span className="text-sm font-normal text-secondary-foreground">Absent</span>
-              <span className="flex items-center justify-center size-10 shrink-0 rounded-lg bg-danger/10 border border-danger/20">
-                <i className="ki-filled ki-cross-circle text-lg text-danger" />
-              </span>
-            </div>
-            <span className="text-3xl font-semibold text-mono text-danger">{stats.absent}</span>
-          </div>
-        </div>
-        <div className="kt-card channel-stats-bg">
-          <div className="kt-card-content p-5 lg:p-7.5 flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-2.5">
-              <span className="text-sm font-normal text-secondary-foreground">Attendance Rate</span>
-              <span className="flex items-center justify-center size-10 shrink-0 rounded-lg bg-primary/10 border border-primary/20">
-                <i className="ki-filled ki-chart-line text-lg text-primary" />
-              </span>
-            </div>
-            <span className="text-3xl font-semibold text-mono text-primary">{attendanceRate}%</span>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 lg:gap-7.5 mb-7.5">
+        <MetronicStatCard
+          keenIcon="ki-people"
+          badge={stats.total}
+          value={stats.total}
+          label="Total Records"
+          description="Attendance rows this term"
+        />
+        <MetronicStatCard
+          icon={
+            <span className="flex items-center justify-center size-8 rounded-lg bg-success/10 border border-success/20 text-success">
+              <i className="ki-filled ki-check-circle text-base" />
+            </span>
+          }
+          badge="Present"
+          value={stats.present}
+          label="Present"
+          description="Marked present"
+        />
+        <MetronicStatCard
+          icon={
+            <span className="flex items-center justify-center size-8 rounded-lg bg-danger/10 border border-danger/20 text-danger">
+              <i className="ki-filled ki-cross-circle text-base" />
+            </span>
+          }
+          badge="Absent"
+          value={stats.absent}
+          label="Absent"
+          description="Marked absent"
+        />
+        <MetronicStatCard
+          icon={
+            <span className="flex items-center justify-center size-8 rounded-lg bg-primary/10 border border-primary/20 text-primary">
+              <i className="ki-filled ki-chart-line text-base" />
+            </span>
+          }
+          badge={`${attendanceRate}%`}
+          value={`${attendanceRate}%`}
+          label="Attendance Rate"
+          description="Term student presence"
+        />
       </div>
 
       <div className="kt-card">

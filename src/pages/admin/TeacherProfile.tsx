@@ -28,6 +28,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { BookOpen, Calendar, Mail, Phone, UserRound, GraduationCap, ShieldAlert } from "lucide-react";
+import { fetchTeacherEntityStats, type TeacherEntityStats } from "@/lib/entityProfileStats";
 
 const editTeacherSchema = z.object({
   employee_no: z.string().min(1, "Employee number is required"),
@@ -46,6 +47,7 @@ export default function TeacherProfile() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [entityStats, setEntityStats] = useState<TeacherEntityStats | null>(null);
 
   const {
     register,
@@ -61,6 +63,34 @@ export default function TeacherProfile() {
       fetchTeacher(id);
     }
   }, [id]);
+
+  useEffect(() => {
+    if (!teacher?.id) {
+      setEntityStats(null);
+      return;
+    }
+    const classes: string[] = [];
+    const subjects: string[] = [];
+    for (const cs of teacher.class_subjects || []) {
+      if (cs.classes?.id && !classes.includes(cs.classes.id)) classes.push(cs.classes.id);
+      if (cs.subjects?.name && !subjects.includes(cs.subjects.name)) subjects.push(cs.subjects.name);
+    }
+    for (const tc of teacher.teacher_classes || []) {
+      if (tc.classes?.id && !classes.includes(tc.classes.id)) classes.push(tc.classes.id);
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const stats = await fetchTeacherEntityStats(teacher.id, classes.length, subjects.length);
+        if (!cancelled) setEntityStats(stats);
+      } catch {
+        if (!cancelled) setEntityStats(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [teacher]);
 
   const fetchTeacher = async (teacherId: string) => {
     try {
@@ -340,8 +370,8 @@ export default function TeacherProfile() {
             value: isActive ? "Active" : "Inactive",
           },
           {
-            label: "Attendance",
-            value: "Marked",
+            label: "Registers (month)",
+            value: entityStats?.registersLabel ?? "…",
           },
         ]}
         onRefreshStats={() => fetchTeacher(teacher.id)}

@@ -147,7 +147,7 @@ export default function InvoiceProfile() {
         studentName,
         studentAdmissionNo,
         studentClass,
-        schoolName: school?.school_name || "EduManage School",
+        schoolName: school?.school_name || "—",
         schoolAddress: school?.address || "",
         schoolPhone: school?.phone || "",
         schoolEmail: school?.email || "",
@@ -332,41 +332,29 @@ export default function InvoiceProfile() {
           },
           {
             label: "Notes",
-            value: invoice.notes || "No special notes recorded.",
+            value: invoice.notes || "—",
           },
         ]}
-        summaryStats={[
+        stats={[
           {
             label: "Total Billed",
             value: formatMoney(totalAmount, currency),
-            subtext: "Invoice total",
-            icon: "wallet",
-            tag: "Billed",
-            tagVariant: "info",
+            sub: "Invoice total",
           },
           {
             label: "Total Paid",
             value: formatMoney(amountPaid, currency),
-            subtext: "Recorded payments",
-            icon: "check-circle",
-            tag: "Paid",
-            tagVariant: "success",
+            sub: "Recorded payments",
           },
           {
             label: "Balance Due",
             value: formatMoney(balanceDue, currency),
-            subtext: "Outstanding balance",
-            icon: "time",
-            tag: balanceDue > 0 ? "Pending" : "Cleared",
-            tagVariant: balanceDue > 0 ? "warning" : "success",
+            sub: balanceDue > 0 ? "Outstanding" : "Cleared",
           },
           {
             label: "Line Items",
-            value: items.length.toString(),
-            subtext: "Fee components",
-            icon: "document",
-            tag: "Items",
-            tagVariant: "info",
+            value: items.length,
+            sub: "Fee components",
           },
         ]}
         customTabs={[

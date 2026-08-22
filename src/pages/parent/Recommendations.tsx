@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle, MessageCircle } from "lucide-react";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 
 type Rec = {
   id: string;
@@ -56,9 +57,26 @@ const ParentRecommendations = () => {
           <p className="text-[12.5px] text-muted-foreground mt-1">Academic suggestions and alerts from your child's class teacher.</p>
         </div>
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><MessageCircle className="h-5 w-5" /> Latest recommendations</CardTitle>
-            <CardDescription>Sorted by most recent first.</CardDescription>
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2"><MessageCircle className="h-5 w-5" /> Latest recommendations</CardTitle>
+              <CardDescription>Sorted by most recent first.</CardDescription>
+            </div>
+            <ExportMenu
+              filename="parent-recommendations"
+              title="Recommendations"
+              headers={["Date", "Child", "Type", "Strengths", "Areas to improve", "Suggestion", "Alert"]}
+              rows={recs.map((r) => [
+                new Date(r.created_at).toLocaleDateString(),
+                students[r.student_id] ?? "—",
+                r.recommendation_type,
+                r.strengths ?? "—",
+                r.weaknesses ?? "—",
+                r.suggestions,
+                r.threshold_alert ? "Priority" : "Info",
+              ])}
+              disabled={recs.length === 0}
+            />
           </CardHeader>
           <CardContent>
             {loading ? <p className="text-sm text-muted-foreground">Loading…</p> : (

@@ -1,12 +1,11 @@
 // @ts-nocheck
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import DashboardLayout from "@/components/DashboardLayout";
+import PlatformLayout from "@/platform/components/PlatformLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, Check, Plus, Pencil } from "lucide-react";
+import { Loader2, Check, Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -80,23 +79,17 @@ export default function SubscriptionPlansPage() {
   };
 
   return (
-    <DashboardLayout role="super_admin">
-      <div className="space-y-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <Button variant="ghost" size="sm" className="mb-2 -ml-2" asChild>
-              <Link to="/platform">
-                <ArrowLeft className="mr-1 h-4 w-4" /> Platform
-              </Link>
-            </Button>
-            <h1 className="text-3xl font-bold tracking-tight">Subscription plans</h1>
-            <p className="text-muted-foreground">Configurable packages for tenant organizations</p>
-          </div>
-          <Button onClick={openCreate}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create plan
-          </Button>
-        </div>
+    <PlatformLayout
+      title="Plans"
+      description="Packages schools can subscribe to"
+      actions={
+        <Button size="sm" onClick={openCreate}>
+          <Plus className="mr-2 h-4 w-4" />
+          Create plan
+        </Button>
+      }
+    >
+      <div className="mx-auto max-w-6xl space-y-6">
 
         {isLoading ? (
           <div className="flex justify-center py-16">
@@ -194,6 +187,6 @@ export default function SubscriptionPlansPage() {
           onSave={handleSave}
         />
       </div>
-    </DashboardLayout>
+    </PlatformLayout>
   );
 }

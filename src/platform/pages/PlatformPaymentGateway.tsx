@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
-import DashboardLayout from "@/components/DashboardLayout";
+import PlatformLayout from "@/platform/components/PlatformLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,21 +75,16 @@ export default function PlatformPaymentGateway() {
   };
 
   return (
-    <DashboardLayout role="super_admin">
+    <PlatformLayout
+      title="Billing"
+      description="Paystack keys for organization subscription payments"
+    >
       <div className="mx-auto max-w-3xl space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Platform Payment Gateway</h1>
-          <p className="text-muted-foreground">
-            Paystack credentials used for organization subscription payments across the platform.
-          </p>
-        </div>
-
         <Alert>
           <ShieldCheck className="h-4 w-4" />
-          <AlertTitle>Super admin only</AlertTitle>
+          <AlertTitle>Platform only</AlertTitle>
           <AlertDescription>
-            These keys are used when schools pay for their subscription. Keys are stored encrypted at rest
-            and only readable by the platform backend.
+            These keys are used when schools pay for their subscription. Stored securely and used by the backend.
           </AlertDescription>
         </Alert>
 
@@ -162,6 +157,6 @@ export default function PlatformPaymentGateway() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+    </PlatformLayout>
   );
 }

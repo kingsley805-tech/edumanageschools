@@ -1,6 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, AlertTriangle, Info } from "lucide-react";
 import type { RegisterAlert } from "@/register/lib/types";
+import { DashboardChartCard } from "@/components/metronic/DashboardStatCard";
 
 export function RegisterAlertsPanel({ alerts }: { alerts: RegisterAlert[] }) {
   const icon = (severity: RegisterAlert["severity"]) => {
@@ -10,21 +10,22 @@ export function RegisterAlertsPanel({ alerts }: { alerts: RegisterAlert[] }) {
   };
 
   return (
-    <Card className="border-border/80">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Alerts & activity</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {alerts.map((a) => (
-          <div key={a.id} className="flex gap-3 rounded-lg border border-border/60 bg-muted/20 p-3">
-            {icon(a.severity)}
-            <div>
-              <p className="text-sm font-medium">{a.title}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{a.description}</p>
+    <DashboardChartCard title="Alerts & activity">
+      <div className="space-y-3">
+        {alerts.length === 0 ? (
+          <p className="text-sm text-secondary-foreground">No alerts right now.</p>
+        ) : (
+          alerts.map((a) => (
+            <div key={a.id} className="flex gap-3 rounded-lg border border-border/60 bg-muted/20 p-3">
+              {icon(a.severity)}
+              <div>
+                <p className="text-sm font-medium">{a.title}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{a.description}</p>
+              </div>
             </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
+          ))
+        )}
+      </div>
+    </DashboardChartCard>
   );
 }

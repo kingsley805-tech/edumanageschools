@@ -21,7 +21,7 @@ import {
 } from "@/lib/schoolFetch";
 import { formatExample } from "@/lib/admission-numbers";
 import { derivePrefixFromSchoolName } from "@/lib/school-prefix";
-import { Upload, Building, Image, Save, Loader2, Palette, CreditCard, FileText, Coins } from "lucide-react";
+import { Upload, Building, Image, Save, Loader2, Palette, CreditCard, FileText, Coins, HardDrive, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useSchoolCurrency } from "@/hooks/useSchoolCurrency";
 import { formatMoney } from "@/lib/currency";
@@ -321,6 +321,20 @@ const SchoolSettings = () => {
             Manage your school profile, report card header details, and logo
           </div>
         </div>
+        <div className="flex items-center gap-2.5">
+          <Button variant="outline" className="kt-btn kt-btn-outline gap-2" asChild>
+            <Link to="/admin/settings">
+              <Settings className="h-4 w-4" />
+              Administration
+            </Link>
+          </Button>
+          <Button variant="outline" className="kt-btn kt-btn-outline gap-2" asChild>
+            <Link to="/admin/system-backup">
+              <HardDrive className="h-4 w-4" />
+              System Backup
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-6">
@@ -571,9 +585,15 @@ const SchoolSettings = () => {
                     Connect this school&apos;s own Paystack account for fee collection.
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-3">
                   <Button asChild variant="outline">
                     <Link to="/admin/billing/settings/payments">Payment gateway settings</Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link to="/admin/settings?tab=pos">POS Terminal settings</Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link to="/admin/settings?tab=whatsapp">WhatsApp settings</Link>
                   </Button>
                 </CardContent>
               </Card>

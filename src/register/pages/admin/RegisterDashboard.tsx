@@ -120,64 +120,66 @@ export default function RegisterDashboard() {
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="dashboard" className="mt-6 space-y-6">
+          <TabsContent value="dashboard" className="mt-6 space-y-5 lg:space-y-7.5">
             {loading || !stats ? (
-              <p className="text-muted-foreground py-12 text-center">Loading register dashboard…</p>
+              <p className="text-secondary-foreground py-12 text-center">Loading register dashboard…</p>
             ) : (
               <>
                 <RegisterStatsCards stats={stats} />
 
-                <div className="grid gap-6 lg:grid-cols-3">
-                  <div className="lg:col-span-2 space-y-4">
-                    <div className="rounded-xl border border-border bg-card">
-                      <div className="p-4 border-b border-border flex items-center justify-between">
-                        <h2 className="font-semibold">Recent registers</h2>
+                <div className="grid gap-5 lg:grid-cols-3 lg:gap-7.5">
+                  <div className="lg:col-span-2">
+                    <div className="kt-card">
+                      <div className="kt-card-header flex flex-wrap items-center justify-between gap-2">
+                        <h3 className="kt-card-title">Recent registers</h3>
                         <Button variant="ghost" size="sm" asChild>
                           <Link to="/admin/register/archive">View all</Link>
                         </Button>
                       </div>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Class</TableHead>
-                            <TableHead>Subject</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="w-12" />
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {recent.length === 0 ? (
+                      <div className="kt-card-content p-0">
+                        <Table>
+                          <TableHeader>
                             <TableRow>
-                              <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                                No registers today. Teachers can create registers from their portal.
-                              </TableCell>
+                              <TableHead>Class</TableHead>
+                              <TableHead>Subject</TableHead>
+                              <TableHead>Date</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead className="w-12" />
                             </TableRow>
-                          ) : (
-                            recent.map((r) => (
-                              <TableRow key={r.id}>
-                                <TableCell className="font-medium">{r.classes?.name}</TableCell>
-                                <TableCell>{r.subjects?.name}</TableCell>
-                                <TableCell>{new Date(r.register_date).toLocaleDateString("en-GB")}</TableCell>
-                                <TableCell>
-                                  <RegisterStatusBadge status={r.status} />
-                                </TableCell>
-                                <TableCell>
-                                  <Button variant="ghost" size="icon" asChild>
-                                    <Link to={`/admin/register/${r.id}`}>
-                                      <Eye className="h-4 w-4" />
-                                    </Link>
-                                  </Button>
+                          </TableHeader>
+                          <TableBody>
+                            {recent.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={5} className="text-center text-secondary-foreground py-8">
+                                  No registers today. Teachers can create registers from their portal.
                                 </TableCell>
                               </TableRow>
-                            ))
-                          )}
-                        </TableBody>
-                      </Table>
+                            ) : (
+                              recent.map((r) => (
+                                <TableRow key={r.id}>
+                                  <TableCell className="font-medium">{r.classes?.name}</TableCell>
+                                  <TableCell>{r.subjects?.name}</TableCell>
+                                  <TableCell>{new Date(r.register_date).toLocaleDateString("en-GB")}</TableCell>
+                                  <TableCell>
+                                    <RegisterStatusBadge status={r.status} />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Button variant="ghost" size="icon" asChild>
+                                      <Link to={`/admin/register/${r.id}`}>
+                                        <Eye className="h-4 w-4" />
+                                      </Link>
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="space-y-5">
                     <RegisterAttendanceChart {...chartData} />
                     <RegisterAlertsPanel alerts={alerts} />
                   </div>

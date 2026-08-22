@@ -13,6 +13,8 @@ import { CheckCircle, XCircle, Clock, UserPlus, Search, Filter } from "lucide-re
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { EntityCellIdentity } from "@/components/entities/EntityRow";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 
 interface PendingUser {
   id: string;
@@ -299,9 +301,11 @@ const PendingUsers = () => {
 
   const filterUsers = (users: PendingUser[]) => {
     if (!searchQuery) return users;
-    return users.filter(u => 
-      u.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase())
+    const q = searchQuery.toLowerCase();
+    return users.filter(
+      (u) =>
+        (u.full_name ?? "").toLowerCase().includes(q) ||
+        (u.email ?? "").toLowerCase().includes(q),
     );
   };
 
@@ -367,13 +371,25 @@ const PendingUsers = () => {
 
         <TabsContent value="students">
           <div className="kt-card">
-            <div className="kt-card-header flex justify-between items-center py-4 px-5">
+            <div className="kt-card-header flex justify-between items-center py-4 px-5 gap-2.5">
               <div>
                 <h3 className="kt-card-title">Pending Students</h3>
                 <p className="text-xs text-secondary-foreground">
                   Students who registered with your school code but haven't been assigned admission numbers
                 </p>
               </div>
+              <ExportMenu
+                filename="pending-students"
+                title="Pending Students"
+                headers={["Name", "Email", "Class", "Registered"]}
+                rows={filterUsers(pendingStudents).map((u) => [
+                  u.full_name,
+                  u.email,
+                  u.class_name || "Not assigned",
+                  u.created_at ? format(new Date(u.created_at), "PP") : "N/A",
+                ])}
+                disabled={filterUsers(pendingStudents).length === 0}
+              />
             </div>
             <div className="kt-card-content p-0 overflow-x-auto">
               <Table className="kt-table min-w-full">
@@ -399,11 +415,21 @@ const PendingUsers = () => {
                       </TableRow>
                     ) : (
                       filterUsers(pendingStudents).map((student) => (
-                        <TableRow key={student.id}>
-                          <TableCell className="font-medium">{student.full_name}</TableCell>
-                          <TableCell>{student.email}</TableCell>
-                          <TableCell>{student.class_name || "Not assigned"}</TableCell>
+                        <TableRow key={student.id} className="hover:bg-muted/30 transition-colors">
                           <TableCell>
+                            <EntityCellIdentity
+                              name={student.full_name}
+                              code={student.email}
+                              statusVariant="pending_approval"
+                            />
+                          </TableCell>
+                          <TableCell>{student.email}</TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-muted/60 text-foreground border border-border/60">
+                              {student.class_name || "Not assigned"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
                             {student.created_at ? format(new Date(student.created_at), "PP") : "N/A"}
                           </TableCell>
                           <TableCell className="text-right">
@@ -411,17 +437,19 @@ const PendingUsers = () => {
                               <Button
                                 size="sm"
                                 variant="default"
+                                className="h-8 text-xs font-medium"
                                 onClick={() => openApprovalDialog(student)}
                               >
-                                <CheckCircle className="h-4 w-4 mr-1" />
+                                <CheckCircle className="h-3.5 w-3.5 mr-1" />
                                 Approve
                               </Button>
                               <Button
                                 size="sm"
                                 variant="destructive"
+                                className="h-8 text-xs font-medium"
                                 onClick={() => handleReject(student)}
                               >
-                                <XCircle className="h-4 w-4 mr-1" />
+                                <XCircle className="h-3.5 w-3.5 mr-1" />
                                 Reject
                               </Button>
                             </div>
@@ -437,13 +465,24 @@ const PendingUsers = () => {
 
         <TabsContent value="teachers">
           <div className="kt-card">
-            <div className="kt-card-header flex justify-between items-center py-4 px-5">
+            <div className="kt-card-header flex justify-between items-center py-4 px-5 gap-2.5">
               <div>
                 <h3 className="kt-card-title">Pending Teachers</h3>
                 <p className="text-xs text-secondary-foreground">
                   Teachers who registered with your school code but haven't been assigned employee numbers
                 </p>
               </div>
+              <ExportMenu
+                filename="pending-teachers"
+                title="Pending Teachers"
+                headers={["Name", "Email", "Registered"]}
+                rows={filterUsers(pendingTeachers).map((u) => [
+                  u.full_name,
+                  u.email,
+                  u.created_at ? format(new Date(u.created_at), "PP") : "N/A",
+                ])}
+                disabled={filterUsers(pendingTeachers).length === 0}
+              />
             </div>
             <div className="kt-card-content p-0 overflow-x-auto">
               <Table className="kt-table min-w-full">
@@ -468,17 +507,23 @@ const PendingUsers = () => {
                     </TableRow>
                   ) : (
                     filterUsers(pendingTeachers).map((teacher) => (
-                      <TableRow key={teacher.id}>
-                        <TableCell className="font-medium text-mono">{teacher.full_name}</TableCell>
-                        <TableCell className="text-secondary-foreground">{teacher.email}</TableCell>
-                        <TableCell className="font-mono text-2sm">
+                      <TableRow key={teacher.id} className="hover:bg-muted/30 transition-colors">
+                        <TableCell>
+                          <EntityCellIdentity
+                            name={teacher.full_name}
+                            code={teacher.email}
+                            statusVariant="pending_approval"
+                          />
+                        </TableCell>
+                        <TableCell className="text-secondary-foreground text-xs">{teacher.email}</TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
                           {teacher.created_at ? format(new Date(teacher.created_at), "PP") : "N/A"}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button
                               size="sm"
-                              className="kt-btn kt-btn-primary kt-btn-sm"
+                              className="kt-btn kt-btn-primary kt-btn-sm h-8 text-xs font-medium"
                               onClick={() => openApprovalDialog(teacher)}
                             >
                               <CheckCircle className="h-3.5 w-3.5 mr-1" />
@@ -487,7 +532,7 @@ const PendingUsers = () => {
                             <Button
                               size="sm"
                               variant="destructive"
-                              className="kt-btn kt-btn-destructive kt-btn-sm"
+                              className="kt-btn kt-btn-destructive kt-btn-sm h-8 text-xs font-medium"
                               onClick={() => handleReject(teacher)}
                             >
                               <XCircle className="h-3.5 w-3.5 mr-1" />
@@ -506,13 +551,24 @@ const PendingUsers = () => {
 
         <TabsContent value="parents">
           <div className="kt-card">
-            <div className="kt-card-header flex justify-between items-center py-4 px-5">
+            <div className="kt-card-header flex justify-between items-center py-4 px-5 gap-2.5">
               <div>
                 <h3 className="kt-card-title">Pending Parents</h3>
                 <p className="text-xs text-secondary-foreground">
                   Parents who registered but haven't been linked to any students yet
                 </p>
               </div>
+              <ExportMenu
+                filename="pending-parents"
+                title="Pending Parents"
+                headers={["Name", "Email", "Registered"]}
+                rows={filterUsers(pendingParents).map((u) => [
+                  u.full_name,
+                  u.email,
+                  u.created_at ? format(new Date(u.created_at), "PP") : "N/A",
+                ])}
+                disabled={filterUsers(pendingParents).length === 0}
+              />
             </div>
             <div className="kt-card-content p-0 overflow-x-auto">
               <Table className="kt-table min-w-full">
@@ -537,10 +593,16 @@ const PendingUsers = () => {
                     </TableRow>
                   ) : (
                     filterUsers(pendingParents).map((parent) => (
-                      <TableRow key={parent.id}>
-                        <TableCell className="font-medium text-mono">{parent.full_name}</TableCell>
-                        <TableCell className="text-secondary-foreground">{parent.email}</TableCell>
-                        <TableCell className="font-mono text-2sm">
+                      <TableRow key={parent.id} className="hover:bg-muted/30 transition-colors">
+                        <TableCell>
+                          <EntityCellIdentity
+                            name={parent.full_name}
+                            code={parent.email}
+                            statusVariant="pending_approval"
+                          />
+                        </TableCell>
+                        <TableCell className="text-secondary-foreground text-xs">{parent.email}</TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
                           {parent.created_at ? format(new Date(parent.created_at), "PP") : "N/A"}
                         </TableCell>
                         <TableCell className="text-right">
@@ -548,7 +610,7 @@ const PendingUsers = () => {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="kt-btn kt-btn-outline kt-btn-sm"
+                              className="kt-btn kt-btn-outline kt-btn-sm h-8 text-xs font-medium"
                               onClick={() => window.location.href = "/admin/parent-student-link"}
                             >
                               Link to Student
@@ -556,7 +618,7 @@ const PendingUsers = () => {
                             <Button
                               size="sm"
                               variant="destructive"
-                              className="kt-btn kt-btn-destructive kt-btn-sm"
+                              className="kt-btn kt-btn-destructive kt-btn-sm h-8 text-xs font-medium"
                               onClick={() => handleReject(parent)}
                             >
                               <XCircle className="h-3.5 w-3.5 mr-1" />

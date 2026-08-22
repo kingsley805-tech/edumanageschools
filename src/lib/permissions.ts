@@ -61,6 +61,7 @@ export const PERMISSIONS = {
     settings: "school.manage_settings",
     grading: "school.manage_grading",
     analytics: "school.view_analytics",
+    backup: "portal.system_backup.manage",
   },
   fees: { viewStatus: "fees.view_status" },
   payroll: {

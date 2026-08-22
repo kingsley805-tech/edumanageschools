@@ -13,6 +13,7 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 
 interface ExamType {
   id: string;
@@ -97,7 +98,19 @@ const ExamTypes = () => {
           title="Exam Types"
           description="Manage exam categories and types"
           actions={
-            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingType(null); }}>
+            <>
+              <ExportMenu
+                filename="exam-types"
+                title="Exam Types"
+                headers={["Name", "Category", "Description"]}
+                rows={examTypes.map((type) => [
+                  type.name,
+                  type.category,
+                  type.description || "-",
+                ])}
+                disabled={examTypes.length === 0}
+              />
+              <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingType(null); }}>
               <DialogTrigger asChild>
                 <button
                   type="button"
@@ -134,6 +147,7 @@ const ExamTypes = () => {
                 </form>
               </DialogContent>
             </Dialog>
+            </>
           }
         />
 

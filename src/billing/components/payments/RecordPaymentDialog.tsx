@@ -28,7 +28,7 @@ interface Props {
   onSuccess?: () => void;
 }
 
-type ManualPaymentMethod = Extract<Database["public"]["Enums"]["payment_method"], "cash" | "bank_transfer" | "mobile_money">;
+type ManualPaymentMethod = "cash" | "bank_transfer" | "mobile_money" | "pos_terminal";
 type AppRole = Database["public"]["Enums"]["app_role"];
 
 export default function RecordPaymentDialog({ onSuccess }: Props) {
@@ -45,46 +45,58 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
   const [selectedInvoiceId, setSelectedInvoiceId] = useState("");
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<ManualPaymentMethod>("cash");
+  const [posReference, setPosReference] = useState("");
   const [paidDate, setPaidDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
   const [studentPickerOpen, setStudentPickerOpen] = useState(false);
+  const [loadingLookups, setLoadingLookups] = useState(false);
+  const [posEnabled, setPosEnabled] = useState(true);
+  const [posRequireReference, setPosRequireReference] = useState(true);
+  const [posLabel, setPosLabel] = useState("POS Terminal");
 
   const fetchStudents = useCallback(async () => {
     const { data: profile } = await supabase.from("profiles").select("school_id").eq("id", user!.id).maybeSingle();
     if (!profile?.school_id) return;
 
-    const [rows, classesResult] = await Promise.all([
-      fetchStudentsWithLinkedProfiles(profile.school_id),
-      supabase
-        .from("classes")
-        .select("id, name, stream, level")
-        .eq("school_id", profile.school_id)
-        .neq("is_active", false)
-        .order("level", { ascending: true })
-        .order("name", { ascending: true }),
-    ]);
-    if (classesResult.error) {
-      throw classesResult.error;
-    }
+    setLoadingLookups(true);
+    try {
+      const [rows, classesResult] = await Promise.all([
+        fetchStudentsWithLinkedProfiles(profile.school_id),
+        supabase
+          .from("classes")
+          .select("id, name, stream, level")
+          .eq("school_id", profile.school_id)
+          .order("level", { ascending: true })
+          .order("name", { ascending: true }),
+      ]);
 
-    setClasses((classesResult.data || []).map((row) => ({
-      id: row.id,
-      name: row.name,
-      stream: row.stream,
-    })));
-    setStudents(
-      rows
-        .filter((s) => s.is_active !== false)
-        .map((s) => ({
-          id: s.id as string,
-          student_id: s.student_id as string,
-          class_id: (s.class_id as string | null | undefined) ?? null,
-          name: formatStudentDisplayName(
-            { first_name: s.first_name as string, last_name: s.last_name as string, student_id: s.student_id as string },
-            s.linkedProfile ?? null,
-          ),
-        })),
-    );
+      if (classesResult.error) throw classesResult.error;
+
+      setClasses((classesResult.data || []).map((row) => ({
+        id: row.id,
+        name: row.name,
+        stream: row.stream,
+      })));
+      setStudents(
+        rows
+          .filter((s) => s.is_active !== false)
+          .map((s) => ({
+            id: s.id as string,
+            student_id: s.student_id as string,
+            class_id: (s.class_id as string | null | undefined) ?? null,
+            name: formatStudentDisplayName(
+              { first_name: s.first_name as string, last_name: s.last_name as string, student_id: s.student_id as string },
+              s.linkedProfile ?? null,
+            ),
+          })),
+      );
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Could not load classes and students");
+      setClasses([]);
+      setStudents([]);
+    } finally {
+      setLoadingLookups(false);
+    }
   }, [user]);
 
   const fetchInvoices = useCallback(async () => {
@@ -114,11 +126,37 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
   }, [fetchStudents, open, user]);
 
   useEffect(() => {
+    if (!open || !user) return;
+    (async () => {
+      const { data: profile } = await supabase.from("profiles").select("school_id").eq("id", user.id).maybeSingle();
+      if (!profile?.school_id) return;
+      const { data } = await supabase
+        .from("school_settings")
+        .select("pos_terminal_enabled, pos_require_reference, pos_terminal_label")
+        .eq("school_id", profile.school_id)
+        .maybeSingle();
+      if (!data) return;
+      setPosEnabled(data.pos_terminal_enabled !== false);
+      setPosRequireReference(data.pos_require_reference !== false);
+      setPosLabel(data.pos_terminal_label || "POS Terminal");
+    })().catch(() => {
+      /* settings columns may be missing before migration */
+    });
+  }, [open, user]);
+
+  useEffect(() => {
     if (selectedStudentId) fetchInvoices();
   }, [fetchInvoices, selectedStudentId]);
 
   useEffect(() => {
-    if (!selectedClassId) return;
+    if (!selectedClassId) {
+      if (selectedStudentId) {
+        setSelectedStudentId("");
+        setSelectedInvoiceId("");
+        setInvoices([]);
+      }
+      return;
+    }
     const selectedStudent = students.find((student) => student.id === selectedStudentId);
     if (selectedStudent && selectedStudent.class_id !== selectedClassId) {
       setSelectedStudentId("");
@@ -142,6 +180,9 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
       const paymentAmount = Number(amount);
       if (paymentAmount <= 0) throw new Error("Invalid amount");
       if (paymentAmount > invoice.balance) throw new Error("Amount exceeds invoice balance");
+      if (method === "pos_terminal" && posRequireReference && !posReference.trim()) {
+        throw new Error("POS transaction / approval reference is required");
+      }
 
       // Record payment
       const { data: invRow } = await supabase
@@ -156,6 +197,9 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
           ? (invRow.students as { guardian_id?: string }).guardian_id
           : null;
 
+      const gatewayRef =
+        method === "pos_terminal" && posReference.trim() ? posReference.trim() : null;
+
       const fullPaymentRow = {
         school_id: profile.school_id,
         invoice_id: selectedInvoiceId,
@@ -165,6 +209,7 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
         currency: invoice.currency,
         method,
         gateway: "manual" as const,
+        gateway_ref: gatewayRef,
         status: "paid" as const,
         paid_at: new Date(paidDate).toISOString(),
         recorded_by: user!.id,
@@ -173,23 +218,39 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
         payer_name: user?.user_metadata?.full_name || user?.email || "School Admin",
         payment_context: "school_fee",
         notes: notes || null,
+        metadata:
+          method === "pos_terminal"
+            ? {
+                payment_channel: "pos_terminal",
+                pos_reference: gatewayRef,
+                pos_terminal_label: posLabel,
+              }
+            : null,
       };
 
-      let { error: payError } = await supabase.from("billing_payments").insert(fullPaymentRow);
+      let { data: paymentRow, error: payError } = await supabase
+        .from("billing_payments")
+        .insert(fullPaymentRow)
+        .select("id")
+        .maybeSingle();
 
-      if (payError && /student_id|parent_id|does not exist/i.test(payError.message ?? "")) {
+      if (payError && /student_id|parent_id|does not exist|metadata|gateway_ref/i.test(payError.message ?? "")) {
         const {
           student_id: _s,
           parent_id: _p,
           recorded_by: _r,
           payer_user_id: _u,
+          metadata: _m,
           ...legacyRow
         } = fullPaymentRow;
-        const retry = await supabase.from("billing_payments").insert(legacyRow);
+        const retry = await supabase.from("billing_payments").insert(legacyRow).select("id").maybeSingle();
         payError = retry.error;
+        paymentRow = retry.data;
       }
 
       if (payError) throw payError;
+
+      const insertedPayment = paymentRow;
 
       await supabase.from("audit_logs").insert({
         school_id: profile.school_id,
@@ -201,6 +262,7 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
           invoice_id: selectedInvoiceId,
           amount: paymentAmount,
           method,
+          gateway_ref: gatewayRef,
           paid_date: paidDate,
           actor_user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
           actor_platform: typeof navigator !== "undefined" ? navigator.platform : null,
@@ -215,10 +277,11 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
         .eq("id", selectedInvoiceId)
         .single();
 
+      let newBalance = invoice.balance - paymentAmount;
       if (inv) {
         const newAmountPaid = Number(inv.amount_paid) + paymentAmount;
         const totalAmount = Number(inv.total_amount);
-        const newBalance = totalAmount - newAmountPaid;
+        newBalance = totalAmount - newAmountPaid;
         const newStatus = newBalance <= 0 ? "paid" : "partially_paid";
 
         await supabase
@@ -231,6 +294,39 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
           })
           .eq("school_id", profile.school_id)
           .eq("id", selectedInvoiceId);
+      }
+
+      // Queue WhatsApp fee receipt (non-blocking)
+      if (studentId && insertedPayment?.id) {
+        const studentName =
+          students.find((s) => s.id === studentId)?.name || "Student";
+        void import("@/lib/whatsapp")
+          .then(({ sendFeeReceiptWhatsApp }) =>
+            sendFeeReceiptWhatsApp({
+              schoolId: profile.school_id,
+              studentId,
+              studentName,
+              amount: paymentAmount.toLocaleString(),
+              currency: invoice.currency,
+              method: method === "pos_terminal" ? posLabel : method.replace(/_/g, " "),
+              invoiceNumber: invoice.invoice_number,
+              balance: Math.max(0, newBalance).toLocaleString(),
+              reference: gatewayRef || insertedPayment.id.slice(0, 8).toUpperCase(),
+              paidAt: new Date(paidDate).toISOString(),
+              paymentId: insertedPayment.id,
+              createdBy: user!.id,
+            }),
+          )
+          .then((result) => {
+            if (result.errors.length && result.queued === 0) {
+              toast.warning(result.errors[0]);
+            } else if (result.queued > 0) {
+              toast.success(`WhatsApp receipt queued for ${result.queued} parent contact(s)`);
+            }
+          })
+          .catch(() => {
+            /* WhatsApp failures must not block payment success */
+          });
       }
 
       toast.success("Payment recorded successfully");
@@ -250,6 +346,7 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
     setSelectedInvoiceId("");
     setAmount("");
     setMethod("cash");
+    setPosReference("");
     setPaidDate(new Date().toISOString().split("T")[0]);
     setNotes("");
     setStudentPickerOpen(false);
@@ -259,7 +356,9 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
   const selectedInvoice = invoices.find((i) => i.id === selectedInvoiceId);
   const filteredStudents = selectedClassId
     ? students.filter((student) => student.class_id === selectedClassId)
-    : students;
+    : [];
+  const formatClassLabel = (schoolClass: { name: string; stream: string | null }) =>
+    `${schoolClass.name}${schoolClass.stream ? ` (${schoolClass.stream})` : ""}`;
   const canRecordManualPayment = isAdmin || isAccountant;
 
   if (!canRecordManualPayment) return null;
@@ -275,20 +374,25 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>Class</Label>
+            <Label>Class *</Label>
             <Select
-              value={selectedClassId}
+              value={selectedClassId || undefined}
               onValueChange={(value) => {
                 setSelectedClassId(value);
+                setSelectedStudentId("");
+                setSelectedInvoiceId("");
+                setInvoices([]);
+                setStudentPickerOpen(false);
               }}
+              disabled={loadingLookups}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Filter by class..." />
+                <SelectValue placeholder={loadingLookups ? "Loading classes…" : "Select class…"} />
               </SelectTrigger>
               <SelectContent>
                 {classes.map((schoolClass) => (
                   <SelectItem key={schoolClass.id} value={schoolClass.id}>
-                    {schoolClass.name}{schoolClass.stream ? ` (${schoolClass.stream})` : ""}
+                    {formatClassLabel(schoolClass)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -296,7 +400,7 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label>Student</Label>
+            <Label>Student *</Label>
             <Popover open={studentPickerOpen} onOpenChange={setStudentPickerOpen} modal={false}>
               <PopoverTrigger asChild>
                 <Button
@@ -305,10 +409,16 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
                   role="combobox"
                   aria-expanded={studentPickerOpen}
                   className="w-full justify-between font-normal"
-                  disabled={filteredStudents.length === 0}
+                  disabled={!selectedClassId || loadingLookups || filteredStudents.length === 0}
                 >
                   <span className="truncate">
-                    {selectedStudent ? `${selectedStudent.name} (${selectedStudent.student_id})` : "Select student..."}
+                    {!selectedClassId
+                      ? "Select a class first"
+                      : selectedStudent
+                        ? `${selectedStudent.name} (${selectedStudent.student_id})`
+                        : filteredStudents.length === 0
+                          ? "No students in this class"
+                          : "Select student…"}
                   </span>
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -318,7 +428,9 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
                   <CommandInput placeholder="Search by name or student ID..." />
                   <CommandList>
                     <CommandEmpty>
-                      {selectedClassId ? "No students found in this class." : "No student found."}
+                      {!selectedClassId
+                        ? "Select a class first."
+                        : "No students found in this class."}
                     </CommandEmpty>
                     <CommandGroup>
                       {filteredStudents.map((s) => {
@@ -380,16 +492,31 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
             </div>
             <div className="space-y-2">
               <Label>Payment Method</Label>
-              <Select value={method} onValueChange={setMethod}>
+              <Select value={method} onValueChange={(v) => setMethod(v as ManualPaymentMethod)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="cash">Cash</SelectItem>
                   <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
                   <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                  {posEnabled ? (
+                    <SelectItem value="pos_terminal">{posLabel}</SelectItem>
+                  ) : null}
                 </SelectContent>
               </Select>
             </div>
           </div>
+
+          {method === "pos_terminal" ? (
+            <div className="space-y-2">
+              <Label>POS transaction / approval reference{posRequireReference ? " *" : ""}</Label>
+              <Input
+                placeholder="Terminal RRN / approval code"
+                value={posReference}
+                onChange={(e) => setPosReference(e.target.value)}
+                required={posRequireReference}
+              />
+            </div>
+          ) : null}
 
           <div className="space-y-2">
             <Label>Payment Date</Label>
@@ -403,7 +530,7 @@ export default function RecordPaymentDialog({ onSuccess }: Props) {
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="submit" disabled={saving || !selectedInvoiceId || !amount}>
+            <Button type="submit" disabled={saving || !selectedClassId || !selectedStudentId || !selectedInvoiceId || !amount}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Record Payment
             </Button>

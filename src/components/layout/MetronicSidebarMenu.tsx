@@ -96,6 +96,22 @@ function sectionFor(item: NavEntry): string {
   ) {
     return "Operations";
   }
+  if (
+    label.includes("admin") ||
+    label.includes("setting") ||
+    label.includes("backup") ||
+    label.includes("audit") ||
+    label.includes("approval") ||
+    label.includes("subscription") ||
+    label.includes("permission") ||
+    label.includes("role") ||
+    label.includes("announcement") ||
+    label.includes("pending") ||
+    label.includes("number") ||
+    label.includes("ai")
+  ) {
+    return "Administration";
+  }
   return "Administration";
 }
 
@@ -158,11 +174,11 @@ export function MetronicSidebarMenu({
   }, [items]);
 
   return (
-    <div className={cn("kt-menu flex flex-col grow gap-1", className)}>
+    <div className={cn("kt-menu flex flex-col grow gap-1 font-sans", className)}>
       {withSections.map(({ item: entry, section }, idx) => {
         const sectionHeading = section ? (
-          <div key={`section-${section}-${idx}`} className="kt-menu-item pt-2.25 pb-px">
-            <span className="kt-menu-heading uppercase text-xs font-medium text-muted-foreground ps-[10px] pe-[10px]">
+          <div key={`section-${section}-${idx}`} className="kt-menu-item pt-2.25 pb-px font-sans">
+            <span className="kt-menu-heading uppercase text-xs font-medium text-muted-foreground ps-[10px] pe-[10px] tracking-wider font-sans">
               {section}
             </span>
           </div>
@@ -176,10 +192,10 @@ export function MetronicSidebarMenu({
               {sectionHeading}
               <div
                 key={entry.label}
-                className={cn("kt-menu-item", open && "show", here && "here")}
+                className={cn("kt-menu-item font-sans", open && "show", here && "here")}
               >
                 <div
-                  className="kt-menu-link group flex items-center grow cursor-pointer border border-transparent rounded-lg hover:bg-accent/60 gap-[10px] ps-[10px] pe-[10px] py-[6px] transition-colors"
+                  className="kt-menu-link group flex items-center grow cursor-pointer border border-transparent rounded-lg hover:bg-accent/60 gap-[10px] ps-[10px] pe-[10px] py-[6px] transition-colors font-sans"
                   tabIndex={0}
                   role="button"
                   onClick={() => toggleGroup(entry.label)}
@@ -193,7 +209,7 @@ export function MetronicSidebarMenu({
                   <span className="kt-menu-icon items-start text-muted-foreground group-hover:text-primary transition-colors w-[20px]">
                     <KiIcon icon={entry.icon} className="text-lg" />
                   </span>
-                  <span className="kt-menu-title text-sm font-medium text-foreground group-hover:text-primary kt-menu-item-active:text-primary transition-colors">
+                  <span className="kt-menu-title text-sm font-medium text-foreground group-hover:text-primary kt-menu-item-active:text-primary transition-colors font-sans">
                     {entry.label}
                   </span>
                   <span className="kt-menu-arrow text-muted-foreground group-hover:text-primary transition-colors w-[20px] shrink-0 justify-end ms-1 me-[-10px]">
@@ -205,24 +221,24 @@ export function MetronicSidebarMenu({
                     </span>
                   </span>
                 </div>
-                <div className="kt-menu-accordion gap-1 ps-[10px] relative before:absolute before:start-[20px] before:top-0 before:bottom-0 before:border-s before:border-border">
+                <div className="kt-menu-accordion gap-1 ps-[10px] relative before:absolute before:start-[20px] before:top-0 before:bottom-0 before:border-s before:border-border font-sans">
                   {entry.items.map((sub) => {
                     const active = pathIsActive(location.pathname, sub.path);
                     return (
-                      <div key={sub.path} className={cn("kt-menu-item", active && "active")}>
+                      <div key={sub.path} className={cn("kt-menu-item font-sans", active && "active")}>
                         <Link
                           to={sub.path}
-                          className="kt-menu-link group border border-transparent items-center grow kt-menu-item-active:bg-accent/60 dark:menu-item-active:border-border kt-menu-item-active:rounded-lg hover:bg-accent/60 hover:rounded-lg gap-[14px] ps-[10px] pe-[10px] py-[8px] transition-colors"
+                          className="kt-menu-link group border border-transparent items-center grow kt-menu-item-active:bg-accent/60 dark:menu-item-active:border-border kt-menu-item-active:rounded-lg hover:bg-accent/60 hover:rounded-lg gap-[14px] ps-[10px] pe-[10px] py-[8px] transition-colors font-sans"
                           onClick={go}
                         >
                           {/* before:-translate-y-1/2 would double-apply (v3 transform + v4 translate) — use an explicit -3px top instead */}
                           <span className="kt-menu-bullet flex w-[6px] -start-[3px] rtl:start-0 relative before:absolute before:-top-[3px] before:size-[6px] before:rounded-full group-hover:before:bg-primary" />
-                          <span className="kt-menu-title text-2sm font-normal text-foreground group-hover:text-primary kt-menu-item-active:text-primary kt-menu-item-active:font-semibold transition-colors">
+                          <span className="kt-menu-title text-2sm font-normal text-foreground group-hover:text-primary kt-menu-item-active:text-primary kt-menu-item-active:font-semibold transition-colors font-sans">
                             {sub.label}
                           </span>
                           {sub.showBadge && unreadMessages > 0 ? (
                             <span className="kt-menu-badge ms-auto">
-                              <span className="kt-badge kt-badge-sm kt-badge-danger kt-badge-dot ms-1.5">
+                              <span className="kt-badge kt-badge-sm kt-badge-danger kt-badge-dot ms-1.5 font-sans">
                                 {unreadMessages > 9 ? "9+" : unreadMessages}
                               </span>
                             </span>
@@ -241,21 +257,21 @@ export function MetronicSidebarMenu({
         return (
           <Fragment key={`item-wrap-${entry.path}`}>
             {sectionHeading}
-            <div key={entry.path} className={cn("kt-menu-item", active && "active")}>
+            <div key={entry.path} className={cn("kt-menu-item font-sans", active && "active")}>
               <Link
                 to={entry.path}
-                className="kt-menu-link group border border-transparent items-center grow kt-menu-item-active:bg-accent/60 dark:menu-item-active:border-border kt-menu-item-active:rounded-lg hover:bg-accent/60 hover:rounded-lg gap-[10px] ps-[10px] pe-[10px] py-[7px] transition-colors"
+                className="kt-menu-link group border border-transparent items-center grow kt-menu-item-active:bg-accent/60 dark:menu-item-active:border-border kt-menu-item-active:rounded-lg hover:bg-accent/60 hover:rounded-lg gap-[10px] ps-[10px] pe-[10px] py-[7px] transition-colors font-sans"
                 onClick={go}
               >
                 <span className="kt-menu-icon items-start text-muted-foreground group-hover:text-primary transition-colors w-[20px]">
                   <KiIcon icon={entry.icon} className="text-lg" />
                 </span>
-                <span className="kt-menu-title text-sm font-medium text-foreground group-hover:text-primary kt-menu-item-active:text-primary transition-colors">
+                <span className="kt-menu-title text-sm font-medium text-foreground group-hover:text-primary kt-menu-item-active:text-primary transition-colors font-sans">
                   {entry.label}
                 </span>
                 {entry.showBadge && unreadMessages > 0 ? (
                   <span className="kt-menu-badge ms-auto">
-                    <span className="kt-badge kt-badge-sm kt-badge-danger kt-badge-dot ms-1.5">
+                    <span className="kt-badge kt-badge-sm kt-badge-danger kt-badge-dot ms-1.5 font-sans">
                       {unreadMessages > 9 ? "9+" : unreadMessages}
                     </span>
                   </span>

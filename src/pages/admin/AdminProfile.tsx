@@ -37,6 +37,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { fetchCurrentTermLabel } from "@/lib/entityProfileStats";
 
 const editAdminSchema = z.object({
   full_name: z.string().min(1, "Full name is required"),
@@ -91,6 +92,8 @@ export default function AdminProfile() {
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [termLabel, setTermLabel] = useState("—");
+  const [auditCount, setAuditCount] = useState(0);
 
   const {
     register,
@@ -172,6 +175,23 @@ export default function AdminProfile() {
 
       setValue("full_name", combined.full_name || "");
       setValue("phone", combined.phone || "");
+
+      const sid = combined.school_id || schoolData?.id;
+      if (sid) {
+        void fetchCurrentTermLabel(sid).then(setTermLabel);
+      } else {
+        setTermLabel("—");
+      }
+
+      try {
+        const { count } = await supabase
+          .from("audit_logs")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", targetId);
+        setAuditCount(count ?? recentLogs.length);
+      } catch {
+        setAuditCount(recentLogs.length);
+      }
     } catch (err: any) {
       console.error("fetchAdminProfile error:", err);
       toast({
@@ -256,7 +276,7 @@ export default function AdminProfile() {
   const phone = profile.phone || "No phone";
   const isActive = profile.is_active !== false;
   const isSuperAdmin = profile.role === "super_admin" || profile.roles?.includes("super_admin");
-  const schoolName = profile.school?.school_name || "Central Administrative Office";
+  const schoolName = profile.school?.school_name || "—";
   const schoolCode = profile.school?.school_code || "—";
   const joinedDate = profile.created_at
     ? new Date(profile.created_at).toLocaleDateString("en-US", {
@@ -328,8 +348,8 @@ export default function AdminProfile() {
           },
         ]}
         rightMetric={{
-          label: "Access Privilege",
-          value: isSuperAdmin ? "Root / Super" : "School Admin",
+          label: "Role",
+          value: roleLabel,
         }}
         generalInfo={[
           {
@@ -383,24 +403,24 @@ export default function AdminProfile() {
         ]}
         stats={[
           {
-            label: "Security Level",
-            value: isSuperAdmin ? "Level 1" : "Level 2",
-            sub: isSuperAdmin ? "Root Access" : "Admin Portal",
+            label: "Roles",
+            value: profile.roles?.length || 1,
+            sub: (profile.roles || []).join(", ") || roleLabel,
           },
           {
             label: "Account Status",
             value: isActive ? "Active" : "Inactive",
-            sub: "Authentication OK",
+            sub: schoolName,
           },
           {
-            label: "Assigned Roles",
-            value: profile.roles?.length || 1,
-            sub: (profile.roles || []).join(", "),
+            label: "Audit Events",
+            value: auditCount,
+            sub: "Logged actions",
           },
           {
-            label: "School Scope",
-            value: profile.school?.school_code || "Global",
-            sub: "Tenant ID linked",
+            label: "Current Term",
+            value: termLabel,
+            sub: schoolCode !== "—" ? schoolCode : "School",
           },
         ]}
         onRefreshStats={() => fetchAdminProfile(profile.id)}
@@ -448,7 +468,7 @@ export default function AdminProfile() {
                       <ShieldCheck className="h-4 w-4 text-primary" />
                       Security & Authentication
                     </h3>
-                    <span className="text-xs text-muted-foreground font-mono">256-bit TLS</span>
+                    <span className="text-xs text-muted-foreground font-mono">Account</span>
                   </div>
                   <div className="divide-y divide-border/40 text-xs sm:text-sm">
                     <div className="py-2.5 flex justify-between items-center">
@@ -461,7 +481,9 @@ export default function AdminProfile() {
                     </div>
                     <div className="py-2.5 flex justify-between items-center">
                       <span className="text-muted-foreground">Account Status:</span>
-                      <span className="text-emerald-500 font-semibold">Active / Verified</span>
+                      <span className={`font-semibold ${isActive ? "text-emerald-500" : "text-rose-500"}`}>
+                        {isActive ? "Active" : "Inactive"}
+                      </span>
                     </div>
                     <div className="py-2.5 flex justify-between items-center">
                       <span className="text-muted-foreground">Password Recovery:</span>
@@ -510,10 +532,10 @@ export default function AdminProfile() {
                       Academic Context
                     </span>
                     <span className="text-sm font-medium text-foreground block">
-                      Session: {profile.school?.current_session || "2025/2026"}
+                      Session: {profile.school?.current_session || "—"}
                     </span>
                     <span className="text-xs text-muted-foreground block">
-                      Term: {profile.school?.current_term || "Term 1"}
+                      Term: {termLabel !== "—" ? termLabel : profile.school?.current_term || "—"}
                     </span>
                   </div>
                 </div>

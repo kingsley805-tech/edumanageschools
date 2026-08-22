@@ -3,6 +3,7 @@ import { ReactNode } from "react";
 import { useLocation, Navigate } from "react-router-dom";
 import { useOrganizationSubscription } from "@/subscription/hooks/useOrganizationSubscription";
 import OrganizationSubscriptionModal from "@/subscription/components/OrganizationSubscriptionModal";
+import AdminPendingApprovalScreen from "@/subscription/components/AdminPendingApprovalScreen";
 import { isSubscriptionAllowedPath } from "@/subscription/lib/subscriptionAccess";
 import SubscriptionExpiryBanner from "@/subscription/components/SubscriptionExpiryBanner";
 
@@ -17,6 +18,10 @@ export default function OrganizationSubscriptionGate({ children }: Props) {
 
   if (loading || isSuperAdmin) {
     return <>{children}</>;
+  }
+
+  if (access?.access_state === "pending_approval") {
+    return <AdminPendingApprovalScreen />;
   }
 
   const allowed = isSubscriptionAllowedPath(location.pathname);

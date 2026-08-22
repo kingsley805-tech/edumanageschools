@@ -7,6 +7,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { PermissionGate } from "@/components/PermissionGate";
 import { PERMISSIONS } from "@/lib/permissions";
 import { format } from "date-fns";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 
 interface AuditRow {
   id: string;
@@ -36,7 +37,25 @@ const AuditLogs = () => {
     <PermissionGate permission={PERMISSIONS.admin.viewAudit} showDenied>
       <DashboardLayout role="admin">
         <div className="mingo-content">
-          <PortalPageHeader title="Audit logs" description="Recent activity across your school" />
+          <PortalPageHeader
+            title="Audit logs"
+            description="Recent activity across your school"
+            actions={
+              <ExportMenu
+                filename="audit-logs"
+                title="Audit Logs"
+                headers={["Time", "Action", "Module", "Entity", "User"]}
+                rows={logs.map((log) => [
+                  log.created_at ? format(new Date(log.created_at), "PPp") : "—",
+                  log.action_type,
+                  log.module ?? "—",
+                  log.entity_type,
+                  log.profiles?.full_name ?? "System",
+                ])}
+                disabled={logs.length === 0}
+              />
+            }
+          />
           <div className="mingo-table-wrap">
             <table>
               <thead>

@@ -16,7 +16,9 @@ import {
   PAYMENT_STATUS_BADGE,
   formatGateway,
   formatPaymentMethod,
+  formatReceiptPaidTime,
   paymentDisplayDate,
+  paymentFeeType,
   resolvePaystackTxnId,
   type PaymentTransactionRow,
 } from "@/billing/lib/paymentTransactions";
@@ -85,13 +87,14 @@ export default function PaymentTransactionsTable({
               </>
             ) : null}
             <TableHead>Amount</TableHead>
+            {variant !== "admin" ? <TableHead>Fee type</TableHead> : null}
             <TableHead>Invoice</TableHead>
             <TableHead>Reference</TableHead>
             <TableHead>Paystack Txn ID</TableHead>
             <TableHead>Gateway</TableHead>
             <TableHead>Method</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Date</TableHead>
+            <TableHead>Paid at</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -112,6 +115,9 @@ export default function PaymentTransactionsTable({
                 <TableCell className="font-semibold whitespace-nowrap">
                   {formatMoney(Number(row.amount), row.currency)}
                 </TableCell>
+                {variant !== "admin" ? (
+                  <TableCell className="text-sm">{paymentFeeType(row) ?? "—"}</TableCell>
+                ) : null}
                 <TableCell>{row.invoice_number ?? "—"}</TableCell>
                 <TruncatedMonoCell value={row.gateway_ref} />
                 <TruncatedMonoCell

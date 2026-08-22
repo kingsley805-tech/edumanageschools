@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ExportMenu } from "@/modules/lib/ExportMenu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Pencil, Trash2, Plus } from "lucide-react";
@@ -157,6 +158,13 @@ export default function Subjects() {
           </div>
         </div>
         <div className="flex items-center gap-2.5">
+          <ExportMenu
+            filename="subjects"
+            title="Subjects"
+            headers={["Subject Name", "Subject Code"]}
+            rows={subjects.map((s) => [s.name, s.code || "—"])}
+            disabled={subjects.length === 0}
+          />
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button className="kt-btn kt-btn-primary gap-2">
