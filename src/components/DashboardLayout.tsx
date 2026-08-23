@@ -201,7 +201,20 @@ const DashboardLayout = ({
   useTeacherAccountGuard();
 
   /* ── Metronic shell state ─────────────────────────────────────────── */
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("edumanage_sidebar_collapsed") === "true";
+  });
+
+  const toggleSidebarCollapse = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("edumanage_sidebar_collapsed", String(next));
+      } catch {}
+      return next;
+    });
+  };
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -1105,39 +1118,54 @@ const DashboardLayout = ({
 
   const homePath = `/${role ?? "admin"}`;
 
-  // Renders both logo variants like the demo: `default-logo` (wordmark) plus
-  // `small-logo` which the Metronic CSS reveals when the sidebar collapses.
-  const brandBlock = () => (
-    <Link to={homePath} className="flex items-center gap-2.5" onClick={navigateTo}>
+  // Renders both logo variants: full wordmark when expanded, icon-only when collapsed
+  const brandBlock = (isCollapsed = false) => (
+    <Link
+      to={homePath}
+      className={cn("flex items-center gap-2.5 min-w-0", isCollapsed && "justify-center w-full")}
+      onClick={navigateTo}
+    >
       {schoolLogoUrl ? (
         <>
-          <span className="default-logo flex items-center gap-2.5 min-w-0">
-            <img
-              src={schoolLogoUrl}
-              alt={schoolName}
-              className="size-8 shrink-0 rounded-full object-cover border border-border/40"
-            />
-            <span className="text-base font-semibold leading-none text-foreground truncate max-w-[170px]">
-              {schoolName}
+          {!isCollapsed && (
+            <span className="default-logo flex items-center gap-2.5 min-w-0">
+              <img
+                src={schoolLogoUrl}
+                alt={schoolName}
+                className="size-8 shrink-0 rounded-full object-cover border border-border/40"
+              />
+              <span className="text-base font-semibold leading-none text-foreground truncate max-w-[170px]">
+                {schoolName}
+              </span>
             </span>
-          </span>
+          )}
           <img
             src={schoolLogoUrl}
             alt={schoolName}
-            className="small-logo hidden size-8 shrink-0 rounded-full object-cover border border-border/40"
+            className={cn(
+              "small-logo size-8 shrink-0 rounded-full object-cover border border-border/40",
+              !isCollapsed && "hidden"
+            )}
           />
         </>
       ) : (
         <>
-          <span className="default-logo flex items-center gap-2.5 min-w-0">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-              {schoolInitial}
+          {!isCollapsed && (
+            <span className="default-logo flex items-center gap-2.5 min-w-0">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+                {schoolInitial}
+              </span>
+              <span className="text-base font-semibold leading-none text-foreground truncate max-w-[170px]">
+                {schoolName}
+              </span>
             </span>
-            <span className="text-base font-semibold leading-none text-foreground truncate max-w-[170px]">
-              {schoolName}
-            </span>
-          </span>
-          <span className="small-logo hidden flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+          )}
+          <span
+            className={cn(
+              "small-logo flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground",
+              !isCollapsed && "hidden"
+            )}
+          >
             {schoolInitial}
           </span>
         </>
@@ -1145,11 +1173,21 @@ const DashboardLayout = ({
     </Link>
   );
 
-  const sidebarMenu = (
+  const desktopSidebarMenu = (
     <MetronicSidebarMenu
       items={filteredNavItems}
       unreadMessages={unreadMessages}
       onNavigate={navigateTo}
+      collapsed={collapsed}
+    />
+  );
+
+  const mobileSidebarMenu = (
+    <MetronicSidebarMenu
+      items={filteredNavItems}
+      unreadMessages={unreadMessages}
+      onNavigate={navigateTo}
+      collapsed={false}
     />
   );
 
@@ -1169,49 +1207,41 @@ const DashboardLayout = ({
       {/* ── Sidebar (desktop) ─────────────────────────────────────────── */}
       <div
         className={cn(
-          // Width is driven by the Metronic CSS var (--sidebar-width) exactly
-          // like the demo — no manual width utilities needed.
+          // Width is driven by the Metronic CSS var (--sidebar-width)
           "kt-sidebar dark fixed top-0 bottom-0 start-0 z-20 hidden lg:flex flex-col items-stretch shrink-0 bg-background border-e border-e-border transition-all duration-300",
         )}
         id="sidebar"
       >
         <div
-          className="kt-sidebar-header hidden lg:flex items-center relative justify-between px-3 lg:px-6 shrink-0"
+          className={cn(
+            "kt-sidebar-header hidden lg:flex items-center relative shrink-0 transition-all duration-300",
+            collapsed ? "justify-center px-2" : "justify-between px-3 lg:px-6"
+          )}
           id="sidebar_header"
         >
-          {brandBlock()}
-          {/* Toggle centered on the sidebar's right edge, aligned with the
-              brand row — mirrors the demo / TASKER reference. Inline styles
-              are used instead of the translate/rotate utilities because those
-              classes exist in BOTH the school-hub Tailwind v3 build (transform
-              property) and the Metronic v4 CSS (translate/rotate properties),
-              which double-applies the shift. */}
+          {brandBlock(collapsed)}
+          {/* Toggle centered on the sidebar's right edge, aligned with the brand row */}
           <div
-            className="kt-btn kt-btn-outline kt-btn-icon rounded-lg absolute start-full top-1/2 cursor-pointer bg-white text-black hover:text-black/80 [&_i]:text-black hover:[&_i]:text-black/80"
+            className="kt-btn kt-btn-outline kt-btn-icon rounded-lg absolute start-full top-1/2 cursor-pointer bg-white text-black hover:text-black/80 [&_i]:text-black hover:[&_i]:text-black/80 z-30 shadow-md"
             role="button"
             tabIndex={0}
-            onClick={() => setCollapsed((c) => !c)}
+            onClick={toggleSidebarCollapse}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                setCollapsed((c) => !c);
+                toggleSidebarCollapse();
               }
             }}
             aria-label="Toggle sidebar"
             style={{
-              width: 30,
-              height: 30,
-              marginInlineStart: -15,
-              marginTop: -15,
-              /* The Metronic kt-btn-outline rules consume --background/--input,
-                 which are bare HSL triplets here and resolve to a dark color in
-                 dark mode, overriding the `bg-white`/`border-white` utilities.
-                 Inline white bg + border keep the toggle crisply black-and-white
-                 in both themes. */
+              width: 28,
+              height: 28,
+              marginInlineStart: -14,
+              marginTop: -14,
               backgroundColor: "#ffffff",
-              border: "1px solid #ffffff",
+              border: "1px solid #e2e8f0",
               boxShadow:
-                "0 0 0 1px rgba(255, 255, 255, 0.14), 0 4px 12px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.3)",
+                "0 0 0 1px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.18)",
             }}
           >
             <span
@@ -1223,12 +1253,12 @@ const DashboardLayout = ({
           </div>
         </div>
         <div
-          className="kt-sidebar-content kt-sidebar-scroll flex flex-col grow overflow-y-auto overflow-x-hidden py-5 pe-2"
+          className="kt-sidebar-content kt-sidebar-scroll flex flex-col grow overflow-y-auto overflow-x-hidden py-5 pe-1"
           id="sidebar_content"
         >
-          <div className="grow flex flex-col ps-2 lg:ps-5 pe-1 lg:pe-3">
+          <div className={cn("grow flex flex-col transition-all duration-300", collapsed ? "px-1" : "ps-2 lg:ps-5 pe-1 lg:pe-3")}>
             <div className="flex w-full grow flex-col gap-3">
-              {sidebarMenu}
+              {desktopSidebarMenu}
             </div>
           </div>
         </div>
@@ -1245,7 +1275,7 @@ const DashboardLayout = ({
           />
           <aside className="absolute top-0 bottom-0 start-0 flex w-[290px] max-w-[85vw] flex-col overflow-hidden bg-background border-e border-e-border">
             <div className="flex h-[60px] shrink-0 items-center justify-between border-b border-b-border px-4">
-              {brandBlock()}
+              {brandBlock(false)}
               <button
                 type="button"
                 className="kt-btn kt-btn-icon kt-btn-ghost"
@@ -1257,7 +1287,7 @@ const DashboardLayout = ({
               </button>
             </div>
             <div className="kt-sidebar-scroll grow overflow-y-auto py-3">
-              <div className="px-2 pt-1">{sidebarMenu}</div>
+              <div className="px-2 pt-1">{mobileSidebarMenu}</div>
             </div>
             <div className="shrink-0 border-t border-t-border p-3">
               <div className="flex items-center justify-between gap-2.5 px-1.5 pb-2.5">

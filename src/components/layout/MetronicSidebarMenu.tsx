@@ -2,6 +2,7 @@ import { Fragment, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Ki, KiIcon } from "@/metronic/KiIcon";
+import { SidebarIconTooltip } from "@/components/SidebarIconTooltip";
 import type { AdminNavGroup, AdminNavItem } from "@/lib/rbac/adminNavConfig";
 
 type NavEntry = AdminNavItem | AdminNavGroup;
@@ -11,6 +12,7 @@ type Props = {
   unreadMessages?: number;
   onNavigate?: () => void;
   className?: string;
+  collapsed?: boolean;
 };
 
 const DASHBOARD_PATHS = new Set([
@@ -116,15 +118,14 @@ function sectionFor(item: NavEntry): string {
 }
 
 /**
- * Metronic kt-menu sidebar. Mirrors the dark-sidebar demo markup:
- * top-level accordion items (groups) with icon + title + plus/minus arrow,
- * section headings with uppercase text, and leaf links with a kt-menu-bullet dot.
+ * Metronic kt-menu sidebar. Supports expanded and compact collapsed modes.
  */
 export function MetronicSidebarMenu({
   items,
   unreadMessages = 0,
   onNavigate,
   className,
+  collapsed = false,
 }: Props) {
   const location = useLocation();
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
@@ -176,39 +177,51 @@ export function MetronicSidebarMenu({
   return (
     <div className={cn("kt-menu flex flex-col grow gap-1 font-sans", className)}>
       {withSections.map(({ item: entry, section }, idx) => {
-        const sectionHeading = section ? (
+        const sectionHeading = section && !collapsed ? (
           <div key={`section-${section}-${idx}`} className="kt-menu-item pt-2.25 pb-px font-sans">
             <span className="kt-menu-heading uppercase text-xs font-medium text-muted-foreground ps-[10px] pe-[10px] tracking-wider font-sans">
               {section}
             </span>
           </div>
+        ) : section && collapsed && idx > 0 ? (
+          <div key={`section-div-${section}-${idx}`} className="my-1.5 mx-2 border-t border-border/40" />
         ) : null;
 
         if (isGroup(entry)) {
           const open = openSet.has(entry.label);
           const here = entryActive(location.pathname, entry);
-          return (
-            <Fragment key={`group-wrap-${entry.label}`}>
-              {sectionHeading}
-              <div
-                key={entry.label}
-                className={cn("kt-menu-item font-sans", open && "show", here && "here")}
-              >
-                <div
-                  className="kt-menu-link group flex items-center grow cursor-pointer border border-transparent rounded-lg hover:bg-accent/60 gap-[10px] ps-[10px] pe-[10px] py-[6px] transition-colors font-sans"
-                  tabIndex={0}
-                  role="button"
-                  onClick={() => toggleGroup(entry.label)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      toggleGroup(entry.label);
-                    }
-                  }}
-                >
-                  <span className="kt-menu-icon items-start text-muted-foreground group-hover:text-primary transition-colors w-[20px]">
-                    <KiIcon icon={entry.icon} className="text-lg" />
-                  </span>
+          const firstSubPath = entry.items[0]?.path;
+
+          const groupTrigger = (
+            <div
+              className={cn(
+                "kt-menu-link group flex items-center cursor-pointer border border-transparent rounded-lg hover:bg-accent/60 transition-colors font-sans",
+                collapsed
+                  ? "justify-center p-2 w-10 h-10 mx-auto"
+                  : "grow gap-[10px] ps-[10px] pe-[10px] py-[6px]",
+                here && collapsed && "bg-accent/60 text-primary border-border"
+              )}
+              tabIndex={0}
+              role="button"
+              onClick={() => {
+                if (!collapsed) toggleGroup(entry.label);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  if (!collapsed) toggleGroup(entry.label);
+                }
+              }}
+            >
+              <span className={cn(
+                "kt-menu-icon flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors",
+                collapsed ? "w-5 h-5" : "items-start w-[20px]",
+                here && "text-primary"
+              )}>
+                <KiIcon icon={entry.icon} className="text-lg" />
+              </span>
+              {!collapsed && (
+                <>
                   <span className="kt-menu-title text-sm font-medium text-foreground group-hover:text-primary kt-menu-item-active:text-primary transition-colors font-sans">
                     {entry.label}
                   </span>
@@ -220,34 +233,55 @@ export function MetronicSidebarMenu({
                       <Ki name="minus" className="text-[11px]" />
                     </span>
                   </span>
-                </div>
-                <div className="kt-menu-accordion gap-1 ps-[10px] relative before:absolute before:start-[20px] before:top-0 before:bottom-0 before:border-s before:border-border font-sans">
-                  {entry.items.map((sub) => {
-                    const active = pathIsActive(location.pathname, sub.path);
-                    return (
-                      <div key={sub.path} className={cn("kt-menu-item font-sans", active && "active")}>
-                        <Link
-                          to={sub.path}
-                          className="kt-menu-link group border border-transparent items-center grow kt-menu-item-active:bg-accent/60 dark:menu-item-active:border-border kt-menu-item-active:rounded-lg hover:bg-accent/60 hover:rounded-lg gap-[14px] ps-[10px] pe-[10px] py-[8px] transition-colors font-sans"
-                          onClick={go}
-                        >
-                          {/* before:-translate-y-1/2 would double-apply (v3 transform + v4 translate) — use an explicit -3px top instead */}
-                          <span className="kt-menu-bullet flex w-[6px] -start-[3px] rtl:start-0 relative before:absolute before:-top-[3px] before:size-[6px] before:rounded-full group-hover:before:bg-primary" />
-                          <span className="kt-menu-title text-2sm font-normal text-foreground group-hover:text-primary kt-menu-item-active:text-primary kt-menu-item-active:font-semibold transition-colors font-sans">
-                            {sub.label}
-                          </span>
-                          {sub.showBadge && unreadMessages > 0 ? (
-                            <span className="kt-menu-badge ms-auto">
-                              <span className="kt-badge kt-badge-sm kt-badge-danger kt-badge-dot ms-1.5 font-sans">
-                                {unreadMessages > 9 ? "9+" : unreadMessages}
-                              </span>
+                </>
+              )}
+            </div>
+          );
+
+          return (
+            <Fragment key={`group-wrap-${entry.label}`}>
+              {sectionHeading}
+              <div
+                key={entry.label}
+                className={cn("kt-menu-item font-sans", !collapsed && open && "show", here && "here")}
+              >
+                <SidebarIconTooltip label={entry.label} collapsed={collapsed}>
+                  {collapsed && firstSubPath ? (
+                    <Link to={firstSubPath} onClick={go} className="block">
+                      {groupTrigger}
+                    </Link>
+                  ) : (
+                    groupTrigger
+                  )}
+                </SidebarIconTooltip>
+                {!collapsed && (
+                  <div className="kt-menu-accordion gap-1 ps-[10px] relative before:absolute before:start-[20px] before:top-0 before:bottom-0 before:border-s before:border-border font-sans">
+                    {entry.items.map((sub) => {
+                      const active = pathIsActive(location.pathname, sub.path);
+                      return (
+                        <div key={sub.path} className={cn("kt-menu-item font-sans", active && "active")}>
+                          <Link
+                            to={sub.path}
+                            className="kt-menu-link group border border-transparent items-center grow kt-menu-item-active:bg-accent/60 dark:menu-item-active:border-border kt-menu-item-active:rounded-lg hover:bg-accent/60 hover:rounded-lg gap-[14px] ps-[10px] pe-[10px] py-[8px] transition-colors font-sans"
+                            onClick={go}
+                          >
+                            <span className="kt-menu-bullet flex w-[6px] -start-[3px] rtl:start-0 relative before:absolute before:-top-[3px] before:size-[6px] before:rounded-full group-hover:before:bg-primary" />
+                            <span className="kt-menu-title text-2sm font-normal text-foreground group-hover:text-primary kt-menu-item-active:text-primary kt-menu-item-active:font-semibold transition-colors font-sans">
+                              {sub.label}
                             </span>
-                          ) : null}
-                        </Link>
-                      </div>
-                    );
-                  })}
-                </div>
+                            {sub.showBadge && unreadMessages > 0 ? (
+                              <span className="kt-menu-badge ms-auto">
+                                <span className="kt-badge kt-badge-sm kt-badge-danger kt-badge-dot ms-1.5 font-sans">
+                                  {unreadMessages > 9 ? "9+" : unreadMessages}
+                                </span>
+                              </span>
+                            ) : null}
+                          </Link>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </Fragment>
           );
@@ -258,25 +292,41 @@ export function MetronicSidebarMenu({
           <Fragment key={`item-wrap-${entry.path}`}>
             {sectionHeading}
             <div key={entry.path} className={cn("kt-menu-item font-sans", active && "active")}>
-              <Link
-                to={entry.path}
-                className="kt-menu-link group border border-transparent items-center grow kt-menu-item-active:bg-accent/60 dark:menu-item-active:border-border kt-menu-item-active:rounded-lg hover:bg-accent/60 hover:rounded-lg gap-[10px] ps-[10px] pe-[10px] py-[7px] transition-colors font-sans"
-                onClick={go}
-              >
-                <span className="kt-menu-icon items-start text-muted-foreground group-hover:text-primary transition-colors w-[20px]">
-                  <KiIcon icon={entry.icon} className="text-lg" />
-                </span>
-                <span className="kt-menu-title text-sm font-medium text-foreground group-hover:text-primary kt-menu-item-active:text-primary transition-colors font-sans">
-                  {entry.label}
-                </span>
-                {entry.showBadge && unreadMessages > 0 ? (
-                  <span className="kt-menu-badge ms-auto">
-                    <span className="kt-badge kt-badge-sm kt-badge-danger kt-badge-dot ms-1.5 font-sans">
-                      {unreadMessages > 9 ? "9+" : unreadMessages}
-                    </span>
+              <SidebarIconTooltip label={entry.label} collapsed={collapsed}>
+                <Link
+                  to={entry.path}
+                  className={cn(
+                    "kt-menu-link group border border-transparent items-center transition-colors font-sans",
+                    collapsed
+                      ? "justify-center p-2 w-10 h-10 mx-auto rounded-lg"
+                      : "grow kt-menu-item-active:bg-accent/60 dark:menu-item-active:border-border kt-menu-item-active:rounded-lg hover:bg-accent/60 hover:rounded-lg gap-[10px] ps-[10px] pe-[10px] py-[7px]",
+                    active && collapsed && "bg-accent/60 text-primary border-border"
+                  )}
+                  onClick={go}
+                >
+                  <span className={cn(
+                    "kt-menu-icon flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors",
+                    collapsed ? "w-5 h-5" : "items-start w-[20px]",
+                    active && "text-primary"
+                  )}>
+                    <KiIcon icon={entry.icon} className="text-lg" />
                   </span>
-                ) : null}
-              </Link>
+                  {!collapsed && (
+                    <>
+                      <span className="kt-menu-title text-sm font-medium text-foreground group-hover:text-primary kt-menu-item-active:text-primary transition-colors font-sans">
+                        {entry.label}
+                      </span>
+                      {entry.showBadge && unreadMessages > 0 ? (
+                        <span className="kt-menu-badge ms-auto">
+                          <span className="kt-badge kt-badge-sm kt-badge-danger kt-badge-dot ms-1.5 font-sans">
+                            {unreadMessages > 9 ? "9+" : unreadMessages}
+                          </span>
+                        </span>
+                      ) : null}
+                    </>
+                  )}
+                </Link>
+              </SidebarIconTooltip>
             </div>
           </Fragment>
         );
@@ -284,4 +334,3 @@ export function MetronicSidebarMenu({
     </div>
   );
 }
-

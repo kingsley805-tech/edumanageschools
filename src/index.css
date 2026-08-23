@@ -2400,6 +2400,23 @@ All colors MUST be HSL.
     background-color: hsl(var(--primary)) !important;
 }
 
+/* Sidebar collapsed state overrides & smooth layout transitions */
+.demo1.kt-sidebar-collapse {
+    --sidebar-width: 72px !important;
+}
+
+.demo1.kt-sidebar-collapse .kt-sidebar {
+    width: 72px !important;
+}
+
+.demo1.kt-sidebar-collapse.kt-sidebar-fixed .kt-wrapper {
+    padding-inline-start: 72px !important;
+}
+
+.demo1.kt-sidebar-collapse.kt-sidebar-fixed.kt-header-fixed .kt-header {
+    inset-inline-start: 72px !important;
+}
+
 @media print {
     @page {
         size: A4 portrait;
