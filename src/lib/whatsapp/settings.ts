@@ -18,11 +18,8 @@ function mapRow(row: Record<string, unknown> | null): WhatsAppSchoolSettings {
     whatsapp_auto_send_fee_notification: Boolean(row.whatsapp_auto_send_fee_notification),
     whatsapp_auto_send_report_card: row.whatsapp_auto_send_report_card !== false,
     whatsapp_auto_send_weekly_attention: row.whatsapp_auto_send_weekly_attention !== false,
-    whatsapp_fee_receipt_template:
-      (row.whatsapp_fee_receipt_template as string | null) || DEFAULT_TEMPLATES.fee_receipt,
-    whatsapp_fee_notification_template:
-      (row.whatsapp_fee_notification_template as string | null) ||
-      DEFAULT_TEMPLATES.fee_notification,
+    whatsapp_fee_receipt_template: DEFAULT_TEMPLATES.fee_receipt,
+    whatsapp_fee_notification_template: DEFAULT_TEMPLATES.fee_notification,
     whatsapp_report_card_template:
       (row.whatsapp_report_card_template as string | null) || DEFAULT_TEMPLATES.report_card,
     whatsapp_weekly_attention_template:
@@ -70,7 +67,20 @@ export async function saveWhatsAppSchoolSettings(
     .eq("school_id", schoolId)
     .maybeSingle();
 
-  const row = { school_id: schoolId, ...patch, updated_at: new Date().toISOString() };
+  // Fee message copy is fixed system templates — never persist UI overrides.
+  const {
+    whatsapp_fee_receipt_template: _feeReceipt,
+    whatsapp_fee_notification_template: _feeNotification,
+    ...safePatch
+  } = patch;
+
+  const row = {
+    school_id: schoolId,
+    ...safePatch,
+    whatsapp_fee_receipt_template: null,
+    whatsapp_fee_notification_template: null,
+    updated_at: new Date().toISOString(),
+  };
 
   if (existing?.id) {
     const { error } = await supabase.from("school_settings").update(row).eq("id", existing.id);

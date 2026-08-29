@@ -60,7 +60,7 @@ export function DashboardStatCard({
   return (
     <div
       className={cn(
-        "kt-card channel-stats-bg flex flex-col justify-between rounded-xl border border-border/60 p-4 shadow-sm",
+        "kt-card channel-stats-bg flex flex-col justify-between rounded-xl border p-4 shadow-sm",
         "bg-card/80 dark:bg-card/60 dark:border-white/10",
         "transition-shadow hover:shadow-md",
         t.hover,

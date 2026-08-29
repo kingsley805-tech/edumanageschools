@@ -115,6 +115,7 @@ const api = {
     syncFailedItems: (limit) => invoke("backup:syncFailedItems", limit),
     syncPendingItems: (limit) => invoke("backup:syncPendingItems", limit),
     syncLogs: (limit) => invoke("backup:syncLogs", limit),
+    setAuthToken: (token) => invoke("backup:setAuthToken", token),
   },
 
   updater: {

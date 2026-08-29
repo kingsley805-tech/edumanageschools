@@ -14,7 +14,16 @@ function buildTooltip() {
   const status = sync.getStatus();
   const unread = notifications.getUnreadCount();
   const net = status.online ? "Online" : "Offline";
-  const syncLabel = status.lastError ? `Sync: ${status.lastError}` : `Pending: ${status.pending}`;
+  let syncLabel = "Local only";
+  if (status.status === "local-only" || status.mode === "local-only") {
+    syncLabel = "Local only (cloud sync off)";
+  } else if (status.status === "offline" || status.mode === "offline") {
+    syncLabel = `Offline · ${status.pending} queued`;
+  } else if (status.lastError) {
+    syncLabel = `Sync: ${status.lastError}`;
+  } else {
+    syncLabel = `Pending: ${status.pending}`;
+  }
   return `EduManage Desktop\n${net} · ${syncLabel}\nNotifications: ${unread}`;
 }
 

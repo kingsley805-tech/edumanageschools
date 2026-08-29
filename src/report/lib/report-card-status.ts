@@ -73,3 +73,12 @@ export function isVisibleToFamily(status: string) {
 export function isPendingAdminAction(status: string) {
   return status === "pending_review" || status === "saved";
 }
+
+/** Overall Class Report: print/download only after admin approval. */
+export function canExportClassReport(status: string | null | undefined) {
+  return status === "approved" || status === "published";
+}
+
+export function canSubmitClassReport(status: string | null | undefined) {
+  return !status || status === "draft" || status === "rejected" || status === "saved";
+}

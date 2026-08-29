@@ -322,6 +322,14 @@ app.on("before-quit", () => {
 app.on("will-quit", () => {
   stopBackgroundServices();
   destroyTray();
+  try {
+    // Neon sync currently unused — optional close when re-enabled.
+    if (process.env.NEON_DATABASE_URL) {
+      require("./database/neonSync.cjs").close();
+    }
+  } catch {
+    /* optional */
+  }
   closeConnection();
 });
 

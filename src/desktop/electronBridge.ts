@@ -7,11 +7,20 @@ export type IpcResult<T> = {
   error: { code: string; message: string } | null;
 };
 
-export type SyncStateLabel = "syncing" | "synced" | "pending" | "failed" | "offline" | "idle";
+export type SyncStateLabel =
+  | "syncing"
+  | "synced"
+  | "pending"
+  | "failed"
+  | "offline"
+  | "local-only"
+  | "idle";
 
 export type SyncStatus = {
   online: boolean;
   status: SyncStateLabel;
+  /** How sync is operating right now */
+  mode?: "local-only" | "offline" | "cloud";
   lastSyncAt: string | null;
   pending: number;
   failed: number;
@@ -131,6 +140,7 @@ export type ElectronAPI = {
     syncFailedItems: (limit?: number) => Promise<IpcResult<SyncQueueItem[]>>;
     syncPendingItems: (limit?: number) => Promise<IpcResult<SyncQueueItem[]>>;
     syncLogs: (limit?: number) => Promise<IpcResult<SyncLogEntry[]>>;
+    setAuthToken: (token: string | null) => Promise<IpcResult<{ ok: boolean }>>;
   };
   updater: {
     check: () => Promise<unknown>;

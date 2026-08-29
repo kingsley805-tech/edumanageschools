@@ -6,6 +6,7 @@ import {
   XCircle,
   WifiOff,
   Loader2,
+  HardDrive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -14,10 +15,12 @@ import { cn } from "@/lib/utils";
 import { getDesktopAPI, isElectronDesktop } from "@/desktop/electronBridge";
 import type { SyncLogEntry, SyncQueueItem, SyncStatus } from "@/desktop/electronBridge";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const DEFAULT_STATUS: SyncStatus = {
   online: typeof navigator !== "undefined" ? navigator.onLine : true,
   status: "idle",
+  mode: "local-only",
   lastSyncAt: null,
   pending: 0,
   failed: 0,
@@ -27,14 +30,63 @@ const DEFAULT_STATUS: SyncStatus = {
 
 const STATE_META: Record<
   SyncStatus["status"],
-  { label: string; icon: typeof CheckCircle2; className: string }
+  {
+    label: string;
+    chip: string;
+    icon: typeof CheckCircle2;
+    className: string;
+    chipClassName: string;
+  }
 > = {
-  syncing: { label: "Syncing", icon: Loader2, className: "text-primary" },
-  synced: { label: "Synced", icon: CheckCircle2, className: "text-[hsl(var(--success))]" },
-  pending: { label: "Pending changes", icon: AlertTriangle, className: "text-[hsl(var(--warning))]" },
-  failed: { label: "Sync failed", icon: XCircle, className: "text-[hsl(var(--critical))]" },
-  offline: { label: "Offline", icon: WifiOff, className: "text-muted-foreground" },
-  idle: { label: "Idle", icon: CheckCircle2, className: "text-muted-foreground" },
+  syncing: {
+    label: "Syncing",
+    chip: "Syncing",
+    icon: Loader2,
+    className: "text-primary",
+    chipClassName: "border-primary/30 bg-primary/10 text-primary",
+  },
+  synced: {
+    label: "Synced",
+    chip: "Auto Sync",
+    icon: CheckCircle2,
+    className: "text-[hsl(var(--success))]",
+    chipClassName: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  },
+  pending: {
+    label: "Pending changes",
+    chip: "Pending",
+    icon: AlertTriangle,
+    className: "text-[hsl(var(--warning))]",
+    chipClassName: "border-amber-500/35 bg-amber-500/10 text-amber-800 dark:text-amber-200",
+  },
+  failed: {
+    label: "Sync failed",
+    chip: "Sync error",
+    icon: XCircle,
+    className: "text-[hsl(var(--critical))]",
+    chipClassName: "border-red-500/35 bg-red-500/10 text-red-700 dark:text-red-300",
+  },
+  offline: {
+    label: "Offline — queued",
+    chip: "Offline",
+    icon: WifiOff,
+    className: "text-muted-foreground",
+    chipClassName: "border-border bg-muted text-muted-foreground",
+  },
+  "local-only": {
+    label: "Local only — auto sync ready",
+    chip: "Local",
+    icon: HardDrive,
+    className: "text-emerald-600 dark:text-emerald-400",
+    chipClassName: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  },
+  idle: {
+    label: "Auto Sync",
+    chip: "Auto Sync",
+    icon: RefreshCw,
+    className: "text-primary",
+    chipClassName: "border-primary/25 bg-primary/5 text-foreground",
+  },
 };
 
 function formatRelativeTime(iso: string | null): string {
@@ -101,18 +153,47 @@ export function SyncStatusIndicator() {
 
   const meta = STATE_META[status.status] ?? STATE_META.idle;
   const Icon = meta.icon;
+  const isLocalOnly = status.status === "local-only" || status.mode === "local-only";
+  const showBadge =
+    !isLocalOnly &&
+    status.status !== "syncing" &&
+    (status.failed > 0 || (status.pending > 0 && status.status !== "synced"));
   const badgeCount = status.failed > 0 ? status.failed : status.pending;
 
   const handleSyncNow = async () => {
+    if (isLocalOnly) {
+      toast({
+        title: "Local-only mode",
+        description: "Neon cloud sync is disabled. Changes stay on this device.",
+      });
+      return;
+    }
+    if (!status.online) {
+      toast({
+        title: "You're offline",
+        description: "Changes are saved locally and will auto-sync when you're back online.",
+      });
+      return;
+    }
+
     setSyncingNow(true);
     try {
-      const res = await api.backup.syncNow({ includeFailed: true });
+      const { data: sessionData } = await supabase.auth.getSession();
+      const authToken = sessionData.session?.access_token;
+      if (authToken) {
+        await api.backup.setAuthToken(authToken);
+      }
+      const res = await api.backup.syncNow({ includeFailed: true, authToken });
       if (res.ok) {
+        const failedCount =
+          res.data && "failed" in res.data
+            ? Number((res.data as SyncStatus & { failed?: number }).failed || 0)
+            : 0;
         toast({
           title: "Sync complete",
           description:
-            res.data && "failed" in res.data && (res.data as SyncStatus & { failed: number }).failed
-              ? `Finished with ${(res.data as any).failed} item(s) still failing.`
+            failedCount > 0
+              ? `Finished with ${failedCount} item(s) still failing.`
               : "All pending changes were synchronized.",
         });
       } else {
@@ -129,17 +210,27 @@ export function SyncStatusIndicator() {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
-          variant="ghost"
-          size="icon"
-          className="relative h-8 w-8 rounded-md border border-border text-muted-foreground hover:bg-muted"
+          variant="outline"
+          size="sm"
+          className={cn(
+            "relative h-8 gap-1.5 rounded-full px-2.5 text-[11.5px] font-semibold shadow-sm",
+            meta.chipClassName,
+          )}
           aria-label={`Sync status: ${meta.label}`}
           title={meta.label}
         >
-          <Icon className={cn("h-4 w-4", meta.className, status.status === "syncing" && "animate-spin")} aria-hidden />
-          {badgeCount > 0 && status.status !== "syncing" && (
+          <RefreshCw
+            className={cn(
+              "h-3.5 w-3.5 shrink-0",
+              (status.status === "syncing" || syncingNow) && "animate-spin",
+            )}
+            aria-hidden
+          />
+          <span className="max-w-[7.5rem] truncate">{meta.chip}</span>
+          {showBadge && (
             <span
               className={cn(
-                "absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-semibold leading-none text-white",
+                "ms-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none text-white",
                 status.status === "failed" ? "bg-[hsl(var(--critical))]" : "bg-[hsl(var(--warning))]",
               )}
               aria-hidden
@@ -160,12 +251,25 @@ export function SyncStatusIndicator() {
             size="sm"
             className="h-7 gap-1.5 rounded-md px-2.5 text-[11.5px]"
             onClick={handleSyncNow}
-            disabled={syncingNow || status.status === "syncing" || !status.online}
+            disabled={syncingNow || status.status === "syncing"}
           >
             <RefreshCw className={cn("h-3 w-3", (syncingNow || status.status === "syncing") && "animate-spin")} />
             Sync Now
           </Button>
         </div>
+
+        {isLocalOnly ? (
+          <div className="border-b border-border px-4 py-3 text-[11.5px] leading-relaxed text-muted-foreground">
+            Working fully offline on this device. Local SQLite saves every change. Neon cloud
+            sync is currently disabled.
+          </div>
+        ) : null}
+
+        {status.status === "offline" ? (
+          <div className="border-b border-border px-4 py-3 text-[11.5px] leading-relaxed text-muted-foreground">
+            No network right now. Changes stay on this PC and will auto-sync when you reconnect.
+          </div>
+        ) : null}
 
         {status.progress && (
           <div className="border-b border-border px-4 py-2">
@@ -178,7 +282,9 @@ export function SyncStatusIndicator() {
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full rounded-full bg-primary transition-all duration-300"
-                style={{ width: `${Math.min(100, (status.progress.current / Math.max(1, status.progress.total)) * 100)}%` }}
+                style={{
+                  width: `${Math.min(100, (status.progress.current / Math.max(1, status.progress.total)) * 100)}%`,
+                }}
               />
             </div>
           </div>
@@ -187,7 +293,7 @@ export function SyncStatusIndicator() {
         <div className="grid grid-cols-3 divide-x divide-border border-b border-border text-center">
           <div className="px-2 py-3">
             <div className="text-lg font-semibold tabular-nums">{status.pending}</div>
-            <div className="text-[10.5px] text-muted-foreground">Pending</div>
+            <div className="text-[10.5px] text-muted-foreground">Queued</div>
           </div>
           <div className="px-2 py-3">
             <div
@@ -201,16 +307,23 @@ export function SyncStatusIndicator() {
             <div className="text-[10.5px] text-muted-foreground">Failed</div>
           </div>
           <div className="px-2 py-3">
-            <div className={cn("text-lg font-semibold", status.online ? "text-[hsl(var(--success))]" : "text-muted-foreground")}>
-              {status.online ? "Online" : "Offline"}
+            <div
+              className={cn(
+                "text-lg font-semibold",
+                status.online ? "text-[hsl(var(--success))]" : "text-muted-foreground",
+              )}
+            >
+              {isLocalOnly ? "Local" : status.online ? "Online" : "Offline"}
             </div>
-            <div className="text-[10.5px] text-muted-foreground">Connection</div>
+            <div className="text-[10.5px] text-muted-foreground">Mode</div>
           </div>
         </div>
 
         <div className="flex items-center justify-between px-4 py-2 text-[11.5px] text-muted-foreground">
-          <span>Last successful sync</span>
-          <span className="font-medium text-foreground">{formatRelativeTime(status.lastSyncAt)}</span>
+          <span>{isLocalOnly ? "Local database" : "Last successful sync"}</span>
+          <span className="font-medium text-foreground">
+            {isLocalOnly ? "Ready" : formatRelativeTime(status.lastSyncAt)}
+          </span>
         </div>
 
         {failedItems.length > 0 && (
@@ -221,7 +334,10 @@ export function SyncStatusIndicator() {
             <ScrollArea className="h-28">
               <div className="space-y-1 px-4 pb-2">
                 {failedItems.map((item) => (
-                  <div key={item.id} className="rounded-md border border-[hsl(var(--critical-bg))] bg-[hsl(var(--critical-bg))]/40 px-2 py-1.5 text-[11px]">
+                  <div
+                    key={item.id}
+                    className="rounded-md border border-[hsl(var(--critical-bg))] bg-[hsl(var(--critical-bg))]/40 px-2 py-1.5 text-[11px]"
+                  >
                     <div className="flex items-center justify-between">
                       <span className="font-medium">
                         {item.entity} · {item.operation}
@@ -240,7 +356,7 @@ export function SyncStatusIndicator() {
           </div>
         )}
 
-        {pendingItems.length > 0 && (
+        {pendingItems.length > 0 && !isLocalOnly && (
           <div className="border-t border-border">
             <div className="px-4 py-2 text-[11.5px] font-semibold text-[hsl(var(--warning))]">
               Pending uploads ({status.pending})
@@ -248,7 +364,10 @@ export function SyncStatusIndicator() {
             <ScrollArea className="h-20">
               <div className="space-y-1 px-4 pb-2">
                 {pendingItems.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between rounded-md border border-border/60 bg-muted/20 px-2 py-1.5 text-[11px]">
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between rounded-md border border-border/60 bg-muted/20 px-2 py-1.5 text-[11px]"
+                  >
                     <span>
                       {item.entity} · {item.operation}
                     </span>

@@ -41,6 +41,8 @@ export async function deliverReportToParents(opts: {
   senderId: string;
   senderRole: "teacher" | "admin";
   schoolId?: string | null;
+  /** Also force SMS even if auto-send is off (manual button). */
+  forceSms?: boolean;
 }): Promise<number> {
   const now = new Date().toISOString();
   const fullPayload = {
@@ -71,7 +73,6 @@ export async function deliverReportToParents(opts: {
     senderRole: opts.senderRole,
   });
 
-  // Queue WhatsApp to linked parent contacts (non-blocking for portal publish)
   let schoolId = opts.schoolId ?? null;
   if (!schoolId) {
     const { data: report } = await supabase
@@ -97,10 +98,36 @@ export async function deliverReportToParents(opts: {
       .catch(() => {
         /* WhatsApp must not block report publish */
       });
+
+    void import("@/report/lib/report-card-sms")
+      .then(({ sendReportCardSmsForReportId }) =>
+        sendReportCardSmsForReportId({
+          reportId: opts.reportId,
+          senderRole: opts.senderRole,
+          force: opts.forceSms === true,
+        }),
+      )
+      .then((result) => {
+        if (result.errors?.length) {
+          console.error("Report card SMS delivery errors:", {
+            reportId: opts.reportId,
+            errors: result.errors,
+          });
+        }
+      })
+      .catch((err) => {
+        console.error("Report card SMS delivery failed:", {
+          reportId: opts.reportId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
   }
 
   return notified;
 }
+
+/** Max concurrent parent deliveries (and SMS fan-out) per bulk action. */
+const BULK_DELIVERY_LIMIT = 25;
 
 /** Bulk deliver all approved/published reports for a class (optional term filter). */
 export async function deliverClassReportsToParents(opts: {
@@ -137,23 +164,44 @@ export async function deliverClassReportsToParents(opts: {
 
   let sent = 0;
   let skipped = 0;
+  let processed = 0;
 
   for (const row of rows ?? []) {
     if ("sent_to_parents_at" in row && row.sent_to_parents_at) {
       skipped += 1;
       continue;
     }
-    const n = await deliverReportToParents({
-      reportId: row.id,
-      studentId: row.student_id,
-      studentName: row.student_name,
-      className: row.class_name,
-      termLabel: row.term_label,
-      senderId: opts.senderId,
-      senderRole: opts.senderRole,
-    });
-    if (n > 0) sent += 1;
-    else skipped += 1;
+    if (processed >= BULK_DELIVERY_LIMIT) {
+      skipped += 1;
+      continue;
+    }
+    processed += 1;
+    try {
+      const n = await deliverReportToParents({
+        reportId: row.id,
+        studentId: row.student_id,
+        studentName: row.student_name,
+        className: row.class_name,
+        termLabel: row.term_label,
+        senderId: opts.senderId,
+        senderRole: opts.senderRole,
+        schoolId: opts.schoolId,
+      });
+      if (n > 0) sent += 1;
+      else skipped += 1;
+    } catch (err) {
+      skipped += 1;
+      console.error("Bulk report delivery failed:", {
+        reportId: row.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  if ((rows?.length ?? 0) > BULK_DELIVERY_LIMIT) {
+    console.warn(
+      `Bulk delivery capped at ${BULK_DELIVERY_LIMIT} reports; remaining skipped.`,
+    );
   }
 
   return { sent, skipped };

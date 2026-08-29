@@ -63,6 +63,7 @@ import { TablePagination } from "@/report/portal/table-pagination";
 import { fetchSchoolTerms, formatTermLabel } from "@/report/lib/terms";
 import { deliverClassReportsToParents } from "@/report/lib/report-delivery";
 import { TERM_REPORT_ADMIN_LIST_SELECT } from "@/report/lib/term-report";
+import { fetchAdminTermClassReports } from "@/report/lib/term-class-report";
 import { toast } from "sonner";
 import { exportGenericTableToExcel, exportGenericTableToPDF } from "@/lib/exportUtils";
 import { exportTable } from "@/modules/lib/exportTable";
@@ -149,6 +150,17 @@ function AdminReportReview() {
       });
     },
   });
+
+  const { data: classReports = [] } = useQuery({
+    queryKey: ["admin-term-class-reports", profile?.school_id],
+    enabled: !!profile?.school_id,
+    queryFn: () => fetchAdminTermClassReports(profile!.school_id!),
+  });
+
+  const pendingClassReports = useMemo(
+    () => classReports.filter((r) => isPendingAdminAction(r.status) || r.status === "reviewed"),
+    [classReports],
+  );
 
   const bulkSend = useMutation({
     mutationFn: async () => {
@@ -584,6 +596,62 @@ function AdminReportReview() {
           )}
         </DashboardChartCard>
       </div>
+
+      {/* ── Overall Class Reports pending review ──────────────────────── */}
+      {pendingClassReports.length > 0 && (
+        <div className="kt-card rounded-xl border border-border bg-card shadow-xs p-5 space-y-3 print:hidden">
+          <div className="flex items-center gap-2.5">
+            <div className="size-8 rounded-lg bg-warning/10 text-warning flex items-center justify-center font-bold">
+              <GraduationCap className="size-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">
+                Overall Class Reports awaiting review
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Approve these before teachers can print or download (Excel, PDF, Word).
+              </p>
+            </div>
+          </div>
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Class</TableHead>
+                  <TableHead>Term</TableHead>
+                  <TableHead>Students</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingClassReports.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell className="font-medium">{row.class_name ?? "—"}</TableCell>
+                    <TableCell>
+                      {row.term_label}
+                      {row.academic_year ? ` · ${row.academic_year}` : ""}
+                    </TableCell>
+                    <TableCell>{row.student_count}</TableCell>
+                    <TableCell>
+                      <Badge variant={statusBadgeVariant(row.status)}>
+                        {statusLabel(row.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button asChild size="sm" variant="outline">
+                        <Link to={`/admin/report-cards/class-view?id=${row.id}`}>
+                          Review <ChevronRight className="ml-1 size-3.5" />
+                        </Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
 
       {/* ── Bulk Delivery Action Card ─────────────────────────────────── */}
       <div className="kt-card rounded-xl border border-border bg-card shadow-xs p-5 space-y-4 print:hidden">

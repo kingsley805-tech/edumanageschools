@@ -41,6 +41,8 @@ export function invalidateRankingQueries(
     ["admin-term-reports"],
     ["student-performance"],
     ["class-students-report"],
+    ["overall-class-report"],
+    ["class-term-exportable-reports"],
   ];
   for (const queryKey of keys) {
     qc.invalidateQueries({ queryKey });

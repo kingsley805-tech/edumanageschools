@@ -1,13 +1,17 @@
 import { Link, useSearchParams } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/report/hooks/use-auth";
-import { useCurrentTerm } from "@/report/hooks/use-school-data";
+import { useCurrentTerm, useSchool } from "@/report/hooks/use-school-data";
 import { useTermReportCard } from "@/report/hooks/use-term-report-card";
 import { PageHeader } from "@/report/portal/page-header";
 import { ActiveTermBanner } from "@/report/portal/active-term-banner";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  DashboardChartCard,
+  DashboardStatCard,
+  DashboardStatGrid,
+} from "@/components/metronic/DashboardStatCard";
 import {
   Select,
   SelectContent,
@@ -19,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +35,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ShepherdReportCard } from "@/report/components/shepherd-report-card";
+import { OverallClassReport } from "@/report/components/overall-class-report";
+import { fetchOverallClassReport } from "@/report/lib/overall-class-report";
 import {
+  canSubmitClassReport,
   isPendingAdminAction,
   statusBadgeVariant,
   statusLabel,
@@ -38,29 +46,76 @@ import {
 } from "@/report/lib/report-card-status";
 import { useGeneratePositions } from "@/report/hooks/use-generate-positions";
 import { GeneratePositionsCard } from "@/report/portal/generate-positions-card";
-import { FileText, History, Pencil, Send } from "lucide-react";
+import {
+  BookOpen,
+  FileText,
+  History,
+  Loader2,
+  Pencil,
+  RefreshCw,
+  Send,
+  Trophy,
+  Users,
+} from "lucide-react";
 import { useReportSignatures } from "@/report/hooks/use-report-signatures";
 import { TeacherBulkReportActions } from "@/report/components/teacher-bulk-report-actions";
 import { fetchTeacherAssignedClasses } from "@/report/lib/teacher-assignments";
+import { academicYearFromTerm } from "@/report/lib/terms";
+import {
+  fetchTermClassReport,
+  upsertTermClassReport,
+} from "@/report/lib/term-class-report";
+import { notifyAdminsClassReportSubmitted } from "@/report/lib/report-card-notify";
+import { toast } from "sonner";
+import { withReportLayout } from "@/report/withReportLayout";
+
+type ReportMode = "class" | "student";
 
 function TeacherReportCards() {
   const { user, profile } = useAuth();
   const { data: term } = useCurrentTerm();
+  const { data: school } = useSchool();
+  const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [classId, setClassId] = useState(searchParams.get("classId") || "");
   const [studentId, setStudentId] = useState(searchParams.get("studentId") || "");
+  const [reportMode, setReportMode] = useState<ReportMode>(
+    searchParams.get("mode") === "student" || searchParams.get("studentId")
+      ? "student"
+      : "class",
+  );
   const [submitOpen, setSubmitOpen] = useState(false);
+  const [classSubmitOpen, setClassSubmitOpen] = useState(false);
   const [positionsRevealed, setPositionsRevealed] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     const cid = searchParams.get("classId");
     const sid = searchParams.get("studentId");
+    const mode = searchParams.get("mode");
     if (cid) setClassId(cid);
     if (sid) setStudentId(sid);
+    if (mode === "class" || mode === "student") setReportMode(mode);
+    else if (sid) setReportMode("student");
   }, [searchParams]);
 
-  // Reset only when class or term changes — not when switching students after Generate Positions.
+  const syncParams = (next: {
+    classId?: string;
+    studentId?: string;
+    mode?: ReportMode;
+  }) => {
+    const params = new URLSearchParams(searchParams);
+    const cid = next.classId ?? classId;
+    const sid = next.studentId !== undefined ? next.studentId : studentId;
+    const mode = next.mode ?? reportMode;
+    if (cid) params.set("classId", cid);
+    else params.delete("classId");
+    if (sid) params.set("studentId", sid);
+    else params.delete("studentId");
+    params.set("mode", mode);
+    setSearchParams(params, { replace: true });
+  };
+
   useEffect(() => {
     setPositionsRevealed(false);
     setIsEditing(false);
@@ -96,6 +151,70 @@ function TeacherReportCards() {
   });
 
   const schoolId = profile?.school_id ?? "";
+  const selectedClassName = classes?.find((c) => c.id === classId)?.name;
+
+  const {
+    data: overallReport,
+    isLoading: overallLoading,
+    refetch: refetchOverall,
+  } = useQuery({
+    queryKey: [
+      "overall-class-report",
+      classId,
+      term?.id,
+      selectedClassName,
+      term?.name,
+      term?.session,
+    ],
+    enabled: !!classId && !!term?.id && reportMode === "class",
+    queryFn: () =>
+      fetchOverallClassReport({
+        classId,
+        termId: term!.id,
+        className: selectedClassName,
+        termLabel: term!.name,
+        academicYear: academicYearFromTerm(term!),
+      }),
+  });
+
+  const { data: classReportRecord, refetch: refetchClassRecord } = useQuery({
+    queryKey: ["term-class-report", classId, term?.id],
+    enabled: !!classId && !!term?.id && reportMode === "class",
+    queryFn: () => fetchTermClassReport(classId, term!.id),
+  });
+
+  const submitClassReport = useMutation({
+    mutationFn: async () => {
+      if (!overallReport || !schoolId || !user?.id || !term?.id) {
+        throw new Error("Missing class report context");
+      }
+      return upsertTermClassReport({
+        schoolId,
+        classId,
+        termId: term.id,
+        teacherId: user.id,
+        changedBy: user.id,
+        status: "pending_review",
+        snapshot: overallReport,
+        note: "Submitted for admin review",
+        existing: classReportRecord ?? null,
+      });
+    },
+    onSuccess: async (row) => {
+      await notifyAdminsClassReportSubmitted({
+        schoolId,
+        className: row.class_name ?? selectedClassName ?? "Class",
+        termLabel: row.term_label ?? term?.name,
+        reportId: row.id,
+        teacherName: profile?.full_name ?? undefined,
+      });
+      await refetchClassRecord();
+      qc.invalidateQueries({ queryKey: ["term-class-reports-history"] });
+      qc.invalidateQueries({ queryKey: ["admin-term-class-reports"] });
+      toast.success("Class report sent to admin for review");
+    },
+    onError: (e: Error) => toast.error(e.message || "Failed to submit class report"),
+  });
 
   const editor = useTermReportCard({
     studentId,
@@ -104,16 +223,16 @@ function TeacherReportCards() {
     schoolId,
     teacherId: user?.id ?? "",
     teacherName: profile?.full_name ?? undefined,
-    enabled: !!studentId && !!schoolId && !!term?.id,
+    enabled: reportMode === "student" && !!studentId && !!schoolId && !!term?.id,
     showPositions: positionsRevealed,
   });
 
   useEffect(() => {
-    if (!studentId || editor.loading) return;
+    if (reportMode !== "student" || !studentId || editor.loading) return;
     if (teacherReportEditByDefault(editor.status) || !editor.reportId) {
       setIsEditing(true);
     }
-  }, [studentId, editor.status, editor.reportId, editor.loading]);
+  }, [reportMode, studentId, editor.status, editor.reportId, editor.loading]);
 
   const {
     generate: generatePositions,
@@ -126,11 +245,12 @@ function TeacherReportCards() {
     termId: term?.id,
     onSuccess: async () => {
       setPositionsRevealed(true);
-      if (studentId) await editor.load({ showPositions: true });
+      if (reportMode === "student" && studentId) {
+        await editor.load({ showPositions: true });
+      }
+      await refetchOverall();
     },
   });
-
-  const selectedClassName = classes?.find((c) => c.id === classId)?.name;
 
   const editable = isEditing;
 
@@ -140,37 +260,200 @@ function TeacherReportCards() {
     if (studentId) void editor.load({ showPositions: true });
   };
 
+  const openStudentReport = (sid: string) => {
+    setStudentId(sid);
+    setReportMode("student");
+    syncParams({ studentId: sid, mode: "student" });
+  };
+
+  const switchMode = (mode: ReportMode) => {
+    setReportMode(mode);
+    syncParams({ mode });
+    if (mode === "class") void refetchOverall();
+  };
+
   const { teacherSignatureUrl, headSignatureUrl } = useReportSignatures({
     schoolId,
     teacherId: user?.id,
-    enabled: !!editor.form && !!schoolId,
+    enabled: reportMode === "student" && !!editor.form && !!schoolId,
   });
+
+  const cardsReady = useMemo(
+    () => overallReport?.students.filter((s) => s.hasReport).length ?? 0,
+    [overallReport],
+  );
+  const studentCount = students?.length ?? 0;
+  const statusTone =
+    classReportRecord?.status === "approved" || classReportRecord?.status === "published"
+      ? "emerald"
+      : classReportRecord?.status === "rejected"
+        ? "rose"
+        : isPendingAdminAction(classReportRecord?.status ?? "")
+          ? "amber"
+          : "slate";
+
+  const statusHint = useMemo(() => {
+    if (reportMode === "class") {
+      if (classReportRecord?.status === "rejected" && classReportRecord.rejection_reason) {
+        return `Returned by admin: ${classReportRecord.rejection_reason}`;
+      }
+      if (isPendingAdminAction(classReportRecord?.status ?? "")) {
+        return "Waiting for admin approval. Print & download unlock after approval.";
+      }
+      if (classReportRecord?.status === "approved" || classReportRecord?.status === "published") {
+        return "Approved — you can print or download this class report.";
+      }
+      return "Fill student cards first, then send the class report for admin review.";
+    }
+    if (!studentId) return "Select a student to open their report card.";
+    if (!isEditing && editor.reportId) {
+      return `Status: ${statusLabel(editor.status)}. Click Edit to make changes.`;
+    }
+    if (isPendingAdminAction(editor.status)) {
+      return "Pending admin review — you can still edit and save.";
+    }
+    return null;
+  }, [
+    reportMode,
+    classReportRecord,
+    studentId,
+    isEditing,
+    editor.reportId,
+    editor.status,
+  ]);
 
   return (
     <>
       <PageHeader
-        title="Report card"
-        description="Select class and student, then fill the official report. Changes auto-save. Upload your signature under Signatures in the sidebar."
+        title="Report cards"
+        description="Prepare student cards or the class performance report for this term."
         actions={
-          <Button asChild variant="outline" size="sm">
-            <Link to="/teacher/report-cards/history">
-              <History className="mr-1 h-4 w-4" /> History
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link to="/teacher/report-cards/class-history">
+                <Users className="mr-1.5 h-3.5 w-3.5" />
+                Class history
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/teacher/report-cards/history">
+                <History className="mr-1.5 h-3.5 w-3.5" />
+                Student history
+              </Link>
+            </Button>
+          </div>
         }
       />
 
-      <div className="min-w-0 space-y-6 p-4 md:p-6">
+      <div className="min-w-0 space-y-5 p-4 md:p-6">
         <ActiveTermBanner />
-        <Card className="no-print">
-          <CardContent className="grid gap-4 p-6 md:grid-cols-3">
-            <div>
-              <Label>Class</Label>
+
+        <DashboardStatGrid>
+          <DashboardStatCard
+            label="Class"
+            value={selectedClassName || "—"}
+            description={term?.name ? `${term.name}` : "Select a class"}
+            icon={BookOpen}
+            tone="primary"
+          />
+          <DashboardStatCard
+            label="Students"
+            value={studentCount}
+            description={
+              reportMode === "class"
+                ? `${cardsReady} with report cards`
+                : "In selected class"
+            }
+            icon={Users}
+            tone="sky"
+          />
+          <DashboardStatCard
+            label={reportMode === "class" ? "Class report" : "Student report"}
+            value={
+              reportMode === "class"
+                ? classReportRecord
+                  ? statusLabel(classReportRecord.status)
+                  : "Not sent"
+                : studentId
+                  ? statusLabel(editor.status)
+                  : "—"
+            }
+            description={
+              reportMode === "class"
+                ? "Overall performance sheet"
+                : editor.form?.studentName || "Pick a student"
+            }
+            icon={FileText}
+            tone={reportMode === "class" ? statusTone : "violet"}
+          />
+        </DashboardStatGrid>
+
+        {/* Toolbar */}
+        <DashboardChartCard
+          title="Workspace"
+          description="Choose report type, then select class (and student)."
+          action={
+            <div className="flex flex-wrap gap-2">
+              {classId && term && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isGenerating || progressLoading}
+                  onClick={() => generatePositions.mutate({})}
+                >
+                  {isGenerating ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trophy className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  Generate positions
+                </Button>
+              )}
+              {reportMode === "class" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!classId || overallLoading}
+                  onClick={() => {
+                    void refetchOverall();
+                    void refetchClassRecord();
+                  }}
+                >
+                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                  Refresh
+                </Button>
+              )}
+            </div>
+          }
+        >
+          <Tabs
+            value={reportMode}
+            onValueChange={(v) => switchMode(v as ReportMode)}
+            className="no-print"
+          >
+            <TabsList className="mb-5">
+              <TabsTrigger value="class" className="gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                Class report
+              </TabsTrigger>
+              <TabsTrigger value="student" className="gap-1.5">
+                <FileText className="h-3.5 w-3.5" />
+                Student card
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <div className="no-print grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Class</Label>
               <Select
                 value={classId}
                 onValueChange={(v) => {
                   setClassId(v);
                   setStudentId("");
+                  syncParams({ classId: v, studentId: "", mode: reportMode });
                 }}
               >
                 <SelectTrigger>
@@ -185,78 +468,124 @@ function TeacherReportCards() {
                 </SelectContent>
               </Select>
               {!classesLoading && classes && classes.length === 0 && (
-                <p className="mt-2 text-sm text-muted-foreground">
-                  No classes assigned yet. Ask your admin to link you under Teacher–Class assignments.
+                <p className="text-xs text-muted-foreground">
+                  No classes assigned. Ask your admin to assign you.
                 </p>
               )}
             </div>
-            <div>
-              <Label>Student name</Label>
-              <Select value={studentId} onValueChange={setStudentId} disabled={!classId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select student" />
-                </SelectTrigger>
-                <SelectContent>
-                  {students?.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col justify-end gap-2">
-              {studentId && (
-                <Badge variant={statusBadgeVariant(editor.status)} className="w-fit">
-                  {statusLabel(editor.status)}
-                </Badge>
-              )}
-              <div className="flex flex-wrap gap-2">
-                {studentId && editor.reportId && !isEditing && (
-                  <Button
-                    type="button"
-                    variant="default"
-                    className="flex-1 min-w-[7rem]"
-                    onClick={startEditing}
-                    disabled={editor.loading}
-                  >
-                    <Pencil className="mr-1 h-4 w-4" />
-                    Edit report
+
+            {reportMode === "student" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Student</Label>
+                <Select
+                  value={studentId}
+                  onValueChange={(v) => {
+                    setStudentId(v);
+                    syncParams({ studentId: v, mode: "student" });
+                  }}
+                  disabled={!classId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select student" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {students?.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="flex flex-col justify-end gap-2 sm:col-span-2 lg:col-span-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {reportMode === "student" && studentId && (
+                  <Badge variant={statusBadgeVariant(editor.status)}>
+                    {statusLabel(editor.status)}
+                  </Badge>
+                )}
+                {reportMode === "class" && classReportRecord && (
+                  <Badge variant={statusBadgeVariant(classReportRecord.status)}>
+                    {statusLabel(classReportRecord.status)}
+                  </Badge>
+                )}
+
+                {reportMode === "student" && studentId && editor.reportId && !isEditing && (
+                  <Button size="sm" onClick={startEditing} disabled={editor.loading}>
+                    <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                    Edit
                   </Button>
                 )}
-                <Button
-                  variant="outline"
-                  className="flex-1 min-w-[7rem]"
-                  onClick={() => editor.load({ showPositions: positionsRevealed || isEditing })}
-                  disabled={!studentId || editor.loading}
-                >
-                  Reload
-                </Button>
-                <Button
-                  className="flex-1 min-w-[7rem]"
-                  onClick={() => void editor.saveDraft()}
-                  disabled={!editor.form || editor.saving || !editable}
-                >
-                  Save
-                </Button>
+                {reportMode === "student" && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        editor.load({ showPositions: positionsRevealed || isEditing })
+                      }
+                      disabled={!studentId || editor.loading}
+                    >
+                      <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                      Reload
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => void editor.saveDraft()}
+                      disabled={!editor.form || editor.saving || !editable}
+                    >
+                      {editor.saving ? (
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      ) : null}
+                      Save
+                    </Button>
+                    {editable &&
+                      (editor.status === "draft" || editor.status === "rejected") && (
+                        <Button
+                          size="sm"
+                          onClick={() => setSubmitOpen(true)}
+                          disabled={editor.saving}
+                        >
+                          <Send className="mr-1.5 h-3.5 w-3.5" />
+                          Send for review
+                        </Button>
+                      )}
+                  </>
+                )}
+
+                {reportMode === "class" && canSubmitClassReport(classReportRecord?.status) && (
+                  <Button
+                    size="sm"
+                    disabled={
+                      !overallReport ||
+                      overallLoading ||
+                      submitClassReport.isPending ||
+                      cardsReady === 0
+                    }
+                    onClick={() => setClassSubmitOpen(true)}
+                  >
+                    {submitClassReport.isPending ? (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Send className="mr-1.5 h-3.5 w-3.5" />
+                    )}
+                    Send for review
+                  </Button>
+                )}
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {classId && term && user?.id && schoolId && (
-          <TeacherBulkReportActions
-            classId={classId}
-            termId={term.id}
-            teacherId={user.id}
-            schoolId={schoolId}
-            className={selectedClassName}
-            termLabel={term.name}
-            students={students}
-            onSelectStudent={setStudentId}
-          />
-        )}
+          {statusHint && (
+            <p className="no-print mt-4 text-xs text-muted-foreground border-t border-border pt-3">
+              {statusHint}
+            </p>
+          )}
+        </DashboardChartCard>
 
+        {/* Positions progress — compact, only when class selected */}
         {classId && term && (
           <GeneratePositionsCard
             className={selectedClassName}
@@ -271,48 +600,41 @@ function TeacherReportCards() {
           />
         )}
 
-        {editor.loading ? (
-          <Skeleton className="h-[900px] w-full max-w-[860px] mx-auto" />
-        ) : !editor.form ? (
-          <Card className="no-print">
-            <CardContent className="flex flex-col items-center py-16 text-muted-foreground">
-              <FileText className="h-12 w-12 mb-4 opacity-40" />
-              <p>Select a class and student to open the report card template.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            {editable && (editor.status === "draft" || editor.status === "rejected") && (
-              <div className="no-print flex justify-end">
-                <Button onClick={() => setSubmitOpen(true)} disabled={editor.saving}>
-                  <Send className="mr-1 h-4 w-4" />
-                  Send to Admin for Review
-                </Button>
-              </div>
-            )}
-            {!isEditing && editor.reportId && (
-              <p className="no-print text-center text-sm text-muted-foreground">
-                This report is in <strong>{statusLabel(editor.status)}</strong> status. Click{" "}
-                <strong>Edit report</strong> above to make changes (including after positions are generated).
-              </p>
-            )}
-            {isEditing && isPendingAdminAction(editor.status) && (
-              <p className="no-print text-center text-sm text-muted-foreground">
-                Pending admin review — you can edit and save; status stays the same until admin approves.
-              </p>
-            )}
-            {isEditing && editor.status === "reviewed" && (
-              <p className="no-print text-center text-sm text-muted-foreground">
-                Admin has reviewed this report — you can still edit and save updates.
-              </p>
-            )}
-            {isEditing && (editor.status === "approved" || editor.status === "published") && (
-              <p className="no-print text-center text-sm text-muted-foreground">
-                Approved report — edits are saved without removing approval. Parents already see the last published version until you forward again.
-              </p>
-            )}
+        {/* Bulk print/PDF for submitted student cards — only in student mode */}
+        {reportMode === "student" && classId && term && user?.id && schoolId && (
+          <TeacherBulkReportActions
+            classId={classId}
+            termId={term.id}
+            teacherId={user.id}
+            schoolId={schoolId}
+            className={selectedClassName}
+            termLabel={term.name}
+            students={students}
+            onSelectStudent={openStudentReport}
+          />
+        )}
 
-            <div className="min-w-0 w-full max-w-full overflow-x-auto">
+        {/* Preview */}
+        {reportMode === "class" ? (
+          <OverallClassReport
+            data={overallReport}
+            loading={overallLoading}
+            schoolName={school?.name ?? school?.school_name}
+            status={classReportRecord?.status}
+            onSelectStudent={openStudentReport}
+          />
+        ) : editor.loading ? (
+          <Skeleton className="mx-auto h-[720px] w-full max-w-[860px]" />
+        ) : !editor.form ? (
+          <div className="kt-card no-print">
+            <div className="flex flex-col items-center px-6 py-16 text-center text-muted-foreground">
+              <FileText className="mb-3 h-10 w-10 opacity-40" />
+              <p className="text-sm font-medium text-foreground">No student selected</p>
+              <p className="mt-1 text-xs">Choose a class and student above to open their report card.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="min-w-0 w-full max-w-full overflow-x-auto">
             <ShepherdReportCard
               data={editor.form}
               academicYear={editor.form.academicYear}
@@ -328,18 +650,16 @@ function TeacherReportCards() {
               teacherSignatureUrl={teacherSignatureUrl}
               headSignatureUrl={headSignatureUrl}
             />
-            </div>
-          </>
+          </div>
         )}
       </div>
 
       <AlertDialog open={submitOpen} onOpenChange={setSubmitOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Send to admin for review?</AlertDialogTitle>
+            <AlertDialogTitle>Send student report for review?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will notify school admins. You can still edit later using Edit report.
-              PDF and print will be enabled after submission.
+              Admins will be notified. You can still edit later. Print/PDF unlock after submission.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -355,9 +675,32 @@ function TeacherReportCards() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={classSubmitOpen} onOpenChange={setClassSubmitOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send class report for review?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A snapshot of class scores and positions will go to admins. Print and download
+              (Excel, PDF, Word) unlock only after approval.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={submitClassReport.isPending}
+              onClick={async () => {
+                await submitClassReport.mutateAsync();
+                setClassSubmitOpen(false);
+              }}
+            >
+              Send for review
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
 
-import { withReportLayout } from "@/report/withReportLayout";
 export default withReportLayout("teacher", TeacherReportCards);

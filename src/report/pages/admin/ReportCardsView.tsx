@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useReportCardAutosave } from "@/report/hooks/use-report-card-autosave";
 import { PageHeader } from "@/report/portal/page-header";
 import { Button } from "@/components/ui/button";
@@ -20,10 +20,11 @@ import { useAuth } from "@/report/hooks/use-auth";
 import { canAdminEdit, statusBadgeVariant, statusLabel } from "@/report/lib/report-card-status";
 import type { ReportFormData } from "@/report/lib/shepherd-grading";
 import { ReportVersionTimeline } from "@/report/components/report-version-history";
-import { ArrowLeft, CheckCircle, Eye, History, XCircle, Send, Loader2 } from "lucide-react";
+import { ArrowLeft, CheckCircle, Eye, History, XCircle, Send, Loader2, MessageSquare } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { deliverReportToParents } from "@/report/lib/report-delivery";
+import { sendReportCardSmsForReportId } from "@/report/lib/report-card-sms";
 import { ReportMetaPanel } from "@/report/components/report-meta-panel";
 import { supabase } from "@/integrations/supabase/client";
 import { useReportSignatures } from "@/report/hooks/use-report-signatures";
@@ -42,18 +43,26 @@ function AdminViewReport() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [timelineVersion, setTimelineVersion] = useState<number | null>(null);
   const [forwarding, setForwarding] = useState(false);
+  const [smsSending, setSmsSending] = useState(false);
 
 
   const { data: report, isLoading, refetch } = useQuery({
     queryKey: ["term-report", id],
     enabled: !!id,
-    queryFn: async () => {
-      const row = await fetchTermReportById(id);
-      setForm(await rowToFormWithTermDates(row, gradingFormat));
-      setAdminComment(row.admin_comment ?? "");
-      return row;
-    },
+    queryFn: () => fetchTermReportById(id),
   });
+
+  useEffect(() => {
+    if (!report) return;
+    let cancelled = false;
+    void rowToFormWithTermDates(report, gradingFormat).then((next) => {
+      if (!cancelled) setForm(next);
+    });
+    setAdminComment(report.admin_comment ?? "");
+    return () => {
+      cancelled = true;
+    };
+  }, [report?.id, report?.admin_comment, gradingFormat]);
 
   const { data: sentByProfile } = useQuery({
     queryKey: ["report-sender", report?.sent_to_parents_by],
@@ -238,6 +247,46 @@ function AdminViewReport() {
                 <Send className="mr-1 h-4 w-4" />
               )}
               Forward to parents
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={
+                smsSending ||
+                !(report.status === "approved" || report.status === "published")
+              }
+              title="Send report card PDF link by SMS to linked parents"
+              onClick={async () => {
+                setSmsSending(true);
+                try {
+                  const result = await sendReportCardSmsForReportId({
+                    reportId: report.id,
+                    senderRole: "admin",
+                    force: true,
+                  });
+                  if (result.sent > 0) {
+                    toast.success(
+                      `SMS sent to ${result.sent} parent${result.sent === 1 ? "" : "s"}.`,
+                    );
+                  } else {
+                    toast.warning(
+                      result.errors[0] ||
+                        "No SMS sent. Check parent phone numbers and SMS credits.",
+                    );
+                  }
+                } catch (e) {
+                  toast.error((e as Error).message || "Failed to send SMS.");
+                } finally {
+                  setSmsSending(false);
+                }
+              }}
+            >
+              {smsSending ? (
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+              ) : (
+                <MessageSquare className="mr-1 h-4 w-4" />
+              )}
+              Send Report Card by SMS
             </Button>
           </div>
         </div>

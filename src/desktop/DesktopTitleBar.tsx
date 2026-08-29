@@ -3,6 +3,7 @@ import { Minus, Square, X, Maximize2, Keyboard } from "lucide-react";
 import { getDesktopAPI, isElectronDesktop } from "./electronBridge";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 
 const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.platform);
 const MOD = isMac ? "Cmd" : "Ctrl";
@@ -23,20 +24,27 @@ export function DesktopTitleBar({ className }: { className?: string }) {
   const [maximized, setMaximized] = useState(true);
   const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
   const [pending, setPending] = useState(0);
+  const [syncMode, setSyncMode] = useState<"local-only" | "offline" | "cloud" | undefined>("local-only");
 
   useEffect(() => {
     if (!api) return;
     api.window.isMaximized().then(setMaximized).catch(() => {});
     const off = api.events.onSyncStatus((status: unknown) => {
-      const s = status as { online?: boolean; pending?: number };
+      const s = status as { online?: boolean; pending?: number; mode?: "local-only" | "offline" | "cloud" };
       if (typeof s?.online === "boolean") setOnline(s.online);
       if (typeof s?.pending === "number") setPending(s.pending);
+      if (s?.mode) setSyncMode(s.mode);
     });
     api.backup.syncStatus().then((res) => {
       if (res.ok && res.data) {
-        const s = res.data as { online?: boolean; pending?: number };
+        const s = res.data as {
+          online?: boolean;
+          pending?: number;
+          mode?: "local-only" | "offline" | "cloud";
+        };
         if (typeof s.online === "boolean") setOnline(s.online);
         if (typeof s.pending === "number") setPending(s.pending);
+        if (s.mode) setSyncMode(s.mode);
       }
     });
     return off;
@@ -60,19 +68,30 @@ export function DesktopTitleBar({ className }: { className?: string }) {
         <span
           className={cn(
             "ml-2 rounded px-1.5 py-0.5 text-[10px]",
-            online ? "bg-emerald-500/20 text-emerald-200" : "bg-amber-500/20 text-amber-100",
+            syncMode === "local-only"
+              ? "bg-emerald-500/20 text-emerald-200"
+              : online
+                ? "bg-emerald-500/20 text-emerald-200"
+                : "bg-amber-500/20 text-amber-100",
           )}
           style={{ WebkitAppRegion: "no-drag" } as CSSProperties}
         >
-          {online ? "Online" : "Offline"}
-          {pending > 0 ? ` · ${pending} pending` : ""}
+          {syncMode === "local-only"
+            ? "Local"
+            : online
+              ? "Online"
+              : "Offline"}
+          {syncMode !== "local-only" && pending > 0 ? ` · ${pending} pending` : ""}
         </span>
       </div>
 
       <div
-        className="flex h-full items-stretch"
+        className="flex h-full items-center gap-1"
         style={{ WebkitAppRegion: "no-drag" } as CSSProperties}
       >
+        <div className="me-1 scale-90 [&_button]:border-emerald-200/25 [&_button]:bg-emerald-400/15 [&_button]:text-emerald-50 [&_button]:hover:bg-emerald-400/25">
+          <SyncStatusIndicator />
+        </div>
         <Popover>
           <PopoverTrigger asChild>
             <TitleBtn aria-label="Keyboard shortcuts">

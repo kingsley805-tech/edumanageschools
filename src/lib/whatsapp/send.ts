@@ -182,9 +182,7 @@ export async function sendFeeReceiptWhatsApp(opts: {
     .maybeSingle();
 
   const paidTime = formatReceiptPaidTime(opts.paidAt);
-  const body = applyWhatsAppTemplate(
-    settings.whatsapp_fee_receipt_template || DEFAULT_TEMPLATES.fee_receipt,
-    {
+  const body = applyWhatsAppTemplate(DEFAULT_TEMPLATES.fee_receipt, {
       school_name: school?.school_name || "School",
       student_name: opts.studentName,
       amount: `${opts.currency} ${opts.amount}`,
@@ -234,9 +232,7 @@ export async function sendFeeNotificationWhatsApp(opts: {
     .eq("id", opts.schoolId)
     .maybeSingle();
 
-  const body = applyWhatsAppTemplate(
-    settings.whatsapp_fee_notification_template || DEFAULT_TEMPLATES.fee_notification,
-    {
+  const body = applyWhatsAppTemplate(DEFAULT_TEMPLATES.fee_notification, {
       school_name: school?.school_name || "School",
       student_name: opts.studentName,
       balance: `${opts.currency} ${opts.balance}`,

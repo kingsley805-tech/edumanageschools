@@ -98,9 +98,26 @@ function createModel(tableName, entityName) {
 
     enqueue(operation, entityId, payload) {
       const db = getConnection();
+      const id = String(entityId);
+      const body = JSON.stringify(payload || {});
+      // Coalesce while offline: one pending row per entity so reconnect doesn't
+      // replay every intermediate edit — only the latest payload is uploaded.
+      const existing = db
+        .prepare(
+          `SELECT id FROM sync_queue WHERE entity = ? AND entity_id = ? AND status = 'pending' LIMIT 1`,
+        )
+        .get(entityName, id);
+      if (existing) {
+        db.prepare(
+          `UPDATE sync_queue
+           SET operation = ?, payload = ?, attempts = 0, last_error = NULL, updated_at = datetime('now')
+           WHERE id = ?`,
+        ).run(operation, body, existing.id);
+        return;
+      }
       db.prepare(
         `INSERT INTO sync_queue (entity, entity_id, operation, payload) VALUES (?, ?, ?, ?)`,
-      ).run(entityName, String(entityId), operation, JSON.stringify(payload || {}));
+      ).run(entityName, id, operation, body);
     },
 
     markSynced(id) {

@@ -19,9 +19,10 @@ All colors MUST be HSL.
          * and the imported Metronic kt-* CSS (also hsl(var(--x))) resolve
          * to the same values.
          */
-        --background: 0 0% 100%;
+        /* Off-white canvas with a subtle lavender tint (#faf8ff) */
+        --background: 255 100% 99%;
         --foreground: 240 10% 4%;
-        --bg: 0 0% 100%;
+        --bg: 255 100% 99%;
         --ink: 240 10% 4%;
         --line: 240 6% 90%;
         --card: 0 0% 100%;
@@ -40,6 +41,7 @@ All colors MUST be HSL.
         --destructive: 0 72% 51%;
         --destructive-foreground: 0 0% 100%;
         --border: 240 6% 90%;
+        --card-border: 240 5% 84%;
         --input: 240 6% 90%;
         --ring: 240 5% 65%;
         /* Metronic semantic extras consumed by the kt-* components */
@@ -124,14 +126,14 @@ All colors MUST be HSL.
         --line-strong: 240 6% 10%;
         --brand: 217 91% 60%;
         --brand-hover: 221 83% 53%;
-        --surface: 0 0% 98%;
+        --surface: 255 40% 98%;
 
         --gradient-hero: linear-gradient(
             135deg,
-            hsl(0 0% 100%),
-            hsl(240 5% 98%)
+            hsl(255 100% 99%),
+            hsl(270 30% 98%)
         );
-        --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(0 0% 98%));
+        --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(255 40% 98%));
         --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
         --shadow-md: 0 2px 6px -1px rgb(0 0 0 / 0.06);
         --shadow-lg: 0 8px 16px -4px rgb(0 0 0 / 0.08);
@@ -192,6 +194,7 @@ All colors MUST be HSL.
         --destructive: 0 72% 51%;
         --destructive-foreground: 0 0% 100%;
         --border: 240 6% 16%;
+        --card-border: 240 5% 24%;
         --input: 240 6% 16%;
         --ring: 240 5% 34%;
         --radius: 0.5rem;
@@ -597,12 +600,12 @@ All colors MUST be HSL.
     }
 
     /* ── Portal shell tokens — Metronic light ─────────────────────────
-       The shell follows the Metronic light theme (white canvas, zinc
-       neutrals, blue-500 primary). Values are written out so a legacy
+       Off-white canvas with a subtle lavender tint (#faf8ff), zinc
+       neutrals, blue-500 primary. Values are written out so a legacy
        tinted theme class on <html> can't leak into the portal. */
     [data-portal-layout],
     [data-portal-layout][class*="portal-accent-"] {
-        --background: 0 0% 100%;
+        --background: 255 100% 99%;
         --foreground: 240 10% 4%;
         --card: 0 0% 100%;
         --card-foreground: 240 10% 4%;
@@ -615,8 +618,9 @@ All colors MUST be HSL.
         --accent: 240 5% 96%;
         --accent-foreground: 240 6% 10%;
         --border: 240 6% 90%;
+        --card-border: 240 5% 84%;
         --input: 240 6% 90%;
-        --surface: 0 0% 98%;
+        --surface: 255 40% 98%;
         --table-head-bg: 240 5% 96%;
         --table-head-fg: 220 13% 26%;
         --table-row-hover: 240 5% 96%;
@@ -657,6 +661,7 @@ All colors MUST be HSL.
         --accent: 240 6% 10%;
         --accent-foreground: 0 0% 98%;
         --border: 240 6% 16%;
+        --card-border: 240 5% 24%;
         --input: 240 6% 16%;
         --surface: 240 6% 10%;
         --table-head-bg: 240 6% 10%;
@@ -955,7 +960,7 @@ All colors MUST be HSL.
     [data-portal-layout] [data-card],
     [data-portal-layout] .portal-panel {
         border-radius: var(--radius-card) !important;
-        border: 1px solid hsl(var(--border)) !important;
+        border: 1px solid hsl(var(--card-border, var(--border))) !important;
         background: hsl(var(--card)) !important;
         box-shadow: var(--shadow-sm) !important;
     }
@@ -1252,22 +1257,22 @@ All colors MUST be HSL.
     [data-portal-layout] .mingo-kpi .sub.up { color: hsl(var(--positive)); }
     [data-portal-layout] .mingo-kpi .sub.down { color: hsl(var(--critical)); }
 
-    /* Borderless cards — TASKER reference: cards sit on the page with a soft
-       shadow and no visible outline. In dark mode the card surface is elevated
-       slightly above the page background so borderless cards still read as
-       separate surfaces. */
+    /* Cards: 1px ash outline on the white surface, matching the KPI reference */
     [data-portal-layout] .kt-card,
     [data-portal-layout] .mingo-kpi,
-    [data-portal-layout] .mingo-panel {
-        border: 0;
+    [data-portal-layout] .mingo-panel,
+    [data-portal-layout] [data-card],
+    [data-portal-layout] .portal-panel {
+        border: 1px solid hsl(var(--card-border, var(--border))) !important;
+        box-shadow: var(--shadow-sm);
     }
     [data-portal-layout] .kt-card {
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 10px -3px rgba(0, 0, 0, 0.08);
+        box-shadow: var(--shadow-sm);
     }
     /* Unify shadcn Card with Metronic kt-card surfaces inside portals */
     [data-portal-layout] [data-card] {
         border-radius: 0.75rem;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 10px -3px rgba(0, 0, 0, 0.08);
+        box-shadow: var(--shadow-sm);
         font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
     }
     [data-portal-layout] [data-card] h3,
@@ -1280,14 +1285,13 @@ All colors MUST be HSL.
     [data-portal-layout] .text-mono {
         font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
     }
-    [data-portal-layout] .mingo-kpi-row .mingo-kpi:nth-child(4n) {
-        border-right: 0;
-    }
     .dark [data-portal-layout] .kt-card,
     .dark [data-portal-layout] .mingo-kpi,
-    .dark [data-portal-layout] .mingo-panel {
+    .dark [data-portal-layout] .mingo-panel,
+    .dark [data-portal-layout] [data-card] {
         background-color: hsl(240 8% 7%);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 18px 36px -24px rgba(0, 0, 0, 0.8);
+        border-color: hsl(var(--card-border, var(--border))) !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
     }
 
     [data-portal-layout] .mingo-grid-2 {
@@ -2459,8 +2463,22 @@ All colors MUST be HSL.
         page-break-inside: avoid;
     }
 
-    body.printing-report main > *:not(:has(.rc-page)) {
+    body.printing-report main > *:not(:has(.rc-page)):not(:has(.ocr-page)) {
         display: none !important;
+    }
+
+    body.printing-overall-class .ocr-page {
+        display: block !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        min-height: 0 !important;
+        height: auto !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: #fff !important;
+        box-shadow: none !important;
     }
 
     body.printing-bulk .bulk-report-stack {
@@ -2488,24 +2506,50 @@ All colors MUST be HSL.
     }
 }
 
-/* Electron desktop shell */
+/* Electron desktop shell
+   Title bar sits outside the portal. Portal/dashboard use h-screen (100vh),
+   which is taller than the remaining area and caused a second outer scrollbar
+   plus clipped content. Constrain heights to the shell content box and keep
+   a single scroll surface (.kt-wrapper). */
+html.electron-desktop,
 html.electron-desktop body {
+    height: 100%;
     overflow: hidden;
 }
 
 html.electron-desktop .electron-shell {
     height: 100vh;
     max-height: 100vh;
+    overflow: hidden;
 }
 
 html.electron-desktop .electron-shell-content {
-    overflow: auto;
-    height: calc(100vh - 2.25rem);
+    flex: 1 1 0;
+    min-height: 0;
+    height: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* Fixed sidebar/header position relative to this pane, not the viewport
+       (so they sit below the custom title bar instead of under it). */
+    transform: translateZ(0);
+    isolation: isolate;
+}
+
+html.electron-desktop [data-portal-layout] {
+    height: 100% !important;
+    max-height: 100% !important;
+    overflow: hidden;
+}
+
+html.electron-desktop [data-portal-layout] .kt-wrapper {
+    height: 100% !important;
+    max-height: 100%;
 }
 
 .electron-titlebar {
     -webkit-app-region: drag;
     app-region: drag;
+    flex-shrink: 0;
 }
 
 /* ═══════════════════════════════════════════════════════════════════

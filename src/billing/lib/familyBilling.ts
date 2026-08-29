@@ -667,9 +667,7 @@ export async function notifyFamilyInvoiceWhatsApp(opts: {
     .maybeSingle();
 
   const childLabel = opts.childNames.join(", ") || "your children";
-  const body = applyWhatsAppTemplate(
-    settings.whatsapp_fee_notification_template || DEFAULT_TEMPLATES.fee_notification,
-    {
+  const body = applyWhatsAppTemplate(DEFAULT_TEMPLATES.fee_notification, {
       school_name: school?.school_name || "School",
       student_name: childLabel,
       balance: formatMoney(opts.total, opts.currency),

@@ -43,11 +43,13 @@ npm run electron:build     # packaged installer
 
 | Variable | Purpose |
 |---|---|
-| `ELECTRON_SYNC_API_URL` | Laravel/compatible sync REST base URL |
+| `NEON_DATABASE_URL` | Neon Postgres connection string for desktop cloud sync (preferred). |
+| `ELECTRON_SYNC_INTERVAL_MS` | Cloud sync interval when Neon/HTTP sync is enabled (default `60000`) |
+| `ELECTRON_SYNC_API_URL` | Optional legacy HTTP sync base URL (unused when Neon is set). |
 | `ELECTRON_DB_ENCRYPTION_KEY` | Optional DB key (SQLCipher-compatible builds) |
 | `ELECTRON_UPDATE_FEED_URL` | Generic auto-update feed |
 | `ELECTRON_SIMULATE_FINGERPRINT=1` | Lab fingerprint simulator |
-| `VITE_DEV_SERVER_URL` | Dev UI URL (default `http://localhost:8080`) |
+| `VITE_DEV_SERVER_URL` | Dev UI URL (default `http://localhost:5173`) |
 
 ## React usage
 
@@ -64,7 +66,7 @@ Web builds are unchanged; the desktop shell only activates when `window.electron
 
 ## Notes
 
-- Offline SQLite stores core entities and a sync queue; changes sync when `ELECTRON_SYNC_API_URL` is reachable.
+- Offline-first: SQLite is always writable. With `NEON_DATABASE_URL`, the desktop queue auto-syncs to Neon when online (last-write-wins). Without it, the app stays in quiet local-only mode.
 - `usb` and `serialport` are regular dependencies (used for barcode/USB device enumeration and serial cash-drawer/printer control). Run `npm run electron:rebuild` after install so their native bindings match Electron's ABI.
 - Vendor fingerprint SDKs plug into `electron/hardware/fingerprint.cjs`.
 

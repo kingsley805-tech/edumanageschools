@@ -7,12 +7,13 @@ import { ShepherdReportCard } from "@/report/components/shepherd-report-card";
 import { useGradingFormat } from "@/report/hooks/use-school-data";
 import { fetchTermReportById, rowToFormWithTermDates, saveTeacherReportEdits } from "@/report/lib/term-report";
 import { teacherReportEditByDefault } from "@/report/lib/report-card-status";
-import { ArrowLeft, Loader2, Pencil, Send } from "lucide-react";
+import { ArrowLeft, Loader2, MessageSquare, Pencil, Send } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useReportCardAutosave } from "@/report/hooks/use-report-card-autosave";
 import type { ReportFormData } from "@/report/lib/shepherd-grading";
 import { toast } from "sonner";
 import { deliverReportToParents } from "@/report/lib/report-delivery";
+import { loadReportCardSmsSettings, sendReportCardSmsForReportId } from "@/report/lib/report-card-sms";
 import { ReportMetaPanel } from "@/report/components/report-meta-panel";
 import { useAuth } from "@/report/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +32,7 @@ function ViewReport() {
   const gradingFormat = useGradingFormat();
   const [form, setForm] = useState<Awaited<ReturnType<typeof rowToFormWithTermDates>> | null>(null);
   const [forwarding, setForwarding] = useState(false);
+  const [smsSending, setSmsSending] = useState(false);
   const [isEditing, setIsEditing] = useState(() => searchWantsEdit(editSearch));
 
   const { data: report, isLoading, refetch } = useQuery({
@@ -41,6 +43,12 @@ function ViewReport() {
       setForm(await rowToFormWithTermDates(row, gradingFormat));
       return row;
     },
+  });
+
+  const { data: smsSettings } = useQuery({
+    queryKey: ["report-card-sms-settings", report?.school_id],
+    enabled: !!report?.school_id,
+    queryFn: () => loadReportCardSmsSettings(report!.school_id),
   });
 
   useEffect(() => {
@@ -76,6 +84,7 @@ function ViewReport() {
       if (!vars?.skipVersion) toast.success("Report saved");
       qc.invalidateQueries({ queryKey: ["term-report", id] });
       qc.invalidateQueries({ queryKey: ["term-reports-history"] });
+      qc.invalidateQueries({ queryKey: ["overall-class-report"] });
       if (!vars?.skipVersion) refetch();
     },
     onError: (e: Error) => toast.error(e.message || "Failed to save"),
@@ -115,6 +124,7 @@ function ViewReport() {
   }
 
   const canForward = report.status === "approved" || report.status === "published";
+  const canSms = canForward && !!smsSettings?.sms_teacher_can_send_report_card;
 
   const handleForward = async () => {
     setForwarding(true);
@@ -127,6 +137,7 @@ function ViewReport() {
         reportId: report.id,
         senderId: user!.id,
         senderRole: "teacher",
+        schoolId: report.school_id,
       });
       refetch();
       if (n === 0) toast.warning("No parents linked to this student yet.");
@@ -135,6 +146,28 @@ function ViewReport() {
       toast.error((e as Error).message || "Failed to forward report.");
     } finally {
       setForwarding(false);
+    }
+  };
+
+  const handleSms = async () => {
+    setSmsSending(true);
+    try {
+      const result = await sendReportCardSmsForReportId({
+        reportId: report.id,
+        senderRole: "teacher",
+        force: true,
+      });
+      if (result.sent > 0) {
+        toast.success(`SMS sent to ${result.sent} parent${result.sent === 1 ? "" : "s"}.`);
+      } else {
+        toast.warning(
+          result.errors[0] || "No SMS sent. Check parent phones, SMS credits, or admin settings.",
+        );
+      }
+    } catch (e) {
+      toast.error((e as Error).message || "Failed to send SMS.");
+    } finally {
+      setSmsSending(false);
     }
   };
 
@@ -178,6 +211,26 @@ function ViewReport() {
             )}
             Forward to parents
           </Button>
+          {smsSettings?.sms_teacher_can_send_report_card && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleSms}
+              disabled={!canSms || smsSending}
+              title={
+                canForward
+                  ? "SMS report card PDF link to linked parents"
+                  : "Available after admin approval"
+              }
+            >
+              {smsSending ? (
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+              ) : (
+                <MessageSquare className="mr-1 h-4 w-4" />
+              )}
+              Send by SMS
+            </Button>
+          )}
         </div>
       </div>
       <PageHeader title={`${report.student_name}`} description={`${report.class_name} · ${report.term_label}`} />

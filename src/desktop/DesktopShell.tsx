@@ -31,10 +31,12 @@ export function DesktopShell({ children }: { children: ReactNode }) {
   if (!desktop) return <>{children}</>;
 
   return (
-    <div className="electron-shell flex min-h-screen flex-col">
+    <div className="electron-shell flex h-screen max-h-screen flex-col overflow-hidden">
       <DesktopTitleBar />
       <DesktopLoadingOverlay />
-      <div className="electron-shell-content relative min-h-0 flex-1">{children}</div>
+      <div className="electron-shell-content relative min-h-0 flex-1 overflow-y-auto">
+        {children}
+      </div>
     </div>
   );
 }

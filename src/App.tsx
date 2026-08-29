@@ -46,10 +46,12 @@ import AdminReportCardsIndex from "@/report/pages/admin/ReportCardsIndex";
 import AdminReportCardsView from "@/report/pages/admin/ReportCardsView";
 import AdminReportCardsArchive from "@/report/pages/admin/ReportCardsArchive";
 import AdminReportCardsVersions from "@/report/pages/admin/ReportCardsVersions";
+import AdminClassReportView from "@/report/pages/admin/ClassReportView";
 import ReportSettings from "@/report/pages/admin/ReportSettings";
 import TeacherReportCardsIndex from "@/report/pages/teacher/ReportCardsIndex";
 import TeacherReportCardsView from "@/report/pages/teacher/ReportCardsView";
 import TeacherReportCardsHistory from "@/report/pages/teacher/ReportCardsHistory";
+import TeacherClassReportHistory from "@/report/pages/teacher/ClassReportHistory";
 import TeacherSignatures from "@/report/pages/teacher/Signatures";
 import TeacherScores from "@/report/pages/teacher/Scores";
 import ParentReports from "@/report/pages/parent/Reports";
@@ -707,6 +709,14 @@ function App() {
                     }
                   />
                   <Route
+                    path="/admin/report-cards/class-view"
+                    element={
+                      <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                        <AdminClassReportView />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
                     path="/admin/report-cards/archive"
                     element={
                       <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
@@ -1019,6 +1029,14 @@ function App() {
                     element={
                       <ProtectedRoute allowedRoles={["teacher"]}>
                         <TeacherReportCardsHistory />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/teacher/report-cards/class-history"
+                    element={
+                      <ProtectedRoute allowedRoles={["teacher"]}>
+                        <TeacherClassReportHistory />
                       </ProtectedRoute>
                     }
                   />

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { getDesktopAPI, isElectronDesktop } from "@/desktop/electronBridge";
 
 export type SignUpMetadata = {
   email: string;
@@ -66,12 +67,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(nextSession);
       setUser(nextSession?.user ?? null);
       setLoading(false);
+      if (isElectronDesktop()) {
+        const api = getDesktopAPI();
+        void api?.backup.setAuthToken(nextSession?.access_token ?? null);
+      }
     });
 
     supabase.auth.getSession().then(({ data: { session: existing } }) => {
       setSession(existing);
       setUser(existing?.user ?? null);
       setLoading(false);
+      if (isElectronDesktop()) {
+        const api = getDesktopAPI();
+        void api?.backup.setAuthToken(existing?.access_token ?? null);
+      }
     });
 
     return () => subscription.unsubscribe();

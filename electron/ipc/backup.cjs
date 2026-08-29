@@ -36,6 +36,13 @@ function registerBackupIpc() {
     "backup:syncLogs",
     wrap(async (_e, limit) => sync.getLogs(limit)),
   );
+  ipcMain.handle(
+    "backup:setAuthToken",
+    wrap(async (_e, token) => {
+      sync.setAuthToken(token);
+      return true;
+    }),
+  );
 }
 
 module.exports = { registerBackupIpc };

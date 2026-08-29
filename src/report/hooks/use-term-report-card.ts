@@ -219,6 +219,8 @@ export function useTermReportCard(opts: UseTermReportCardOpts) {
       qc.invalidateQueries({ queryKey: ["term-reports-history"] });
       qc.invalidateQueries({ queryKey: ["admin-term-reports"] });
       qc.invalidateQueries({ queryKey: ["report-versions", newId ?? reportId] });
+      qc.invalidateQueries({ queryKey: ["overall-class-report"] });
+      qc.invalidateQueries({ queryKey: ["class-term-exportable-reports"] });
       if (opts.classId && opts.termId && formRef.current) {
         const { fetchClassTermReportCount } = await import("@/report/lib/term-report");
         const auto = await fetchClassTermReportCount(opts.classId, opts.termId);

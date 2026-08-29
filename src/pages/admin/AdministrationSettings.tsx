@@ -38,6 +38,12 @@ import {
   saveWhatsAppSchoolSettings,
   type WhatsAppSchoolSettings,
 } from "@/lib/whatsapp";
+import {
+  DEFAULT_SMS_REPORT_CARD_TEMPLATE,
+  loadReportCardSmsSettings,
+  saveReportCardSmsSettings,
+  type ReportCardSmsSettings,
+} from "@/report/lib/report-card-sms";
 import { ALL_PAYMENT_METHODS } from "@/billing/lib/posSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
@@ -53,6 +59,7 @@ import {
   LineChart,
   Loader2,
   MessageCircle,
+  MessageSquare,
   RefreshCw,
   Save,
   Send,
@@ -158,6 +165,13 @@ export default function AdministrationSettings() {
 
   const schoolId = currentSchool?.id ?? null;
   const [settings, setSettings] = useState<WhatsAppSchoolSettings>({ ...DEFAULT_WHATSAPP_SETTINGS });
+  const [smsReportSettings, setSmsReportSettings] = useState<ReportCardSmsSettings>({
+    sms_auto_send_report_card: false,
+    sms_teacher_can_send_report_card: false,
+    sms_report_card_template: DEFAULT_SMS_REPORT_CARD_TEMPLATE,
+    sms_sender_id: "",
+    whatsapp_default_country_code: "233",
+  });
   const [profile, setProfile] = useState<SchoolProfileForm>({
     school_name: "",
     email: "",
@@ -189,8 +203,9 @@ export default function AdministrationSettings() {
     if (!schoolId) return;
     setLoading(true);
     try {
-      const [wa, schoolRes, summarySettings, summaryRows] = await Promise.all([
+      const [wa, smsReport, schoolRes, summarySettings, summaryRows] = await Promise.all([
         loadWhatsAppSchoolSettings(schoolId),
+        loadReportCardSmsSettings(schoolId),
         supabase
           .from("schools")
           .select(
@@ -212,6 +227,7 @@ export default function AdministrationSettings() {
       ]);
 
       setSettings(wa);
+      setSmsReportSettings(smsReport);
 
       if (schoolRes.error) throw schoolRes.error;
       const school = schoolRes.data;
@@ -317,7 +333,12 @@ export default function AdministrationSettings() {
     setSaving(true);
     try {
       await saveWhatsAppSchoolSettings(schoolId, settings);
-      toast.success("WhatsApp & POS settings saved");
+      await saveReportCardSmsSettings(schoolId, {
+        sms_auto_send_report_card: smsReportSettings.sms_auto_send_report_card,
+        sms_teacher_can_send_report_card: smsReportSettings.sms_teacher_can_send_report_card,
+        sms_report_card_template: smsReportSettings.sms_report_card_template,
+      });
+      toast.success("WhatsApp, SMS & POS settings saved");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save settings");
     } finally {
@@ -812,18 +833,11 @@ export default function AdministrationSettings() {
                     <div className="space-y-4">
                       <p className="text-sm font-medium">Message templates</p>
                       <p className="text-xs text-muted-foreground">
-                        Placeholders: {"{school_name}"}, {"{student_name}"}, {"{amount}"}, {"{balance}"},{" "}
-                        {"{invoice_number}"}, {"{method}"}, {"{date}"}, {"{term_label}"}, {"{class_name}"},{" "}
-                        {"{week_label}"}, {"{teacher_name}"}, {"{attention_summary}"}
+                        Fee receipt and fee notification messages use fixed system templates (not
+                        editable here). Customize report card and weekly attention below.
                       </p>
                       {(
                         [
-                          ["whatsapp_fee_receipt_template", "Fee receipt", DEFAULT_TEMPLATES.fee_receipt],
-                          [
-                            "whatsapp_fee_notification_template",
-                            "Fee notification",
-                            DEFAULT_TEMPLATES.fee_notification,
-                          ],
                           ["whatsapp_report_card_template", "Report card", DEFAULT_TEMPLATES.report_card],
                           [
                             "whatsapp_weekly_attention_template",
@@ -842,6 +856,79 @@ export default function AdministrationSettings() {
                           />
                         </div>
                       ))}
+                    </div>
+
+                    <div className="rounded-lg border p-4 space-y-4">
+                      <div className="flex items-start gap-2">
+                        <MessageSquare className="mt-0.5 h-4 w-4 text-primary shrink-0" />
+                        <div>
+                          <p className="font-medium text-sm">SMS Report Card</p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            Send the student&apos;s report card to linked parents by SMS with a PDF
+                            download link (Student name, school name, term, and PDF URL).
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2">
+                        <div>
+                          <p className="text-sm font-medium">Auto-send report card by SMS</p>
+                          <p className="text-xs text-muted-foreground">
+                            When parents are notified (Forward to parents), also SMS the PDF link.
+                          </p>
+                        </div>
+                        <Switch
+                          checked={smsReportSettings.sms_auto_send_report_card}
+                          onCheckedChange={(v) =>
+                            setSmsReportSettings((s) => ({ ...s, sms_auto_send_report_card: v }))
+                          }
+                          disabled={!canManage}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2">
+                        <div>
+                          <p className="text-sm font-medium">Allow teachers to send SMS</p>
+                          <p className="text-xs text-muted-foreground">
+                            Teachers can manually SMS a student&apos;s report card to linked parents.
+                          </p>
+                        </div>
+                        <Switch
+                          checked={smsReportSettings.sms_teacher_can_send_report_card}
+                          onCheckedChange={(v) =>
+                            setSmsReportSettings((s) => ({
+                              ...s,
+                              sms_teacher_can_send_report_card: v,
+                            }))
+                          }
+                          disabled={!canManage}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>SMS template</Label>
+                        <Textarea
+                          rows={3}
+                          value={smsReportSettings.sms_report_card_template}
+                          onChange={(e) =>
+                            setSmsReportSettings((s) => ({
+                              ...s,
+                              sms_report_card_template: e.target.value,
+                            }))
+                          }
+                          disabled={!canManage}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Placeholders: {"{student_name}"}, {"{school_name}"}, {"{term}"},{" "}
+                          {"{pdf_link}"}
+                        </p>
+                      </div>
+
+                      <p className="text-xs text-muted-foreground">
+                        Manual SMS send is available on each report card review page (admin always;
+                        teachers when enabled above). Sender ID uses your Attendance SMS sender
+                        setting.
+                      </p>
                     </div>
 
                     <div className="rounded-lg border p-4">
