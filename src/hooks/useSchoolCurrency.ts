@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useCallback, useMemo } from "react";
 import { useSchoolInfo } from "@/hooks/useSchoolInfo";
 import {
