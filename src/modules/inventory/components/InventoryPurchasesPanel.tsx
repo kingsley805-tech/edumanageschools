@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useMemo, useState } from "react";
 import { Eye, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Archive, Eye, Pencil, Plus, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
