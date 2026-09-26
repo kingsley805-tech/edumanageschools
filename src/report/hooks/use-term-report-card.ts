@@ -177,6 +177,12 @@ export function useTermReportCard(opts: UseTermReportCardOpts) {
         opts.termId || null,
       );
       setForm(withAttendance);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Could not load report card";
+      console.error("[report-card] load failed:", e);
+      setLoadError(message);
+      setForm(null);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -334,6 +340,7 @@ export function useTermReportCard(opts: UseTermReportCardOpts) {
     status,
     version,
     loading,
+    loadError,
     lastSaved: autosave.lastSaved,
     saving: persist.isPending,
     autosavePending: persist.isPending || autosave.autosavePending,
