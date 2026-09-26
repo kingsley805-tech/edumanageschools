@@ -57,19 +57,26 @@ export function useTermReportCard(opts: UseTermReportCardOpts) {
   const [status, setStatus] = useState<ReportCardStatus>("draft");
   const [version, setVersion] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const formRef = useRef<ReportFormData | null>(null);
   formRef.current = form;
 
   const load = useCallback(async (override?: { showPositions?: boolean }) => {
     if (!opts.enabled || !opts.studentId) return;
     setLoading(true);
+    setLoadError(null);
     try {
-      const { data: st } = await supabase
+      const { data: st, error: stErr } = await supabase
         .from("students")
         .select("*")
         .eq("id", opts.studentId)
-        .single();
-      if (!st) return;
+        .maybeSingle();
+      if (stErr) throw stErr;
+      if (!st) {
+        throw new Error(
+          "Student record not found, or you don't have access to this student. Check that the student belongs to the selected class.",
+        );
+      }
 
       const { data: classRow } =
         st.class_id || opts.classId
@@ -81,7 +88,7 @@ export function useTermReportCard(opts: UseTermReportCardOpts) {
           : { data: null };
 
       const { data: term } = opts.termId
-        ? await supabase.from("terms").select("name, session").eq("id", opts.termId).single()
+        ? await supabase.from("terms").select("name, session").eq("id", opts.termId).maybeSingle()
         : { data: null };
       const termDates = opts.termId
         ? await fetchTermReportDates(opts.schoolId, opts.termId)
