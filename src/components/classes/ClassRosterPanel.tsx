@@ -114,10 +114,10 @@ export function ClassRosterPanel({
       const [enrollRes, allStudentsRes, enrolledIdsRes, subjectsRes, assignRes] = await Promise.all([
         supabase
           .from("enrollments")
-          .select(`id, enrolled_on, students(id, admission_no, profiles(full_name, email))`)
+          .select(`id, enrolled_on, students(id, admission_no, profiles!students_profile_id_fkey(full_name, email))`)
           .eq("class_id", classId)
           .eq("status", "active"),
-        supabase.from("students").select(`id, admission_no, profiles(full_name)`).eq("school_id", schoolId),
+        supabase.from("students").select(`id, admission_no, profiles!students_profile_id_fkey(full_name)`).eq("school_id", schoolId),
         supabase.from("enrollments").select("student_id").eq("class_id", classId).eq("status", "active"),
         supabase.from("subjects").select("id, name, code").eq("school_id", schoolId).order("name"),
         supabase

@@ -629,8 +629,34 @@ function TeacherReportCards() {
           <div className="kt-card no-print">
             <div className="flex flex-col items-center px-6 py-16 text-center text-muted-foreground">
               <FileText className="mb-3 h-10 w-10 opacity-40" />
-              <p className="text-sm font-medium text-foreground">No student selected</p>
-              <p className="mt-1 text-xs">Choose a class and student above to open their report card.</p>
+              {studentId && editor.loadError ? (
+                <>
+                  <p className="text-sm font-medium text-foreground">Could not load report card</p>
+                  <p className="mt-1 max-w-md text-xs">{editor.loadError}</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => editor.load({ showPositions: positionsRevealed || isEditing })}
+                    disabled={editor.loading}
+                  >
+                    <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                    Reload
+                  </Button>
+                </>
+              ) : studentId && !term ? (
+                <>
+                  <p className="text-sm font-medium text-foreground">No active term</p>
+                  <p className="mt-1 max-w-md text-xs">
+                    Ask your admin to mark a term as current under Academic Calendar, then reload.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-medium text-foreground">No student selected</p>
+                  <p className="mt-1 text-xs">Choose a class and student above to open their report card.</p>
+                </>
+              )}
             </div>
           </div>
         ) : (

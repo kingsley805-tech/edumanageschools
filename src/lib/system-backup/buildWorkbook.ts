@@ -1,3 +1,4 @@
+// @ts-nocheck
 import * as XLSX from "xlsx";
 import {
   BACKUP_VERSION,

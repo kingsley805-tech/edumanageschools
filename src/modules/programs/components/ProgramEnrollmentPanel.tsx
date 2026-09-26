@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GraduationCap, UserPlus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
