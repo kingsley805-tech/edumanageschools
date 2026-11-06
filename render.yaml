@@ -1,0 +1,79 @@
+# ==============================================================================
+# Render Blueprint Specification (render.yaml)
+# Connect your repository in Render Dashboard -> Blueprints for automatic deployment
+# ==============================================================================
+services:
+  # ----------------------------------------------------------------------------
+  # 1. EduManage Web Frontend (Vite SPA + Nginx)
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: edumanage-web
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    healthCheckPath: /healthz
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: VITE_SUPABASE_PROJECT_ID
+        sync: false
+      - key: VITE_PUBLIC_APP_URL
+        sync: false
+      - key: VITE_GOOGLE_SITE_VERIFICATION
+        sync: false
+    dockerBuildArgs:
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: VITE_SUPABASE_PROJECT_ID
+        sync: false
+      - key: VITE_PUBLIC_APP_URL
+        sync: false
+      - key: VITE_GOOGLE_SITE_VERIFICATION
+        sync: false
+
+  # ----------------------------------------------------------------------------
+  # 2. EduManage AI Voice Gateway (Node.js + WebSockets + Twilio + OpenAI)
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: edumanage-voice-gateway
+    runtime: docker
+    dockerfilePath: ./server/voice-gateway/Dockerfile
+    dockerContext: ./server/voice-gateway
+    plan: starter
+    region: oregon
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: HOST
+        value: 0.0.0.0
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_REALTIME_MODEL
+        value: gpt-4o-realtime-preview
+      - key: OPENAI_VOICE
+        value: alloy
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
+      - key: VOICE_SUPPORT_NUMBER
+        sync: false
+      - key: VOICE_MAX_CALL_DURATION
+        value: "600"
+      - key: VOICE_RECORDING_ENABLED
+        value: "true"

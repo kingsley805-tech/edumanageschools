@@ -1,0 +1,46 @@
+# Git & GitHub
+.git
+.gitignore
+.github
+
+# Logs & debugging
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Node modules & build output
+node_modules
+dist
+dist-ssr
+dist-electron
+
+# Environment & credentials (NEVER bake into Docker images)
+.env
+.env.*
+!.env.example
+
+# Editor & OS files
+.DS_Store
+Thumbs.db
+.idea
+.vscode
+.claude
+.read
+.agents
+
+# Electron & Capacitor native app bundles
+electron/dist
+release
+android
+ios
+.capacitor
+*.keystore
+
+# Documentation & test suites
+docs
+tests
+*.md
+!README.md
