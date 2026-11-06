@@ -1,0 +1,68 @@
+services:
+  web:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
+        VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID}
+        VITE_GOOGLE_SITE_VERIFICATION: ${VITE_GOOGLE_SITE_VERIFICATION:-}
+        VITE_PUBLIC_APP_URL: ${VITE_PUBLIC_APP_URL:-}
+    image: edumanage-web:production
+    container_name: edumanage_web_prod
+    ports:
+      - "${WEB_PORT:-80}:80"
+    environment:
+      - PORT=80
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 128M
+
+  voice-gateway:
+    platform: linux/amd64
+    build:
+      context: ./server/voice-gateway
+      dockerfile: Dockerfile
+    image: edumanage-voice-gateway:production
+    container_name: edumanage_voice_gateway_prod
+    ports:
+      - "${VOICE_GATEWAY_PORT:-8088}:8088"
+    environment:
+      - PORT=8088
+      - HOST=0.0.0.0
+      - SUPABASE_URL=${SUPABASE_URL:-${VITE_SUPABASE_URL}}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_REALTIME_MODEL=${OPENAI_REALTIME_MODEL:-gpt-4o-realtime-preview}
+      - OPENAI_VOICE=${OPENAI_VOICE:-alloy}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
+      - VOICE_SUPPORT_NUMBER=${VOICE_SUPPORT_NUMBER}
+      - VOICE_MAX_CALL_DURATION=${VOICE_MAX_CALL_DURATION:-600}
+      - VOICE_RECORDING_ENABLED=${VOICE_RECORDING_ENABLED:-true}
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.5"
+        reservations:
+          memory: 256M

@@ -3,11 +3,13 @@ export type LogEvent = {
   level: "info" | "warn" | "error" | "debug";
   event: string;
   callSid?: string;
+  streamSid?: string;
   schoolId?: string;
   callId?: string;
   durationMs?: number;
   error?: string;
   data?: Record<string, unknown>;
+  [key: string]: unknown;
 };
 
 export const logger = {
